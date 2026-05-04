@@ -1,75 +1,75 @@
-# Model Eval Harness
+# 模型评测 Harness
 
-Model eval harness 是衡量模型辅助行为的一种可重复方式。当项目依赖 prompt、agent、classifier、retrieval、ranking、generation、code repair、summarization，或者任何模型质量很重要而普通软件测试不够覆盖的工作流时，它会很有用。
+模型评测 harness（model eval harness）是一套可重复流程，用来衡量模型辅助行为的质量。当项目依赖提示词、智能体、分类器、检索、排序、生成、代码修复、摘要，或任何普通软件测试无法充分覆盖的模型能力时，它就很有用。
 
-Execution harness 问的是：软件有没有正确运行？
+执行 harness 问的是：软件有没有正确运行？
 
-Model eval harness 问的是：模型行为在代表性任务上变好了、变差了，还是保持不变？
+模型评测 harness 问的是：模型在代表性任务上的表现是变好了、变差了，还是基本不变？
 
 ## 示例
 
-- 一组用户请求、期望答案和评分 rubric。
-- 比较新旧 prompt 的 prompt regression suite。
-- 衡量 accuracy、pass rate、refusal quality、latency 和 cost 的 baseline-vs-candidate 运行。
-- 在 sandbox 中构建并测试生成 patch 的 code-repair eval。
-- 衡量是否选中了正确文档的 retrieval eval。
-- 列出 regression、improvement 和未解决 residual 的报告。
+- 一组用户请求、期望答案和评分规则。
+- 比较新旧提示词的回归评测集。
+- 衡量准确率、通过率、拒答质量、延迟和成本的基线模型对候选模型运行。
+- 在沙箱中构建并测试生成 patch 的代码修复评测。
+- 衡量是否检索到正确文档的检索评测。
+- 列出回归、改进和未解决残差问题的报告。
 
-## 它放在哪里
+## 在这套结构中的位置
 
 - `memory-bank/product.md` 说明哪些模型辅助行为对产品重要。
-- `memory-bank/architecture.md` 记录 prompt、dataset、grader 和 report 放在哪里。
-- `memory-bank/tech-stack.md` 记录模型服务商、本地 runner、eval 命令、环境变量、成本控制和所需凭据。
-- `memory-bank/milestone.md` 可以把 eval 分数或 regression review 作为 acceptance 的一部分。
-- `evolution/` 记录重大的 prompt、model、architecture 或 benchmark 方向变化。
+- `memory-bank/architecture.md` 记录提示词、数据集、评分器和报告的位置。
+- `memory-bank/tech-stack.md` 记录模型服务商、本地运行器、评测命令、环境变量、成本控制和所需凭据。
+- `memory-bank/milestone.md` 可以把评测分数或回归审查作为验收条件的一部分。
+- `evolution/` 记录重大的提示词、模型、架构或基准方向变化。
 
-## 把 API Loop 变成 Eval
+## 把 API Loop 纳入评测
 
-本仓库包含的 API loop 不会自动成为 model eval harness。只有当你运行受控对比并记录结果时，它才成为其中一部分。
+本仓库包含的 API loop 本身并不会自动变成模型评测 harness。只有当你用它做受控对比，并记录结果时，它才成为评测体系的一部分。
 
-有用的衡量项：
+值得记录的指标包括：
 
-- model name；
-- prompt version；
-- dataset or todo set；
-- pass/fail；
-- number of loop iterations；
-- test results；
-- static analysis results；
-- review findings；
-- human acceptance；
-- cost；
-- latency；
-- regressions introduced；
-- residual failures。
+- 模型名称；
+- 提示词版本；
+- 数据集或待办集合；
+- 通过或失败；
+- 循环次数；
+- 测试结果；
+- 静态分析结果；
+- review 发现；
+- 人工验收结果；
+- 成本；
+- 延迟；
+- 引入的回归；
+- 残留失败。
 
-## Promotion Rules
+## 提升规则
 
-在提升一个新模型、prompt 或 agent workflow 之前，先定义：
+在提升一个新模型、提示词或智能体工作流之前，应先定义：
 
-- baseline model and prompt；
-- candidate model and prompt；
-- dataset or task set；
-- primary metric；
-- allowed regression budget；
-- required deterministic checks；
-- human review requirements；
-- report location。
+- 基线模型和提示词；
+- 候选模型和提示词；
+- 数据集或任务集；
+- 主指标；
+- 允许的回归预算；
+- 必须通过的确定性检查；
+- 人工 review 要求；
+- 报告位置。
 
-Promotion rule 应该足够明确，让 reviewer 能说清楚 candidate 为什么通过或失败。
+提升规则应足够明确，让评审者能说明候选方案为什么通过或失败。
 
-## Reports
+## 报告
 
-Eval report 应该列出：
+评测报告应列出：
 
-- what was run；
-- what changed；
-- aggregate score；
-- improved cases；
-- regressed cases；
-- flaky or inconclusive cases；
-- cost and latency；
-- unresolved residuals；
-- promotion decision。
+- 实际运行了什么；
+- 有哪些变化；
+- 汇总分数；
+- 改进案例；
+- 回归案例；
+- 不稳定或无法判定的案例；
+- 成本和延迟；
+- 未解决的残留问题；
+- 是否提升的决定。
 
-把 report 存在 eval harness 附近，或者放在文档化的 artifact 位置，并从 `evolution/` 链接重要方向变化。
+报告应存放在评测 harness 附近，或存放在文档化的产物位置。重要的方向变化应从 `evolution/` 链接。
