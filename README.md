@@ -38,6 +38,8 @@ Harness references:
 
 ## Set Up A New Project
 
+### Manual
+
 From a new project root:
 
 ```bash
@@ -60,7 +62,47 @@ Then edit the copied files in this order:
 
 Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
 
+### With Help Of An AI Agent
+
+For a new project, you can use the sample files as the initial structure and ask
+an AI agent to fill them in after you describe the product.
+
+Warning: copying these files over an existing project can overwrite files already
+on disk. Make a backup or commit your current work first.
+
+From the new project root:
+
+```bash
+cp /path/to/skills/AGENTS.md .
+cp -R /path/to/skills/memory-bank .
+cp -R /path/to/skills/evolution .
+mkdir -p docs
+```
+
+Then chat with the agent until the product, users, boundaries, commands, and
+first milestone are clear. Ask it to fill in:
+
+- `AGENTS.md`
+- `memory-bank/product.md`
+- `memory-bank/architecture.md`
+- `memory-bank/tech-stack.md`
+- `memory-bank/milestone.md`
+- `memory-bank/status.md`
+- `evolution/prompt-v1.md`
+- `evolution/result-v1.md`
+
+Example prompt:
+
+```text
+Read the sample AGENTS.md, memory-bank/*, and evolution/* files. Based on our
+discussion of this new project, replace the placeholders with accurate project
+content. Keep README user-facing, put long-form references in docs/, and make
+memory-bank/status.md contain the first actionable milestone rows.
+```
+
 ## Set Up An Existing Project
+
+### Manual
 
 For an existing project, read before writing:
 
@@ -81,6 +123,45 @@ Then:
 5. Convert duplicated roadmap/status material into `memory-bank/milestone.md`
    and `memory-bank/status.md`.
 6. Keep known gaps visible in `status.md` instead of hiding them.
+
+### With Help Of An AI Agent
+
+For an existing project, the agent can do the inventory and first memory-bank
+draft. This works best when the project already has useful README, docs, package
+comments, tests, or CI files.
+
+Warning: copying these sample files into an existing project can overwrite
+existing `AGENTS.md`, `memory-bank/`, or `evolution/` files. Commit first, make a
+backup, or copy the samples to a temporary location before asking the agent to
+merge them.
+
+From the existing project root:
+
+```bash
+cp /path/to/skills/AGENTS.md .
+cp -R /path/to/skills/memory-bank .
+cp -R /path/to/skills/evolution .
+mkdir -p docs
+```
+
+Then ask the agent to read the project before writing:
+
+```text
+Read the existing README, docs, package README files, tests, build files, and
+major source directories. Use that actual project content to fill in AGENTS.md,
+memory-bank/*, and evolution/*. Preserve useful existing documentation by moving
+long-form references into docs/. Keep known gaps visible in memory-bank/status.md.
+Do not invent product direction that is not supported by the existing project.
+```
+
+The agent should:
+
+1. Inventory existing markdown and source layout.
+2. Identify commands, dependencies, tests, and harnesses.
+3. Fill in the memory bank from current project reality.
+4. Move or summarize long-form references into `docs/`.
+5. Keep `README.md` simple and user-facing.
+6. Leave unresolved gaps as pending or blocked rows in `memory-bank/status.md`.
 
 ## Use The Memory Bank
 
