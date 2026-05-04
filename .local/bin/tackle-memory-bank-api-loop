@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""
+Run a memory-bank todo loop using a generic OpenAI-compatible Chat Completions
+API. This does not call the Codex CLI and does not read an external prompt file.
+
+The model is controlled through a plain JSON command protocol rather than
+provider-specific tool-calling. That makes it usable with many hosted and local
+LLM servers that implement /v1/chat/completions.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import textwrap
+import time
+import urllib.error
+import urllib.request
+
+
+EMBEDDED_TASK = """\
+# Tackle Next Memory-Bank Todo
+
+Read `AGENTS.md`, then read the memory bank in the order required by
+`AGENTS.md`.
+
+Find the next actionable pending row in `memory-bank/status.md`.
+
+Tackle exactly one row:
+
+- Implement the change.
+- Update relevant memory-bank or docs files.
+- Mark the row complete only when verified.
+- Run the required verification.
+- Commit the change with a scoped commit message.
+
+If completing this row completes a milestone, run the milestone review procedure
+from `memory-bank/milestone.md` before final handoff. Commit review fixes
+separately.
+
+Stop if there is no actionable pending row, if the next row is blocked, or if
+the task is ambiguous enough to require human input.
+"""
+
+
+SYSTEM_PROMPT = """\
+You are an autonomous coding agent running inside a repository.
+
+You do not have direct file access. You can request shell commands by returning
+exactly one JSON object per response.
+
+Command protocol:
+
+To run a shell command:
+{"tool":"run_shell","cmd":"sed -n '1,120p' AGENTS.md","why":"Read the bootstrap guide."}
+
+To finish the current one-row run:
+{"final":"Short summary of what happened."}
+
+Rules:
+
+- Return only one JSON object. Do not wrap it in prose.
+- Prefer small, inspectable commands.
+- Use `rg` before slower search tools.
+- Do not use destructive commands such as `git reset --hard`, `git checkout --`,
+  `git clean -fd`, or broad `rm -rf`.
+- Work on exactly one actionable memory-bank/status.md row.
+- Commit before returning `final` if you changed files.
+- If you cannot proceed safely, return `final` explaining the blocker.
+"""
+
+
+ACTIONABLE_RE = re.compile(r"^\|[^|]+\|\s*`\[(?: |~)\]`\s*\|", re.MULTILINE)
+BLOCKED_RE = re.compile(r"^\|[^|]+\|\s*`\[!\]`\s*\|", re.MULTILINE)
+DANGEROUS_RE = re.compile(
+    r"(?ix)"
+    r"("
+    r"\bgit\s+reset\s+--hard\b|"
+    r"\bgit\s+checkout\s+--\b|"
+    r"\bgit\s+clean\s+-[^\n]*[fd]\b|"
+    r"\brm\s+-[^\n]*r[^\n]*\s+/(?:\s|$)|"
+    r"\bsudo\b|"
+    r"\bmkfs\b|"
+    r"\bdd\s+if=|"
+    r":\s*\(\s*\)\s*\{"
+    r")"
+)
+
+
+def fail(message: str, code: int) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(code)
+
+
+def run_local(cmd: list[str], cwd: pathlib.Path, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+    )
+
+
+def shell_tool(repo: pathlib.Path, cmd: str, timeout: int, max_output: int, allow_dangerous: bool) -> dict:
+    if not allow_dangerous and DANGEROUS_RE.search(cmd):
+        return {
+            "exit_code": 126,
+            "stdout": "",
+            "stderr": "Command rejected by harness safety policy. Set ALLOW_DANGEROUS_COMMANDS=1 to override.",
+        }
+
+    try:
+        proc = subprocess.run(
+            ["bash", "-lc", cmd],
+            cwd=str(repo),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+        )
+        stdout = proc.stdout
+        stderr = proc.stderr
+        truncated = False
+        combined_len = len(stdout) + len(stderr)
+        if combined_len > max_output:
+            keep = max_output // 2
+            stdout = stdout[:keep] + "\n...[stdout truncated]...\n" + stdout[-keep:]
+            stderr = stderr[:keep] + "\n...[stderr truncated]...\n" + stderr[-keep:]
+            truncated = True
+        return {
+            "exit_code": proc.returncode,
+            "stdout": stdout,
+            "stderr": stderr,
+            "truncated": truncated,
+        }
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "exit_code": 124,
+            "stdout": exc.stdout or "",
+            "stderr": f"Command timed out after {timeout}s.\n{exc.stderr or ''}",
+        }
+
+
+def read_status(repo: pathlib.Path) -> str:
+    return (repo / "memory-bank" / "status.md").read_text()
+
+
+def actionable_rows(status: str) -> list[str]:
+    return ACTIONABLE_RE.findall(status)
+
+
+def blocked_rows(status: str) -> list[str]:
+    return BLOCKED_RE.findall(status)
+
+
+def git_clean(repo: pathlib.Path) -> bool:
+    proc = run_local(["git", "status", "--porcelain"], repo)
+    return proc.stdout.strip() == ""
+
+
+def git_status_short(repo: pathlib.Path) -> str:
+    return run_local(["git", "status", "--short"], repo).stdout
+
+
+def git_head(repo: pathlib.Path) -> str:
+    proc = run_local(["git", "rev-parse", "HEAD"], repo)
+    if proc.returncode != 0:
+        fail(proc.stderr.strip() or "Unable to read git HEAD.", 13)
+    return proc.stdout.strip()
+
+
+def extract_json(text: str) -> dict:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, re.DOTALL)
+        if match:
+            stripped = match.group(1)
+
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        match = re.search(r"(\{.*\})", stripped, re.DOTALL)
+        if match:
+            return json.loads(match.group(1))
+        raise
+
+
+def call_llm(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
+    url = api_base.rstrip("/") + "/chat/completions"
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")
+        fail(f"LLM API HTTP {exc.code}: {detail}", 20)
+    except urllib.error.URLError as exc:
+        fail(f"LLM API request failed: {exc}", 21)
+
+    try:
+        return body["choices"][0]["message"]["content"] or ""
+    except (KeyError, IndexError, TypeError):
+        fail("LLM API response did not match Chat Completions shape:\n" + json.dumps(body, indent=2), 22)
+
+
+def initial_user_message(repo: pathlib.Path, run: int, max_runs: int) -> str:
+    status = read_status(repo)
+    excerpt = "\n".join(status.splitlines()[:180])
+    return textwrap.dedent(
+        f"""\
+        Repository: {repo}
+        Run: {run}/{max_runs}
+
+        Embedded instruction:
+
+        {EMBEDDED_TASK}
+
+        Current beginning of memory-bank/status.md:
+
+        ```markdown
+        {excerpt}
+        ```
+
+        Start by reading AGENTS.md and the memory bank. Use the JSON command
+        protocol. Work on exactly one actionable row.
+        """
+    )
+
+
+def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int) -> None:
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": initial_user_message(repo, run, args.max_runs)},
+    ]
+
+    for turn in range(1, args.max_turns + 1):
+        print(f"  LLM turn {turn}/{args.max_turns}")
+        content = call_llm(
+            args.api_base,
+            args.api_key,
+            args.model,
+            messages,
+            args.temperature,
+            args.max_tokens,
+        )
+
+        try:
+            command = extract_json(content)
+        except Exception as exc:
+            messages.append({"role": "assistant", "content": content})
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"Your response was not valid JSON: {exc}. Return exactly one JSON object.",
+                }
+            )
+            continue
+
+        messages.append({"role": "assistant", "content": json.dumps(command)})
+
+        if "final" in command:
+            print(command["final"])
+            return
+
+        if command.get("tool") != "run_shell" or not isinstance(command.get("cmd"), str):
+            messages.append(
+                {
+                    "role": "user",
+                    "content": "Invalid command. Use {\"tool\":\"run_shell\",\"cmd\":\"...\",\"why\":\"...\"} or {\"final\":\"...\"}.",
+                }
+            )
+            continue
+
+        cmd = command["cmd"]
+        why = command.get("why", "")
+        print(f"  shell: {cmd}" + (f"  # {why}" if why else ""))
+        result = shell_tool(repo, cmd, args.tool_timeout, args.max_tool_output, args.allow_dangerous)
+        messages.append(
+            {
+                "role": "user",
+                "content": "Tool result:\n```json\n" + json.dumps(result, ensure_ascii=False, indent=2) + "\n```",
+            }
+        )
+
+    fail(f"Model exceeded max turns ({args.max_turns}) without finishing.", 30)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run memory-bank tasks through a generic OpenAI-compatible LLM API.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent(
+            """\
+            Examples:
+
+              One-row run:
+
+                LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+
+              Loop run:
+
+                LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+
+              OpenRouter-style:
+
+                LLM_API_BASE=https://openrouter.ai/api/v1 \\
+                LLM_API_KEY=... \\
+                LLM_MODEL=openai/gpt-5.5 \\
+                MAX_RUNS=1 tackle-memory-bank-api-loop .
+
+              Local OpenAI-compatible server:
+
+                LLM_API_BASE=http://localhost:1234/v1 \\
+                LLM_MODEL=local-model-name \\
+                MAX_RUNS=1 tackle-memory-bank-api-loop .
+
+            Environment:
+
+              LLM_MODEL or OPENAI_MODEL          Model name.
+              LLM_API_KEY or OPENAI_API_KEY      API key. Optional for local servers.
+              LLM_API_BASE or OPENAI_BASE_URL    API base URL. Default: https://api.openai.com/v1.
+              MAX_RUNS                           Maximum row iterations. Default: 20.
+              MAX_TURNS                          Maximum LLM turns per row. Default: 60.
+              TOOL_TIMEOUT                       Shell command timeout seconds. Default: 300.
+              MAX_TOOL_OUTPUT                    Max shell output returned to model. Default: 24000.
+              LLM_MAX_TOKENS                     Max response tokens. Default: 4096.
+              LLM_TEMPERATURE                    Sampling temperature. Default: 0.2.
+              ALLOW_DANGEROUS_COMMANDS=1         Disable the harness command safety filter.
+            """
+        ),
+    )
+    parser.add_argument("repo", nargs="?", default=".", help="Repository path. Default: current directory.")
+    parser.add_argument("--model", default=os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL"))
+    parser.add_argument("--api-base", default=os.environ.get("LLM_API_BASE") or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1")
+    parser.add_argument("--api-key", default=os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY") or "")
+    parser.add_argument("--max-runs", type=int, default=int(os.environ.get("MAX_RUNS", "20")))
+    parser.add_argument("--max-turns", type=int, default=int(os.environ.get("MAX_TURNS", "60")))
+    parser.add_argument("--tool-timeout", type=int, default=int(os.environ.get("TOOL_TIMEOUT", "300")))
+    parser.add_argument("--max-tool-output", type=int, default=int(os.environ.get("MAX_TOOL_OUTPUT", "24000")))
+    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("LLM_MAX_TOKENS", "4096")))
+    parser.add_argument("--temperature", type=float, default=float(os.environ.get("LLM_TEMPERATURE", "0.2")))
+    parser.add_argument("--allow-dangerous", action="store_true", default=os.environ.get("ALLOW_DANGEROUS_COMMANDS") == "1")
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    if not args.model:
+        fail("Set LLM_MODEL or pass --model.", 2)
+
+    repo = pathlib.Path(args.repo).expanduser().resolve()
+    if not (repo / "AGENTS.md").exists():
+        fail(f"AGENTS.md not found in {repo}", 10)
+    if not (repo / "memory-bank" / "status.md").exists():
+        fail(f"memory-bank/status.md not found in {repo}", 11)
+    if run_local(["git", "rev-parse", "--is-inside-work-tree"], repo).returncode != 0:
+        fail(f"{repo} is not inside a git worktree.", 12)
+
+    print(f"Repo: {repo}")
+    print(f"Model: {args.model}")
+    print(f"API: {args.api_base.rstrip('/')}/chat/completions")
+
+    for run in range(1, args.max_runs + 1):
+        status = read_status(repo)
+        if not actionable_rows(status):
+            print("No actionable memory-bank rows remain.")
+            return
+        blocked = blocked_rows(status)
+        if blocked:
+            print("Blocked memory-bank rows exist. Stopping for human review.", file=sys.stderr)
+            print("\n".join(blocked), file=sys.stderr)
+            raise SystemExit(3)
+        if not git_clean(repo):
+            print("Worktree is dirty before run. Stopping.", file=sys.stderr)
+            print(git_status_short(repo), file=sys.stderr)
+            raise SystemExit(4)
+
+        before = git_head(repo)
+        print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
+        started = time.time()
+        one_agent_run(args, repo, run)
+        print(f"Run duration: {time.time() - started:.1f}s")
+
+        if not git_clean(repo):
+            print("LLM left uncommitted changes. Stopping.", file=sys.stderr)
+            print(git_status_short(repo), file=sys.stderr)
+            raise SystemExit(5)
+
+        after = git_head(repo)
+        if before == after:
+            print("LLM made no commit. Stopping to avoid a spin loop.", file=sys.stderr)
+            raise SystemExit(6)
+
+    print(f"Reached MAX_RUNS={args.max_runs}. Stopping.")
+    raise SystemExit(7)
+
+
+if __name__ == "__main__":
+    main()
