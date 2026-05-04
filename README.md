@@ -165,7 +165,22 @@ The agent should:
 
 ## Use The Memory Bank
 
-The normal agent workflow is:
+With an agent such as Codex or Claude Code, the user-facing workflow can be as
+simple as typing:
+
+```text
+tackle next pending item in memory bank
+```
+
+The agent should find the next actionable row in `memory-bank/status.md`,
+complete that task, run the required verification, update the memory bank, and
+make a scoped git commit. If that row is the last open item in a milestone, the
+agent should run the milestone review from `memory-bank/milestone.md` before
+moving on. During that review it should also decide whether `evolution/` needs a
+new version because the product direction, architecture boundary, milestone
+target, or public/private contract direction materially changed.
+
+Under the surface, the normal agent workflow is:
 
 1. Read `AGENTS.md`.
 2. Read the memory bank files in the order listed by `AGENTS.md`.
@@ -176,6 +191,8 @@ The normal agent workflow is:
 6. Commit the row as a scoped unit.
 7. If a milestone becomes complete, run the milestone review procedure in
    `memory-bank/milestone.md` before moving on.
+8. Check `evolution/` and add a new version only when the review finds a real
+   direction, boundary, milestone, or contract change.
 
 Status rows use these markers:
 
