@@ -13,6 +13,10 @@ system built around:
 The goal is not documentation volume. The goal is to give humans and agents the
 same compact operating manual, then connect that manual to executable harnesses.
 
+Language versions: [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) ·
+[🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) ·
+[🇪🇸 Español](README_es.md).
+
 ## What Is In This Repository
 
 Project-level sample files:
