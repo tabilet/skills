@@ -1,6 +1,6 @@
-# Status
+# Status M1 - [Milestone name]
 
-State of each milestone item. Update as items complete. See
+State of each M1 milestone item. Update as items complete. See
 [`milestone.md`](milestone.md) for definitions.
 
 Status markers:
@@ -18,17 +18,8 @@ change, update the memory bank/docs, and make a scoped `git commit` before
 starting the next row. If multiple rows are inseparable, use one coherent commit
 and name every covered row in the handoff.
 
-## M1 - [Milestone name]
-
 | Item | State | Notes |
 |---|---|---|
 | [Item 1] | `[ ]` | [Notes.] |
 | [Item 2] | `[ ]` | [Notes.] |
 | [Item 3] | `[ ]` | [Notes.] |
-
-## M2 - [Next milestone name]
-
-| Item | State | Notes |
-|---|---|---|
-| [Item 1] | `[ ]` | [Notes.] |
-| [Item 2] | `[ ]` | [Notes.] |

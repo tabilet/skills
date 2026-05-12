@@ -26,7 +26,7 @@ Project-level sample files:
 - [memory-bank/architecture.md](memory-bank/architecture.md)
 - [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
 - [memory-bank/milestone.md](memory-bank/milestone.md)
-- [memory-bank/status.md](memory-bank/status.md)
+- [memory-bank/status-M1.md](memory-bank/status-M1.md)
 - [evolution/prompt-v1.md](evolution/prompt-v1.md)
 - [evolution/result-v1.md](evolution/result-v1.md)
 
@@ -59,7 +59,7 @@ Then edit the copied files in this order:
 2. `memory-bank/architecture.md`: define layout, data flow, and boundaries.
 3. `memory-bank/tech-stack.md`: define commands, dependencies, and harnesses.
 4. `memory-bank/milestone.md`: define the first milestone.
-5. `memory-bank/status.md`: define the first actionable rows.
+5. `memory-bank/status-M1.md`: define the first milestone's actionable rows.
 6. `evolution/prompt-v1.md`: record the initial direction.
 7. `evolution/result-v1.md`: record the current starting state.
 8. `AGENTS.md`: replace placeholders with project-specific commands and rules.
@@ -91,7 +91,7 @@ first milestone are clear. Ask it to fill in:
 - `memory-bank/architecture.md`
 - `memory-bank/tech-stack.md`
 - `memory-bank/milestone.md`
-- `memory-bank/status.md`
+- `memory-bank/status-M1.md`
 - `evolution/prompt-v1.md`
 - `evolution/result-v1.md`
 
@@ -101,7 +101,7 @@ Example prompt:
 Read the sample AGENTS.md, memory-bank/*, and evolution/* files. Based on our
 discussion of this new project, replace the placeholders with accurate project
 content. Keep README user-facing, put long-form references in docs/, and make
-memory-bank/status.md contain the first actionable milestone rows.
+memory-bank/status-M1.md contain the first actionable milestone rows.
 ```
 
 ## Set Up An Existing Project
@@ -125,8 +125,9 @@ Then:
    rewrite.
 4. Move stable long-form references into `docs/`.
 5. Convert duplicated roadmap/status material into `memory-bank/milestone.md`
-   and `memory-bank/status.md`.
-6. Keep known gaps visible in `status.md` instead of hiding them.
+   and one `memory-bank/status-Mx.md` file per milestone `Mx`.
+6. Keep known gaps visible in the matching `status-Mx.md` file instead of
+   hiding them.
 
 ### With Help Of An AI Agent
 
@@ -154,8 +155,9 @@ Then ask the agent to read the project before writing:
 Read the existing README, docs, package README files, tests, build files, and
 major source directories. Use that actual project content to fill in AGENTS.md,
 memory-bank/*, and evolution/*. Preserve useful existing documentation by moving
-long-form references into docs/. Keep known gaps visible in memory-bank/status.md.
-Do not invent product direction that is not supported by the existing project.
+long-form references into docs/. Keep known gaps visible in the matching
+memory-bank/status-Mx.md file. Do not invent product direction that is not
+supported by the existing project.
 ```
 
 The agent should:
@@ -165,7 +167,8 @@ The agent should:
 3. Fill in the memory bank from current project reality.
 4. Move or summarize long-form references into `docs/`.
 5. Keep `README.md` simple and user-facing.
-6. Leave unresolved gaps as pending or blocked rows in `memory-bank/status.md`.
+6. Leave unresolved gaps as pending or blocked rows in the matching
+   `memory-bank/status-Mx.md` file.
 
 ## Use The Memory Bank
 
@@ -176,13 +179,16 @@ simple as typing:
 tackle next pending item in memory bank
 ```
 
-The agent should find the next actionable row in `memory-bank/status.md`,
+The agent should find the next actionable row in the current milestone's
+`memory-bank/status-Mx.md` file,
 complete that task, run the required verification, update the memory bank, and
 make a scoped git commit. If that row is the last open item in a milestone, the
-agent should run the milestone review from `memory-bank/milestone.md` before
-moving on. During that review it should also decide whether `evolution/` needs a
-new version because the product direction, architecture boundary, milestone
-target, or public/private contract direction materially changed.
+agent should run a deep code review of the milestone, run the milestone review
+from `memory-bank/milestone.md`, complete required verification, and make a git
+commit for the milestone changes before moving on. During that review it should
+also decide whether `evolution/` needs a new version because the product
+direction, architecture boundary, milestone target, or public/private contract
+direction materially changed.
 
 Under the surface, the normal agent workflow is:
 
@@ -193,9 +199,12 @@ Under the surface, the normal agent workflow is:
    milestone acceptance, or status changed.
 5. Mark a row `[+]` only after verification passes.
 6. Commit the row as a scoped unit.
-7. If a milestone becomes complete, run the milestone review procedure in
-   `memory-bank/milestone.md` before moving on.
-8. Check `evolution/` and add a new version only when the review finds a real
+7. Keep one `memory-bank/status-Mx.md` file for each milestone `Mx`.
+8. If a milestone becomes complete, run a deep code review and the milestone
+   review procedure in `memory-bank/milestone.md`.
+9. After review and required verification pass, make a git commit for the
+   milestone changes.
+10. Check `evolution/` and add a new version only when the review finds a real
    direction, boundary, milestone, or contract change.
 
 Status rows use these markers:
