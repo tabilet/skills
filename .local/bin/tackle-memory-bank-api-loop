@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """
-Run a memory-bank todo loop using a generic OpenAI-compatible Chat Completions
-API. This does not call the Codex CLI and does not read an external prompt file.
+Run a memory-bank todo loop against a hosted or local LLM. Supports two
+providers via LLM_PROVIDER:
+
+  - openai     : OpenAI-compatible /v1/chat/completions (default). Works with
+                 OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI
+                 shim, and similar.
+  - anthropic  : Anthropic /v1/messages (Claude).
+
+This does not call the Codex CLI and does not read an external prompt file.
 
 The model is controlled through a plain JSON command protocol rather than
-provider-specific tool-calling. That makes it usable with many hosted and local
-LLM servers that implement /v1/chat/completions.
+provider-specific tool-calling, so the same agent loop runs against either
+provider unchanged.
 """
 
 from __future__ import annotations
@@ -192,7 +199,20 @@ def extract_json(text: str) -> dict:
         raise
 
 
-def call_llm(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
+def _post_json(url: str, headers: dict, payload: dict, label: str) -> dict:
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")
+        fail(f"{label} HTTP {exc.code}: {detail}", 20)
+    except urllib.error.URLError as exc:
+        fail(f"{label} request failed: {exc}", 21)
+
+
+def call_openai(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
     url = api_base.rstrip("/") + "/chat/completions"
     payload = {
         "model": model,
@@ -200,25 +220,52 @@ def call_llm(api_base: str, api_key: str, model: str, messages: list[dict], temp
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    data = json.dumps(payload).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", "replace")
-        fail(f"LLM API HTTP {exc.code}: {detail}", 20)
-    except urllib.error.URLError as exc:
-        fail(f"LLM API request failed: {exc}", 21)
-
+    body = _post_json(url, headers, payload, "OpenAI API")
     try:
         return body["choices"][0]["message"]["content"] or ""
     except (KeyError, IndexError, TypeError):
         fail("LLM API response did not match Chat Completions shape:\n" + json.dumps(body, indent=2), 22)
+
+
+def call_anthropic(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
+    url = api_base.rstrip("/") + "/messages"
+    system_parts = [m["content"] for m in messages if m["role"] == "system"]
+    chat = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
+    payload = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": chat,
+    }
+    if system_parts:
+        payload["system"] = "\n\n".join(system_parts)
+
+    headers = {
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+    }
+    if api_key:
+        headers["x-api-key"] = api_key
+
+    body = _post_json(url, headers, payload, "Anthropic API")
+    try:
+        blocks = body["content"]
+        texts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
+        return "".join(texts)
+    except (KeyError, IndexError, TypeError):
+        fail("Anthropic API response did not match Messages shape:\n" + json.dumps(body, indent=2), 22)
+
+
+def call_llm(provider: str, api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
+    if provider == "anthropic":
+        return call_anthropic(api_base, api_key, model, messages, temperature, max_tokens)
+    if provider == "openai":
+        return call_openai(api_base, api_key, model, messages, temperature, max_tokens)
+    fail(f"Unknown LLM provider: {provider!r}. Use 'openai' or 'anthropic'.", 2)
 
 
 def initial_user_message(repo: pathlib.Path, run: int, max_runs: int) -> str:
@@ -254,6 +301,7 @@ def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int) -> Non
     for turn in range(1, args.max_turns + 1):
         print(f"  LLM turn {turn}/{args.max_turns}")
         content = call_llm(
+            args.provider,
             args.api_base,
             args.api_key,
             args.model,
@@ -332,11 +380,23 @@ def parse_args() -> argparse.Namespace:
                 LLM_MODEL=local-model-name \\
                 MAX_RUNS=1 tackle-memory-bank-api-loop .
 
+              Anthropic:
+
+                LLM_PROVIDER=anthropic \\
+                LLM_MODEL=claude-opus-4-7 \\
+                ANTHROPIC_API_KEY=... \\
+                MAX_RUNS=1 tackle-memory-bank-api-loop .
+
             Environment:
 
+              LLM_PROVIDER                       'openai' (default) or 'anthropic'.
               LLM_MODEL or OPENAI_MODEL          Model name.
-              LLM_API_KEY or OPENAI_API_KEY      API key. Optional for local servers.
-              LLM_API_BASE or OPENAI_BASE_URL    API base URL. Default: https://api.openai.com/v1.
+              LLM_API_KEY                        API key (works for any provider).
+              OPENAI_API_KEY                     OpenAI key fallback when provider=openai.
+              ANTHROPIC_API_KEY                  Anthropic key fallback when provider=anthropic.
+              LLM_API_BASE or OPENAI_BASE_URL    API base URL. Defaults:
+                                                   openai     -> https://api.openai.com/v1
+                                                   anthropic  -> https://api.anthropic.com/v1
               MAX_RUNS                           Maximum row iterations. Default: 20.
               MAX_TURNS                          Maximum LLM turns per row. Default: 60.
               TOOL_TIMEOUT                       Shell command timeout seconds. Default: 300.
@@ -348,9 +408,10 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("repo", nargs="?", default=".", help="Repository path. Default: current directory.")
+    parser.add_argument("--provider", default=os.environ.get("LLM_PROVIDER", "openai"), choices=["openai", "anthropic"])
     parser.add_argument("--model", default=os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL"))
-    parser.add_argument("--api-base", default=os.environ.get("LLM_API_BASE") or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1")
-    parser.add_argument("--api-key", default=os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY") or "")
+    parser.add_argument("--api-base", default=os.environ.get("LLM_API_BASE") or os.environ.get("OPENAI_BASE_URL") or "")
+    parser.add_argument("--api-key", default="")
     parser.add_argument("--max-runs", type=int, default=int(os.environ.get("MAX_RUNS", "20")))
     parser.add_argument("--max-turns", type=int, default=int(os.environ.get("MAX_TURNS", "60")))
     parser.add_argument("--tool-timeout", type=int, default=int(os.environ.get("TOOL_TIMEOUT", "300")))
@@ -358,7 +419,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("LLM_MAX_TOKENS", "4096")))
     parser.add_argument("--temperature", type=float, default=float(os.environ.get("LLM_TEMPERATURE", "0.2")))
     parser.add_argument("--allow-dangerous", action="store_true", default=os.environ.get("ALLOW_DANGEROUS_COMMANDS") == "1")
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if not args.api_base:
+        args.api_base = (
+            "https://api.anthropic.com/v1" if args.provider == "anthropic" else "https://api.openai.com/v1"
+        )
+    if not args.api_key:
+        if args.provider == "anthropic":
+            args.api_key = os.environ.get("LLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY") or ""
+        else:
+            args.api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
+
+    return args
 
 
 def main() -> None:
@@ -374,9 +447,11 @@ def main() -> None:
     if run_local(["git", "rev-parse", "--is-inside-work-tree"], repo).returncode != 0:
         fail(f"{repo} is not inside a git worktree.", 12)
 
+    endpoint = "/messages" if args.provider == "anthropic" else "/chat/completions"
     print(f"Repo: {repo}")
+    print(f"Provider: {args.provider}")
     print(f"Model: {args.model}")
-    print(f"API: {args.api_base.rstrip('/')}/chat/completions")
+    print(f"API: {args.api_base.rstrip('/')}{endpoint}")
 
     for run in range(1, args.max_runs + 1):
         status = read_status(repo)

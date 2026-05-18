@@ -260,9 +260,20 @@ MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
 
+Use Anthropic (Claude) instead of the OpenAI-compatible path:
+
+```bash
+LLM_PROVIDER=anthropic \
+LLM_MODEL=claude-opus-4-7 \
+ANTHROPIC_API_KEY=... \
+MAX_RUNS=1 \
+tackle-memory-bank-api-loop .
+```
+
 The harness embeds the task instruction in its API prompt. It does not call the
 Codex CLI, and it does not require the external prompt file at runtime. The
-prompt file is included as a reusable human/agent reference.
+prompt file is included as a reusable human/agent reference. The same JSON
+command protocol drives the agent loop regardless of which provider is used.
 
 ## What The Harness Is
 
