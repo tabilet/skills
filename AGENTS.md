@@ -51,6 +51,9 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
 - [Hard rule 1.]
 - [Hard rule 2.]
 - [Hard rule 3.]
+- Prefer the language's native core/standard library before adding helpers,
+  frameworks, or dependencies. Keep trivial comparisons and transformations
+  inline when that is clearer than introducing a local abstraction.
 - Run the required verification before claiming a change is done.
 
 ## Work Cadence

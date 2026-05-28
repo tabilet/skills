@@ -12,6 +12,15 @@
 | `[dependency]` | `[version]` | [Role.] |
 | `[dependency]` | `[version]` | [Role.] |
 
+## Dependency rules
+
+- Prefer the language's native core/standard library before adding dependencies
+  or project-local helpers. Use core packages and built-ins directly when they
+  fit, and keep trivial comparisons or transformations inline when that is
+  clearer than introducing a wrapper abstraction.
+- Add third-party dependencies only when the core library does not provide a
+  reasonable, maintainable solution for the project requirement.
+
 ## Common commands
 
 ```bash
