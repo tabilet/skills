@@ -77,6 +77,14 @@ It checks the worktree is clean before each run, rejects destructive commands, r
 
 You can use it for one row, for an unattended loop, for evaluations across models and prompts — or not at all. Agents inside Claude Code, Codex, or any IDE can do the same work through their own UI without ever touching the script.
 
+## The goal loop — also optional
+
+One row at a time is the default granularity, and for most work it's the right one. When you do want to run several milestones in a defined order — a release, a migration, a sequence with real dependencies between its parts — `GOAL.md` describes that loop: reconcile before each milestone, implement its task units, verify and deep-review, reconcile the milestones downstream of the one that just closed, then continue or stop.
+
+It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. It is one markdown file, it is invoked rather than always-on, and it introduces no directories, no artifacts, and no commands you have to learn beyond the `/goal` your agent already ships. It carries no project-specific paths or lane names either — it reads those from `AGENTS.md` and the memory bank, which is why the same file works unchanged across projects.
+
+So: three ways to execute, none of them required. Type a request and stay in the loop. Run the script unattended for one row at a time. Or hand over an ordered set of milestones. The memory bank underneath doesn't know or care which you chose — that's the property worth protecting.
+
 ## Under control
 
 The unifying property across every part of this system is that *you* own the files. The harness doesn't gate access to them, doesn't accumulate hidden artifacts on your behalf, doesn't lock you into a vocabulary you'll have to migrate away from later.

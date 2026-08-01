@@ -38,6 +38,7 @@ cd skills
 项目级示例文件：
 
 - [template/AGENTS.md](template/AGENTS.md)
+- [template/GOAL.md](template/GOAL.md)——多里程碑执行协议
 - [template/memory-bank/product.md](template/memory-bank/product.md)
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
@@ -184,6 +185,14 @@ Do not invent product direction that is not supported by the existing project.
 
 ## 使用项目记忆库
 
+围绕项目记忆库执行工作有三种方式，而且都是可选的——项目记忆库本身就是普通 markdown，单独用也成立：
+
+| 执行方式 | 范围 | 需要 |
+|---|---|---|
+| 直接对智能体提出请求 | 一次一条状态行，你在回路里 | 无 |
+| [API harness](#安装-api-harness) | 每次运行一条状态行，无人值守 | Python 3 |
+| [目标循环](#按顺序执行多个里程碑) | 按顺序执行多个里程碑 | 一个 `/goal` 命令 |
+
 使用 Codex 或 Claude Code 这类智能体时，用户侧的操作可以很简单，例如：
 
 ```text
@@ -216,6 +225,28 @@ tackle next pending item in memory bank
 | `[~]` | 进行中 |
 | `[!]` | 被阻塞 |
 | `[X]` | 已取消 |
+
+### 按顺序执行多个里程碑
+
+上面的流程一次推进一条状态行。如果要按既定顺序走完多个里程碑，[GOAL.md](template/GOAL.md) 是可选的一种协议：它在每个里程碑开始前核对依赖，在某个里程碑收尾后核对其下游里程碑，并在缺少决策或授权时停下来而不是猜测。
+
+它是被调用的，不是常驻的。Codex 和 Claude Code 都提供 `/goal` 命令——Claude Code 的版本会跨多轮持续工作，直到目标条件达成——请求里写明文件和顺序：
+
+```text
+/goal
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: M01 -> S01 -> A01?
+COMMIT_POLICY: task
+```
+
+`COMMIT_POLICY` 很关键，而且目标循环是对常规规则的一次有意例外。在这次运行期间，它就是全部的 commit 规则：`AGENTS.md` 里可以写“每条状态行就是一个 commit 单元”，但 `COMMIT_POLICY: none`——也就是该协议的默认值——意味着完全不产生 commit，这是正确行为，而不是冲突。想要照常按行提交时，就写 `task`。优先级依次是请求、`GOAL.md`、`AGENTS.md`，而且只针对 commit，只在这次运行之内。
+
+结尾的 `?` 表示条件里程碑：当其触发条件不存在时跳过，而不是取消。
+
+`GOAL.md` 不包含任何项目专有路径、状态线字母或命令。它从 `AGENTS.md` 和项目记忆库中读取这些内容，因此同一份文件可以原样用于任何复制了它的项目。
+
+没有任何地方要求你使用它。`/goal` 是你的智能体提供的命令，不属于这套 harness——你可以带上自己的协议，或者干脆不用，项目记忆库的行为完全一样。之所以提供 `GOAL.md`，只是因为这类协议写起来比较琐碎，而不是因为这里的任何东西依赖它。如果你有自己的协议，把提到 `GOAL.md` 的两处——`AGENTS.md` 和 `memory-bank/milestone.md`——指向它，或者直接删掉。
 
 ### 填写后的状态文件长什么样
 

@@ -32,6 +32,7 @@ Nada se ejecuta desde el clon en sí. Usted copia archivos hacia fuera: `templat
 Archivos de ejemplo a nivel de proyecto:
 
 - [template/AGENTS.md](template/AGENTS.md)
+- [template/GOAL.md](template/GOAL.md) — el protocolo de ejecución multi-milestone
 - [template/memory-bank/product.md](template/memory-bank/product.md)
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
@@ -178,6 +179,14 @@ El agente debe:
 
 ## Usar el Memory Bank
 
+Hay tres formas de ejecutar trabajo sobre el memory bank, y todas son opcionales: el memory bank es markdown corriente y funciona por sí solo:
+
+| Forma de ejecutar | Alcance | Necesita |
+|---|---|---|
+| Escribirle una petición a su agente | Una fila cada vez, con usted en el bucle | Nada |
+| [El harness API](#instalar-el-api-harness) | Una fila por ejecución, desatendido | Python 3 |
+| [Un bucle de goal](#ejecutar-varios-milestones-en-orden) | Varios milestones en orden | Un comando `/goal` |
+
 Con un agente como Codex o Claude Code, el flujo de trabajo visible para el usuario puede ser tan simple como escribir:
 
 ```text
@@ -210,6 +219,28 @@ Las filas de estado usan estos marcadores:
 | `[~]` | En curso |
 | `[!]` | Bloqueado |
 | `[X]` | Cancelado |
+
+### Ejecutar varios milestones en orden
+
+El flujo anterior avanza una fila cada vez. Para recorrer varios milestones en un orden definido, [GOAL.md](template/GOAL.md) es un protocolo posible para eso: concilia las dependencias antes de cada milestone, concilia los milestones posteriores al que acaba de cerrarse y se detiene en vez de adivinar cuando falta una decisión o una autorización.
+
+Se invoca, no está siempre activo. Codex y Claude Code ofrecen un comando `/goal` —el de Claude Code sigue trabajando entre turnos hasta que se cumple la condición del goal— y la petición nombra el archivo y el orden:
+
+```text
+/goal
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: M01 -> S01 -> A01?
+COMMIT_POLICY: task
+```
+
+`COMMIT_POLICY` importa, y un bucle de goal es una excepción deliberada a la regla habitual. Durante esa ejecución es toda la regla de commits: `AGENTS.md` puede decir que cada fila de estado es una unidad de commit, pero `COMMIT_POLICY: none` —el valor por defecto del protocolo— significa ningún commit en absoluto, y eso es el comportamiento correcto, no un conflicto. Escriba `task` cuando quiera los commits por fila de siempre. La precedencia es la petición, luego `GOAL.md`, luego `AGENTS.md`, y solo para los commits, y solo dentro de la ejecución.
+
+Una `?` final marca un milestone como condicional: se omite, no se cancela, cuando falta su disparador documentado.
+
+`GOAL.md` no lleva rutas, letras de carril ni comandos propios de un proyecto. Los lee de `AGENTS.md` y del memory bank, así que el mismo archivo sirve sin cambios en cualquier proyecto que lo copie.
+
+Nada le obliga a usarlo. `/goal` es el comando de su agente, no de este harness: traiga su propio protocolo, o ninguno, y el memory bank se comporta igual. `GOAL.md` se incluye porque escribir uno de estos es engorroso, no porque algo de aquí dependa de él. Si tiene el suyo, apunte a él las dos menciones de `GOAL.md` —en `AGENTS.md` y `memory-bank/milestone.md`— o bórrelas.
 
 ### Cómo se ve un archivo de estado completado
 

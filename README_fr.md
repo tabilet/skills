@@ -32,6 +32,7 @@ Rien ne s’exécute depuis le clone lui-même. Vous en copiez des fichiers : `t
 Fichiers d’exemple au niveau du projet :
 
 - [template/AGENTS.md](template/AGENTS.md)
+- [template/GOAL.md](template/GOAL.md) — le protocole d’exécution multi-milestones
 - [template/memory-bank/product.md](template/memory-bank/product.md)
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
@@ -178,6 +179,14 @@ L’agent doit :
 
 ## Utiliser la Memory Bank
 
+Il y a trois façons d’exécuter du travail sur la memory bank, toutes optionnelles — la memory bank est du markdown ordinaire et fonctionne seule :
+
+| Façon d’exécuter | Portée | Nécessite |
+|---|---|---|
+| Taper une demande à votre agent | Une ligne à la fois, vous dans la boucle | Rien |
+| [Le harness API](#installer-le-harness-api) | Une ligne par exécution, sans surveillance | Python 3 |
+| [Une boucle de goal](#exécuter-plusieurs-milestones-dans-lordre) | Plusieurs milestones dans l’ordre | Une commande `/goal` |
+
 Avec un agent comme Codex ou Claude Code, le workflow côté utilisateur peut être aussi simple que de taper :
 
 ```text
@@ -210,6 +219,28 @@ Les lignes de statut utilisent ces marqueurs :
 | `[~]` | En cours |
 | `[!]` | Bloqué |
 | `[X]` | Annulé |
+
+### Exécuter plusieurs milestones dans l’ordre
+
+Le flux ci-dessus avance une ligne à la fois. Pour traiter plusieurs milestones dans un ordre défini, [GOAL.md](template/GOAL.md) est un protocole possible pour cela : il réconcilie les dépendances avant chaque milestone, réconcilie les milestones en aval de celui qui vient de se clore, et s’arrête au lieu de deviner quand une décision ou une autorisation manque.
+
+Il s’invoque, il n’est pas permanent. Codex et Claude Code proposent tous deux une commande `/goal` — celle de Claude Code continue de travailler d’un tour à l’autre jusqu’à ce que la condition du goal soit remplie — et la demande nomme le fichier et l’ordre :
+
+```text
+/goal
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: M01 -> S01 -> A01?
+COMMIT_POLICY: task
+```
+
+`COMMIT_POLICY` compte, et une boucle de goal est une exception délibérée à la règle habituelle. Le temps de l’exécution, c’est toute la règle de commit : `AGENTS.md` a beau dire que chaque ligne de statut est une unité de commit, `COMMIT_POLICY: none` — la valeur par défaut du protocole — signifie aucun commit du tout, et c’est le comportement correct, pas un conflit. Écrivez `task` pour retrouver les commits par ligne. L’ordre de priorité est la demande, puis `GOAL.md`, puis `AGENTS.md` — et seulement pour les commits, et seulement pendant l’exécution.
+
+Un `?` final marque un milestone conditionnel : il est ignoré, pas annulé, quand son déclencheur documenté est absent.
+
+`GOAL.md` ne contient aucun chemin, aucune lettre de voie ni aucune commande propres à un projet. Il les lit depuis `AGENTS.md` et la memory bank, ce qui permet au même fichier de fonctionner tel quel dans tout projet qui le copie.
+
+Rien ne vous oblige à l’utiliser. `/goal` est la commande de votre agent, pas celle de ce harness : apportez votre propre protocole, ou aucun, la memory bank se comporte exactement pareil. `GOAL.md` est fourni parce qu’écrire ce genre de protocole est fastidieux, pas parce que quoi que ce soit ici en dépend. Si vous avez le vôtre, faites pointer dessus les deux mentions de `GOAL.md` — dans `AGENTS.md` et `memory-bank/milestone.md` — ou supprimez-les.
 
 ### À quoi ressemble un fichier de statut rempli
 

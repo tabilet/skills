@@ -48,6 +48,7 @@ Project-level sample files in [template/](template/), copied into a project
 root:
 
 - [template/AGENTS.md](template/AGENTS.md)
+- [template/GOAL.md](template/GOAL.md) — the multi-milestone execution protocol
 - [template/memory-bank/product.md](template/memory-bank/product.md)
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
@@ -217,6 +218,15 @@ The agent should:
 
 ## Use The Memory Bank
 
+There are three ways to execute against the memory bank, and all of them are
+optional — the memory bank is plain markdown and works on its own:
+
+| Way to execute | Scope | Needs |
+|---|---|---|
+| Type a request to your agent | One row at a time, you in the loop | Nothing |
+| [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3 |
+| [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | A `/goal` command |
+
 With an agent such as Codex or Claude Code, the user-facing workflow can be as
 simple as typing:
 
@@ -271,6 +281,48 @@ Status rows use these markers:
 | `[~]` | In progress |
 | `[!]` | Blocked |
 | `[X]` | Cancelled |
+
+### Run an ordered set of milestones
+
+The workflow above advances one row at a time. To work through several
+milestones in a defined order, [GOAL.md](template/GOAL.md) is one protocol for
+that: it reconciles dependencies before each milestone, reconciles the
+milestones downstream of one that just closed, and stops rather than guessing
+when a decision or authority is missing.
+
+It is invoked, not ambient. Both Codex and Claude Code provide a `/goal`
+command — Claude Code's keeps working across turns until the goal's condition is
+met — and the request names the file and the order:
+
+```text
+/goal
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: M01 -> S01 -> A01?
+COMMIT_POLICY: task
+```
+
+`COMMIT_POLICY` matters, and a goal run is a deliberate exception to the usual
+rule. For the length of the run it is the entire commit rule: `AGENTS.md` may say
+each status row is a commit unit, but `COMMIT_POLICY: none` — the protocol's
+default — means no commits at all, and that is correct behavior rather than a
+conflict. Say `task` when you want the usual per-row commits. Precedence runs
+request, then `GOAL.md`, then `AGENTS.md`, and only for commits, and only inside
+the run.
+
+A trailing `?` marks a milestone conditional: it is skipped, not cancelled, when
+its documented trigger is absent.
+
+`GOAL.md` carries no project-specific paths, lane letters, or commands. It
+discovers those from `AGENTS.md` and the memory bank, so the same file works
+unchanged in every project that copies it.
+
+Nothing requires you to use it. `/goal` is your agent's command, not this
+harness's — bring your own protocol, or none at all, and the memory bank behaves
+exactly the same. `GOAL.md` is offered because writing one of these is fiddly,
+not because anything here depends on it. If you have your own, point the two
+`GOAL.md` mentions — in `AGENTS.md` and `memory-bank/milestone.md` — at it, or
+delete them.
 
 ### What a filled-in status file looks like
 

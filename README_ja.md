@@ -32,6 +32,7 @@ clone 自体で何かを実行することはありません。中からファ�
 プロジェクトレベルのサンプルファイル:
 
 - [template/AGENTS.md](template/AGENTS.md)
+- [template/GOAL.md](template/GOAL.md) — 複数 milestone の実行プロトコル
 - [template/memory-bank/product.md](template/memory-bank/product.md)
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
@@ -178,6 +179,14 @@ Do not invent product direction that is not supported by the existing project.
 
 ## Memory Bank を使う
 
+memory bank に対して作業を進める方法は 3 つあり、どれも任意です。memory bank 自体はただの markdown なので、単独でも成立します。
+
+| 実行方法 | 範囲 | 必要なもの |
+|---|---|---|
+| エージェントに依頼を打つ | 1 行ずつ、あなたがループの中にいる | なし |
+| [API harness](#api-harness-をインストールする) | 1 回の実行につき 1 行、無人 | Python 3 |
+| [ゴールループ](#複数の-milestone-を順番に実行する) | 複数の milestone を順番に | `/goal` コマンド |
+
 Codex や Claude Code のようなエージェントでは、ユーザー側のワークフローは次のように入力するだけで済みます。
 
 ```text
@@ -210,6 +219,28 @@ Status 行は次のマーカーを使います。
 | `[~]` | 進行中 |
 | `[!]` | ブロック中 |
 | `[X]` | キャンセル済み |
+
+### 複数の milestone を順番に実行する
+
+上のワークフローは 1 行ずつ進みます。決められた順序で複数の milestone を消化したい場合は、[GOAL.md](template/GOAL.md) はそのための protocol の一つです。各 milestone の開始前に依存関係を照合し、閉じた milestone の下流を照合し、判断や権限が足りないときは推測せず停止します。
+
+常駐ではなく、呼び出して使います。Codex にも Claude Code にも `/goal` コマンドがあり（Claude Code のものは goal の条件が満たされるまでターンをまたいで動き続けます）、リクエストでファイルと順序を指定します。
+
+```text
+/goal
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: M01 -> S01 -> A01?
+COMMIT_POLICY: task
+```
+
+`COMMIT_POLICY` は重要で、ゴールループは通常の規則に対する意図的な例外です。その実行のあいだ、これが commit 規則のすべてになります。`AGENTS.md` が「1 行が 1 commit 単位」と書いていても、`COMMIT_POLICY: none`——この protocol の既定値——は commit を一切作らないという意味であり、これは矛盾ではなく正しい挙動です。通常どおり行ごとに commit したいときは `task` と書きます。優先順位はリクエスト、`GOAL.md`、`AGENTS.md` の順で、commit にだけ、その実行の中でだけ適用されます。
+
+末尾の `?` は条件付きを表し、トリガーがなければ cancel ではなく skip されます。
+
+`GOAL.md` にはプロジェクト固有のパス、レーン文字、コマンドは含まれません。それらは `AGENTS.md` と memory bank から読み取るため、コピーしたどのプロジェクトでも同じファイルがそのまま使えます。
+
+使うことを求めてはいません。`/goal` はあなたのエージェントのコマンドであって、この harness のものではありません。自前の protocol を持ち込んでも、何も使わなくても、memory bank のふるまいは変わりません。`GOAL.md` を同梱しているのは、この種の protocol を書くのが面倒だからであって、ここにある何かがそれに依存しているからではありません。自前のものがあるなら、`GOAL.md` に触れている 2 か所——`AGENTS.md` と `memory-bank/milestone.md`——をそちらに向けるか、削除してください。
 
 ### 記入後の status ファイルの例
 

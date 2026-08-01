@@ -32,6 +32,7 @@ Aus dem Klon selbst wird nichts ausgeführt. Sie kopieren Dateien heraus: `templ
 Projektweite Beispieldateien:
 
 - [template/AGENTS.md](template/AGENTS.md)
+- [template/GOAL.md](template/GOAL.md) — das Protokoll für mehrere Milestones
 - [template/memory-bank/product.md](template/memory-bank/product.md)
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
@@ -178,6 +179,14 @@ Der Agent sollte:
 
 ## Die Memory Bank verwenden
 
+Es gibt drei Wege, gegen die Memory Bank zu arbeiten, und alle sind optional — die Memory Bank ist reines Markdown und funktioniert für sich allein:
+
+| Ausführungsweg | Umfang | Braucht |
+|---|---|---|
+| Dem Agenten eine Anfrage tippen | Eine Zeile nach der anderen, Sie in der Schleife | Nichts |
+| [Der API-Harness](#den-api-harness-installieren) | Eine Zeile pro Lauf, unbeaufsichtigt | Python 3 |
+| [Eine Goal-Schleife](#mehrere-milestones-der-reihe-nach-abarbeiten) | Mehrere Milestones der Reihe nach | Ein `/goal`-Befehl |
+
 Mit einem Agenten wie Codex oder Claude Code kann der benutzerseitige Ablauf so einfach sein wie:
 
 ```text
@@ -210,6 +219,28 @@ Statuszeilen verwenden diese Marker:
 | `[~]` | In Arbeit |
 | `[!]` | Blockiert |
 | `[X]` | Abgebrochen |
+
+### Mehrere Milestones der Reihe nach abarbeiten
+
+Der Workflow oben rückt eine Zeile nach der anderen vor. Um mehrere Milestones in einer festgelegten Reihenfolge abzuarbeiten, ist [GOAL.md](template/GOAL.md) ein mögliches Protokoll dafür: Es gleicht vor jedem Milestone die Abhängigkeiten ab, gleicht nach dem Abschluss eines Milestones dessen nachgelagerte Milestones ab und hält an, statt zu raten, wenn eine Entscheidung oder Befugnis fehlt.
+
+Es wird aufgerufen, nicht dauerhaft geladen. Codex und Claude Code haben beide einen `/goal`-Befehl — der von Claude Code arbeitet über Turns hinweg weiter, bis die Bedingung des Goals erfüllt ist — und die Anfrage nennt Datei und Reihenfolge:
+
+```text
+/goal
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: M01 -> S01 -> A01?
+COMMIT_POLICY: task
+```
+
+`COMMIT_POLICY` ist wichtig, und ein Goal-Lauf ist eine bewusste Ausnahme von der sonstigen Regel. Für die Dauer des Laufs ist es die gesamte Commit-Regel: In `AGENTS.md` mag stehen, dass jede Statuszeile eine Commit-Einheit ist, aber `COMMIT_POLICY: none` — die Vorgabe des Protokolls — bedeutet gar keine Commits, und das ist korrektes Verhalten, kein Konflikt. Schreiben Sie `task`, wenn Sie die üblichen Commits pro Zeile wollen. Die Reihenfolge ist Anfrage, dann `GOAL.md`, dann `AGENTS.md` — und nur für Commits, und nur innerhalb des Laufs.
+
+Ein angehängtes `?` markiert einen Milestone als bedingt: Er wird übersprungen, nicht abgebrochen, wenn sein dokumentierter Auslöser fehlt.
+
+`GOAL.md` enthält keine projektspezifischen Pfade, Lane-Buchstaben oder Befehle. Es liest sie aus `AGENTS.md` und der Memory Bank, weshalb dieselbe Datei unverändert in jedem Projekt funktioniert, das sie kopiert.
+
+Nichts verlangt, dass Sie es verwenden. `/goal` ist der Befehl Ihres Agenten, nicht der dieses Harness — bringen Sie Ihr eigenes Protokoll mit oder gar keines, die Memory Bank verhält sich genau gleich. `GOAL.md` liegt bei, weil so ein Protokoll mühsam zu schreiben ist, nicht weil hier irgendetwas davon abhinge. Wenn Sie ein eigenes haben, richten Sie die beiden `GOAL.md`-Erwähnungen — in `AGENTS.md` und `memory-bank/milestone.md` — darauf aus oder löschen Sie sie.
 
 ### Wie eine ausgefüllte Statusdatei aussieht
 
