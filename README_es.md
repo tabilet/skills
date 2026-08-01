@@ -274,6 +274,22 @@ tackle-memory-bank-api-loop .
 
 El harness incrusta la instrucción de la tarea en su prompt API. No llama a Codex CLI y no requiere el archivo externo de prompt en tiempo de ejecución. El archivo de prompt se incluye como referencia reutilizable para personas y agentes.
 
+### Primera ejecución
+
+Una ejecución imprime primero el repositorio, el proveedor, el modelo y el endpoint de la API, y luego trabaja una fila:
+
+```text
+Repo: /path/to/your-project
+Provider: anthropic
+Model: claude-opus-5
+API: https://api.anthropic.com/v1/messages
+Run 1/1: asking LLM to tackle one row.
+  LLM turn 1/60
+  shell: sed -n '1,120p' AGENTS.md  # Read the bootstrap guide.
+```
+
+El harness se detiene pronto a propósito, y su código de salida dice por qué. Del `3` al `7` son condiciones de parada normales, no fallos: `4` significa que el worktree no estaba limpio antes de la ejecución, y `6` que el agente terminó sin hacer commit. `11` significa que no encontró archivos `status-<LANE><NN>.md`, lo que suele indicar que el memory bank aún no se ha completado. La tabla completa está en [Harness de ejecución](docs/EXECUTION_es.md#códigos-de-salida).
+
 ## Qué es el harness
 
 Para trabajo normal de proyecto, `tackle-memory-bank-api-loop` es un harness de ejecución: ejecuta repetidamente un agente contra un repositorio, le da acceso shell mediante un protocolo de comandos controlado y comprueba el estado git entre ejecuciones.

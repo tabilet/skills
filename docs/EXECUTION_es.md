@@ -38,6 +38,30 @@ Hace lo siguiente:
 - se detiene si el modelo no crea ningún commit,
 - limita el número de iteraciones del bucle.
 
+### Códigos de salida
+
+El harness señala cada resultado con su código de salida. Los códigos `3` a `7` son condiciones de parada normales, no fallos: el bucle devolvió el control a una persona a propósito.
+
+| Código | Significado |
+|---|---|
+| `0` | Il ne reste aucune ligne actionnable. Rien à faire. |
+| `2` | `LLM_MODEL` non défini, ou `LLM_PROVIDER` n’est ni `openai` ni `anthropic`. |
+| `3` | Il ne reste que des lignes bloquées. Un humain doit les débloquer. |
+| `4` | Le worktree n’était pas propre avant l’exécution. Committez ou stashez d’abord. |
+| `5` | L’agent a laissé des modifications non commitées. |
+| `6` | L’agent n’a créé aucun commit. Évite une boucle à vide. |
+| `7` | `MAX_RUNS` a été atteint. |
+| `10` | Pas de `AGENTS.md` dans le dépôt cible. |
+| `11` | Pas de `memory-bank/`, ou aucun fichier `status-<LANE><NN>.md` dedans. |
+| `12` | Le chemin cible n’est pas dans un worktree git. |
+| `13` | Impossible de lire le `HEAD` git. |
+| `20` | L’API a renvoyé une erreur HTTP. |
+| `21` | L’API était injoignable. |
+| `22` | La réponse de l’API ne correspondait pas à la forme attendue. |
+| `30` | Le modèle a épuisé `MAX_TURNS` sans terminer une ligne. |
+
+Los códigos `10` a `13` significan que el repositorio de destino aún no está preparado. Los `20` a `22` son problemas del proveedor o de red, no del proyecto.
+
 ## Servicios respaldados por Docker
 
 Para pruebas que necesitan servicios como MySQL o PostgreSQL, prefiera contenedores desechables en vez de instalaciones locales obligatorias.

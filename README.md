@@ -353,6 +353,28 @@ Codex CLI, and it does not require the external prompt file at runtime. The
 prompt file is included as a reusable human/agent reference. The same JSON
 command protocol drives the agent loop regardless of which provider is used.
 
+### First run
+
+A run starts by printing the repository, provider, model, and API endpoint, then
+works one row:
+
+```text
+Repo: /path/to/your-project
+Provider: anthropic
+Model: claude-opus-5
+API: https://api.anthropic.com/v1/messages
+Run 1/1: asking LLM to tackle one row.
+  LLM turn 1/60
+  shell: sed -n '1,120p' AGENTS.md  # Read the bootstrap guide.
+```
+
+The harness stops early on purpose, and its exit code says why. `3` through `7`
+are normal stopping conditions rather than failures — for example `4` means the
+worktree was dirty before the run, and `6` means the agent finished without
+committing. `11` means it found no `status-<LANE><NN>.md` files, which usually
+means the memory bank has not been filled in yet. The full table is in
+[Execution Harness](docs/EXECUTION.md#exit-codes).
+
 ## What The Harness Is
 
 For normal project work, `tackle-memory-bank-api-loop` is an execution harness:

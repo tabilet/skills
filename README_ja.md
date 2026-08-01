@@ -274,6 +274,22 @@ tackle-memory-bank-api-loop .
 
 この harness はタスク指示を API prompt に埋め込みます。Codex CLI は呼び出さず、実行時に外部 prompt ファイルも必要としません。prompt ファイルは、人間とエージェントが再利用できる参考として含まれています。
 
+### 最初の実行
+
+実行はまずリポジトリ、プロバイダー、モデル、API エンドポイントを表示し、それから 1 行の作業に取りかかります。
+
+```text
+Repo: /path/to/your-project
+Provider: anthropic
+Model: claude-opus-5
+API: https://api.anthropic.com/v1/messages
+Run 1/1: asking LLM to tackle one row.
+  LLM turn 1/60
+  shell: sed -n '1,120p' AGENTS.md  # Read the bootstrap guide.
+```
+
+harness は意図的に早く停止し、その理由は終了コードが示します。`3` から `7` は失敗ではなく正常な停止条件です。たとえば `4` は実行前に worktree が clean でなかったこと、`6` はエージェントが commit せずに終わったことを表します。`11` は `status-<LANE><NN>.md` ファイルが見つからないという意味で、通常は memory bank がまだ記入されていないことを示します。一覧は[実行 Harness](docs/EXECUTION_ja.md#終了コード)にあります。
+
 ## この Harness の意味
 
 通常のプロジェクト作業では、`tackle-memory-bank-api-loop` は実行 harness です。リポジトリに対してエージェントを繰り返し実行し、制御されたコマンドプロトコルで shell アクセスを与え、実行間の git 状態を確認します。

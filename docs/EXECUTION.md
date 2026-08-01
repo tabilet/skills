@@ -50,6 +50,33 @@ It:
 - stops if the model makes no commit,
 - limits the number of loop iterations.
 
+### Exit Codes
+
+The harness signals every outcome through its exit code. Codes 3 through 7 are
+normal stopping conditions, not crashes: they mean the loop deliberately handed
+control back to a human.
+
+| Code | Meaning |
+|---|---|
+| `0` | No actionable rows remain. Nothing to do. |
+| `2` | `LLM_MODEL` is unset, or `LLM_PROVIDER` is not `openai`/`anthropic`. |
+| `3` | Only blocked rows remain. A human needs to unblock them. |
+| `4` | The worktree was dirty before a run. Commit or stash first. |
+| `5` | The agent left uncommitted changes. |
+| `6` | The agent made no commit. Stops a spin loop. |
+| `7` | `MAX_RUNS` was reached. |
+| `10` | No `AGENTS.md` in the target repository. |
+| `11` | No `memory-bank/`, or no `status-<LANE><NN>.md` lane files in it. |
+| `12` | The target path is not inside a git worktree. |
+| `13` | Git `HEAD` could not be read. |
+| `20` | The API returned an HTTP error. |
+| `21` | The API could not be reached. |
+| `22` | The API response did not match the expected shape. |
+| `30` | The model used `MAX_TURNS` without finishing a row. |
+
+Codes `10` through `13` mean the target repository is not set up yet. Codes
+`20` through `22` are provider or network problems, not project problems.
+
 ## Docker-Backed Services
 
 For tests that need services such as MySQL or PostgreSQL, prefer disposable

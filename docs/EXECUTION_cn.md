@@ -38,6 +38,30 @@ Markdown 本身不负责执行 harness。Markdown 的作用是说明如何运行
 - 如果模型没有产生 commit，则停止；
 - 限制循环运行次数。
 
+### 退出码
+
+harness 通过退出码表达每一种结果。`3` 到 `7` 是正常的停止条件，而不是崩溃：它们表示循环有意把控制权交回给人。
+
+| 退出码 | 含义 |
+|---|---|
+| `0` | No actionable rows remain. Nothing to do. |
+| `2` | `LLM_MODEL` unset, or `LLM_PROVIDER` is not `openai`/`anthropic`. |
+| `3` | Only blocked rows remain. A human needs to unblock them. |
+| `4` | The worktree was dirty before a run. Commit or stash first. |
+| `5` | The agent left uncommitted changes. |
+| `6` | The agent made no commit. Stops a spin loop. |
+| `7` | `MAX_RUNS` was reached. |
+| `10` | No `AGENTS.md` in the target repository. |
+| `11` | No `memory-bank/`, or no `status-<LANE><NN>.md` lane files in it. |
+| `12` | The target path is not inside a git worktree. |
+| `13` | Git `HEAD` could not be read. |
+| `20` | The API returned an HTTP error. |
+| `21` | The API could not be reached. |
+| `22` | The API response did not match the expected shape. |
+| `30` | The model used `MAX_TURNS` without finishing a row. |
+
+`10` 到 `13` 表示目标仓库尚未准备好。`20` 到 `22` 是提供方或网络问题，不是项目问题。
+
 ## Docker 支持的服务
 
 如果测试需要 MySQL 或 PostgreSQL 等服务，优先使用一次性容器，而不是要求开发者在本机安装服务。

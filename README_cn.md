@@ -280,6 +280,22 @@ tackle-memory-bank-api-loop .
 
 这个 harness 会把任务说明直接嵌入 API 提示词。它不调用 Codex CLI，运行时也不依赖外部提示词文件。仓库中保留提示词文件，是为了给开发者和智能体提供可复用参考。
 
+### 第一次运行
+
+一次运行会先打印仓库、提供方、模型和 API 端点，然后开始处理一条状态行：
+
+```text
+Repo: /path/to/your-project
+Provider: anthropic
+Model: claude-opus-5
+API: https://api.anthropic.com/v1/messages
+Run 1/1: asking LLM to tackle one row.
+  LLM turn 1/60
+  shell: sed -n '1,120p' AGENTS.md  # Read the bootstrap guide.
+```
+
+harness 会有意提前停止，退出码说明原因。`3` 到 `7` 是正常的停止条件，而不是故障——例如 `4` 表示运行前工作区不干净，`6` 表示智能体结束时没有提交。`11` 表示没有找到任何 `status-<LANE><NN>.md` 文件，通常说明项目记忆库还没有填写。完整对照表见[执行 Harness](docs/EXECUTION_cn.md#退出码)。
+
 ## 这个 Harness 的定位
 
 在普通项目工作中，`tackle-memory-bank-api-loop` 是一个执行 harness：它反复让智能体在真实仓库上工作，通过受控命令协议提供 shell 能力，并在每次运行之间检查 git 状态。

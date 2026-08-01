@@ -38,6 +38,30 @@ Er:
 - stoppt, wenn das Modell keinen commit erzeugt,
 - begrenzt die Anzahl der Schleifendurchläufe.
 
+### Exit-Codes
+
+Der Harness signalisiert jedes Ergebnis über seinen Exit-Code. Die Codes `3` bis `7` sind normale Stoppbedingungen und keine Abstürze: Die Schleife hat die Kontrolle bewusst an einen Menschen zurückgegeben.
+
+| Code | Bedeutung |
+|---|---|
+| `0` | 実行可能な行が残っていません。作業なし。 |
+| `2` | `LLM_MODEL` が未設定、または `LLM_PROVIDER` が `openai`/`anthropic` ではありません。 |
+| `3` | blocked 行だけが残っています。人間による解除が必要です。 |
+| `4` | 実行前に worktree が clean ではありませんでした。先に commit か stash をしてください。 |
+| `5` | エージェントが未 commit の変更を残しました。 |
+| `6` | エージェントが commit を作りませんでした。空回りを防ぎます。 |
+| `7` | `MAX_RUNS` に達しました。 |
+| `10` | 対象リポジトリに `AGENTS.md` がありません。 |
+| `11` | `memory-bank/` がない、またはその中に `status-<LANE><NN>.md` がありません。 |
+| `12` | 対象パスが git worktree の中にありません。 |
+| `13` | git `HEAD` を読めませんでした。 |
+| `20` | API が HTTP エラーを返しました。 |
+| `21` | API に到達できませんでした。 |
+| `22` | API のレスポンス形式が想定と異なりました。 |
+| `30` | モデルが行を終えないまま `MAX_TURNS` を使い切りました。 |
+
+Die Codes `10` bis `13` bedeuten, dass das Ziel-Repository noch nicht eingerichtet ist. `20` bis `22` sind Provider- oder Netzwerkprobleme, keine Projektprobleme.
+
 ## Docker-gestützte Dienste
 
 Für Tests, die Dienste wie MySQL oder PostgreSQL benötigen, sollten kurzlebige Container lokalen Pflichtinstallationen vorgezogen werden.
