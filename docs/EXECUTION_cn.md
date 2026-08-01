@@ -22,7 +22,7 @@ Markdown 本身不负责执行 harness。Markdown 的作用是说明如何运行
 
 ## 智能体执行 Harness
 
-本仓库包含的 [.local/bin/tackle-memory-bank-api-loop](../.local/bin/tackle-memory-bank-api-loop) 是一个智能体执行 harness。
+本仓库包含的 [harness/tackle-memory-bank-api-loop](../harness/tackle-memory-bank-api-loop) 是一个智能体执行 harness。
 
 它会：
 

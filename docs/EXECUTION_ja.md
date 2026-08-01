@@ -22,7 +22,7 @@ Markdown 自体は harness を実行しません。Markdown は、人間とエ�
 
 ## エージェント実行 Harness
 
-同梱の [.local/bin/tackle-memory-bank-api-loop](../.local/bin/tackle-memory-bank-api-loop) は、エージェント実行 harness です。
+同梱の [harness/tackle-memory-bank-api-loop](../harness/tackle-memory-bank-api-loop) は、エージェント実行 harness です。
 
 これは次を行います。
 

@@ -21,19 +21,19 @@ Language versions: [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](READM
 
 Project-level sample files:
 
-- [AGENTS.md](AGENTS.md)
-- [memory-bank/product.md](memory-bank/product.md)
-- [memory-bank/architecture.md](memory-bank/architecture.md)
-- [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
-- [memory-bank/milestone.md](memory-bank/milestone.md)
-- [memory-bank/status-M1.md](memory-bank/status-M1.md)
-- [evolution/prompt-v1.md](evolution/prompt-v1.md)
-- [evolution/result-v1.md](evolution/result-v1.md)
+- [template/AGENTS.md](template/AGENTS.md)
+- [template/memory-bank/product.md](template/memory-bank/product.md)
+- [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
+- [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
+- [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
+- [template/memory-bank/status-M1.md](template/memory-bank/status-M1.md)
+- [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
+- [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
 User-account-level sample files:
 
-- [.local/bin/tackle-memory-bank-api-loop](.local/bin/tackle-memory-bank-api-loop)
-- [.codex/prompts/tackle-next-memory-bank-todo.md](.codex/prompts/tackle-next-memory-bank-todo.md)
+- [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
+- [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
 Harness references:
 
@@ -47,9 +47,7 @@ Harness references:
 From a new project root:
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -77,9 +75,7 @@ on disk. Make a backup or commit your current work first.
 From the new project root:
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -120,7 +116,7 @@ Then:
 
 1. Read the root README, agent guides, docs, package READMEs, and major package
    comments.
-2. Copy in `AGENTS.md`, `memory-bank/`, and `evolution/` from this repository.
+2. Copy in `template/` from this repository.
 3. Fill the memory bank from what the project already says, not from an imagined
    rewrite.
 4. Move stable long-form references into `docs/`.
@@ -143,9 +139,7 @@ merge them.
 From the existing project root:
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -224,8 +218,8 @@ this memory-bank shape.
 
 ```bash
 mkdir -p ~/.local/bin ~/.codex/prompts
-cp /path/to/skills/.local/bin/tackle-memory-bank-api-loop ~/.local/bin/
-cp /path/to/skills/.codex/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
+cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
+cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 ```
 

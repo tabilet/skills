@@ -12,7 +12,7 @@
 
 ## 语言说明
 
-这份中文文档面向中文开发者阅读。仓库里的 harness 示例文件，例如 `AGENTS.md`、`memory-bank/*`、`evolution/*` 和 `.codex/prompts/*`，默认仍使用英文，适合开发者用英文与智能体协作。
+这份中文文档面向中文开发者阅读。仓库里的 harness 示例文件，例如 `AGENTS.md`、`memory-bank/*`、`evolution/*` 和 `harness/prompts/*`，默认仍使用英文，适合开发者用英文与智能体协作。
 
 如果你希望用中文和智能体对话，需要自行把这些 harness 文件翻译成中文，并保持规则、状态标记、命令和路径的一致性。
 
@@ -20,19 +20,19 @@
 
 项目级示例文件：
 
-- [AGENTS.md](AGENTS.md)
-- [memory-bank/product.md](memory-bank/product.md)
-- [memory-bank/architecture.md](memory-bank/architecture.md)
-- [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
-- [memory-bank/milestone.md](memory-bank/milestone.md)
-- [memory-bank/status.md](memory-bank/status.md)
-- [evolution/prompt-v1.md](evolution/prompt-v1.md)
-- [evolution/result-v1.md](evolution/result-v1.md)
+- [template/AGENTS.md](template/AGENTS.md)
+- [template/memory-bank/product.md](template/memory-bank/product.md)
+- [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
+- [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
+- [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
+- [template/memory-bank/status.md](template/memory-bank/status.md)
+- [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
+- [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
 用户账号级示例文件：
 
-- [.local/bin/tackle-memory-bank-api-loop](.local/bin/tackle-memory-bank-api-loop)
-- [.codex/prompts/tackle-next-memory-bank-todo.md](.codex/prompts/tackle-next-memory-bank-todo.md)
+- [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
+- [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
 Harness 参考：
 
@@ -46,9 +46,7 @@ Harness 参考：
 在新项目根目录执行：
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -74,9 +72,7 @@ mkdir -p docs
 在新项目根目录执行：
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -115,7 +111,7 @@ rg --files
 然后：
 
 1. 阅读根目录 README、智能体指南、docs、包级 README 和主要包注释。
-2. 从本仓库复制 `AGENTS.md`、`memory-bank/` 和 `evolution/`。
+2. 从本仓库复制 `template/`。
 3. 根据项目现状填写项目记忆库，不要凭空重塑项目方向。
 4. 把稳定的长篇参考资料移入 `docs/`。
 5. 把重复的 roadmap/status 内容整理到 `memory-bank/milestone.md` 和 `memory-bank/status.md`。
@@ -130,9 +126,7 @@ rg --files
 在已有项目根目录执行：
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -192,8 +186,8 @@ API harness 是账号级工具，因为它可以驱动任何采用这套项目�
 
 ```bash
 mkdir -p ~/.local/bin ~/.codex/prompts
-cp /path/to/skills/.local/bin/tackle-memory-bank-api-loop ~/.local/bin/
-cp /path/to/skills/.codex/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
+cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
+cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 ```
 

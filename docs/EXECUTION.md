@@ -30,7 +30,7 @@ are known or expected.
 
 ## Agent Execution Harness
 
-The included [.local/bin/tackle-memory-bank-api-loop](../.local/bin/tackle-memory-bank-api-loop)
+The included [harness/tackle-memory-bank-api-loop](../harness/tackle-memory-bank-api-loop)
 is an agent execution harness.
 
 It:

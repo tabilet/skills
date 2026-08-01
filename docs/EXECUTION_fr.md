@@ -22,7 +22,7 @@ Markdown n’exécute pas le harness. Markdown explique aux humains et aux agent
 
 ## Harness d’exécution d’agent
 
-Le fichier inclus [.local/bin/tackle-memory-bank-api-loop](../.local/bin/tackle-memory-bank-api-loop) est un harness d’exécution d’agent.
+Le fichier inclus [harness/tackle-memory-bank-api-loop](../harness/tackle-memory-bank-api-loop) est un harness d’exécution d’agent.
 
 Il :
 

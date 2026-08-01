@@ -14,19 +14,19 @@ L’objectif n’est pas d’augmenter le volume de documentation. L’objectif 
 
 Fichiers d’exemple au niveau du projet :
 
-- [AGENTS.md](AGENTS.md)
-- [memory-bank/product.md](memory-bank/product.md)
-- [memory-bank/architecture.md](memory-bank/architecture.md)
-- [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
-- [memory-bank/milestone.md](memory-bank/milestone.md)
-- [memory-bank/status.md](memory-bank/status.md)
-- [evolution/prompt-v1.md](evolution/prompt-v1.md)
-- [evolution/result-v1.md](evolution/result-v1.md)
+- [template/AGENTS.md](template/AGENTS.md)
+- [template/memory-bank/product.md](template/memory-bank/product.md)
+- [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
+- [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
+- [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
+- [template/memory-bank/status.md](template/memory-bank/status.md)
+- [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
+- [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
 Fichiers d’exemple au niveau du compte utilisateur :
 
-- [.local/bin/tackle-memory-bank-api-loop](.local/bin/tackle-memory-bank-api-loop)
-- [.codex/prompts/tackle-next-memory-bank-todo.md](.codex/prompts/tackle-next-memory-bank-todo.md)
+- [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
+- [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
 Références harness :
 
@@ -40,9 +40,7 @@ Références harness :
 Depuis la racine d’un nouveau projet :
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -68,9 +66,7 @@ Avertissement : copier ces fichiers par-dessus un projet existant peut écraser 
 Depuis la racine du nouveau projet :
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -109,7 +105,7 @@ rg --files
 Ensuite :
 
 1. Lire le README racine, les guides d’agent, docs, README de packages et commentaires des principaux packages.
-2. Copier `AGENTS.md`, `memory-bank/` et `evolution/` depuis ce dépôt.
+2. Copier `template/` depuis ce dépôt.
 3. Remplir la memory bank à partir de ce que le projet dit déjà, pas depuis une réécriture imaginée.
 4. Déplacer les références longues et stables dans `docs/`.
 5. Convertir le contenu roadmap/status dupliqué vers `memory-bank/milestone.md` et `memory-bank/status.md`.
@@ -124,9 +120,7 @@ Avertissement : copier ces fichiers d’exemple dans un projet existant peut éc
 Depuis la racine du projet existant :
 
 ```bash
-cp /path/to/skills/AGENTS.md .
-cp -R /path/to/skills/memory-bank .
-cp -R /path/to/skills/evolution .
+cp -R /path/to/skills/template/. .
 mkdir -p docs
 ```
 
@@ -186,8 +180,8 @@ Le harness API est au niveau du compte, car il peut piloter tout projet qui suit
 
 ```bash
 mkdir -p ~/.local/bin ~/.codex/prompts
-cp /path/to/skills/.local/bin/tackle-memory-bank-api-loop ~/.local/bin/
-cp /path/to/skills/.codex/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
+cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
+cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 ```
 

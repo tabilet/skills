@@ -36,8 +36,8 @@ Project-level files you drop into a repo:
 
 Account-level files, optional:
 
-- `.local/bin/tackle-memory-bank-api-loop` — a Python runner that drives any OpenAI- or Anthropic-compatible model.
-- `.codex/prompts/tackle-next-memory-bank-todo.md` — the same instruction the runner embeds, kept as a reusable reference.
+- `harness/tackle-memory-bank-api-loop` — a Python runner that drives any OpenAI- or Anthropic-compatible model. Installs to `~/.local/bin/`.
+- `harness/prompts/tackle-next-memory-bank-todo.md` — the same instruction the runner embeds, kept as a reusable reference. Installs to `~/.codex/prompts/`.
 
 ## Bootstrapping — with a little help from your agent
 
