@@ -35,11 +35,15 @@ is an agent execution harness.
 
 It:
 
-- calls an OpenAI-compatible chat-completions API,
+- calls an OpenAI-compatible chat-completions API, or the Anthropic Messages
+  API when `LLM_PROVIDER=anthropic`,
 - embeds the memory-bank task instruction directly in the API call,
 - gives the model a shell command protocol,
-- stops when no actionable rows remain,
-- stops when blocked rows exist,
+- discovers every `memory-bank/status-<LANE><NN>.md` lane file and reports each
+  lane's actionable and blocked row counts to the model,
+- stops when no actionable rows remain in any lane,
+- warns about blocked rows, and stops for human review when only blocked rows
+  remain,
 - checks for a clean git worktree before each run,
 - requires the model to commit its work,
 - stops if the model leaves uncommitted changes,

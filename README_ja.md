@@ -226,6 +226,8 @@ tackle-memory-bank-api-loop .
 
 通常のプロジェクト作業では、`tackle-memory-bank-api-loop` は実行 harness です。リポジトリに対してエージェントを繰り返し実行し、制御されたコマンドプロトコルで shell アクセスを与え、実行間の git 状態を確認します。
 
+すべての `memory-bank/status-<LANE><NN>.md` ファイルを検出し、各レーンの実行可能行と blocked 行の数を報告したうえで、レーンの意味と milestone の優先度に従って次の行をエージェントに選ばせます。あるレーンの blocked 行が他のレーンの作業を止めることはありません。blocked 行だけが残ったときにのみ、人間のレビューのためにループが停止します。
+
 モデル、プロンプト、pass rate、review findings、cost、latency、regressions を横断して結果を採点するときにだけ、model eval harness の一部になります。
 
 詳しく読む:

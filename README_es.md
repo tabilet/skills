@@ -226,6 +226,8 @@ El harness incrusta la instrucción de la tarea en su prompt API. No llama a Cod
 
 Para trabajo normal de proyecto, `tackle-memory-bank-api-loop` es un harness de ejecución: ejecuta repetidamente un agente contra un repositorio, le da acceso shell mediante un protocolo de comandos controlado y comprueba el estado git entre ejecuciones.
 
+Descubre cada archivo `memory-bank/status-<LANE><NN>.md`, informa cuántas filas accionables y bloqueadas tiene cada carril, y deja que el agente elija la siguiente fila según el significado de los carriles y la prioridad de los milestones. Una fila bloqueada en un carril no detiene el trabajo en los demás; el bucle solo se detiene para revisión humana cuando ya solo quedan filas bloqueadas.
+
 Se vuelve parte de un harness de evaluación de modelos solo cuando se puntúan resultados entre modelos, prompts, pass rates, review findings, cost, latency o regressions.
 
 Leer más:

@@ -226,6 +226,8 @@ Der Harness bettet die Aufgabenanweisung in seinen API-Prompt ein. Er ruft nicht
 
 Für normale Projektarbeit ist `tackle-memory-bank-api-loop` ein Ausführungs-Harness: Er führt wiederholt einen Agenten gegen ein Repository aus, gibt ihm shell-Zugriff über ein kontrolliertes Befehlsprotokoll und prüft zwischen den Läufen den git-Zustand.
 
+Er findet jede `memory-bank/status-<LANE><NN>.md`-Datei, meldet je Lane die Anzahl ausführbarer und blockierter Zeilen und lässt den Agenten die nächste Zeile anhand der Lane-Bedeutungen und der Milestone-Priorität wählen. Eine blockierte Zeile in einer Lane hält die Arbeit in den anderen nicht auf; die Schleife stoppt zur menschlichen Prüfung erst, wenn nur noch blockierte Zeilen übrig sind.
+
 Er wird nur dann Teil eines Modell-Evaluierungs-Harnesses, wenn Sie Ergebnisse über Modelle, Prompts, pass rates, review findings, cost, latency oder regressions hinweg bewerten.
 
 Mehr lesen:

@@ -26,11 +26,12 @@ Markdown 自体は harness を実行しません。Markdown は、人間とエ�
 
 これは次を行います。
 
-- OpenAI 互換の chat-completions API を呼び出す。
+- OpenAI 互換の chat-completions API、または `LLM_PROVIDER=anthropic` のとき Anthropic Messages API を呼び出す。
 - memory-bank のタスク指示を API 呼び出しに直接埋め込む。
 - モデルに shell コマンドプロトコルを与える。
-- 実行可能な行が残っていなければ停止する。
-- blocked 行が存在すれば停止する。
+- すべての `memory-bank/status-<LANE><NN>.md` レーンファイルを検出し、各レーンの実行可能行数と blocked 行数をモデルに伝える。
+- どのレーンにも実行可能な行が残っていなければ停止する。
+- blocked 行は警告として報告し、blocked 行だけが残った場合にのみ人間のレビューのために停止する。
 - 各実行前に git worktree が clean であることを確認する。
 - モデルに自身の作業を commit させる。
 - モデルが未 commit の変更を残したら停止する。

@@ -26,11 +26,12 @@ Markdown 本身不负责执行 harness。Markdown 的作用是说明如何运行
 
 它会：
 
-- 调用兼容 OpenAI 的 chat-completions API；
+- 调用兼容 OpenAI 的 chat-completions API，或在 `LLM_PROVIDER=anthropic` 时调用 Anthropic Messages API；
 - 把项目记忆库任务说明直接嵌入 API 调用；
 - 通过命令协议向模型提供 shell 能力；
-- 在没有可执行状态行时停止；
-- 在存在被阻塞状态行时停止；
+- 发现全部 `memory-bank/status-<LANE><NN>.md` 状态文件，并把每条状态线的可执行行数和被阻塞行数告知模型；
+- 当所有状态线都没有可执行状态行时停止；
+- 对被阻塞状态行发出警告；只有当仅剩被阻塞状态行时，才停止并交由人工处理；
 - 每次运行前确认 git worktree 干净；
 - 要求模型提交自己的工作；
 - 如果模型留下未提交变更，则停止；

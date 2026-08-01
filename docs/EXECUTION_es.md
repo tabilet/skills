@@ -26,11 +26,12 @@ El archivo incluido [harness/tackle-memory-bank-api-loop](../harness/tackle-memo
 
 Hace lo siguiente:
 
-- llama a una API chat-completions compatible con OpenAI,
+- llama a una API chat-completions compatible con OpenAI, o a la API Anthropic Messages con `LLM_PROVIDER=anthropic`,
 - incrusta la instrucción de tarea de memory-bank directamente en la llamada API,
 - le da al modelo un protocolo de comandos shell,
-- se detiene cuando no quedan filas accionables,
-- se detiene cuando existen filas blocked,
+- descubre cada archivo de carril `memory-bank/status-<LANE><NN>.md` e informa al modelo cuántas filas accionables y bloqueadas tiene cada carril,
+- se detiene cuando ningún carril conserva filas accionables,
+- avisa de las filas blocked y solo se detiene para revisión humana cuando ya solo quedan filas blocked,
 - comprueba que el git worktree esté limpio antes de cada ejecución,
 - exige que el modelo haga commit de su trabajo,
 - se detiene si el modelo deja cambios sin commit,

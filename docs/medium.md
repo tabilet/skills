@@ -65,15 +65,15 @@ Under the surface, the loop is:
 4. Implement, verify, update the relevant memory-bank files, commit.
 5. If that was the last row in a milestone, run the milestone review and decide whether `evolution/` needs a new version.
 
-Status markers carry meaning: `[ ]` pending, `[+]` complete, `[~]` in progress, `[!]` blocked, `[X]` cancelled. A blocked row stops the loop — not because the agent failed, but because a human should look.
+Status markers carry meaning: `[ ]` pending, `[+]` complete, `[~]` in progress, `[!]` blocked, `[X]` cancelled. A blocked row is skipped in favor of actionable work elsewhere; when blocked rows are all that's left, the loop stops — not because the agent failed, but because a human should look.
 
 Each row is a commit unit. That's the only commit discipline this asks for, and it makes work auditable in `git log` without extra tooling.
 
 ## The bundled runner — optional, multi-provider
 
-`tackle-memory-bank-api-loop` is a ~360-line Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
+`tackle-memory-bank-api-loop` is a ~530-line Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
 
-It checks the worktree is clean before each run, rejects destructive commands, requires the model to commit if it modified files, and stops on the first sign that something needs human attention — a blocked row, uncommitted changes, no actionable rows left.
+It checks the worktree is clean before each run, rejects destructive commands, requires the model to commit if it modified files, and stops on the first sign that something needs human attention — only blocked rows left, uncommitted changes, no commit made, no actionable rows left.
 
 You can use it for one row, for an unattended loop, for evaluations across models and prompts — or not at all. Agents inside Claude Code, Codex, or any IDE can do the same work through their own UI without ever touching the script.
 

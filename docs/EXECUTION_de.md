@@ -26,11 +26,12 @@ Das enthaltene [harness/tackle-memory-bank-api-loop](../harness/tackle-memory-ba
 
 Er:
 
-- ruft eine OpenAI-kompatible chat-completions API auf,
+- ruft eine OpenAI-kompatible chat-completions API auf, oder die Anthropic Messages API bei `LLM_PROVIDER=anthropic`,
 - bettet die memory-bank-Aufgabenanweisung direkt in den API-Aufruf ein,
 - gibt dem Modell ein shell-Befehlsprotokoll,
-- stoppt, wenn keine ausführbaren Zeilen mehr übrig sind,
-- stoppt, wenn blocked-Zeilen existieren,
+- findet jede `memory-bank/status-<LANE><NN>.md`-Lane-Datei und meldet dem Modell die Anzahl ausführbarer und blockierter Zeilen je Lane,
+- stoppt, wenn in keiner Lane mehr ausführbare Zeilen übrig sind,
+- warnt vor blocked-Zeilen und stoppt für menschliche Prüfung erst, wenn nur noch blocked-Zeilen übrig sind,
 - prüft vor jedem Lauf auf einen sauberen git worktree,
 - verlangt vom Modell, seine Arbeit zu committen,
 - stoppt, wenn das Modell uncommitted changes zurücklässt,

@@ -286,6 +286,12 @@ For normal project work, `tackle-memory-bank-api-loop` is an execution harness:
 it repeatedly runs an agent against a repository, gives it shell access through a
 controlled command protocol, and checks git state between runs.
 
+It discovers every `memory-bank/status-<LANE><NN>.md` file, reports how many
+actionable and blocked rows each lane holds, and asks the agent to pick a row
+using the lane meanings and milestone priority. A blocked row in one lane does
+not stop work in the others; the loop stops for human review only when blocked
+rows are all that remain.
+
 It becomes part of a model eval harness only when you score outcomes across
 models, prompts, pass rates, review findings, cost, latency, or regressions.
 
