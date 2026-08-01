@@ -80,6 +80,20 @@ mkdir -p docs
 
 保持 `README.md` 简洁，面向用户；长篇参考资料放到 `docs/`。
 
+### 接入你的智能体
+
+`AGENTS.md` 是由 Agentic AI Foundation 维护的[开放跨厂商标准](https://agents.md)。绝大多数编码智能体无需任何配置就会读取它，包括 Codex, Cursor, Gemini CLI, GitHub Copilot, Devin, Windsurf, Jules, Junie, Zed, Aider, VS Code, Warp, goose, opencode, Amp 等。
+
+`template/` 中不包含任何特定厂商的文件。如果你的智能体读取的是别的文件名，请用一行把它桥接到 `AGENTS.md`，而不是维护一份迟早会走样的副本：
+
+| 智能体 | 桥接方式 |
+|---|---|
+| 上述列表中的任意一个 | 无需处理 |
+| Claude Code | `ln -s AGENTS.md CLAUDE.md`，或建一个内容为 `@AGENTS.md` 的 `CLAUDE.md` |
+| 其他读取自有文件的工具 | 同样用符号链接或 import 指向 `AGENTS.md` |
+
+在 Windows 上创建符号链接需要管理员权限或开发者模式，因此建议改用 import 形式。
+
 ### 借助 AI 智能体
 
 新项目可以先复制示例结构，再通过对话让智能体帮你填写内容。你需要先把产品、用户、边界、常用命令和第一个里程碑讲清楚。

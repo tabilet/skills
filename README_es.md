@@ -74,6 +74,20 @@ Después edite los archivos copiados en este orden:
 
 Mantenga `README.md` simple y orientado al usuario. Ponga las referencias largas en `docs/`.
 
+### Conectar su agente
+
+`AGENTS.md` es un [estándar abierto entre proveedores](https://agents.md) mantenido por la Agentic AI Foundation. La mayoría de los agentes de código lo leen sin ninguna configuración: Codex, Cursor, Gemini CLI, GitHub Copilot, Devin, Windsurf, Jules, Junie, Zed, Aider, VS Code, Warp, goose, opencode, Amp, entre otros.
+
+En `template/` no se incluye ningún archivo específico de un proveedor. Si su agente lee otro nombre de archivo, enlácelo a `AGENTS.md` en una línea en vez de mantener una segunda copia que se desviará:
+
+| Agente | Puente |
+|---|---|
+| Cualquiera de la lista anterior | Nada que hacer |
+| Claude Code | `ln -s AGENTS.md CLAUDE.md`, o un `CLAUDE.md` con `@AGENTS.md` |
+| Otras herramientas con archivo propio | Symlink o import apuntando a `AGENTS.md`, igual |
+
+En Windows los symlinks requieren Administrador o Modo de desarrollador, así que allí conviene la forma import.
+
 ### Con ayuda de un agente de IA
 
 Para un proyecto nuevo, puede usar los archivos de ejemplo como estructura inicial y pedir a un agente de IA que los complete después de describir el producto.

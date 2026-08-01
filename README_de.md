@@ -74,6 +74,20 @@ Bearbeiten Sie die kopierten Dateien anschließend in dieser Reihenfolge:
 
 Halten Sie `README.md` einfach und benutzerorientiert. Längere Referenzen gehören in `docs/`.
 
+### Ihren Agenten anbinden
+
+`AGENTS.md` ist ein [offener herstellerübergreifender Standard](https://agents.md), betreut von der Agentic AI Foundation. Die meisten Coding-Agenten lesen die Datei ohne jede Einrichtung, darunter Codex, Cursor, Gemini CLI, GitHub Copilot, Devin, Windsurf, Jules, Junie, Zed, Aider, VS Code, Warp, goose, opencode, Amp.
+
+In `template/` liegt bewusst keine herstellerspezifische Datei. Wenn Ihr Agent einen anderen Dateinamen liest, verbinden Sie ihn mit einer Zeile mit `AGENTS.md`, statt eine zweite Kopie zu pflegen, die auseinanderläuft:
+
+| Agent | Brücke |
+|---|---|
+| Alles aus der Liste oben | Nichts zu tun |
+| Claude Code | `ln -s AGENTS.md CLAUDE.md`, oder eine `CLAUDE.md` mit `@AGENTS.md` |
+| Andere Tools mit eigener Datei | Genauso per Symlink oder Import auf `AGENTS.md` zeigen |
+
+Unter Windows brauchen Symlinks Administratorrechte oder den Entwicklermodus — dort ist die Import-Variante besser.
+
 ### Mit Hilfe eines KI-Agenten
 
 Für ein neues Projekt können Sie die Beispieldateien als Anfangsstruktur verwenden und einen KI-Agenten bitten, sie auszufüllen, nachdem Sie das Produkt beschrieben haben.

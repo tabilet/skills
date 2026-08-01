@@ -74,6 +74,20 @@ mkdir -p docs
 
 `README.md` は簡潔でユーザー向けに保ちます。長い参考資料は `docs/` に置きます。
 
+### エージェントを接続する
+
+`AGENTS.md` は Agentic AI Foundation が管理する[オープンなベンダー中立標準](https://agents.md)です。ほとんどのコーディングエージェントは設定なしでこれを読みます。Codex, Cursor, Gemini CLI, GitHub Copilot, Devin, Windsurf, Jules, Junie, Zed, Aider, VS Code, Warp, goose, opencode, Amp などが対応しています。
+
+`template/` には特定ベンダー向けのファイルを一切含めていません。別のファイル名を読むエージェントを使っている場合は、いずれずれていく複製を持つのではなく、1 行で `AGENTS.md` に橋渡ししてください。
+
+| エージェント | 橋渡し |
+|---|---|
+| 上記のいずれか | 対応不要 |
+| Claude Code | `ln -s AGENTS.md CLAUDE.md`、または `@AGENTS.md` と書いた `CLAUDE.md` |
+| 独自ファイルを読むその他のツール | 同様に symlink か import で `AGENTS.md` を指す |
+
+Windows で symlink を作るには管理者権限か開発者モードが必要なので、import 形式をおすすめします。
+
 ### AI エージェントの助けを借りる
 
 新規プロジェクトでは、サンプルファイルを初期構造として使い、プロダクトを説明したうえで AI エージェントに内容を埋めてもらえます。

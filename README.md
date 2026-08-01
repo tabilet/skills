@@ -95,6 +95,26 @@ Then edit the copied files in this order:
 
 Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
 
+### Wiring up your agent
+
+`AGENTS.md` is an [open cross-vendor standard](https://agents.md) stewarded by
+the Agentic AI Foundation. Most coding agents read it with no setup at all —
+among them Codex, Cursor, Gemini CLI, GitHub Copilot's coding agent, Devin,
+Windsurf, Jules, Junie, Zed, Aider, VS Code, Warp, goose, opencode, and Amp.
+
+No vendor-specific file ships in `template/`. If your agent reads a different
+filename, bridge it to `AGENTS.md` in one line rather than keeping a second copy
+that will drift:
+
+| Agent | Bridge |
+|---|---|
+| Anything on the list above | Nothing to do |
+| Claude Code | `ln -s AGENTS.md CLAUDE.md`, or a `CLAUDE.md` containing `@AGENTS.md` |
+| Anything else that reads its own file | Symlink or import `AGENTS.md` the same way |
+
+On Windows, symlinks need Administrator or Developer Mode, so prefer the import
+form there.
+
 ### With Help Of An AI Agent
 
 For a new project, you can use the sample files as the initial structure and ask
