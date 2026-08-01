@@ -10,6 +10,10 @@ milestone acceptance criteria before moving to the next milestone. Review-driven
 fixes should be verified, and the reviewed milestone changes should be committed
 before work starts on the next milestone.
 
+The review procedure below covers one milestone. To run several in order, with
+dependency and downstream reconciliation between them, [../GOAL.md](../GOAL.md)
+is one optional protocol for that; any equivalent works just as well.
+
 ## Status ID Pattern
 
 Status files are named `memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single

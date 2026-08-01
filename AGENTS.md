@@ -9,6 +9,18 @@ This is the single source of truth for every agent. Tools that read a different
 filename should bridge to this file rather than duplicate it — see
 [Wiring up your agent](README.md#wiring-up-your-agent).
 
+[GOAL.md](GOAL.md) is one optional protocol for slash-goal requests that span
+multiple status files. Follow it when a request names it. A request that names a
+different protocol, or none, does not use it.
+
+A slash-goal run is a deliberate exception to this file's commit rule. For the
+duration of that run, `GOAL.md`'s `COMMIT_POLICY` is the entire commit rule and
+"one status row, one commit" does not apply: `COMMIT_POLICY: none` — the
+protocol's default — means no commits at all. Pass `COMMIT_POLICY: task` to get
+the usual per-row commits. Everything else here still governs; only commits are
+delegated, and only inside the run. The API harness is a separate path and is
+unaffected — it still requires a commit per run.
+
 ## What This Repository Is
 
 A copyable starter, not an application. Most files here are payload that users
@@ -18,6 +30,7 @@ the file:
 | Path | Role |
 |---|---|
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
+| `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/GOAL.md` are byte-identical. |
 | `harness/` | Account payload, installed into `~/.local/bin` and `~/.codex/prompts`. |
 | `docs/`, `README*.md`, `AGENTS.md` | This repository's own documentation. |
 
@@ -154,6 +167,24 @@ provider section and the language-version links that `README.md` carries.
 - `EMBEDDED_TASK` in `harness/tackle-memory-bank-api-loop` and
   `harness/prompts/tackle-next-memory-bank-todo.md` say the same thing. Change
   both together.
+- `GOAL.md` and `template/GOAL.md` are byte-identical, and stay identical to the
+  copy any other project carries — it is a portable protocol, not a per-project
+  file. Change both together, and do not add project-specific paths, lane names,
+  or commands to either.
+- Document the goal loop by referencing `GOAL.md`, never by restating its
+  phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
+  single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.
+- Every documented invocation of `GOAL.md` carries an explicit `COMMIT_POLICY`.
+  The protocol's default is `none`, so an example that omits it quietly promises
+  no commits at all. Write `task` unless the example is specifically about
+  running without commits.
+- Precedence for a slash-goal run: the request wins, then `GOAL.md`, then this
+  file. Commits are the case that matters — `COMMIT_POLICY` governs them
+  outright for the length of the run, whatever the cadence here says.
+- `GOAL.md` is offered, never required. `/goal` belongs to the reader's agent,
+  not to this harness, and the memory bank must work with a different goal
+  protocol or none at all. Do not write an instruction that routes a slash-goal
+  request through `GOAL.md` unless the request named it.
 - Propagate English content changes to all five translation siblings in the same
   change.
 - Status files are named `status-<LANE><NN>.md`. The pattern is defined in

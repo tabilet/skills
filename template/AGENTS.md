@@ -16,6 +16,21 @@ Before substantial changes, read these in order:
 5. The matching `memory-bank/status-<LANE><NN>.md` file for the current
    milestone. `milestone.md` defines the lane letters and their meanings.
 
+This project ships [GOAL.md](GOAL.md), one optional protocol for slash-goal
+requests that span multiple status files. Follow it when a request names it. A
+request that names a different protocol, or none, does not use it. To swap in
+your own protocol or drop the idea entirely, edit this line and the pointer in
+[memory-bank/milestone.md](memory-bank/milestone.md) — those two mentions are
+the only ones, and nothing here depends on the file itself.
+
+A slash-goal run is a deliberate exception to the Work Cadence below. For the
+duration of that run, `GOAL.md`'s `COMMIT_POLICY` is the entire commit rule and
+"each row is a commit unit" does not apply: `COMMIT_POLICY: none` — the
+protocol's default — means no commits at all, and that is the correct behavior.
+Pass `COMMIT_POLICY: task` to get the usual per-row commits. Precedence is the
+request, then `GOAL.md`, then this file; only commits are delegated, and only
+inside the run.
+
 Do not recreate duplicate root-level product, architecture, roadmap, or status
 documents, and do not create an aggregate `memory-bank/status.md`. Long-form
 references live in `docs/`; README is operator-focused.
