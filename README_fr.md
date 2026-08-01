@@ -10,6 +10,8 @@ Ce dépôt est un point de départ copiable pour un système d’exploitation de
 
 L’objectif n’est pas d’augmenter le volume de documentation. L’objectif est de donner aux humains et aux agents le même manuel d’exploitation compact, puis de relier ce manuel à des harnesses exécutables.
 
+Autres versions linguistiques: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇪🇸 Español](README_es.md).
+
 ## Démarrage
 
 **Pour utiliser la memory bank, il vous faut `git`, et rien d’autre.** La memory bank est du markdown ordinaire : le travail quotidien — demander à un agent comme Codex ou Claude Code de traiter le prochain élément en attente — ne demande aucun runtime.
@@ -313,6 +315,16 @@ Utiliser un serveur local compatible OpenAI :
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+MAX_RUNS=1 \
+tackle-memory-bank-api-loop .
+```
+
+Utiliser Anthropic (Claude) au lieu de la voie compatible OpenAI :
+
+```bash
+LLM_PROVIDER=anthropic \
+LLM_MODEL=claude-opus-5 \
+ANTHROPIC_API_KEY=... \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```

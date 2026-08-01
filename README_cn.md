@@ -10,6 +10,8 @@
 
 这套结构的目的不是增加文档负担，而是让开发者和智能体共用同一份紧凑、明确、可执行的项目手册。
 
+其他语言版本: [🇬🇧 English](README.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).
+
 ## 语言说明
 
 这份中文文档面向中文开发者阅读。仓库里的 harness 示例文件，例如 `AGENTS.md`、`memory-bank/*`、`evolution/*` 和 `harness/prompts/*`，默认仍使用英文，适合开发者用英文与智能体协作。
@@ -319,6 +321,16 @@ tackle-memory-bank-api-loop .
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+MAX_RUNS=1 \
+tackle-memory-bank-api-loop .
+```
+
+改用 Anthropic（Claude），而不是兼容 OpenAI 的接口：
+
+```bash
+LLM_PROVIDER=anthropic \
+LLM_MODEL=claude-opus-5 \
+ANTHROPIC_API_KEY=... \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```

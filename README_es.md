@@ -10,6 +10,8 @@ Este repositorio es un punto de partida copiable para un sistema operativo de pr
 
 El objetivo no es aumentar el volumen de documentación. El objetivo es dar a personas y agentes el mismo manual operativo compacto, y luego conectar ese manual con harnesses ejecutables.
 
+Otras versiones de idioma: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md).
+
 ## Primeros pasos
 
 **Para usar el memory bank necesita `git`, y nada más.** El memory bank es markdown corriente, así que el flujo diario —pedirle a un agente como Codex o Claude Code que atienda el siguiente pendiente— no necesita ningún runtime.
@@ -313,6 +315,16 @@ Usar un servidor local compatible con OpenAI:
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+MAX_RUNS=1 \
+tackle-memory-bank-api-loop .
+```
+
+Usar Anthropic (Claude) en lugar de la ruta compatible con OpenAI:
+
+```bash
+LLM_PROVIDER=anthropic \
+LLM_MODEL=claude-opus-5 \
+ANTHROPIC_API_KEY=... \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```

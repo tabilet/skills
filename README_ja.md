@@ -10,6 +10,8 @@
 
 目的は文書量を増やすことではありません。人間とエージェントが同じ簡潔な運用マニュアルを共有し、そのマニュアルを実行可能な harness に接続することです。
 
+他の言語版: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).
+
 ## はじめに
 
 **memory bank を使うのに必要なのは `git` だけです。** memory bank はただの markdown なので、日々のワークフロー——Codex や Claude Code のようなエージェントに次の未処理項目を任せること——にランタイムは一切不要です。
@@ -313,6 +315,16 @@ tackle-memory-bank-api-loop .
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+MAX_RUNS=1 \
+tackle-memory-bank-api-loop .
+```
+
+OpenAI 互換のパスではなく Anthropic（Claude）を使う場合:
+
+```bash
+LLM_PROVIDER=anthropic \
+LLM_MODEL=claude-opus-5 \
+ANTHROPIC_API_KEY=... \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```

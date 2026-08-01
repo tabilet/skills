@@ -10,6 +10,8 @@ Dieses Repository ist ein kopierbarer Ausgangspunkt für ein leichtgewichtiges P
 
 Ziel ist nicht mehr Dokumentationsvolumen. Ziel ist ein kompaktes Betriebshandbuch, das Menschen und Agenten gemeinsam nutzen, und das anschließend mit ausführbaren Harnesses verbunden wird.
 
+Weitere Sprachversionen: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).
+
 ## Erste Schritte
 
 **Um die Memory Bank zu nutzen, brauchen Sie `git` und sonst nichts.** Die Memory Bank ist reines Markdown, der Alltags-Workflow — einem Agenten wie Codex oder Claude Code sagen, er soll den nächsten offenen Punkt übernehmen — braucht also gar keine Laufzeitumgebung.
@@ -313,6 +315,16 @@ Einen lokalen OpenAI-kompatiblen Server verwenden:
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+MAX_RUNS=1 \
+tackle-memory-bank-api-loop .
+```
+
+Anthropic (Claude) statt des OpenAI-kompatiblen Wegs verwenden:
+
+```bash
+LLM_PROVIDER=anthropic \
+LLM_MODEL=claude-opus-5 \
+ANTHROPIC_API_KEY=... \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
