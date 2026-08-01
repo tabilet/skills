@@ -10,6 +10,23 @@
 
 目的は文書量を増やすことではありません。人間とエージェントが同じ簡潔な運用マニュアルを共有し、そのマニュアルを実行可能な harness に接続することです。
 
+## はじめに
+
+**memory bank を使うのに必要なのは `git` だけです。** memory bank はただの markdown なので、日々のワークフロー——Codex や Claude Code のようなエージェントに次の未処理項目を任せること——にランタイムは一切不要です。
+
+**Python 3 が必要なのは任意の API harness だけ**です。[API Harness をインストールする](#api-harness-をインストールする)で説明する無人実行ループのことです。標準ライブラリしか使わないため、`pip` で入れるものはありません。すでに使っているエージェントから memory bank を動かすなら、まるごと省略できます。
+
+後述の既存プロジェクト向け手順では、最初の棚卸しに [ripgrep](https://github.com/BurntSushi/ripgrep)（`rg`）も使います。
+
+このリポジトリを一度 clone してください。以下の `cp` コマンドの `/path/to/skills` は、その clone を指します:
+
+```bash
+git clone https://github.com/tabilet/skills.git
+cd skills
+```
+
+clone 自体で何かを実行することはありません。中からファイルをコピーして使います。`template/` はプロジェクトへ、`harness/` はホームディレクトリへコピーします。
+
 ## このリポジトリに含まれるもの
 
 プロジェクトレベルのサンプルファイル:
@@ -50,7 +67,7 @@ mkdir -p docs
 2. `memory-bank/architecture.md`: レイアウト、データフロー、境界を定義する。
 3. `memory-bank/tech-stack.md`: コマンド、依存関係、harness を定義する。
 4. `memory-bank/milestone.md`: 最初の milestone を定義する。
-5. `memory-bank/status-M01.md`: 最初の実行可能な行を定義する。
+5. `memory-bank/status-M01.md`: 最初の実行可能な行を定義する。後述の「記入後の status ファイルの例」を参照。マーカーのバッククォートが重要です。
 6. `evolution/prompt-v1.md`: 初期方向を記録する。
 7. `evolution/result-v1.md`: 現在の開始状態を記録する。
 8. `AGENTS.md`: プレースホルダーをプロジェクト固有のコマンドとルールに置き換える。
@@ -178,15 +195,43 @@ Status 行は次のマーカーを使います。
 | `[!]` | ブロック中 |
 | `[X]` | キャンセル済み |
 
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**各マーカーを囲むバッククォートは必須です。** harness が一致させるのは `` `[ ]` `` であり、`[ ]` ではありません。`| Item | [ ] | Notes |` と書かれた行は黙って無視され、harness は「No actionable memory-bank rows remain」と表示して正常終了します。作業が終わったかのように見えてしまいます。
+
+memory bank の他のファイルも同じくプレースホルダーを置き換えます。`memory-bank/product.md` は最初 `[project-name] is [one or two sentences describing the project]` で、記入後はこうなります。
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+
 ## API Harness をインストールする
 
-API harness は、この memory-bank 構造に従う任意のプロジェクトを駆動できるため、アカウントレベルのツールです。
+このセクションは任意です。ここまでの内容はこれなしで成立します。harness は、あなたが手で入力する代わりに API 経由でエージェントを動かす無人ループを足すだけです。Codex や Claude Code など、すでに使っているエージェントがその役割を果たしているなら省略してかまいません。
+
+API harness は、この memory-bank 構造に従う任意のプロジェクトを駆動できるため、アカウントレベルのツールです。 必要なのは Python 3 だけです。
 
 ```bash
 mkdir -p ~/.local/bin ~/.codex/prompts
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
 cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
+```
+
+以下のコマンドは `tackle-memory-bank-api-loop` を名前で呼び出すため、`~/.local/bin` が `PATH` に含まれている必要があります。`command -v tackle-memory-bank-api-loop` が何も出力しない場合は、次の行を shell の設定ファイルに追加してください。
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 1 行だけ実行する:

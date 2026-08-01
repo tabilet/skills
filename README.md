@@ -17,6 +17,31 @@ Language versions: [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](READM
 [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) ·
 [🇪🇸 Español](README_es.md).
 
+## Getting Started
+
+**To use the memory bank you need `git`, and nothing else.** The memory bank is
+plain markdown, so the everyday workflow — telling an agent such as Codex or
+Claude Code to tackle the next pending item — needs no runtime at all.
+
+**Python 3 is only for the optional API harness**, the unattended loop described
+in [Install The API Harness](#install-the-api-harness). It uses nothing but the
+standard library, so there is nothing to install with `pip`. Skip it entirely if
+you drive the memory bank through an agent you already use.
+
+The existing-project instructions below also use
+[ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) for the initial inventory.
+
+Clone this repository once. Every `cp` command below refers to your clone as
+`/path/to/skills`:
+
+```bash
+git clone https://github.com/tabilet/skills.git
+cd skills
+```
+
+Nothing here runs from the clone itself. You copy files out of it: `template/`
+into a project, `harness/` into your home directory.
+
 ## What Is In This Repository
 
 Project-level sample files in [template/](template/), copied into a project
@@ -222,16 +247,53 @@ Status rows use these markers:
 | `[!]` | Blocked |
 | `[X]` | Cancelled |
 
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**The backticks around each marker are required.** The harness matches
+`` `[ ]` ``, not `[ ]`. A row written `| Item | [ ] | Notes |` is silently
+ignored: the harness reports "No actionable memory-bank rows remain" and exits
+successfully, as though the work were finished.
+
+The same fill-in-the-placeholders move applies to the rest of the memory bank.
+`memory-bank/product.md` starts as `[project-name] is [one or two sentences
+describing the project]` and becomes:
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
 ## Install The API Harness
 
+This section is optional. Everything above works without it — the harness only
+adds an unattended loop that drives an agent through the API instead of you
+typing into one. Skip it if Codex, Claude Code, or another agent already does
+that for you.
+
 The API harness is account-level because it can drive any project that follows
-this memory-bank shape.
+this memory-bank shape. It needs Python 3 and nothing else.
 
 ```bash
 mkdir -p ~/.local/bin ~/.codex/prompts
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
 cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
+```
+
+The commands below call `tackle-memory-bank-api-loop` by name, which requires
+`~/.local/bin` on your `PATH`. If `command -v tackle-memory-bank-api-loop`
+prints nothing, add this line to your shell profile:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Run one row:
@@ -269,7 +331,7 @@ Use Anthropic (Claude) instead of the OpenAI-compatible path:
 
 ```bash
 LLM_PROVIDER=anthropic \
-LLM_MODEL=claude-opus-4-7 \
+LLM_MODEL=claude-opus-5 \
 ANTHROPIC_API_KEY=... \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .

@@ -16,6 +16,23 @@
 
 如果你希望用中文和智能体对话，需要自行把这些 harness 文件翻译成中文，并保持规则、状态标记、命令和路径的一致性。
 
+## 快速开始
+
+**使用项目记忆库只需要 `git`，别无其他。** 项目记忆库就是普通的 markdown，因此日常工作流——让 Codex、Claude Code 这类智能体去处理下一条待办——完全不需要任何运行时。
+
+**Python 3 只用于可选的 API harness**，也就是[安装 API Harness](#安装-api-harness)一节介绍的无人值守循环。它只使用标准库，无需 `pip` 安装任何东西。如果你本来就用某个智能体来驱动项目记忆库，完全可以跳过它。
+
+下面“为已有项目设置”一节在做初始盘点时还会用到 [ripgrep](https://github.com/BurntSushi/ripgrep)（`rg`）。
+
+先克隆本仓库一次。下面所有 `cp` 命令中的 `/path/to/skills` 都指向你的这份克隆：
+
+```bash
+git clone https://github.com/tabilet/skills.git
+cd skills
+```
+
+克隆本身不需要运行任何东西。你只是从里面往外复制文件：把 `template/` 复制到项目里，把 `harness/` 复制到你的主目录。
+
 ## 仓库内容
 
 项目级示例文件：
@@ -184,15 +201,43 @@ tackle next pending item in memory bank
 | `[!]` | 被阻塞 |
 | `[X]` | 已取消 |
 
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**每个标记两侧的反引号是必需的。** harness 匹配的是 `` `[ ]` ``，而不是 `[ ]`。写成 `| Item | [ ] | Notes |` 的状态行会被静默忽略：harness 会报告“No actionable memory-bank rows remain”并正常退出，就好像工作已经做完了一样。
+
+项目记忆库的其余文件同样是把占位符替换掉。`memory-bank/product.md` 一开始是 `[project-name] is [one or two sentences describing the project]`，填写后变成：
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+
 ## 安装 API Harness
 
-API harness 是账号级工具，因为它可以驱动任何采用这套项目记忆库结构的仓库。
+本节是可选的。上面的内容不依赖它——harness 只是多提供一个无人值守循环，用 API 驱动智能体，省去你手动输入。如果 Codex、Claude Code 或别的智能体已经在替你做这件事，可以跳过。
+
+API harness 是账号级工具，因为它可以驱动任何采用这套项目记忆库结构的仓库。 它只需要 Python 3。
 
 ```bash
 mkdir -p ~/.local/bin ~/.codex/prompts
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
 cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
+```
+
+下面的命令直接以名字调用 `tackle-memory-bank-api-loop`，这要求 `~/.local/bin` 在你的 `PATH` 中。如果 `command -v tackle-memory-bank-api-loop` 没有任何输出，请把这一行加进你的 shell 配置文件：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 只运行一条状态行：

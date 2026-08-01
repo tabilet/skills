@@ -10,6 +10,23 @@ Ce dépôt est un point de départ copiable pour un système d’exploitation de
 
 L’objectif n’est pas d’augmenter le volume de documentation. L’objectif est de donner aux humains et aux agents le même manuel d’exploitation compact, puis de relier ce manuel à des harnesses exécutables.
 
+## Démarrage
+
+**Pour utiliser la memory bank, il vous faut `git`, et rien d’autre.** La memory bank est du markdown ordinaire : le travail quotidien — demander à un agent comme Codex ou Claude Code de traiter le prochain élément en attente — ne demande aucun runtime.
+
+**Python 3 ne sert qu’au harness API optionnel**, la boucle autonome décrite dans [Installer le harness API](#installer-le-harness-api). Il n’utilise que la bibliothèque standard, il n’y a donc rien à installer avec `pip`. Ignorez-le complètement si vous pilotez déjà la memory bank depuis un agent que vous utilisez.
+
+Les instructions pour un projet existant, plus bas, utilisent aussi [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) pour l’inventaire initial.
+
+Clonez ce dépôt une fois. Chaque commande `cp` ci-dessous désigne votre clone par `/path/to/skills` :
+
+```bash
+git clone https://github.com/tabilet/skills.git
+cd skills
+```
+
+Rien ne s’exécute depuis le clone lui-même. Vous en copiez des fichiers : `template/` dans un projet, `harness/` dans votre répertoire personnel.
+
 ## Ce que contient ce dépôt
 
 Fichiers d’exemple au niveau du projet :
@@ -178,15 +195,43 @@ Les lignes de statut utilisent ces marqueurs :
 | `[!]` | Bloqué |
 | `[X]` | Annulé |
 
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**Les backticks autour de chaque marqueur sont obligatoires.** Le harness reconnaît `` `[ ]` ``, pas `[ ]`. Une ligne écrite `| Item | [ ] | Notes |` est ignorée en silence : le harness affiche « No actionable memory-bank rows remain » et se termine avec succès, comme si le travail était fini.
+
+Le même remplacement de placeholders s’applique au reste de la memory bank. `memory-bank/product.md` commence par `[project-name] is [one or two sentences describing the project]` et devient :
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+
 ## Installer le harness API
 
-Le harness API est au niveau du compte, car il peut piloter tout projet qui suit cette forme de memory bank.
+Cette section est optionnelle. Tout ce qui précède fonctionne sans elle : le harness ajoute seulement une boucle autonome qui pilote un agent via l’API au lieu que vous tapiez vous-même. Ignorez-la si Codex, Claude Code ou un autre agent le fait déjà pour vous.
+
+Le harness API est au niveau du compte, car il peut piloter tout projet qui suit cette forme de memory bank. Il nécessite Python 3 et rien d’autre.
 
 ```bash
 mkdir -p ~/.local/bin ~/.codex/prompts
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
 cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
+```
+
+Les commandes ci-dessous appellent `tackle-memory-bank-api-loop` par son nom, ce qui exige que `~/.local/bin` soit dans votre `PATH`. Si `command -v tackle-memory-bank-api-loop` n’affiche rien, ajoutez cette ligne à votre profil shell :
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Exécuter une ligne :
