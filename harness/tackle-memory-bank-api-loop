@@ -243,14 +243,15 @@ def _post_json(url: str, headers: dict, payload: dict, label: str) -> dict:
         fail(f"{label} request failed: {exc}", 21)
 
 
-def call_openai(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
+def call_openai(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float | None, max_tokens: int) -> str:
     url = api_base.rstrip("/") + "/chat/completions"
     payload = {
         "model": model,
         "messages": messages,
-        "temperature": temperature,
         "max_tokens": max_tokens,
     }
+    if temperature is not None:
+        payload["temperature"] = temperature
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -262,16 +263,20 @@ def call_openai(api_base: str, api_key: str, model: str, messages: list[dict], t
         fail("LLM API response did not match Chat Completions shape:\n" + json.dumps(body, indent=2), 22)
 
 
-def call_anthropic(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
+def call_anthropic(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float | None, max_tokens: int) -> str:
     url = api_base.rstrip("/") + "/messages"
     system_parts = [m["content"] for m in messages if m["role"] == "system"]
     chat = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
     payload = {
         "model": model,
         "max_tokens": max_tokens,
-        "temperature": temperature,
         "messages": chat,
     }
+    # Sampling parameters are omitted unless asked for. Current Claude models
+    # (Opus 4.7 and later, Sonnet 5, Fable 5) reject temperature/top_p/top_k
+    # with HTTP 400, so sending a default would break every current model.
+    if temperature is not None:
+        payload["temperature"] = temperature
     if system_parts:
         payload["system"] = "\n\n".join(system_parts)
 
@@ -291,7 +296,7 @@ def call_anthropic(api_base: str, api_key: str, model: str, messages: list[dict]
         fail("Anthropic API response did not match Messages shape:\n" + json.dumps(body, indent=2), 22)
 
 
-def call_llm(provider: str, api_base: str, api_key: str, model: str, messages: list[dict], temperature: float, max_tokens: int) -> str:
+def call_llm(provider: str, api_base: str, api_key: str, model: str, messages: list[dict], temperature: float | None, max_tokens: int) -> str:
     if provider == "anthropic":
         return call_anthropic(api_base, api_key, model, messages, temperature, max_tokens)
     if provider == "openai":
@@ -427,8 +432,9 @@ def parse_args() -> argparse.Namespace:
               MAX_TURNS                          Maximum LLM turns per row. Default: 60.
               TOOL_TIMEOUT                       Shell command timeout seconds. Default: 300.
               MAX_TOOL_OUTPUT                    Max shell output returned to model. Default: 24000.
-              LLM_MAX_TOKENS                     Max response tokens. Default: 4096.
-              LLM_TEMPERATURE                    Sampling temperature. Default: 0.2.
+              LLM_MAX_TOKENS                     Max response tokens. Default: 16000.
+              LLM_TEMPERATURE                    Sampling temperature. Unset by default:
+                                                 current Claude models reject it.
               ALLOW_DANGEROUS_COMMANDS=1         Disable the harness command safety filter.
             """
         ),
@@ -442,8 +448,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-turns", type=int, default=int(os.environ.get("MAX_TURNS", "60")))
     parser.add_argument("--tool-timeout", type=int, default=int(os.environ.get("TOOL_TIMEOUT", "300")))
     parser.add_argument("--max-tool-output", type=int, default=int(os.environ.get("MAX_TOOL_OUTPUT", "24000")))
-    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("LLM_MAX_TOKENS", "4096")))
-    parser.add_argument("--temperature", type=float, default=float(os.environ.get("LLM_TEMPERATURE", "0.2")))
+    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("LLM_MAX_TOKENS", "16000")))
+    env_temp = os.environ.get("LLM_TEMPERATURE")
+    parser.add_argument("--temperature", type=float, default=float(env_temp) if env_temp else None)
     parser.add_argument("--allow-dangerous", action="store_true", default=os.environ.get("ALLOW_DANGEROUS_COMMANDS") == "1")
     args = parser.parse_args()
 
