@@ -239,7 +239,42 @@ def payload_runs():
 
 
 # --------------------------------------------------------------------------
-# 9. English is the source; five translations must not silently fall behind.
+# 9. Current Claude models reject temperature/top_p/top_k with HTTP 400, so a
+#    default sampling parameter breaks every current model. Build both payloads
+#    and assert none carries one unless the caller explicitly asked.
+# --------------------------------------------------------------------------
+@check("provider payloads omit sampling parameters by default")
+def sampling_params():
+    mod = load_harness()
+    sampled = {}
+
+    def capture(url, headers, payload, label):
+        sampled[label] = payload
+        return {
+            "content": [{"type": "text", "text": "{}"}],
+            "choices": [{"message": {"content": "{}"}}],
+        }
+
+    original, mod._post_json = mod._post_json, capture
+    try:
+        messages = [{"role": "system", "content": "s"}, {"role": "user", "content": "u"}]
+        mod.call_anthropic("https://example/v1", "k", "claude-opus-5", messages, None, 16000)
+        mod.call_openai("https://example/v1", "k", "gpt-5.5", messages, None, 16000)
+    finally:
+        mod._post_json = original
+
+    problems = []
+    for label, payload in sampled.items():
+        for param in ("temperature", "top_p", "top_k"):
+            if param in payload:
+                problems.append(f"{label} sends {param} by default; current Claude models 400 on it")
+    if not sampled:
+        problems.append("no payload was captured; the check did not exercise the call path")
+    return problems
+
+
+# --------------------------------------------------------------------------
+# 10. English is the source; five translations must not silently fall behind.
 # --------------------------------------------------------------------------
 @check("translations stay in parity with English")
 def translations():
