@@ -71,9 +71,11 @@ Each row is a commit unit. That's the only commit discipline this asks for, and 
 
 ## The bundled runner — optional, multi-provider
 
-`tackle-memory-bank-api-loop` is a ~530-line Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
+`tackle-memory-bank-api-loop` is a ~540-line Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
 
-It checks the worktree is clean before each run, rejects destructive commands, requires the model to commit if it modified files, and stops on the first sign that something needs human attention — only blocked rows left, uncommitted changes, no commit made, no actionable rows left.
+It checks the worktree is clean before each run, blocks a short list of catastrophic commands (`git reset --hard`, `git clean -fd`, `rm -rf /`, `sudo`), requires the model to commit if it modified files, and stops on the first sign that something needs human attention — only blocked rows left, uncommitted changes, no commit made, no actionable rows left.
+
+That list is a guardrail, not a sandbox. It will not stop `rm -rf .` or anything deliberately obfuscated, because a blocklist never can. Run it on a repository you can restore, against work you have already pushed.
 
 You can use it for one row, for an unattended loop, for evaluations across models and prompts — or not at all. Agents inside Claude Code, Codex, or any IDE can do the same work through their own UI without ever touching the script.
 
