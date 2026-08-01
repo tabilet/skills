@@ -70,8 +70,22 @@ def slug(heading: str) -> str:
     return re.sub(r"\s+", "-", s).strip("-")
 
 
+def prose(text: str) -> str:
+    """Drop fenced code blocks.
+
+    The docs contain worked examples written in markdown, so '## Status Files'
+    and '[status-S01.md](status-S01.md)' appear inside fences as sample content.
+    Those are not document structure and must not be read as headings or links.
+    """
+    return re.sub(r"^```.*?^```", "", text, flags=re.S | re.M)
+
+
+def headings(text: str) -> list[str]:
+    return re.findall(r"^#{1,6}\s+(.*)$", prose(text), re.M)
+
+
 def anchors(path: pathlib.Path) -> set[str]:
-    return {slug(m) for m in re.findall(r"^#{1,6}\s+(.*)$", path.read_text(), re.M)}
+    return {slug(h) for h in headings(path.read_text())}
 
 
 # --------------------------------------------------------------------------
@@ -143,7 +157,7 @@ def links():
     problems = []
     link_re = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
     for md in markdown_files():
-        for target in link_re.findall(md.read_text()):
+        for target in link_re.findall(prose(md.read_text())):
             if target.startswith(("http://", "https://", "mailto:")):
                 continue
             file_part, _, frag = target.partition("#")
@@ -281,13 +295,13 @@ def translations():
     problems = []
     for stem in ("README", "docs/EXECUTION", "docs/MODEL_EVAL"):
         base = ROOT / f"{stem}.md"
-        n_en = len(re.findall(r"^#{2,3} ", base.read_text(), re.M))
+        n_en = len([h for h in headings(base.read_text())])
         for lang in LANGS:
             sib = ROOT / f"{stem}_{lang}.md"
             if not sib.exists():
                 problems.append(f"{stem}_{lang}.md is missing")
                 continue
-            n = len(re.findall(r"^#{2,3} ", sib.read_text(), re.M))
+            n = len([h for h in headings(sib.read_text())])
             if abs(n - n_en) > 1:
                 problems.append(
                     f"{sib.relative_to(ROOT)}: {n} headings vs {n_en} in English"
