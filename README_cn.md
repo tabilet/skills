@@ -1,14 +1,26 @@
 # 一个最小工程 Harness
 
-这个仓库提供一套可以直接复制到项目里的轻量级工程协作框架。它由几个部分组成：
+编码智能体在项目能自我说明时表现更好——这是什么、做完了什么、接下来做什么。通常的做法是引入一整套系统：一个 CLI、一套脚手架、一组斜杠命令、一堆自动生成的产物。半年之后，你维护这套系统文件的精力不亚于维护自己的代码，项目活在它的约定里，而不是你的约定里。
 
-- `AGENTS.md`：智能体进入项目后的启动指南。
-- `memory-bank/`：项目当前状态、边界和计划的事实来源。
-- `evolution/`：项目方向变化的版本化记录。
-- 执行 harness：用可重复运行的命令证明软件仍然正常工作。
-- 模型评测 harness：用可重复评测衡量模型辅助工作是否变好。
+这个仓库押的是相反的方向。五六个 markdown 文件，复制进你的项目，完全归你所有。没有 CLI 要安装，没有词汇表要学，没有任何强制项。哪天某个文件不再值得保留，删掉就是。
 
-这套结构的目的不是增加文档负担，而是让开发者和智能体共用同一份紧凑、明确、可执行的项目手册。
+**这里的东西不会运行。** 本仓库是一个供你往外复制的起点——把 `template/` 复制进你的项目，`harness/` 按需复制到你的主目录。之后你的项目既不依赖本仓库，也不与它保持任何关联。这正是重点：最终得到的东西属于你。
+
+你的项目最终会长成这样：
+
+```text
+your-project/
+├── AGENTS.md              智能体首先该读的文件
+├── memory-bank/           当前为真的内容
+│   ├── product.md         项目是什么、不是什么
+│   ├── architecture.md    目录布局、数据流、边界
+│   ├── tech-stack.md      命令、依赖、如何验证
+│   ├── milestone.md       里程碑及其验收标准
+│   └── status-M01.md      每个里程碑一个文件，每个任务一行
+└── evolution/             方向变化的原因与时间
+```
+
+全文中的 **harness** 指的是一条可重复执行、用来证明某件事可用的命令——你的测试套件、一个 CI job、一个脚本。你的项目在 `tech-stack.md` 里定义自己的 harness。本仓库另外提供一个可选的 harness：一个通过 API 驱动智能体、无人值守地推进项目记忆库的循环。
 
 其他语言版本: [🇬🇧 English](README.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).
 
@@ -58,6 +70,68 @@ Harness 参考：
 
 - [执行 Harness](docs/EXECUTION_cn.md)
 - [模型评测 Harness](docs/MODEL_EVAL_cn.md)
+
+## 填写后的项目记忆库长什么样
+
+模板里都是占位符。下面是同一套项目记忆库为一个小型购物服务填写后的样子，让你先看到终点，再看路线。
+
+`memory-bank/product.md` 一开始是 `[project-name] is [one or two sentences describing the project]`，填写后变成：
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+`memory-bank/milestone.md` 决定了其余一切如何组织——它命名状态线，并说明每条覆盖什么：
+
+```markdown
+## Status ID Pattern
+
+M01, M02, ...   Default lane: cross-cutting work, infrastructure, chores
+S01, S02, ...   Storefront: cart, checkout, product pages
+A01, A02, ...   Accounting: pricing, invoices, payment reconciliation
+
+Lane meanings:
+
+- `M`: anything that does not belong to a product domain.
+- `S`: shopping surface. Owned by the storefront team.
+- `A`: money. Changes here need a second reviewer.
+
+## Status Files
+
+| Milestone | Status File | Summary |
+|---|---|---|
+| S01 | [status-S01.md](status-S01.md) | Cart and checkout. |
+| A02 | [status-A02.md](status-A02.md) | Payment contract. |
+
+## S01 - Cart And Checkout
+
+**Goal.** A shopper can fill a cart and complete a purchase.
+
+**Scope.**
+
+- Cart CRUD behind `POST /cart`.
+- Line-item and order-total pricing.
+- Handoff to the payment provider.
+
+**Acceptance.** `make test` passes, and a scripted end-to-end purchase
+succeeds against the staging payment sandbox.
+```
+
+随后 `memory-bank/status-S01.md` 承载该里程碑的状态行：
+
+```markdown
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**每个标记两侧的反引号是必需的。** harness 匹配的是 `` `[ ]` ``，而不是 `[ ]`。写成 `| Item | [ ] | Notes |` 的状态行会被静默忽略：harness 会报告“No actionable memory-bank rows remain”并正常退出，就好像工作已经做完了一样。
 
 ## 为新项目设置
 
@@ -203,6 +277,8 @@ tackle next pending item in memory bank
 
 智能体应在 `memory-bank/status-<LANE><NN>.md` 中找到下一条可执行状态行，完成对应任务，运行必要验证，更新项目记忆库，并创建一个范围清晰的 git commit。如果这条状态行是某个里程碑的最后一个未完成项，智能体应在继续之前执行 `memory-bank/milestone.md` 中的里程碑评审。评审时还应判断 `evolution/` 是否需要新版本：只有当产品方向、架构边界、里程碑目标或公私契约发生实质变化时，才应新增版本。
 
+在信任这一切之前，先给智能体一个可验证的对象。在 `memory-bank/tech-stack.md` 的 **Execution harnesses** 表里填上能证明你的项目可用的命令——`make test`、`npm test`、某个脚本，任何你本来就在跑的东西——以及通过它证明了什么。在那条命令通过之前，状态行不应变成 `[+]`。没有它，“验证通过后才标记完成”就没有指向，智能体只能自己决定什么算验证。
+
 底层的标准智能体流程是：
 
 1. 阅读 `AGENTS.md`。
@@ -217,6 +293,10 @@ tackle next pending item in memory bank
 ### 状态 ID 线
 
 状态文件命名为 `memory-bank/status-<LANE><NN>.md`。字母表示这条状态线所属的领域，数字使用两位零填充：会计相关的里程碑写成 `status-A01.md`、`status-A02.md`，购物相关的写成 `status-S01.md`。无法归入某个领域的工作使用默认字母 `M`。每个字母最多 99 个文件；写满后请启用新的字母，不要扩展到三位数字。`memory-bank/milestone.md` 记录每个字母的含义，并保证状态 ID 不被重复使用。
+
+**如何选择状态线。** 一条状态线是长期存在的工作轨道，不是一个里程碑，也不是一个迭代。请按领域划分——变更属于产品的哪一部分——而不是按团队、优先级或日期，因为领域比这三者都活得久。先只用 `M`；当某个领域的工作量大到会淹没其他内容，或者需要自己的评审节奏时，再拆出一个字母。两三条状态线是常见的稳定状态，很多项目长期只用一条也没问题。
+
+拆得太少很容易补救：新开一个字母，把新工作放进去。拆得太多则不然，因为状态文件一旦存在，ID 就不会被复用或改名——你后悔的那条线会永远留在目录里。拿不准时，就先放在 `M`。
 
 状态行使用这些标记：
 
@@ -249,31 +329,6 @@ COMMIT_POLICY: task
 `GOAL.md` 不包含任何项目专有路径、状态线字母或命令。它从 `AGENTS.md` 和项目记忆库中读取这些内容，因此同一份文件可以原样用于任何复制了它的项目。
 
 没有任何地方要求你使用它。`/goal` 是你的智能体提供的命令，不属于这套 harness——你可以带上自己的协议，或者干脆不用，项目记忆库的行为完全一样。之所以提供 `GOAL.md`，只是因为这类协议写起来比较琐碎，而不是因为这里的任何东西依赖它。如果你有自己的协议，把提到 `GOAL.md` 的两处——`AGENTS.md` 和 `memory-bank/milestone.md`——指向它，或者直接删掉。
-
-### 填写后的状态文件长什么样
-
-模板里都是占位符。以一个小型购物服务为例，填写后的 `memory-bank/status-S01.md` 是这样：
-
-```markdown
-# Status S01 - Cart And Checkout
-
-| Item | State | Notes |
-|---|---|---|
-| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
-| Cart total calculation | `[~]` | Rounding rules still open. |
-| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
-| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
-```
-
-**每个标记两侧的反引号是必需的。** harness 匹配的是 `` `[ ]` ``，而不是 `[ ]`。写成 `| Item | [ ] | Notes |` 的状态行会被静默忽略：harness 会报告“No actionable memory-bank rows remain”并正常退出，就好像工作已经做完了一样。
-
-项目记忆库的其余文件同样是把占位符替换掉。`memory-bank/product.md` 一开始是 `[project-name] is [one or two sentences describing the project]`，填写后变成：
-
-```markdown
-`cartsvc` is the shopping cart and checkout service behind the storefront.
-It owns cart state, pricing, and the handoff to payments.
-```
-
 
 ## 安装 API Harness
 

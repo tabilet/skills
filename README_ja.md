@@ -1,14 +1,26 @@
 # 最小限のエンジニアリング Harness
 
-このリポジトリは、軽量なプロジェクト運用システムを作るためにそのままコピーできる出発点です。中心になる要素は次のとおりです。
+コーディングエージェントは、プロジェクトが自分自身を説明できるとき——これが何で、何が終わっていて、次が何か——うまく動きます。そのための一般的な方法は、CLI、スキャフォールド、スラッシュコマンド群、生成された成果物のフォルダといったシステムを丸ごと導入することです。半年後には、自分のコードと同じくらいそのシステムのファイルを保守していて、プロジェクトは自分の規約ではなくそのシステムの規約の中で生きています。
 
-- `AGENTS.md`: エージェントの bootstrap guide。
-- `memory-bank/`: 現在のプロジェクトの source of truth。
-- `evolution/`: 方向転換のバージョン化された履歴。
-- 実行 harness: ソフトウェアが動くことを証明する繰り返し可能なコマンド。
-- モデル評価 harness: モデル支援のふるまいを測定する繰り返し可能な評価。
+このリポジトリは逆に賭けます。markdown ファイル 5〜6 個をプロジェクトにコピーし、完全にあなたのものにする。インストールする CLI も、覚える語彙も、必須のものもありません。役目を終えた日に削除してかまいません。
 
-目的は文書量を増やすことではありません。人間とエージェントが同じ簡潔な運用マニュアルを共有し、そのマニュアルを実行可能な harness に接続することです。
+**ここにあるものは動きません。** このリポジトリはコピー*元*となる出発点です——`template/` をプロジェクトへ、`harness/` は必要ならホームディレクトリへ。その後、あなたのプロジェクトはこのリポジトリに依存せず、リンクも残りません。それが狙いです。手元に残るものはあなたのものです。
+
+プロジェクトは最終的にこうなります。
+
+```text
+your-project/
+├── AGENTS.md              エージェントが最初に読むもの
+├── memory-bank/           いま真であること
+│   ├── product.md         これが何で、何ではないか
+│   ├── architecture.md    レイアウト、データフロー、境界
+│   ├── tech-stack.md      コマンド、依存関係、検証方法
+│   ├── milestone.md       milestone と受け入れ基準
+│   └── status-M01.md      milestone ごとに 1 ファイル、タスクごとに 1 行
+└── evolution/             方向が変わった理由と時期
+```
+
+本文を通じて **harness** とは、何かが動くことを証明する繰り返し実行可能なコマンド——テストスイート、CI job、スクリプト——を指します。プロジェクトは自分の harness を `tech-stack.md` に定義します。このリポジトリはさらに任意の harness を 1 つ同梱しています。API 経由でエージェントを動かし、memory bank を無人で進めるループです。
 
 他の言語版: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).
 
@@ -52,6 +64,68 @@ Harness 参考資料:
 
 - [実行 Harness](docs/EXECUTION_ja.md)
 - [モデル評価 Harness](docs/MODEL_EVAL_ja.md)
+
+## 記入後の memory bank の例
+
+テンプレートはプレースホルダーのままです。以下は同じ memory bank を小さなショッピングサービス向けに記入したもので、道順の前に行き先を見せます。
+
+`memory-bank/product.md` は最初 `[project-name] is [one or two sentences describing the project]` で、記入後はこうなります。
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+`memory-bank/milestone.md` は他のすべての構成を決めるファイルです。レーンに名前を与え、それぞれが何を担当するかを示します。
+
+```markdown
+## Status ID Pattern
+
+M01, M02, ...   Default lane: cross-cutting work, infrastructure, chores
+S01, S02, ...   Storefront: cart, checkout, product pages
+A01, A02, ...   Accounting: pricing, invoices, payment reconciliation
+
+Lane meanings:
+
+- `M`: anything that does not belong to a product domain.
+- `S`: shopping surface. Owned by the storefront team.
+- `A`: money. Changes here need a second reviewer.
+
+## Status Files
+
+| Milestone | Status File | Summary |
+|---|---|---|
+| S01 | [status-S01.md](status-S01.md) | Cart and checkout. |
+| A02 | [status-A02.md](status-A02.md) | Payment contract. |
+
+## S01 - Cart And Checkout
+
+**Goal.** A shopper can fill a cart and complete a purchase.
+
+**Scope.**
+
+- Cart CRUD behind `POST /cart`.
+- Line-item and order-total pricing.
+- Handoff to the payment provider.
+
+**Acceptance.** `make test` passes, and a scripted end-to-end purchase
+succeeds against the staging payment sandbox.
+```
+
+続いて `memory-bank/status-S01.md` がその milestone の行を持ちます。
+
+```markdown
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**各マーカーを囲むバッククォートは必須です。** harness が一致させるのは `` `[ ]` `` であり、`[ ]` ではありません。`| Item | [ ] | Notes |` と書かれた行は黙って無視され、harness は「No actionable memory-bank rows remain」と表示して正常終了します。作業が終わったかのように見えてしまいます。
 
 ## 新規プロジェクトをセットアップする
 
@@ -197,6 +271,8 @@ tackle next pending item in memory bank
 
 エージェントは `memory-bank/status-<LANE><NN>.md` の次の実行可能な行を見つけ、そのタスクを完了し、必要な検証を実行し、memory bank を更新し、範囲の明確な git commit を作るべきです。その行が milestone の最後の未完了項目である場合、エージェントは先に `memory-bank/milestone.md` の milestone review を実行します。その review では、プロダクト方向、アーキテクチャ境界、milestone 目標、または public/private contract の方向が実質的に変わったため `evolution/` に新バージョンが必要かも判断します。
 
+これらを信頼する前に、エージェントに検証対象を与えてください。`memory-bank/tech-stack.md` の **Execution harnesses** 表に、プロジェクトが動くことを証明するコマンド——`make test`、`npm test`、スクリプトなど、すでに実行しているもの——と、それが何を証明するかを書きます。そのコマンドが通るまで、行を `[+]` にすべきではありません。これがないと「検証が通ってから完了にする」には指す先がなく、エージェントが自分で検証の意味を決めてしまいます。
+
 内部では、通常のエージェントワークフローは次のとおりです。
 
 1. `AGENTS.md` を読む。
@@ -211,6 +287,10 @@ tackle next pending item in memory bank
 ### ステータス ID レーン
 
 Status ファイルは `memory-bank/status-<LANE><NN>.md` という名前にします。レーン文字が作業の分類を表し、数字は 2 桁のゼロ埋めです。会計の milestone は `status-A01.md` や `status-A02.md`、買い物の milestone は `status-S01.md` になります。ドメインレーンに分類できない作業は既定の `M` を使います。1 つのレーンは最大 99 ファイルまでで、埋まったら 3 桁目を足さずに新しい文字を使います。`memory-bank/milestone.md` が各文字の意味を記録し、ID の再利用を防ぎます。
+
+**レーンの選び方。** レーンは長く続く作業の筋であって、milestone でもスプリントでもありません。チームや優先度や日付ではなく、ドメイン——変更がプロダクトのどの部分に属するか——で分類してください。ドメインはその三つより長生きします。まずは `M` だけで始め、あるドメインの行が他を埋もれさせるほど増えたとき、あるいは独自のレビュー周期が必要になったときに初めて文字を分けます。2〜3 レーンが普通の定常状態で、1 本のまま長く進むプロジェクトもあります。
+
+分け足りないのは直すのが簡単です。新しい文字を開いて新しい作業をそこに置けば済みます。分けすぎはそうはいきません。status ファイルができた時点で ID は再利用も改名もされないため、後悔したレーンはツリーに残り続けます。迷ったら `M` に置いてください。
 
 Status 行は次のマーカーを使います。
 
@@ -243,31 +323,6 @@ COMMIT_POLICY: task
 `GOAL.md` にはプロジェクト固有のパス、レーン文字、コマンドは含まれません。それらは `AGENTS.md` と memory bank から読み取るため、コピーしたどのプロジェクトでも同じファイルがそのまま使えます。
 
 使うことを求めてはいません。`/goal` はあなたのエージェントのコマンドであって、この harness のものではありません。自前の protocol を持ち込んでも、何も使わなくても、memory bank のふるまいは変わりません。`GOAL.md` を同梱しているのは、この種の protocol を書くのが面倒だからであって、ここにある何かがそれに依存しているからではありません。自前のものがあるなら、`GOAL.md` に触れている 2 か所——`AGENTS.md` と `memory-bank/milestone.md`——をそちらに向けるか、削除してください。
-
-### 記入後の status ファイルの例
-
-テンプレートはプレースホルダーのままです。小さなショッピングサービス向けに記入した `memory-bank/status-S01.md` は次のようになります。
-
-```markdown
-# Status S01 - Cart And Checkout
-
-| Item | State | Notes |
-|---|---|---|
-| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
-| Cart total calculation | `[~]` | Rounding rules still open. |
-| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
-| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
-```
-
-**各マーカーを囲むバッククォートは必須です。** harness が一致させるのは `` `[ ]` `` であり、`[ ]` ではありません。`| Item | [ ] | Notes |` と書かれた行は黙って無視され、harness は「No actionable memory-bank rows remain」と表示して正常終了します。作業が終わったかのように見えてしまいます。
-
-memory bank の他のファイルも同じくプレースホルダーを置き換えます。`memory-bank/product.md` は最初 `[project-name] is [one or two sentences describing the project]` で、記入後はこうなります。
-
-```markdown
-`cartsvc` is the shopping cart and checkout service behind the storefront.
-It owns cart state, pricing, and the handoff to payments.
-```
-
 
 ## API Harness をインストールする
 

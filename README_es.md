@@ -1,14 +1,26 @@
 # Un harness mínimo de ingeniería
 
-Este repositorio es un punto de partida copiable para un sistema operativo de proyecto ligero, construido alrededor de:
+Los agentes de código trabajan mejor cuando un proyecto sabe explicarse: qué es, qué está hecho, qué viene después. La forma habitual de conseguirlo es adoptar un sistema: un CLI, un scaffold, un conjunto de comandos slash, una carpeta de artefactos generados. Seis meses después mantiene los archivos de ese sistema tanto como su propio código, y su proyecto vive dentro de las convenciones de ese sistema en lugar de las suyas.
 
-- `AGENTS.md` como guía de bootstrap para agentes.
-- `memory-bank/` como fuente de verdad actual del proyecto.
-- `evolution/` como historial versionado de cambios de dirección.
-- harnesses de ejecución como comandos repetibles que demuestran que el software funciona.
-- harnesses de evaluación de modelos como evaluaciones repetibles que miden comportamiento asistido por modelos.
+Este repositorio apuesta por lo contrario. Cinco o seis archivos markdown, copiados a su proyecto, suyos por completo. Ningún CLI que instalar, ningún vocabulario que aprender, nada obligatorio. Borre cualquiera de ellos el día en que deje de merecer su sitio.
 
-El objetivo no es aumentar el volumen de documentación. El objetivo es dar a personas y agentes el mismo manual operativo compacto, y luego conectar ese manual con harnesses ejecutables.
+**Aquí no se ejecuta nada.** Este repositorio es un punto de partida del que se copia *hacia fuera*: `template/` a su proyecto y `harness/` opcionalmente a su directorio personal. Después su proyecto no depende de este repositorio ni mantiene enlace de vuelta. Ese es justamente el objetivo: lo que le queda es suyo.
+
+Su proyecto acaba con este aspecto:
+
+```text
+your-project/
+├── AGENTS.md              lo que un agente debe leer primero
+├── memory-bank/           lo que es cierto ahora
+│   ├── product.md         qué es y qué no es
+│   ├── architecture.md    estructura, flujo de datos, fronteras
+│   ├── tech-stack.md      comandos, dependencias, verificación
+│   ├── milestone.md       milestones y criterios de aceptación
+│   └── status-M01.md      un archivo por milestone, una fila por tarea
+└── evolution/             por qué cambió la dirección
+```
+
+A lo largo del documento, **harness** significa un comando repetible que demuestra que algo funciona: su suite de pruebas, un job de CI, un script. Su proyecto define el suyo en `tech-stack.md`. Este repositorio incluye además un harness opcional: un bucle por API que conduce a un agente a través del memory bank sin supervisión.
 
 Otras versiones de idioma: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md).
 
@@ -52,6 +64,68 @@ Referencias de harness:
 
 - [Harness de ejecución](docs/EXECUTION_es.md)
 - [Harness de evaluación de modelos](docs/MODEL_EVAL_es.md)
+
+## Cómo se ve un memory bank completado
+
+La plantilla trae placeholders. Este es el mismo memory bank completado para un pequeño servicio de tienda, para ver el destino antes que las indicaciones.
+
+`memory-bank/product.md` empieza como `[project-name] is [one or two sentences describing the project]` y queda así:
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+`memory-bank/milestone.md` decide cómo se organiza todo lo demás: nombra los carriles y dice qué cubre cada uno.
+
+```markdown
+## Status ID Pattern
+
+M01, M02, ...   Default lane: cross-cutting work, infrastructure, chores
+S01, S02, ...   Storefront: cart, checkout, product pages
+A01, A02, ...   Accounting: pricing, invoices, payment reconciliation
+
+Lane meanings:
+
+- `M`: anything that does not belong to a product domain.
+- `S`: shopping surface. Owned by the storefront team.
+- `A`: money. Changes here need a second reviewer.
+
+## Status Files
+
+| Milestone | Status File | Summary |
+|---|---|---|
+| S01 | [status-S01.md](status-S01.md) | Cart and checkout. |
+| A02 | [status-A02.md](status-A02.md) | Payment contract. |
+
+## S01 - Cart And Checkout
+
+**Goal.** A shopper can fill a cart and complete a purchase.
+
+**Scope.**
+
+- Cart CRUD behind `POST /cart`.
+- Line-item and order-total pricing.
+- Handoff to the payment provider.
+
+**Acceptance.** `make test` passes, and a scripted end-to-end purchase
+succeeds against the staging payment sandbox.
+```
+
+Después `memory-bank/status-S01.md` lleva las filas de ese milestone:
+
+```markdown
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**Los backticks alrededor de cada marcador son obligatorios.** El harness coincide con `` `[ ]` ``, no con `[ ]`. Una fila escrita `| Item | [ ] | Notes |` se ignora en silencio: el harness informa «No actionable memory-bank rows remain» y termina correctamente, como si el trabajo estuviera hecho.
 
 ## Configurar un proyecto nuevo
 
@@ -197,6 +271,8 @@ tackle next pending item in memory bank
 
 El agente debe encontrar la siguiente fila accionable en `memory-bank/status-<LANE><NN>.md`, completar esa tarea, ejecutar la verificación requerida, actualizar el memory bank y hacer un git commit con alcance claro. Si esa fila es el último elemento abierto de un milestone, el agente debe ejecutar la revisión de milestone desde `memory-bank/milestone.md` antes de continuar. Durante esa revisión también debe decidir si `evolution/` necesita una nueva versión porque la dirección del producto, el límite de arquitectura, el objetivo del milestone o la dirección del contrato público/privado cambiaron materialmente.
 
+Antes de confiar en todo esto, dele al agente algo contra lo que verificar. Rellene la tabla **Execution harnesses** de `memory-bank/tech-stack.md` con el comando que demuestra que su proyecto funciona —`make test`, `npm test`, un script, lo que ya ejecute— y qué demuestra que pase. Una fila no debería llegar a `[+]` hasta que ese comando haya pasado. Sin eso, «marcar una fila completa solo tras verificar» no tiene referente y el agente decide por su cuenta qué significa verificado.
+
 Debajo de la superficie, el flujo normal del agente es:
 
 1. Leer `AGENTS.md`.
@@ -211,6 +287,10 @@ Debajo de la superficie, el flujo normal del agente es:
 ### Carriles de ID de estado
 
 Los archivos de estado se llaman `memory-bank/status-<LANE><NN>.md`. La letra de carril clasifica el trabajo y el número lleva dos dígitos con cero a la izquierda: los milestones de contabilidad quedan como `status-A01.md` y `status-A02.md`, y los de compras como `status-S01.md`. `M` es el carril por defecto para el trabajo que no encaja en un carril de dominio. Un carril admite como máximo 99 archivos; cuando se llena, abra una letra nueva en vez de añadir un tercer dígito. `memory-bank/milestone.md` registra qué significa cada letra y evita reutilizar un identificador.
+
+**Cómo elegir carriles.** Un carril es una vía de trabajo de larga vida, no un milestone ni un sprint. Clasifique por dominio —la parte del producto a la que pertenece un cambio— y no por equipo, prioridad o fecha, porque los dominios sobreviven a los tres. Empiece solo con `M`; separe una letra la primera vez que un dominio tenga tanto trabajo que sus filas ahoguen al resto, o cuando necesite su propia cadencia de revisión. Dos o tres carriles es un estado estable normal, y un proyecto puede funcionar mucho tiempo con uno.
+
+Quedarse corto se arregla barato: abra una letra nueva y ponga allí el trabajo nuevo. Pasarse no, porque los identificadores no se reutilizan ni se renombran una vez que existe su archivo: un carril del que se arrepienta se queda en el árbol para siempre. Ante la duda, déjelo en `M`.
 
 Las filas de estado usan estos marcadores:
 
@@ -243,31 +323,6 @@ Una `?` final marca un milestone como condicional: se omite, no se cancela, cuan
 `GOAL.md` no lleva rutas, letras de carril ni comandos propios de un proyecto. Los lee de `AGENTS.md` y del memory bank, así que el mismo archivo sirve sin cambios en cualquier proyecto que lo copie.
 
 Nada le obliga a usarlo. `/goal` es el comando de su agente, no de este harness: traiga su propio protocolo, o ninguno, y el memory bank se comporta igual. `GOAL.md` se incluye porque escribir uno de estos es engorroso, no porque algo de aquí dependa de él. Si tiene el suyo, apunte a él las dos menciones de `GOAL.md` —en `AGENTS.md` y `memory-bank/milestone.md`— o bórrelas.
-
-### Cómo se ve un archivo de estado completado
-
-Las plantillas vienen con placeholders. Completado para un pequeño servicio de tienda, `memory-bank/status-S01.md` se ve así:
-
-```markdown
-# Status S01 - Cart And Checkout
-
-| Item | State | Notes |
-|---|---|---|
-| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
-| Cart total calculation | `[~]` | Rounding rules still open. |
-| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
-| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
-```
-
-**Los backticks alrededor de cada marcador son obligatorios.** El harness coincide con `` `[ ]` ``, no con `[ ]`. Una fila escrita `| Item | [ ] | Notes |` se ignora en silencio: el harness informa «No actionable memory-bank rows remain» y termina correctamente, como si el trabajo estuviera hecho.
-
-El mismo reemplazo de placeholders aplica al resto del memory bank. `memory-bank/product.md` empieza como `[project-name] is [one or two sentences describing the project]` y queda así:
-
-```markdown
-`cartsvc` is the shopping cart and checkout service behind the storefront.
-It owns cart state, pricing, and the handoff to payments.
-```
-
 
 ## Instalar el API Harness
 

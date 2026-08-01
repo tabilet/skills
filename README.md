@@ -1,17 +1,38 @@
 # A Minimal Engineering Harness
 
-This repository is a copyable starting point for a lightweight project operating
-system built around:
+Coding agents work better when a project can explain itself — what it is, what's
+done, what's next. The usual way to get that is to adopt a system: a CLI, a
+scaffold, a set of slash commands, a folder of generated artifacts. Six months
+later you are maintaining that system's files as much as your own code, and your
+project lives inside its conventions rather than yours.
 
-- `AGENTS.md` as the agent bootstrap guide.
-- `memory-bank/` as the current project source of truth.
-- `evolution/` as versioned history for direction changes.
-- execution harnesses as repeatable commands that prove the software works.
-- model eval harnesses as repeatable evaluations that measure model-assisted
-  behavior.
+This is the opposite bet. Five or six markdown files, copied into your project,
+owned outright by you. No CLI to install, no vocabulary to learn, nothing
+mandatory. Delete any of it the day it stops earning its place.
 
-The goal is not documentation volume. The goal is to give humans and agents the
-same compact operating manual, then connect that manual to executable harnesses.
+**Nothing here runs.** This repository is a starting point you copy *out* of —
+`template/` into your project, `harness/` optionally into your home directory.
+Afterwards your project has no dependency on this repository and no link back to
+it. That is the point: what you end up with is yours.
+
+Your project ends up looking like this:
+
+```text
+your-project/
+├── AGENTS.md              what an agent should read first
+├── memory-bank/           what is true now
+│   ├── product.md         what this is, and is not
+│   ├── architecture.md    layout, data flow, boundaries
+│   ├── tech-stack.md      commands, dependencies, how you verify
+│   ├── milestone.md       milestones and their acceptance criteria
+│   └── status-M01.md      one file per milestone, one row per task
+└── evolution/             why the direction changed, when it did
+```
+
+Throughout, **harness** means a repeatable command that proves something works —
+your test suite, a CI job, a script. Your project defines its own in
+`tech-stack.md`. This repository also ships one optional harness of its own, an
+API loop that drives an agent through the memory bank unattended.
 
 Language versions: [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) ·
 [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) ·
@@ -68,6 +89,74 @@ Harness references:
 - [Execution Harness](docs/EXECUTION.md)
 - [Model Eval Harness](docs/MODEL_EVAL.md)
 
+## What A Filled-In Memory Bank Looks Like
+
+The template ships placeholders. Here is the same memory bank filled in for a
+small shopping service, so you can see the destination before the directions.
+
+`memory-bank/product.md` starts as `[project-name] is [one or two sentences
+describing the project]` and becomes:
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+`memory-bank/milestone.md` is the file that decides how everything else is
+organised — it names the lanes and what each one covers:
+
+```markdown
+## Status ID Pattern
+
+M01, M02, ...   Default lane: cross-cutting work, infrastructure, chores
+S01, S02, ...   Storefront: cart, checkout, product pages
+A01, A02, ...   Accounting: pricing, invoices, payment reconciliation
+
+Lane meanings:
+
+- `M`: anything that does not belong to a product domain.
+- `S`: shopping surface. Owned by the storefront team.
+- `A`: money. Changes here need a second reviewer.
+
+## Status Files
+
+| Milestone | Status File | Summary |
+|---|---|---|
+| S01 | [status-S01.md](status-S01.md) | Cart and checkout. |
+| A02 | [status-A02.md](status-A02.md) | Payment contract. |
+
+## S01 - Cart And Checkout
+
+**Goal.** A shopper can fill a cart and complete a purchase.
+
+**Scope.**
+
+- Cart CRUD behind `POST /cart`.
+- Line-item and order-total pricing.
+- Handoff to the payment provider.
+
+**Acceptance.** `make test` passes, and a scripted end-to-end purchase
+succeeds against the staging payment sandbox.
+```
+
+Then `memory-bank/status-S01.md` carries the rows for that milestone:
+
+```markdown
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**The backticks around each marker are required.** The harness matches
+`` `[ ]` ``, not `[ ]`. A row written `| Item | [ ] | Notes |` is silently
+ignored: the harness reports "No actionable memory-bank rows remain" and exits
+successfully, as though the work were finished.
+
 ## Set Up A New Project
 
 ### Manual
@@ -87,8 +176,8 @@ Then edit the copied files in this order:
 4. `memory-bank/milestone.md`: define the status ID lanes (see
    [Status ID lanes](#status-id-lanes)) and the first milestone.
 5. `memory-bank/status-M01.md`: define the first milestone's actionable rows.
-   See [what a filled-in status file looks
-   like](#what-a-filled-in-status-file-looks-like) — the marker backticks
+   See [what a filled-in memory bank looks
+   like](#what-a-filled-in-memory-bank-looks-like) — the marker backticks
    matter.
 6. `evolution/prompt-v1.md`: record the initial direction.
 7. `evolution/result-v1.md`: record the current starting state.
@@ -245,6 +334,13 @@ also decide whether `evolution/` needs a new version because the product
 direction, architecture boundary, milestone target, or public/private contract
 direction materially changed.
 
+Before you trust any of this, give the agent something to verify against. Fill
+the **Execution harnesses** table in `memory-bank/tech-stack.md` with the command
+that proves your project works — `make test`, `npm test`, a script, whatever you
+already run — and what passing it proves. A row should not reach `[+]` until that
+command has passed. Without it, "mark a row complete only when verified" has no
+referent and the agent will decide for itself what verified means.
+
 Under the surface, the normal agent workflow is:
 
 1. Read `AGENTS.md`.
@@ -271,6 +367,19 @@ become `status-S01.md`. `M` is the default lane for work that does not classify
 into a domain lane. A lane holds at most 99 files; when a lane fills up, open a
 new letter instead of adding a third digit. `memory-bank/milestone.md` records
 what each letter means and never lets an ID be reused.
+
+**Choosing lanes.** A lane is a long-lived track of work, not a milestone and
+not a sprint. Classify by domain — the part of the product a change belongs to —
+rather than by team, priority, or date, because domains outlive all three. Start
+with `M` alone; split a letter out the first time a domain has enough work that
+its rows would drown out everything else, or when it needs its own review
+cadence. Two or three lanes is a normal steady state, and a project can run a
+long time on one.
+
+Under-splitting is cheap to fix: open a new letter and put new work there. Over-
+splitting is not, because IDs are never reused or renamed once their file
+exists — a lane you regret stays in the tree forever. When unsure, leave it in
+`M`.
 
 Status rows use these markers:
 
@@ -323,36 +432,6 @@ exactly the same. `GOAL.md` is offered because writing one of these is fiddly,
 not because anything here depends on it. If you have your own, point the two
 `GOAL.md` mentions — in `AGENTS.md` and `memory-bank/milestone.md` — at it, or
 delete them.
-
-### What a filled-in status file looks like
-
-The templates ship with placeholders. Filled in for a small shopping service,
-`memory-bank/status-S01.md` looks like this:
-
-```markdown
-# Status S01 - Cart And Checkout
-
-| Item | State | Notes |
-|---|---|---|
-| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
-| Cart total calculation | `[~]` | Rounding rules still open. |
-| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
-| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
-```
-
-**The backticks around each marker are required.** The harness matches
-`` `[ ]` ``, not `[ ]`. A row written `| Item | [ ] | Notes |` is silently
-ignored: the harness reports "No actionable memory-bank rows remain" and exits
-successfully, as though the work were finished.
-
-The same fill-in-the-placeholders move applies to the rest of the memory bank.
-`memory-bank/product.md` starts as `[project-name] is [one or two sentences
-describing the project]` and becomes:
-
-```markdown
-`cartsvc` is the shopping cart and checkout service behind the storefront.
-It owns cart state, pricing, and the handoff to payments.
-```
 
 ## Install The API Harness
 

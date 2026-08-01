@@ -1,14 +1,26 @@
 # Un harness d’ingénierie minimal
 
-Ce dépôt est un point de départ copiable pour un système d’exploitation de projet léger, construit autour de :
+Les agents de code travaillent mieux quand un projet sait s'expliquer — ce qu'il est, ce qui est fait, ce qui vient ensuite. La façon habituelle d'y arriver est d'adopter un système : un CLI, un scaffold, une série de commandes slash, un dossier d'artefacts générés. Six mois plus tard, vous maintenez les fichiers de ce système autant que votre propre code, et votre projet vit dans ses conventions plutôt que dans les vôtres.
 
-- `AGENTS.md` comme guide de bootstrap pour les agents.
-- `memory-bank/` comme source de vérité actuelle du projet.
-- `evolution/` comme historique versionné des changements de direction.
-- des harnesses d’exécution comme commandes répétables qui prouvent que le logiciel fonctionne.
-- des harnesses d’évaluation de modèle comme évaluations répétables qui mesurent le comportement assisté par modèle.
+Ce dépôt fait le pari inverse. Cinq ou six fichiers markdown, copiés dans votre projet, qui vous appartiennent entièrement. Aucun CLI à installer, aucun vocabulaire à apprendre, rien d'obligatoire. Supprimez-en n'importe lequel le jour où il cesse de mériter sa place.
 
-L’objectif n’est pas d’augmenter le volume de documentation. L’objectif est de donner aux humains et aux agents le même manuel d’exploitation compact, puis de relier ce manuel à des harnesses exécutables.
+**Rien ne s'exécute ici.** Ce dépôt est un point de départ dont vous copiez le contenu *vers l'extérieur* — `template/` dans votre projet, `harness/` éventuellement dans votre répertoire personnel. Ensuite votre projet n'a aucune dépendance envers ce dépôt ni aucun lien de retour. C'est justement l'objectif : ce que vous obtenez vous appartient.
+
+Votre projet finit par ressembler à ceci :
+
+```text
+your-project/
+├── AGENTS.md              ce qu'un agent doit lire en premier
+├── memory-bank/           ce qui est vrai maintenant
+│   ├── product.md         ce que c'est, et ce que ce n'est pas
+│   ├── architecture.md    structure, flux de données, frontières
+│   ├── tech-stack.md      commandes, dépendances, vérification
+│   ├── milestone.md       milestones et critères d'acceptation
+│   └── status-M01.md      un fichier par milestone, une ligne par tâche
+└── evolution/             pourquoi la direction a changé
+```
+
+Dans tout ce document, **harness** désigne une commande reproductible qui prouve que quelque chose fonctionne — votre suite de tests, un job CI, un script. Votre projet définit le sien dans `tech-stack.md`. Ce dépôt fournit en plus un harness optionnel : une boucle API qui pilote un agent à travers la memory bank sans surveillance.
 
 Autres versions linguistiques: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇪🇸 Español](README_es.md).
 
@@ -52,6 +64,68 @@ Références harness :
 
 - [Harness d’exécution](docs/EXECUTION_fr.md)
 - [Harness d’évaluation de modèle](docs/MODEL_EVAL_fr.md)
+
+## À quoi ressemble une memory bank remplie
+
+Le modèle contient des placeholders. Voici la même memory bank remplie pour un petit service de boutique, pour voir la destination avant l'itinéraire.
+
+`memory-bank/product.md` commence par `[project-name] is [one or two sentences describing the project]` et devient :
+
+```markdown
+`cartsvc` is the shopping cart and checkout service behind the storefront.
+It owns cart state, pricing, and the handoff to payments.
+```
+
+`memory-bank/milestone.md` décide de l'organisation de tout le reste : il nomme les voies et dit ce que chacune couvre.
+
+```markdown
+## Status ID Pattern
+
+M01, M02, ...   Default lane: cross-cutting work, infrastructure, chores
+S01, S02, ...   Storefront: cart, checkout, product pages
+A01, A02, ...   Accounting: pricing, invoices, payment reconciliation
+
+Lane meanings:
+
+- `M`: anything that does not belong to a product domain.
+- `S`: shopping surface. Owned by the storefront team.
+- `A`: money. Changes here need a second reviewer.
+
+## Status Files
+
+| Milestone | Status File | Summary |
+|---|---|---|
+| S01 | [status-S01.md](status-S01.md) | Cart and checkout. |
+| A02 | [status-A02.md](status-A02.md) | Payment contract. |
+
+## S01 - Cart And Checkout
+
+**Goal.** A shopper can fill a cart and complete a purchase.
+
+**Scope.**
+
+- Cart CRUD behind `POST /cart`.
+- Line-item and order-total pricing.
+- Handoff to the payment provider.
+
+**Acceptance.** `make test` passes, and a scripted end-to-end purchase
+succeeds against the staging payment sandbox.
+```
+
+Ensuite `memory-bank/status-S01.md` porte les lignes de ce milestone :
+
+```markdown
+# Status S01 - Cart And Checkout
+
+| Item | State | Notes |
+|---|---|---|
+| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
+| Cart total calculation | `[~]` | Rounding rules still open. |
+| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
+| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+```
+
+**Les backticks autour de chaque marqueur sont obligatoires.** Le harness reconnaît `` `[ ]` ``, pas `[ ]`. Une ligne écrite `| Item | [ ] | Notes |` est ignorée en silence : le harness affiche « No actionable memory-bank rows remain » et se termine avec succès, comme si le travail était fini.
 
 ## Configurer un nouveau projet
 
@@ -197,6 +271,8 @@ tackle next pending item in memory bank
 
 L’agent doit trouver la prochaine ligne actionnable dans `memory-bank/status-<LANE><NN>.md`, terminer cette tâche, exécuter la vérification requise, mettre à jour la memory bank et créer un git commit au périmètre clair. Si cette ligne est le dernier élément ouvert d’un milestone, l’agent doit lancer la revue de milestone depuis `memory-bank/milestone.md` avant de continuer. Pendant cette revue, il doit aussi décider si `evolution/` a besoin d’une nouvelle version parce que la direction produit, la frontière d’architecture, la cible du milestone ou la direction du contrat public/privé a changé matériellement.
 
+Avant de faire confiance à tout cela, donnez à l’agent quelque chose à vérifier. Remplissez le tableau **Execution harnesses** de `memory-bank/tech-stack.md` avec la commande qui prouve que votre projet fonctionne — `make test`, `npm test`, un script, ce que vous lancez déjà — et ce que sa réussite prouve. Une ligne ne devrait pas passer à `[+]` avant que cette commande soit passée. Sans cela, « ne marquer une ligne terminée qu’après vérification » n’a aucun référent et l’agent décide seul de ce que vérifier veut dire.
+
 Sous la surface, le workflow normal de l’agent est :
 
 1. Lire `AGENTS.md`.
@@ -211,6 +287,10 @@ Sous la surface, le workflow normal de l’agent est :
 ### Voies d’ID de statut
 
 Les fichiers de statut sont nommés `memory-bank/status-<LANE><NN>.md`. La lettre de voie classe le travail et le nombre s’écrit sur deux chiffres avec un zéro initial : les milestones de comptabilité deviennent `status-A01.md` et `status-A02.md`, ceux de la boutique `status-S01.md`. `M` est la voie par défaut pour le travail qui n’entre dans aucune voie de domaine. Une voie contient au plus 99 fichiers ; quand elle est pleine, ouvrez une nouvelle lettre au lieu d’ajouter un troisième chiffre. `memory-bank/milestone.md` consigne le sens de chaque lettre et interdit de réutiliser un identifiant.
+
+**Choisir ses voies.** Une voie est un axe de travail durable, pas un milestone ni un sprint. Classez par domaine — la partie du produit à laquelle un changement appartient — plutôt que par équipe, priorité ou date, car les domaines survivent aux trois. Commencez avec `M` seul ; détachez une lettre la première fois qu'un domaine a assez de travail pour noyer le reste, ou quand il lui faut son propre rythme de revue. Deux ou trois voies est un régime permanent normal, et un projet peut tenir longtemps avec une seule.
+
+Sous-découper se corrige à peu de frais : ouvrez une nouvelle lettre et mettez-y le travail à venir. Sur-découper non, car les identifiants ne sont jamais réutilisés ni renommés une fois le fichier créé — une voie que vous regrettez reste dans l'arbre pour toujours. Dans le doute, laissez dans `M`.
 
 Les lignes de statut utilisent ces marqueurs :
 
@@ -243,31 +323,6 @@ Un `?` final marque un milestone conditionnel : il est ignoré, pas annulé, qua
 `GOAL.md` ne contient aucun chemin, aucune lettre de voie ni aucune commande propres à un projet. Il les lit depuis `AGENTS.md` et la memory bank, ce qui permet au même fichier de fonctionner tel quel dans tout projet qui le copie.
 
 Rien ne vous oblige à l’utiliser. `/goal` est la commande de votre agent, pas celle de ce harness : apportez votre propre protocole, ou aucun, la memory bank se comporte exactement pareil. `GOAL.md` est fourni parce qu’écrire ce genre de protocole est fastidieux, pas parce que quoi que ce soit ici en dépend. Si vous avez le vôtre, faites pointer dessus les deux mentions de `GOAL.md` — dans `AGENTS.md` et `memory-bank/milestone.md` — ou supprimez-les.
-
-### À quoi ressemble un fichier de statut rempli
-
-Les modèles contiennent des placeholders. Rempli pour un petit service de boutique, `memory-bank/status-S01.md` ressemble à ceci :
-
-```markdown
-# Status S01 - Cart And Checkout
-
-| Item | State | Notes |
-|---|---|---|
-| Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
-| Cart total calculation | `[~]` | Rounding rules still open. |
-| Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
-| Guest checkout | `[X]` | Cancelled; accounts required at launch. |
-```
-
-**Les backticks autour de chaque marqueur sont obligatoires.** Le harness reconnaît `` `[ ]` ``, pas `[ ]`. Une ligne écrite `| Item | [ ] | Notes |` est ignorée en silence : le harness affiche « No actionable memory-bank rows remain » et se termine avec succès, comme si le travail était fini.
-
-Le même remplacement de placeholders s’applique au reste de la memory bank. `memory-bank/product.md` commence par `[project-name] is [one or two sentences describing the project]` et devient :
-
-```markdown
-`cartsvc` is the shopping cart and checkout service behind the storefront.
-It owns cart state, pricing, and the handoff to payments.
-```
-
 
 ## Installer le harness API
 
