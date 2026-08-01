@@ -18,7 +18,7 @@ Markdown führt den Harness nicht aus. Markdown erklärt Menschen und Agenten, w
 - `memory-bank/tech-stack.md` dokumentiert Voraussetzungen, Umgebungsvariablen, Docker images, Ports und Befehlsnamen.
 - `docs/` enthält ausführlichere Hinweise zu Setup, Teardown und Troubleshooting.
 - `memory-bank/milestone.md` kann einen bestandenen Harness als Teil der Akzeptanz definieren.
-- `memory-bank/status.md` hält fest, ob Harness-bezogene Zeilen pending, complete, blocked oder cancelled sind.
+- `memory-bank/status-<LANE><NN>.md` hält fest, ob Harness-bezogene Zeilen pending, complete, blocked oder cancelled sind.
 
 ## Agenten-Ausführungs-Harness
 

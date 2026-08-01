@@ -19,7 +19,7 @@ Archivos de ejemplo a nivel de proyecto:
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
 - [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
-- [template/memory-bank/status.md](template/memory-bank/status.md)
+- [template/memory-bank/status-M01.md](template/memory-bank/status-M01.md)
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
 - [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
@@ -50,7 +50,7 @@ Después edite los archivos copiados en este orden:
 2. `memory-bank/architecture.md`: definir layout, flujo de datos y límites.
 3. `memory-bank/tech-stack.md`: definir comandos, dependencias y harnesses.
 4. `memory-bank/milestone.md`: definir el primer milestone.
-5. `memory-bank/status.md`: definir las primeras filas accionables.
+5. `memory-bank/status-M01.md`: definir las primeras filas accionables.
 6. `evolution/prompt-v1.md`: registrar la dirección inicial.
 7. `evolution/result-v1.md`: registrar el estado inicial actual.
 8. `AGENTS.md`: reemplazar placeholders con comandos y reglas específicos del proyecto.
@@ -77,7 +77,7 @@ Luego converse con el agente hasta que el producto, usuarios, límites, comandos
 - `memory-bank/architecture.md`
 - `memory-bank/tech-stack.md`
 - `memory-bank/milestone.md`
-- `memory-bank/status.md`
+- `memory-bank/status-M01.md`
 - `evolution/prompt-v1.md`
 - `evolution/result-v1.md`
 
@@ -86,8 +86,9 @@ Prompt de ejemplo:
 ```text
 Read the sample AGENTS.md, memory-bank/*, and evolution/* files. Based on our
 discussion of this new project, replace the placeholders with accurate project
-content. Keep README user-facing, put long-form references in docs/, and make
-memory-bank/status.md contain the first actionable milestone rows.
+content. Keep README user-facing, put long-form references in docs/, define the status
+ID lanes in memory-bank/milestone.md, and make memory-bank/status-M01.md contain
+the first actionable milestone rows.
 ```
 
 ## Configurar un proyecto existente
@@ -108,8 +109,8 @@ Luego:
 2. Copie `template/` desde este repositorio.
 3. Complete el memory bank desde lo que el proyecto ya dice, no desde una reescritura imaginada.
 4. Mueva referencias largas y estables a `docs/`.
-5. Convierta material duplicado de roadmap/status en `memory-bank/milestone.md` y `memory-bank/status.md`.
-6. Mantenga las brechas conocidas visibles en `status.md` en vez de ocultarlas.
+5. Convierta material duplicado de roadmap/status en `memory-bank/milestone.md` y `memory-bank/status-<LANE><NN>.md`.
+6. Mantenga las brechas conocidas visibles en `status-<LANE><NN>.md` en vez de ocultarlas.
 
 ### Con ayuda de un agente de IA
 
@@ -130,7 +131,8 @@ Después pida al agente que lea el proyecto antes de escribir:
 Read the existing README, docs, package README files, tests, build files, and
 major source directories. Use that actual project content to fill in AGENTS.md,
 memory-bank/*, and evolution/*. Preserve useful existing documentation by moving
-long-form references into docs/. Keep known gaps visible in memory-bank/status.md.
+long-form references into docs/. Keep known gaps visible in the matching
+memory-bank/status-<LANE><NN>.md file.
 Do not invent product direction that is not supported by the existing project.
 ```
 
@@ -141,7 +143,7 @@ El agente debe:
 3. Completar el memory bank desde la realidad actual del proyecto.
 4. Mover o resumir referencias largas en `docs/`.
 5. Mantener `README.md` simple y orientado al usuario.
-6. Dejar brechas no resueltas como filas pending o blocked en `memory-bank/status.md`.
+6. Dejar brechas no resueltas como filas pending o blocked en `memory-bank/status-<LANE><NN>.md`.
 
 ## Usar el Memory Bank
 
@@ -151,7 +153,7 @@ Con un agente como Codex o Claude Code, el flujo de trabajo visible para el usua
 tackle next pending item in memory bank
 ```
 
-El agente debe encontrar la siguiente fila accionable en `memory-bank/status.md`, completar esa tarea, ejecutar la verificación requerida, actualizar el memory bank y hacer un git commit con alcance claro. Si esa fila es el último elemento abierto de un milestone, el agente debe ejecutar la revisión de milestone desde `memory-bank/milestone.md` antes de continuar. Durante esa revisión también debe decidir si `evolution/` necesita una nueva versión porque la dirección del producto, el límite de arquitectura, el objetivo del milestone o la dirección del contrato público/privado cambiaron materialmente.
+El agente debe encontrar la siguiente fila accionable en `memory-bank/status-<LANE><NN>.md`, completar esa tarea, ejecutar la verificación requerida, actualizar el memory bank y hacer un git commit con alcance claro. Si esa fila es el último elemento abierto de un milestone, el agente debe ejecutar la revisión de milestone desde `memory-bank/milestone.md` antes de continuar. Durante esa revisión también debe decidir si `evolution/` necesita una nueva versión porque la dirección del producto, el límite de arquitectura, el objetivo del milestone o la dirección del contrato público/privado cambiaron materialmente.
 
 Debajo de la superficie, el flujo normal del agente es:
 
@@ -163,6 +165,8 @@ Debajo de la superficie, el flujo normal del agente es:
 6. Hacer commit de la fila como una unidad con alcance claro.
 7. Si un milestone queda completo, ejecutar el procedimiento de revisión de milestone en `memory-bank/milestone.md` antes de continuar.
 8. Revisar `evolution/` y agregar una nueva versión solo cuando la revisión encuentre un cambio real de dirección, límite, milestone o contrato.
+
+Los archivos de estado se llaman `memory-bank/status-<LANE><NN>.md`. La letra de carril clasifica el trabajo y el número lleva dos dígitos con cero a la izquierda: los milestones de contabilidad quedan como `status-A01.md` y `status-A02.md`, y los de compras como `status-S01.md`. `M` es el carril por defecto para el trabajo que no encaja en un carril de dominio. Un carril admite como máximo 99 archivos; cuando se llena, abra una letra nueva en vez de añadir un tercer dígito. `memory-bank/milestone.md` registra qué significa cada letra y evita reutilizar un identificador.
 
 Las filas de estado usan estos marcadores:
 

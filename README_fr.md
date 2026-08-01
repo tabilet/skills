@@ -19,7 +19,7 @@ Fichiers d’exemple au niveau du projet :
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
 - [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
-- [template/memory-bank/status.md](template/memory-bank/status.md)
+- [template/memory-bank/status-M01.md](template/memory-bank/status-M01.md)
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
 - [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
@@ -50,7 +50,7 @@ Modifiez ensuite les fichiers copiés dans cet ordre :
 2. `memory-bank/architecture.md` : définir le layout, le flux de données et les frontières.
 3. `memory-bank/tech-stack.md` : définir les commandes, dépendances et harnesses.
 4. `memory-bank/milestone.md` : définir le premier milestone.
-5. `memory-bank/status.md` : définir les premières lignes actionnables.
+5. `memory-bank/status-M01.md` : définir les premières lignes actionnables.
 6. `evolution/prompt-v1.md` : consigner la direction initiale.
 7. `evolution/result-v1.md` : consigner l’état de départ actuel.
 8. `AGENTS.md` : remplacer les placeholders par les commandes et règles propres au projet.
@@ -77,7 +77,7 @@ Discutez ensuite avec l’agent jusqu’à ce que le produit, les utilisateurs, 
 - `memory-bank/architecture.md`
 - `memory-bank/tech-stack.md`
 - `memory-bank/milestone.md`
-- `memory-bank/status.md`
+- `memory-bank/status-M01.md`
 - `evolution/prompt-v1.md`
 - `evolution/result-v1.md`
 
@@ -86,8 +86,9 @@ Exemple de prompt :
 ```text
 Read the sample AGENTS.md, memory-bank/*, and evolution/* files. Based on our
 discussion of this new project, replace the placeholders with accurate project
-content. Keep README user-facing, put long-form references in docs/, and make
-memory-bank/status.md contain the first actionable milestone rows.
+content. Keep README user-facing, put long-form references in docs/, define the status
+ID lanes in memory-bank/milestone.md, and make memory-bank/status-M01.md contain
+the first actionable milestone rows.
 ```
 
 ## Configurer un projet existant
@@ -108,8 +109,8 @@ Ensuite :
 2. Copier `template/` depuis ce dépôt.
 3. Remplir la memory bank à partir de ce que le projet dit déjà, pas depuis une réécriture imaginée.
 4. Déplacer les références longues et stables dans `docs/`.
-5. Convertir le contenu roadmap/status dupliqué vers `memory-bank/milestone.md` et `memory-bank/status.md`.
-6. Garder les lacunes connues visibles dans `status.md` au lieu de les cacher.
+5. Convertir le contenu roadmap/status dupliqué vers `memory-bank/milestone.md` et `memory-bank/status-<LANE><NN>.md`.
+6. Garder les lacunes connues visibles dans `status-<LANE><NN>.md` au lieu de les cacher.
 
 ### Avec l’aide d’un agent IA
 
@@ -130,7 +131,8 @@ Demandez ensuite à l’agent de lire le projet avant d’écrire :
 Read the existing README, docs, package README files, tests, build files, and
 major source directories. Use that actual project content to fill in AGENTS.md,
 memory-bank/*, and evolution/*. Preserve useful existing documentation by moving
-long-form references into docs/. Keep known gaps visible in memory-bank/status.md.
+long-form references into docs/. Keep known gaps visible in the matching
+memory-bank/status-<LANE><NN>.md file.
 Do not invent product direction that is not supported by the existing project.
 ```
 
@@ -141,7 +143,7 @@ L’agent doit :
 3. remplir la memory bank depuis la réalité actuelle du projet.
 4. déplacer ou résumer les références longues dans `docs/`.
 5. garder `README.md` simple et orienté utilisateur.
-6. laisser les lacunes non résolues comme lignes pending ou blocked dans `memory-bank/status.md`.
+6. laisser les lacunes non résolues comme lignes pending ou blocked dans `memory-bank/status-<LANE><NN>.md`.
 
 ## Utiliser la Memory Bank
 
@@ -151,7 +153,7 @@ Avec un agent comme Codex ou Claude Code, le workflow côté utilisateur peut ê
 tackle next pending item in memory bank
 ```
 
-L’agent doit trouver la prochaine ligne actionnable dans `memory-bank/status.md`, terminer cette tâche, exécuter la vérification requise, mettre à jour la memory bank et créer un git commit au périmètre clair. Si cette ligne est le dernier élément ouvert d’un milestone, l’agent doit lancer la revue de milestone depuis `memory-bank/milestone.md` avant de continuer. Pendant cette revue, il doit aussi décider si `evolution/` a besoin d’une nouvelle version parce que la direction produit, la frontière d’architecture, la cible du milestone ou la direction du contrat public/privé a changé matériellement.
+L’agent doit trouver la prochaine ligne actionnable dans `memory-bank/status-<LANE><NN>.md`, terminer cette tâche, exécuter la vérification requise, mettre à jour la memory bank et créer un git commit au périmètre clair. Si cette ligne est le dernier élément ouvert d’un milestone, l’agent doit lancer la revue de milestone depuis `memory-bank/milestone.md` avant de continuer. Pendant cette revue, il doit aussi décider si `evolution/` a besoin d’une nouvelle version parce que la direction produit, la frontière d’architecture, la cible du milestone ou la direction du contrat public/privé a changé matériellement.
 
 Sous la surface, le workflow normal de l’agent est :
 
@@ -163,6 +165,8 @@ Sous la surface, le workflow normal de l’agent est :
 6. Committer la ligne comme unité au périmètre clair.
 7. Si un milestone devient complet, exécuter la procédure de revue de milestone dans `memory-bank/milestone.md` avant de continuer.
 8. Vérifier `evolution/` et ajouter une nouvelle version seulement si la revue trouve un vrai changement de direction, frontière, milestone ou contrat.
+
+Les fichiers de statut sont nommés `memory-bank/status-<LANE><NN>.md`. La lettre de voie classe le travail et le nombre s’écrit sur deux chiffres avec un zéro initial : les milestones de comptabilité deviennent `status-A01.md` et `status-A02.md`, ceux de la boutique `status-S01.md`. `M` est la voie par défaut pour le travail qui n’entre dans aucune voie de domaine. Une voie contient au plus 99 fichiers ; quand elle est pleine, ouvrez une nouvelle lettre au lieu d’ajouter un troisième chiffre. `memory-bank/milestone.md` consigne le sens de chaque lettre et interdit de réutiliser un identifiant.
 
 Les lignes de statut utilisent ces marqueurs :
 

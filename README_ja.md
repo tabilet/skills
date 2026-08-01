@@ -19,7 +19,7 @@
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
 - [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
-- [template/memory-bank/status.md](template/memory-bank/status.md)
+- [template/memory-bank/status-M01.md](template/memory-bank/status-M01.md)
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
 - [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
@@ -50,7 +50,7 @@ mkdir -p docs
 2. `memory-bank/architecture.md`: レイアウト、データフロー、境界を定義する。
 3. `memory-bank/tech-stack.md`: コマンド、依存関係、harness を定義する。
 4. `memory-bank/milestone.md`: 最初の milestone を定義する。
-5. `memory-bank/status.md`: 最初の実行可能な行を定義する。
+5. `memory-bank/status-M01.md`: 最初の実行可能な行を定義する。
 6. `evolution/prompt-v1.md`: 初期方向を記録する。
 7. `evolution/result-v1.md`: 現在の開始状態を記録する。
 8. `AGENTS.md`: プレースホルダーをプロジェクト固有のコマンドとルールに置き換える。
@@ -77,7 +77,7 @@ mkdir -p docs
 - `memory-bank/architecture.md`
 - `memory-bank/tech-stack.md`
 - `memory-bank/milestone.md`
-- `memory-bank/status.md`
+- `memory-bank/status-M01.md`
 - `evolution/prompt-v1.md`
 - `evolution/result-v1.md`
 
@@ -86,8 +86,9 @@ mkdir -p docs
 ```text
 Read the sample AGENTS.md, memory-bank/*, and evolution/* files. Based on our
 discussion of this new project, replace the placeholders with accurate project
-content. Keep README user-facing, put long-form references in docs/, and make
-memory-bank/status.md contain the first actionable milestone rows.
+content. Keep README user-facing, put long-form references in docs/, define the status
+ID lanes in memory-bank/milestone.md, and make memory-bank/status-M01.md contain
+the first actionable milestone rows.
 ```
 
 ## 既存プロジェクトをセットアップする
@@ -108,8 +109,8 @@ rg --files
 2. このリポジトリから `template/` をコピーする。
 3. 想像上の書き直しではなく、プロジェクトが既に述べている内容から memory bank を埋める。
 4. 安定した長い参考資料を `docs/` に移す。
-5. 重複した roadmap/status 情報を `memory-bank/milestone.md` と `memory-bank/status.md` に変換する。
-6. 既知の不足は隠さず `status.md` に残す。
+5. 重複した roadmap/status 情報を `memory-bank/milestone.md` と `memory-bank/status-<LANE><NN>.md` に変換する。
+6. 既知の不足は隠さず `status-<LANE><NN>.md` に残す。
 
 ### AI エージェントの助けを借りる
 
@@ -130,7 +131,8 @@ mkdir -p docs
 Read the existing README, docs, package README files, tests, build files, and
 major source directories. Use that actual project content to fill in AGENTS.md,
 memory-bank/*, and evolution/*. Preserve useful existing documentation by moving
-long-form references into docs/. Keep known gaps visible in memory-bank/status.md.
+long-form references into docs/. Keep known gaps visible in the matching
+memory-bank/status-<LANE><NN>.md file.
 Do not invent product direction that is not supported by the existing project.
 ```
 
@@ -141,7 +143,7 @@ Do not invent product direction that is not supported by the existing project.
 3. 現在のプロジェクト事実から memory bank を埋める。
 4. 長い参考資料を `docs/` に移す、または要約する。
 5. `README.md` を簡潔でユーザー向けに保つ。
-6. 未解決の不足を pending または blocked 行として `memory-bank/status.md` に残す。
+6. 未解決の不足を pending または blocked 行として `memory-bank/status-<LANE><NN>.md` に残す。
 
 ## Memory Bank を使う
 
@@ -151,7 +153,7 @@ Codex や Claude Code のようなエージェントでは、ユーザー側の�
 tackle next pending item in memory bank
 ```
 
-エージェントは `memory-bank/status.md` の次の実行可能な行を見つけ、そのタスクを完了し、必要な検証を実行し、memory bank を更新し、範囲の明確な git commit を作るべきです。その行が milestone の最後の未完了項目である場合、エージェントは先に `memory-bank/milestone.md` の milestone review を実行します。その review では、プロダクト方向、アーキテクチャ境界、milestone 目標、または public/private contract の方向が実質的に変わったため `evolution/` に新バージョンが必要かも判断します。
+エージェントは `memory-bank/status-<LANE><NN>.md` の次の実行可能な行を見つけ、そのタスクを完了し、必要な検証を実行し、memory bank を更新し、範囲の明確な git commit を作るべきです。その行が milestone の最後の未完了項目である場合、エージェントは先に `memory-bank/milestone.md` の milestone review を実行します。その review では、プロダクト方向、アーキテクチャ境界、milestone 目標、または public/private contract の方向が実質的に変わったため `evolution/` に新バージョンが必要かも判断します。
 
 内部では、通常のエージェントワークフローは次のとおりです。
 
@@ -163,6 +165,8 @@ tackle next pending item in memory bank
 6. その行を範囲の明確な commit として提出する。
 7. milestone が完了したら、続ける前に `memory-bank/milestone.md` の milestone review 手順を実行する。
 8. `evolution/` を確認し、review が実際の方向、境界、milestone、contract の変化を見つけた場合にだけ新バージョンを追加する。
+
+Status ファイルは `memory-bank/status-<LANE><NN>.md` という名前にします。レーン文字が作業の分類を表し、数字は 2 桁のゼロ埋めです。会計の milestone は `status-A01.md` や `status-A02.md`、買い物の milestone は `status-S01.md` になります。ドメインレーンに分類できない作業は既定の `M` を使います。1 つのレーンは最大 99 ファイルまでで、埋まったら 3 桁目を足さずに新しい文字を使います。`memory-bank/milestone.md` が各文字の意味を記録し、ID の再利用を防ぎます。
 
 Status 行は次のマーカーを使います。
 

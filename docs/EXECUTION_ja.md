@@ -18,7 +18,7 @@ Markdown 自体は harness を実行しません。Markdown は、人間とエ�
 - `memory-bank/tech-stack.md` には、前提条件、環境変数、Docker image、ポート、コマンド名を記録します。
 - `docs/` には、長めのセットアップ、後片付け、トラブルシューティングのメモを置きます。
 - `memory-bank/milestone.md` では、harness の成功を受け入れ条件の一部にできます。
-- `memory-bank/status.md` には、harness 関連の行が pending、complete、blocked、cancelled のどれかを記録します。
+- `memory-bank/status-<LANE><NN>.md` には、harness 関連の行が pending、complete、blocked、cancelled のどれかを記録します。
 
 ## エージェント実行 Harness
 

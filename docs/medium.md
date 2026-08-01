@@ -31,7 +31,7 @@ Project-level files you drop into a repo:
   - `architecture.md` — layout, data flow, ownership boundaries.
   - `tech-stack.md` — commands, dependencies, harnesses.
   - `milestone.md` — milestone scope and acceptance criteria.
-  - `status-Mx.md` — one file per milestone, with rows marked `[ ]`, `[+]`, `[~]`, `[!]`, `[X]`.
+  - `status-<LANE><NN>.md` — one file per milestone, with rows marked `[ ]`, `[+]`, `[~]`, `[!]`, `[X]`. The lane letter classifies the work (`A01` for accounting, `S01` for shopping, `M01` for anything that doesn't classify); the number is zero-padded to two digits.
 - **`evolution/`** — versioned direction snapshots. `prompt-vN.md` describes the intent; `result-vN.md` the state it produced. A new version is added only when direction, an architecture boundary, a milestone target, or a public contract materially changes — which should be rare.
 
 Account-level files, optional:
@@ -61,7 +61,7 @@ Under the surface, the loop is:
 
 1. Read `AGENTS.md`.
 2. Read the memory bank in the order it lists.
-3. Pick the next actionable row in the current `status-Mx.md`.
+3. Pick the next actionable row in the current `status-<LANE><NN>.md`.
 4. Implement, verify, update the relevant memory-bank files, commit.
 5. If that was the last row in a milestone, run the milestone review and decide whether `evolution/` needs a new version.
 
@@ -83,7 +83,7 @@ The unifying property across every part of this system is that *you* own the fil
 
 - `memory-bank/architecture.md` is rewritten as reality changes. There's no history of stale architecture docs to maintain.
 - `evolution/` versions are rare by design. You add one when direction really shifted — not on every feature.
-- Status rows are simple checkboxes that close out when milestones close. Old `status-Mx.md` files can stay or go; nothing depends on preserving them.
+- Status rows are simple checkboxes that close out when milestones close. Old `status-<LANE><NN>.md` files can stay or go; nothing depends on preserving them.
 - There are no per-feature spec folders, so the repo doesn't grow a graveyard of historical artifacts that no longer match the code.
 
 The AI's job is to help you advance the project — bootstrap the harness from your notes, pick the next row, do the work, update the memory bank, commit. Your job is to know what the project is and to course-correct when the agent drifts. The harness sits in between, light enough that you can throw it out whenever you want.
@@ -99,7 +99,7 @@ This harness fits when:
 
 It's a poor fit when you want strong spec-rigor up front, when your team agrees on a methodology with named phases, or when you live entirely inside a single agent UI and slash commands feel natural. For those cases, heavier harnesses — spec-kit and others — are doing real work and worth their weight.
 
-The approaches aren't mutually exclusive. You can draft a spec under a heavier methodology and then convert the acceptance criteria into `status-Mx.md` rows here. They operate at different time scales.
+The approaches aren't mutually exclusive. You can draft a spec under a heavier methodology and then convert the acceptance criteria into `status-<LANE><NN>.md` rows here. They operate at different time scales.
 
 ## Closing
 

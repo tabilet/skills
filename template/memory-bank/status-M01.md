@@ -1,7 +1,8 @@
-# Status M1 - [Milestone name]
+# Status M01 - [Milestone name]
 
-State of each M1 milestone item. Update as items complete. See
-[`milestone.md`](milestone.md) for definitions.
+State of each M01 milestone item. Update as items complete. See
+[`milestone.md`](milestone.md) for milestone definitions and for the status ID
+pattern that names this file.
 
 Status markers:
 

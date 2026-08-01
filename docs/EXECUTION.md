@@ -25,8 +25,8 @@ are known or expected.
   Docker images, ports, and command names.
 - `docs/` holds long-form setup, teardown, and troubleshooting notes.
 - `memory-bank/milestone.md` can make a harness pass part of acceptance.
-- `memory-bank/status.md` records whether harness-related rows are pending,
-  complete, blocked, or cancelled.
+- The matching `memory-bank/status-<LANE><NN>.md` file records whether
+  harness-related rows are pending, complete, blocked, or cancelled.
 
 ## Agent Execution Harness
 

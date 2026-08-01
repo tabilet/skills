@@ -25,7 +25,7 @@
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
 - [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
-- [template/memory-bank/status.md](template/memory-bank/status.md)
+- [template/memory-bank/status-M01.md](template/memory-bank/status-M01.md)
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
 - [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
@@ -56,7 +56,7 @@ mkdir -p docs
 2. `memory-bank/architecture.md`：说明目录布局、数据流和边界。
 3. `memory-bank/tech-stack.md`：说明命令、依赖和验证入口。
 4. `memory-bank/milestone.md`：定义第一个里程碑。
-5. `memory-bank/status.md`：列出第一批可执行状态行。
+5. `memory-bank/status-M01.md`：列出第一批可执行状态行。
 6. `evolution/prompt-v1.md`：记录初始方向。
 7. `evolution/result-v1.md`：记录当前起点。
 8. `AGENTS.md`：把占位符替换成项目自己的命令和规则。
@@ -83,7 +83,7 @@ mkdir -p docs
 - `memory-bank/architecture.md`
 - `memory-bank/tech-stack.md`
 - `memory-bank/milestone.md`
-- `memory-bank/status.md`
+- `memory-bank/status-M01.md`
 - `evolution/prompt-v1.md`
 - `evolution/result-v1.md`
 
@@ -92,8 +92,9 @@ mkdir -p docs
 ```text
 Read the sample AGENTS.md, memory-bank/*, and evolution/* files. Based on our
 discussion of this new project, replace the placeholders with accurate project
-content. Keep README user-facing, put long-form references in docs/, and make
-memory-bank/status.md contain the first actionable milestone rows.
+content. Keep README user-facing, put long-form references in docs/, define the status
+ID lanes in memory-bank/milestone.md, and make memory-bank/status-M01.md contain
+the first actionable milestone rows.
 ```
 
 ## 为已有项目设置
@@ -114,8 +115,8 @@ rg --files
 2. 从本仓库复制 `template/`。
 3. 根据项目现状填写项目记忆库，不要凭空重塑项目方向。
 4. 把稳定的长篇参考资料移入 `docs/`。
-5. 把重复的 roadmap/status 内容整理到 `memory-bank/milestone.md` 和 `memory-bank/status.md`。
-6. 把已知缺口保留在 `status.md`，不要藏起来。
+5. 把重复的 roadmap/status 内容整理到 `memory-bank/milestone.md` 和 `memory-bank/status-<LANE><NN>.md`。
+6. 把已知缺口保留在 `status-<LANE><NN>.md`，不要藏起来。
 
 ### 借助 AI 智能体
 
@@ -136,7 +137,8 @@ mkdir -p docs
 Read the existing README, docs, package README files, tests, build files, and
 major source directories. Use that actual project content to fill in AGENTS.md,
 memory-bank/*, and evolution/*. Preserve useful existing documentation by moving
-long-form references into docs/. Keep known gaps visible in memory-bank/status.md.
+long-form references into docs/. Keep known gaps visible in the matching
+memory-bank/status-<LANE><NN>.md file.
 Do not invent product direction that is not supported by the existing project.
 ```
 
@@ -147,7 +149,7 @@ Do not invent product direction that is not supported by the existing project.
 3. 根据项目当前事实填写项目记忆库。
 4. 把长篇参考资料移动或总结到 `docs/`。
 5. 保持 `README.md` 简洁，面向用户。
-6. 把未解决缺口作为待处理或被阻塞的状态行保留在 `memory-bank/status.md`。
+6. 把未解决缺口作为待处理或被阻塞的状态行保留在 `memory-bank/status-<LANE><NN>.md`。
 
 ## 使用项目记忆库
 
@@ -157,7 +159,7 @@ Do not invent product direction that is not supported by the existing project.
 tackle next pending item in memory bank
 ```
 
-智能体应在 `memory-bank/status.md` 中找到下一条可执行状态行，完成对应任务，运行必要验证，更新项目记忆库，并创建一个范围清晰的 git commit。如果这条状态行是某个里程碑的最后一个未完成项，智能体应在继续之前执行 `memory-bank/milestone.md` 中的里程碑评审。评审时还应判断 `evolution/` 是否需要新版本：只有当产品方向、架构边界、里程碑目标或公私契约发生实质变化时，才应新增版本。
+智能体应在 `memory-bank/status-<LANE><NN>.md` 中找到下一条可执行状态行，完成对应任务，运行必要验证，更新项目记忆库，并创建一个范围清晰的 git commit。如果这条状态行是某个里程碑的最后一个未完成项，智能体应在继续之前执行 `memory-bank/milestone.md` 中的里程碑评审。评审时还应判断 `evolution/` 是否需要新版本：只有当产品方向、架构边界、里程碑目标或公私契约发生实质变化时，才应新增版本。
 
 底层的标准智能体流程是：
 
@@ -169,6 +171,8 @@ tackle next pending item in memory bank
 6. 把这一行对应的工作作为一个独立 commit 提交。
 7. 如果某个里程碑完成，先执行 `memory-bank/milestone.md` 中的里程碑评审，再继续后续工作。
 8. 检查 `evolution/`，只有评审确认存在真实的方向、边界、里程碑或契约变化时，才新增版本。
+
+状态文件命名为 `memory-bank/status-<LANE><NN>.md`。字母表示这条状态线所属的领域，数字使用两位零填充：会计相关的里程碑写成 `status-A01.md`、`status-A02.md`，购物相关的写成 `status-S01.md`。无法归入某个领域的工作使用默认字母 `M`。每个字母最多 99 个文件；写满后请启用新的字母，不要扩展到三位数字。`memory-bank/milestone.md` 记录每个字母的含义，并保证状态 ID 不被重复使用。
 
 状态行使用这些标记：
 

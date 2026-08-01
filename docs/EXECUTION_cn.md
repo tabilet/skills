@@ -18,7 +18,7 @@ Markdown 本身不负责执行 harness。Markdown 的作用是说明如何运行
 - `memory-bank/tech-stack.md` 记录前置条件、环境变量、Docker image、端口和命令名称。
 - `docs/` 保存较长的搭建、清理和故障排查说明。
 - `memory-bank/milestone.md` 可以把某个 harness 通过作为验收条件的一部分。
-- `memory-bank/status.md` 记录 harness 相关任务是待处理、已完成、被阻塞还是已取消。
+- `memory-bank/status-<LANE><NN>.md` 记录 harness 相关任务是待处理、已完成、被阻塞还是已取消。
 
 ## 智能体执行 Harness
 

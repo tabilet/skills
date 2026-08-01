@@ -13,10 +13,12 @@ Before substantial changes, read these in order:
 2. [memory-bank/architecture.md](memory-bank/architecture.md)
 3. [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
 4. [memory-bank/milestone.md](memory-bank/milestone.md)
-5. The matching `memory-bank/status-Mx.md` file for the current milestone.
+5. The matching `memory-bank/status-<LANE><NN>.md` file for the current
+   milestone. `milestone.md` defines the lane letters and their meanings.
 
 Do not recreate duplicate root-level product, architecture, roadmap, or status
-documents. Long-form references live in `docs/`; README is operator-focused.
+documents, and do not create an aggregate `memory-bank/status.md`. Long-form
+references live in `docs/`; README is operator-focused.
 
 ## Boundaries
 
@@ -62,11 +64,12 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   product scope -> `product.md`; architecture/data flow/contracts ->
   `architecture.md`; tools/dependencies/commands -> `tech-stack.md`; milestone
   scope/acceptance -> `milestone.md`; completion state -> the matching
-  `status-Mx.md` file.
-- Keep one `memory-bank/status-Mx.md` file for each milestone `Mx` listed in
-  [memory-bank/milestone.md](memory-bank/milestone.md).
-- Treat each row in the matching `memory-bank/status-Mx.md` file as a commit
-  unit. See that file for status markers and commit rules.
+  `status-<LANE><NN>.md` file.
+- Keep one `memory-bank/status-<LANE><NN>.md` file for each milestone listed in
+  [memory-bank/milestone.md](memory-bank/milestone.md), named by the status ID
+  pattern defined there.
+- Treat each row in the matching `memory-bank/status-<LANE><NN>.md` file as a
+  commit unit. See that file for status markers and commit rules.
 - Treat each section in [memory-bank/milestone.md](memory-bank/milestone.md) as a
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the
