@@ -183,6 +183,8 @@ tackle next pending item in memory bank
 7. milestone が完了したら、続ける前に `memory-bank/milestone.md` の milestone review 手順を実行する。
 8. `evolution/` を確認し、review が実際の方向、境界、milestone、contract の変化を見つけた場合にだけ新バージョンを追加する。
 
+### ステータス ID レーン
+
 Status ファイルは `memory-bank/status-<LANE><NN>.md` という名前にします。レーン文字が作業の分類を表し、数字は 2 桁のゼロ埋めです。会計の milestone は `status-A01.md` や `status-A02.md`、買い物の milestone は `status-S01.md` になります。ドメインレーンに分類できない作業は既定の `M` を使います。1 つのレーンは最大 99 ファイルまでで、埋まったら 3 桁目を足さずに新しい文字を使います。`memory-bank/milestone.md` が各文字の意味を記録し、ID の再利用を防ぎます。
 
 Status 行は次のマーカーを使います。
@@ -195,6 +197,11 @@ Status 行は次のマーカーを使います。
 | `[!]` | ブロック中 |
 | `[X]` | キャンセル済み |
 
+### 記入後の status ファイルの例
+
+テンプレートはプレースホルダーのままです。小さなショッピングサービス向けに記入した `memory-bank/status-S01.md` は次のようになります。
+
+```markdown
 # Status S01 - Cart And Checkout
 
 | Item | State | Notes |

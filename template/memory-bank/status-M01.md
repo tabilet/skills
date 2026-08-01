@@ -14,6 +14,10 @@ Status markers:
 | `[!]` | Blocked | Item requires attention or is on hold. |
 | `[X]` | Cancelled | Item is no longer needed. |
 
+Write markers with backticks, exactly as in the table above: `` `[ ]` ``, not
+`[ ]`. The API harness matches the backticked form, so a row written
+`| Item | [ ] | Notes |` is silently treated as having no actionable work.
+
 Each table row is a commit unit: after flipping a row to `[+]`, verify the
 change, update the memory bank/docs, and make a scoped `git commit` before
 starting the next row. If multiple rows are inseparable, use one coherent commit

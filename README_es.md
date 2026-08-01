@@ -67,7 +67,7 @@ Después edite los archivos copiados en este orden:
 2. `memory-bank/architecture.md`: definir layout, flujo de datos y límites.
 3. `memory-bank/tech-stack.md`: definir comandos, dependencias y harnesses.
 4. `memory-bank/milestone.md`: definir el primer milestone.
-5. `memory-bank/status-M01.md`: definir las primeras filas accionables.
+5. `memory-bank/status-M01.md`: definir las primeras filas accionables. Vea más abajo «Cómo se ve un archivo de estado completado»: los backticks de los marcadores son decisivos.
 6. `evolution/prompt-v1.md`: registrar la dirección inicial.
 7. `evolution/result-v1.md`: registrar el estado inicial actual.
 8. `AGENTS.md`: reemplazar placeholders con comandos y reglas específicos del proyecto.
@@ -183,6 +183,8 @@ Debajo de la superficie, el flujo normal del agente es:
 7. Si un milestone queda completo, ejecutar el procedimiento de revisión de milestone en `memory-bank/milestone.md` antes de continuar.
 8. Revisar `evolution/` y agregar una nueva versión solo cuando la revisión encuentre un cambio real de dirección, límite, milestone o contrato.
 
+### Carriles de ID de estado
+
 Los archivos de estado se llaman `memory-bank/status-<LANE><NN>.md`. La letra de carril clasifica el trabajo y el número lleva dos dígitos con cero a la izquierda: los milestones de contabilidad quedan como `status-A01.md` y `status-A02.md`, y los de compras como `status-S01.md`. `M` es el carril por defecto para el trabajo que no encaja en un carril de dominio. Un carril admite como máximo 99 archivos; cuando se llena, abra una letra nueva en vez de añadir un tercer dígito. `memory-bank/milestone.md` registra qué significa cada letra y evita reutilizar un identificador.
 
 Las filas de estado usan estos marcadores:
@@ -195,6 +197,11 @@ Las filas de estado usan estos marcadores:
 | `[!]` | Bloqueado |
 | `[X]` | Cancelado |
 
+### Cómo se ve un archivo de estado completado
+
+Las plantillas vienen con placeholders. Completado para un pequeño servicio de tienda, `memory-bank/status-S01.md` se ve así:
+
+```markdown
 # Status S01 - Cart And Checkout
 
 | Item | State | Notes |

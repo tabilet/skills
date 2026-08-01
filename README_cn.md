@@ -73,7 +73,7 @@ mkdir -p docs
 2. `memory-bank/architecture.md`：说明目录布局、数据流和边界。
 3. `memory-bank/tech-stack.md`：说明命令、依赖和验证入口。
 4. `memory-bank/milestone.md`：定义第一个里程碑。
-5. `memory-bank/status-M01.md`：列出第一批可执行状态行。
+5. `memory-bank/status-M01.md`：列出第一批可执行状态行。参见下文“填写后的状态文件长什么样”——标记两侧的反引号很关键。
 6. `evolution/prompt-v1.md`：记录初始方向。
 7. `evolution/result-v1.md`：记录当前起点。
 8. `AGENTS.md`：把占位符替换成项目自己的命令和规则。
@@ -189,6 +189,8 @@ tackle next pending item in memory bank
 7. 如果某个里程碑完成，先执行 `memory-bank/milestone.md` 中的里程碑评审，再继续后续工作。
 8. 检查 `evolution/`，只有评审确认存在真实的方向、边界、里程碑或契约变化时，才新增版本。
 
+### 状态 ID 线
+
 状态文件命名为 `memory-bank/status-<LANE><NN>.md`。字母表示这条状态线所属的领域，数字使用两位零填充：会计相关的里程碑写成 `status-A01.md`、`status-A02.md`，购物相关的写成 `status-S01.md`。无法归入某个领域的工作使用默认字母 `M`。每个字母最多 99 个文件；写满后请启用新的字母，不要扩展到三位数字。`memory-bank/milestone.md` 记录每个字母的含义，并保证状态 ID 不被重复使用。
 
 状态行使用这些标记：
@@ -201,6 +203,11 @@ tackle next pending item in memory bank
 | `[!]` | 被阻塞 |
 | `[X]` | 已取消 |
 
+### 填写后的状态文件长什么样
+
+模板里都是占位符。以一个小型购物服务为例，填写后的 `memory-bank/status-S01.md` 是这样：
+
+```markdown
 # Status S01 - Cart And Checkout
 
 | Item | State | Notes |

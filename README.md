@@ -83,9 +83,12 @@ Then edit the copied files in this order:
 1. `memory-bank/product.md`: define what the project is and is not.
 2. `memory-bank/architecture.md`: define layout, data flow, and boundaries.
 3. `memory-bank/tech-stack.md`: define commands, dependencies, and harnesses.
-4. `memory-bank/milestone.md`: define the status ID lanes and the first
-   milestone.
+4. `memory-bank/milestone.md`: define the status ID lanes (see
+   [Status ID lanes](#status-id-lanes)) and the first milestone.
 5. `memory-bank/status-M01.md`: define the first milestone's actionable rows.
+   See [what a filled-in status file looks
+   like](#what-a-filled-in-status-file-looks-like) — the marker backticks
+   matter.
 6. `evolution/prompt-v1.md`: record the initial direction.
 7. `evolution/result-v1.md`: record the current starting state.
 8. `AGENTS.md`: replace placeholders with project-specific commands and rules.
@@ -229,6 +232,8 @@ Under the surface, the normal agent workflow is:
 10. Check `evolution/` and add a new version only when the review finds a real
    direction, boundary, milestone, or contract change.
 
+### Status ID lanes
+
 Status files are named `memory-bank/status-<LANE><NN>.md`. The lane letter
 classifies the work and the number is zero-padded to two digits, so accounting
 milestones become `status-A01.md` and `status-A02.md` while shopping milestones
@@ -247,6 +252,12 @@ Status rows use these markers:
 | `[!]` | Blocked |
 | `[X]` | Cancelled |
 
+### What a filled-in status file looks like
+
+The templates ship with placeholders. Filled in for a small shopping service,
+`memory-bank/status-S01.md` looks like this:
+
+```markdown
 # Status S01 - Cart And Checkout
 
 | Item | State | Notes |

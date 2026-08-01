@@ -67,7 +67,7 @@ Bearbeiten Sie die kopierten Dateien anschließend in dieser Reihenfolge:
 2. `memory-bank/architecture.md`: Layout, Datenfluss und Grenzen definieren.
 3. `memory-bank/tech-stack.md`: Befehle, Abhängigkeiten und Harnesses definieren.
 4. `memory-bank/milestone.md`: den ersten Milestone definieren.
-5. `memory-bank/status-M01.md`: die ersten ausführbaren Zeilen definieren.
+5. `memory-bank/status-M01.md`: die ersten ausführbaren Zeilen definieren. Siehe unten „Wie eine ausgefüllte Statusdatei aussieht“ — die Backticks um die Marker sind entscheidend.
 6. `evolution/prompt-v1.md`: die Anfangsrichtung festhalten.
 7. `evolution/result-v1.md`: den aktuellen Startzustand festhalten.
 8. `AGENTS.md`: Platzhalter durch projektspezifische Befehle und Regeln ersetzen.
@@ -183,6 +183,8 @@ Unter der Oberfläche ist der normale Agenten-Workflow:
 7. Wenn ein Milestone vollständig wird, vor dem Weitermachen die Milestone-Review-Prozedur in `memory-bank/milestone.md` ausführen.
 8. `evolution/` prüfen und nur dann eine neue Version hinzufügen, wenn der Review eine echte Änderung an Richtung, Grenze, Milestone oder Contract findet.
 
+### Status-ID-Lanes
+
 Statusdateien heißen `memory-bank/status-<LANE><NN>.md`. Der Lane-Buchstabe klassifiziert die Arbeit, die Nummer ist zweistellig mit führender Null: Buchhaltungs-Milestones werden zu `status-A01.md` und `status-A02.md`, Shopping-Milestones zu `status-S01.md`. `M` ist die Standard-Lane für Arbeit, die sich keiner Domänen-Lane zuordnen lässt. Eine Lane fasst höchstens 99 Dateien; ist sie voll, eröffnen Sie einen neuen Buchstaben, statt eine dritte Ziffer hinzuzufügen. `memory-bank/milestone.md` hält fest, was jeder Buchstabe bedeutet, und verhindert die Wiederverwendung einer ID.
 
 Statuszeilen verwenden diese Marker:
@@ -195,6 +197,11 @@ Statuszeilen verwenden diese Marker:
 | `[!]` | Blockiert |
 | `[X]` | Abgebrochen |
 
+### Wie eine ausgefüllte Statusdatei aussieht
+
+Die Vorlagen enthalten Platzhalter. Für einen kleinen Shop-Dienst ausgefüllt, sieht `memory-bank/status-S01.md` so aus:
+
+```markdown
 # Status S01 - Cart And Checkout
 
 | Item | State | Notes |

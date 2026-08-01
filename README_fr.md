@@ -67,7 +67,7 @@ Modifiez ensuite les fichiers copiés dans cet ordre :
 2. `memory-bank/architecture.md` : définir le layout, le flux de données et les frontières.
 3. `memory-bank/tech-stack.md` : définir les commandes, dépendances et harnesses.
 4. `memory-bank/milestone.md` : définir le premier milestone.
-5. `memory-bank/status-M01.md` : définir les premières lignes actionnables.
+5. `memory-bank/status-M01.md` : définir les premières lignes actionnables. Voir plus bas « À quoi ressemble un fichier de statut rempli » — les backticks autour des marqueurs sont déterminants.
 6. `evolution/prompt-v1.md` : consigner la direction initiale.
 7. `evolution/result-v1.md` : consigner l’état de départ actuel.
 8. `AGENTS.md` : remplacer les placeholders par les commandes et règles propres au projet.
@@ -183,6 +183,8 @@ Sous la surface, le workflow normal de l’agent est :
 7. Si un milestone devient complet, exécuter la procédure de revue de milestone dans `memory-bank/milestone.md` avant de continuer.
 8. Vérifier `evolution/` et ajouter une nouvelle version seulement si la revue trouve un vrai changement de direction, frontière, milestone ou contrat.
 
+### Voies d’ID de statut
+
 Les fichiers de statut sont nommés `memory-bank/status-<LANE><NN>.md`. La lettre de voie classe le travail et le nombre s’écrit sur deux chiffres avec un zéro initial : les milestones de comptabilité deviennent `status-A01.md` et `status-A02.md`, ceux de la boutique `status-S01.md`. `M` est la voie par défaut pour le travail qui n’entre dans aucune voie de domaine. Une voie contient au plus 99 fichiers ; quand elle est pleine, ouvrez une nouvelle lettre au lieu d’ajouter un troisième chiffre. `memory-bank/milestone.md` consigne le sens de chaque lettre et interdit de réutiliser un identifiant.
 
 Les lignes de statut utilisent ces marqueurs :
@@ -195,6 +197,11 @@ Les lignes de statut utilisent ces marqueurs :
 | `[!]` | Bloqué |
 | `[X]` | Annulé |
 
+### À quoi ressemble un fichier de statut rempli
+
+Les modèles contiennent des placeholders. Rempli pour un petit service de boutique, `memory-bank/status-S01.md` ressemble à ceci :
+
+```markdown
 # Status S01 - Cart And Checkout
 
 | Item | State | Notes |
