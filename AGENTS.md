@@ -42,7 +42,8 @@ Two consequences that matter constantly:
   workflow it describes ("tackle next pending item in memory bank") is for
   downstream projects.
 
-The only executable file is `harness/tackle-memory-bank-api-loop`.
+Two executable files: `harness/tackle-memory-bank-api-loop`, which is payload,
+and `check.py`, which verifies this repository and is not.
 
 ## Boundaries
 
@@ -59,14 +60,29 @@ Out of scope:
 - Provider SDKs, agent frameworks, or CLI wrappers -> not this repository. The
   harness talks to HTTP APIs with the standard library only.
 
+Non-goals — things this repository has deliberately decided not to grow. The
+central claim is that a small operating manual beats a large one, and that claim
+is only worth anything if additions are argued against something:
+
+- **No second harness implementation.** A Go or Node twin doubles the surface
+  where two implementations can silently disagree, and disagreement between two
+  harnesses is worse than a Python dependency. `harness/` stays one file.
+- **No vendor-specific agent files in `template/`.** `AGENTS.md` is the open
+  cross-vendor standard; tools that read another filename get a documented
+  one-line bridge in the README.
+- **No per-feature artifact directories.** No `.skills/`, no scaffold, no
+  generated plan folders that accumulate with the project.
+- **No memory bank for this repository itself.** `skills` is the generator that
+  gives birth to other projects' harnesses; it is not an instance of its own
+  output. A root `memory-bank/` beside `template/memory-bank/` would force every
+  reader and agent to disambiguate two of them for no gain. The workflow is
+  proven in the projects that copied it, not here.
+
 ## Essential Commands
 
-There is no build, lint, test, or package tooling — the repo is markdown plus
-one stdlib-only Python script.
-
 ```bash
-# Syntax-check the harness (the closest thing to a test)
-python3 -c "import ast,pathlib; ast.parse(pathlib.Path('harness/tackle-memory-bank-api-loop').read_text())"
+# Verify this repository. Run before claiming a change is done; CI runs it too.
+python3 check.py
 
 # Exercise the harness end-to-end against a real memory-bank project
 LLM_MODEL=... OPENAI_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
@@ -76,10 +92,19 @@ LLM_PROVIDER=anthropic LLM_MODEL=... ANTHROPIC_API_KEY=... MAX_RUNS=1 harness/ta
 cp -R template/. /tmp/scratch-project/
 ```
 
-Prefer that `ast.parse` form over `python3 -m py_compile`: py_compile writes a
-`__pycache__/` next to the script, inside the shipped payload directory, and
-`PYTHONDONTWRITEBYTECODE=1` does *not* suppress it (that variable only affects
-implicit import-time caching, not an explicit compile).
+`check.py` enforces the hard rules below so they are not left to memory. It runs
+the nine invariants this repository has actually broken at least once —
+identical `GOAL.md` copies, the `EMBEDDED_TASK` duplicate, explicit
+`COMMIT_POLICY` in every `/goal` example, links *and* heading anchors, the
+documented exit codes, the status-marker regexes, the shipped payload, and
+translation parity. Standard library only, like the harness. When you add a
+rule to this file, add the check that enforces it.
+
+It syntax-checks the harness with `ast.parse` rather than `python3 -m
+py_compile`: py_compile writes a `__pycache__/` next to the script, inside the
+shipped payload directory, and `PYTHONDONTWRITEBYTECODE=1` does *not* suppress
+it (that variable only affects implicit import-time caching, not an explicit
+compile).
 
 To test harness gating without an API key, point it at a scratch git repo — the
 row gates run before the first network call, so blocked-only exits 3, all-done
