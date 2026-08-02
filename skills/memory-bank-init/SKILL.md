@@ -1,7 +1,7 @@
 ---
 name: memory-bank-init
 description: Interview the user about a project, then generate its memory bank - product, architecture, tech stack, milestones, and status lanes. Use when a project has no memory-bank/ yet.
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: (no arguments)
 ---
 

@@ -244,6 +244,12 @@ provider section and the language-version links that `README.md` carries.
   reason to add a second.
 - No skill named `goal`. Claude Code has a built-in `/goal` that sets a stop
   condition; a skill by that name would shadow a different feature.
+- **`disable-model-invocation: false` in every `SKILL.md`.** These orchestrate
+  and would ideally be user-invoked only, but Codex's plugin validator rejects
+  `true` — it installs the plugin, writes `enabled = true`, and surfaces no
+  commands. Claude Code accepts either value, so `false` is the only one that
+  works in both. The cost is that a model may reach for them on its own; the
+  approval gate in `memory-bank-init` is what makes that acceptable.
 - `.claude-plugin/plugin.json`'s version and the git tags agree. At a tagged
   commit they must be identical, and on an untagged commit the manifest must
   never be behind the latest tag. A registry reads that version off the default

@@ -1,7 +1,7 @@
 ---
 name: memory-bank-goal
 description: Execute an ordered set of milestones from the memory bank using the project's GOAL.md protocol, reconciling dependencies before and after each one.
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: M01 -> S01 -> A01?
 ---
 

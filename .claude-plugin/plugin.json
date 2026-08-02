@@ -1,6 +1,6 @@
 {
   "name": "memory-bank",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Three commands for the memory-bank workflow: interview a project into existence, tackle the next row, or run an ordered set of milestones. The files it generates are yours and never update themselves.",
   "author": {
     "name": "Peter Bi"

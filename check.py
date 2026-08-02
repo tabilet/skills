@@ -185,9 +185,15 @@ def skills_manifest():
             problems.append(f"{name}/SKILL.md: frontmatter name is {fm.get('name')!r}")
         if not fm.get("description"):
             problems.append(f"{name}/SKILL.md: no description")
-        # These orchestrate; they must not fire on their own.
-        if fm.get("disable-model-invocation") != "true":
-            problems.append(f"{name}/SKILL.md: missing disable-model-invocation")
+        # Must be present and false. Codex's plugin validator rejects `true`
+        # outright -- it installs the plugin, reports success, and surfaces no
+        # commands at all. Claude Code accepts either, so false is the only
+        # value that works in both.
+        if fm.get("disable-model-invocation") != "false":
+            problems.append(
+                f"{name}/SKILL.md: disable-model-invocation must be false "
+                f"(got {fm.get('disable-model-invocation')!r}); Codex rejects true"
+            )
     if not PLUGIN_JSON.exists():
         return problems + [".claude-plugin/plugin.json is missing"]
     listed = sorted(

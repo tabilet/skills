@@ -1,7 +1,7 @@
 ---
 name: memory-bank-next
 description: Tackle exactly one actionable row from the memory bank - implement it, verify it, update the status file, and commit. Use for everyday work on a project that has a memory-bank/.
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: (no arguments)
 ---
 
