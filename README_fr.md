@@ -411,26 +411,33 @@ Rien ne vous oblige à l’utiliser. `/goal` est la commande de votre agent, pas
 
 Les deux agents lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande :
 
-Les deux agents lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande.
+Les deux agents lisent le même format `SKILL.md` **et le même manifeste**, il n’y a donc qu’une source par commande et une seule version à installer.
 
-**Claude Code** les installe comme plugin, mis à jour à chaque livraison de ce dépôt :
+**Claude Code :**
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
 ```
 
-**Codex** lit `~/.codex/skills/`, donc une seule commande suffit, sans clone — pas de `git`, pas de répertoire temporaire, rien à nettoyer :
+**Codex** possède son propre système de plugins et lit `.claude-plugin/plugin.json` en repli, donc le même dépôt convient :
 
 ```bash
-mkdir -p ~/.codex/skills
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+Codex exige le qualificatif `@marketplace` quand un nom de plugin n’est pas unique parmi vos marketplaces configurées : `memory-bank@tabilet` est donc la forme à retenir. `codex plugin marketplace upgrade` rafraîchit l’instantané quand une nouvelle version paraît.
+
+**Les deux agents** peuvent aussi les prendre comme des fichiers qui vous appartiennent plutôt qu’un plugin géré :
+
+```bash
+mkdir -p ~/.codex/skills            # or ~/.claude/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
-La même ligne fonctionne pour Claude Code avec `-C ~/.claude/skills`, si vous préférez posséder les fichiers plutôt que vous abonner au plugin. Pour figer une version, remplacez `refs/heads/main` par `refs/tags/<version>` et `skills-main` par `skills-<version>`, en accord avec le répertoire contenu dans cette archive.
-
-Le plugin installe le **générateur**, pas le résultat. Ce qu’il écrit dans votre projet vous appartient, n’est jamais mis à jour depuis ici, et survit à sa désinstallation.
+Pour figer une version, remplacez `refs/heads/main` par `refs/tags/<version>` et `skills-main` par `skills-<version>`, en accord avec le répertoire contenu dans cette archive.
 
 Le skill ne s’appelle délibérément pas `goal` : Claude Code possède un `/goal` intégré qui définit une condition d’arrêt, ce qui est autre chose. Les deux fonctionnent ensemble, voir « Exécuter plusieurs milestones dans l’ordre ».
 

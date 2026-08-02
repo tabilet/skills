@@ -35,18 +35,24 @@ In Claude Code:
 /plugin install memory-bank
 ```
 
-In Codex — or in Claude Code, if you would rather own the files than subscribe
-to the plugin — it is one command. Both agents read the same `SKILL.md` format,
-so this is the same payload:
+In Codex, which has its own plugin system and reads the same manifest:
 
 ```bash
-mkdir -p ~/.codex/skills
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+Codex wants the `@marketplace` qualifier when the plugin name is not unique
+across your marketplaces, so `memory-bank@tabilet` is the form to learn.
+
+Either agent can also take them as plain files you own instead of a managed
+plugin — no clone, no temp directory, nothing to clean up:
+
+```bash
+mkdir -p ~/.codex/skills            # or ~/.claude/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
-
-No clone, no temporary directory, no cleanup. Use `-C ~/.claude/skills` for
-Claude Code instead.
 
 You now have three commands, and they are the whole interface:
 

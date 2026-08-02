@@ -411,26 +411,33 @@ COMMIT_POLICY: task
 
 どちらのエージェントも同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
 
-どちらのエージェントも同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです。
+どちらのエージェントも同じ `SKILL.md` 形式**と同じマニフェスト**を読むので、コマンドごとにソースは 1 つ、インストールするリリースも 1 つです。
 
-**Claude Code** はプラグインとして入れます。このリポジトリが更新されると自動で追随します:
+**Claude Code:**
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
 ```
 
-**Codex** は `~/.codex/skills/` を読むので、clone なしのコマンド 1 つで済みます。`git` も一時ディレクトリも不要で、あと片付けもありません:
+**Codex** は独自のプラグイン機構を持ち、フォールバックとして `.claude-plugin/plugin.json` を読むので、同じリポジトリがそのまま使えます:
 
 ```bash
-mkdir -p ~/.codex/skills
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+設定済みの marketplace 間でプラグイン名が一意でない場合、Codex は `@marketplace` 修飾を要求します。`memory-bank@tabilet` の形を覚えておくとよいでしょう。新しいバージョンが出たら `codex plugin marketplace upgrade` でスナップショットを更新します。
+
+**どちらのエージェントでも**、管理されたプラグインではなく自分が所有するファイルとして入れることもできます:
+
+```bash
+mkdir -p ~/.codex/skills            # or ~/.claude/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
-プラグインを購読するよりファイルを自分で持ちたい場合は、同じ行の `-C` を `~/.claude/skills` に変えれば Claude Code でも使えます。バージョンを固定するには `refs/heads/main` を `refs/tags/<バージョン>` に、`skills-main` をその tarball 内のディレクトリ名 `skills-<バージョン>` に変えてください。
-
-プラグインがインストールするのは**生成器**であって、生成物ではありません。プロジェクトに書き込まれた内容はあなたのもので、ここから更新されることはなく、アンインストールしても残ります。
+バージョンを固定するには `refs/heads/main` を `refs/tags/<バージョン>` に、`skills-main` をその tarball 内のディレクトリ名 `skills-<バージョン>` に変えてください。
 
 この skill をあえて `goal` という名前にしていないのは、Claude Code に停止条件を設定する組み込みの `/goal` があり、別物だからです。両者は併用できます。「複数の milestone を順番に実行する」を参照してください。
 

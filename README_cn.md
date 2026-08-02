@@ -417,26 +417,33 @@ COMMIT_POLICY: task
 
 两种智能体读取的是同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
 
-两种智能体读取的是同一种 `SKILL.md` 格式，因此每个命令只有一份源文件。
+两种智能体读取的是同一种 `SKILL.md` 格式**以及同一份清单文件**，因此每个命令只有一份源文件，也只有一个版本需要安装。
 
-**Claude Code** 以插件方式安装，本仓库发版时会自动更新：
+**Claude Code：**
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
 ```
 
-**Codex** 读取 `~/.codex/skills/`，所以只要一条命令，不需要 clone——不需要 `git`，不需要临时目录，事后也没有东西要清理：
+**Codex** 有自己的插件系统，并且会回退读取 `.claude-plugin/plugin.json`，所以同一个仓库就能用：
 
 ```bash
-mkdir -p ~/.codex/skills
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+当插件名在你已配置的多个 marketplace 中不唯一时，Codex 要求带上 `@marketplace` 限定，因此值得记住 `memory-bank@tabilet` 这种写法。有新版本发布时，用 `codex plugin marketplace upgrade` 刷新快照。
+
+**两种智能体都可以改为把它们当作你自己的文件**，而不是受管理的插件：
+
+```bash
+mkdir -p ~/.codex/skills            # or ~/.claude/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
-同一条命令把 `-C` 改成 `~/.claude/skills` 就适用于 Claude Code，如果你更想拥有这些文件而不是订阅插件的话。想固定版本，把 `refs/heads/main` 换成 `refs/tags/<版本号>`，并把 `skills-main` 改成 `skills-<版本号>`，与该 tarball 内的目录名保持一致。
-
-插件安装的是**生成器**，不是产物。它写进你项目里的内容属于你，不会从这里被更新，卸载插件后依然存在。
+想固定版本，把 `refs/heads/main` 换成 `refs/tags/<版本号>`，并把 `skills-main` 改成 `skills-<版本号>`，与该 tarball 内的目录名保持一致。
 
 这个 skill 特意没有命名为 `goal`：Claude Code 有内置的 `/goal` 用于设置停止条件，那是另一回事。两者可以配合使用，见「按顺序执行多个里程碑」一节。
 

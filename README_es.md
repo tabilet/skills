@@ -411,26 +411,33 @@ También opcional. Todo lo anterior funciona escribiendo frases normales; estos 
 
 Ambos agentes leen el mismo formato `SKILL.md`, así que hay una sola fuente por comando:
 
-Ambos agentes leen el mismo formato `SKILL.md`, así que hay una sola fuente por comando.
+Ambos agentes leen el mismo formato `SKILL.md` **y el mismo manifiesto**, así que hay una sola fuente por comando y una sola versión que instalar.
 
-**Claude Code** los instala como plugin, que se actualiza cuando este repositorio publica algo:
+**Claude Code:**
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
 ```
 
-**Codex** lee `~/.codex/skills/`, así que basta un comando y sin clonar: ni `git`, ni directorio temporal, ni nada que limpiar después:
+**Codex** tiene su propio sistema de plugins y lee `.claude-plugin/plugin.json` como alternativa, así que sirve el mismo repositorio:
 
 ```bash
-mkdir -p ~/.codex/skills
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+Codex exige el calificador `@marketplace` cuando el nombre del plugin no es único entre sus marketplaces configurados, así que `memory-bank@tabilet` es la forma que conviene aprender. `codex plugin marketplace upgrade` refresca la instantánea cuando sale una versión nueva.
+
+**Cualquiera de los dos agentes** puede tomarlos también como archivos suyos en vez de un plugin gestionado:
+
+```bash
+mkdir -p ~/.codex/skills            # or ~/.claude/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
-La misma línea sirve para Claude Code con `-C ~/.claude/skills`, si prefiere ser dueño de los archivos en vez de suscribirse al plugin. Para fijar una versión, cambie `refs/heads/main` por `refs/tags/<versión>` y `skills-main` por `skills-<versión>`, igual que el directorio dentro de ese tarball.
-
-El plugin instala el **generador**, no el resultado. Lo que escribe en tu proyecto es tuyo, nunca se actualiza desde aquí y sobrevive a desinstalarlo.
+Para fijar una versión, cambie `refs/heads/main` por `refs/tags/<versión>` y `skills-main` por `skills-<versión>`, igual que el directorio dentro de ese tarball.
 
 El skill no se llama `goal` a propósito: Claude Code tiene un `/goal` integrado que define una condición de parada, que es otra cosa. Ambos funcionan juntos; consulta «Ejecutar varios milestones en orden».
 

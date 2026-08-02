@@ -553,28 +553,39 @@ the breakdown. You never see a bracketed placeholder — the memory bank arrives
 filled in. *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
-Both agents read the same `SKILL.md` format, so there is one source per command.
+Both agents read the same `SKILL.md` format **and the same manifest**, so there
+is one source per command and one release to install.
 
-**Claude Code** installs them as a plugin, which updates when this repo ships:
+**Claude Code:**
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
 ```
 
-**Codex** reads `~/.codex/skills/`, so this is one command and no clone — no
-`git`, no temporary directory, nothing to clean up afterwards:
+**Codex** has its own plugin system, and reads
+`.claude-plugin/plugin.json` as a fallback, so the same repository works:
 
 ```bash
-mkdir -p ~/.codex/skills
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+Codex requires the `@marketplace` qualifier when a plugin name is not unique
+across your configured marketplaces, so `memory-bank@tabilet` is the form worth
+learning. `codex plugin marketplace upgrade` refreshes the snapshot when a new
+version ships.
+
+**Either agent, as plain files you own** rather than a managed plugin:
+
+```bash
+mkdir -p ~/.codex/skills            # or ~/.claude/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
-The same line works for Claude Code with `-C ~/.claude/skills`, if you would
-rather own the files than subscribe to the plugin. To pin a version, swap
-`refs/heads/main` for `refs/tags/<version>` and change `skills-main` to
-`skills-<version>` to match the directory inside that tarball.
+To pin a version, swap `refs/heads/main` for `refs/tags/<version>` and change
+`skills-main` to `skills-<version>` to match the directory inside that tarball.
 
 The plugin installs the *generator*, not the output. What it writes into your
 project is yours, is never updated from here, and survives uninstalling it.

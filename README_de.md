@@ -411,26 +411,33 @@ Ebenfalls optional. Alles oben funktioniert, indem du gewöhnliche Sätze tippst
 
 Beide Agenten lesen dasselbe `SKILL.md`-Format, es gibt also eine Quelle pro Befehl:
 
-Beide Agenten lesen dasselbe `SKILL.md`-Format, es gibt also eine Quelle pro Befehl.
+Beide Agenten lesen dasselbe `SKILL.md`-Format **und dasselbe Manifest**, es gibt also eine Quelle pro Befehl und ein Release zum Installieren.
 
-**Claude Code** installiert sie als Plugin, das sich aktualisiert, sobald dieses Repository etwas ausliefert:
+**Claude Code:**
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
 ```
 
-**Codex** liest `~/.codex/skills/`, also genügt ein Befehl ohne Clone — kein `git`, kein temporäres Verzeichnis, nichts aufzuräumen:
+**Codex** hat ein eigenes Plugin-System und liest `.claude-plugin/plugin.json` als Fallback, dasselbe Repository funktioniert also:
 
 ```bash
-mkdir -p ~/.codex/skills
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+Codex verlangt den `@marketplace`-Zusatz, wenn ein Plugin-Name über die konfigurierten Marketplaces hinweg nicht eindeutig ist — `memory-bank@tabilet` ist daher die Form, die man sich merkt. `codex plugin marketplace upgrade` aktualisiert den Snapshot, wenn eine neue Version erscheint.
+
+**Beide Agenten** nehmen sie auch als Dateien, die Ihnen gehören, statt als verwaltetes Plugin:
+
+```bash
+mkdir -p ~/.codex/skills            # or ~/.claude/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
-Dieselbe Zeile funktioniert für Claude Code mit `-C ~/.claude/skills`, falls Sie die Dateien lieber besitzen als das Plugin zu abonnieren. Zum Festpinnen einer Version ersetzen Sie `refs/heads/main` durch `refs/tags/<version>` und `skills-main` durch `skills-<version>`, passend zum Verzeichnis in jenem Tarball.
-
-Das Plugin installiert den **Generator**, nicht das Ergebnis. Was es in dein Projekt schreibt, gehört dir, wird von hier nie aktualisiert und bleibt auch nach dem Deinstallieren bestehen.
+Zum Festpinnen einer Version ersetzen Sie `refs/heads/main` durch `refs/tags/<version>` und `skills-main` durch `skills-<version>`, passend zum Verzeichnis in jenem Tarball.
 
 Der Skill heißt bewusst nicht `goal`: Claude Code hat ein eingebautes `/goal`, das eine Stoppbedingung setzt — etwas anderes. Beide arbeiten zusammen, siehe „Mehrere Milestones der Reihe nach abarbeiten“.
 
