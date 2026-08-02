@@ -75,11 +75,11 @@ Fichiers d’exemple au niveau du compte utilisateur :
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-Les trois commandes slash sont dans [harness/skills/](harness/skills/). Claude Code et Codex lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande :
+Les trois commandes slash sont dans [skills/](skills/). Claude Code et Codex lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande :
 
-- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md)
-- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md)
-- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md)
+- [memory-bank-init](skills/memory-bank-init/SKILL.md)
+- [memory-bank-next](skills/memory-bank-next/SKILL.md)
+- [memory-bank-goal](skills/memory-bank-goal/SKILL.md)
 
 `.claude-plugin/` contient les manifestes qui permettent de les installer comme plugin Claude Code. Rien dans `template/` n’est spécifique à un fournisseur.
 
@@ -425,7 +425,7 @@ Les deux agents lisent le même format `SKILL.md`, il n’y a donc qu’une sour
 ```bash
 mkdir -p ~/.codex/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
 La même ligne fonctionne pour Claude Code avec `-C ~/.claude/skills`, si vous préférez posséder les fichiers plutôt que vous abonner au plugin. Pour figer une version, remplacez `refs/heads/main` par `refs/tags/<version>` et `skills-main` par `skills-<version>`, en accord avec le répertoire contenu dans cette archive.

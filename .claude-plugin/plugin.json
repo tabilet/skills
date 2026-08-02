@@ -16,8 +16,8 @@
     "planning"
   ],
   "skills": [
-    "./harness/skills/memory-bank-init",
-    "./harness/skills/memory-bank-next",
-    "./harness/skills/memory-bank-goal"
+    "./skills/memory-bank-init",
+    "./skills/memory-bank-next",
+    "./skills/memory-bank-goal"
   ]
 }

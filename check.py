@@ -32,7 +32,7 @@ import unicodedata
 ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
 PROMPT_COPY = ROOT / "harness" / "prompts" / "tackle-next-memory-bank-todo.md"
-SKILLS_DIR = ROOT / "harness" / "skills"
+SKILLS_DIR = ROOT / "skills"
 PLUGIN_JSON = ROOT / ".claude-plugin" / "plugin.json"
 LANGS = ("cn", "ja", "de", "fr", "es")
 
@@ -173,7 +173,7 @@ def skills_manifest():
 
     problems = []
     if not SKILLS_DIR.exists():
-        return ["harness/skills/ is missing"]
+        return ["skills/ is missing"]
     on_disk = sorted(p.name for p in SKILLS_DIR.iterdir() if p.is_dir())
     for name in on_disk:
         skill = SKILLS_DIR / name / "SKILL.md"

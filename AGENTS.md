@@ -31,8 +31,9 @@ the file:
 |---|---|
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
 | `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/GOAL.md` are byte-identical. |
-| `harness/` | Account payload, installed into `~/.local/bin`, `~/.codex/prompts`, and `~/.claude/skills` or `~/.codex/skills`. |
-| `.claude-plugin/` | Plugin and marketplace manifests, so `harness/skills/` installs as a Claude Code plugin. Vendor-specific, and allowed here because it is account payload — the ban is on vendor files in `template/`. |
+| `harness/` | Account payload, installed into `~/.local/bin` and `~/.codex/prompts`. |
+| `skills/` | The three slash commands, one `SKILL.md` each. **Must stay at the repository root** — see below. |
+| `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
 | `docs/`, `README*.md`, `AGENTS.md` | This repository's own documentation. |
 
 Two consequences that matter constantly:
@@ -226,10 +227,21 @@ provider section and the language-version links that `README.md` carries.
 - Ship no vendor-specific agent files in `template/`. `AGENTS.md` is an open
   cross-vendor standard; tools that read another filename get a documented
   one-line bridge in the README, not a file in the payload.
-- One `SKILL.md` per command in `harness/skills/`, never a per-agent copy.
-  Claude Code and Codex read the same format from `~/.claude/skills` and
-  `~/.codex/skills`, so a second copy would only be a place to drift. The
-  directory name, the frontmatter `name`, and the `plugin.json` list must agree.
+- One `SKILL.md` per command in `skills/`, never a per-agent copy. Claude Code
+  and Codex read the same format, so a second copy would only be a place to
+  drift. The directory name, the frontmatter `name`, and the `plugin.json` list
+  must agree.
+- **`skills/` stays at the repository root.** It looks like account payload and
+  belongs under `harness/` by that logic, but Codex discovers a plugin's skills
+  by scanning `<plugin-root>/skills/` and ignores `plugin.json`'s `skills`
+  array. With the directory anywhere else, `codex plugin add` reports success,
+  writes `enabled = true` to `config.toml`, and surfaces no commands at all —
+  which is exactly how this was found. Claude Code reads the manifest array and
+  does not care, so the root is the only location that satisfies both.
+- Both agents install from `.claude-plugin/`. Codex tries
+  `.codex-plugin/plugin.json`, then `.claude-plugin/plugin.json`, then
+  `.cursor-plugin/plugin.json`, so one manifest serves both and there is no
+  reason to add a second.
 - No skill named `goal`. Claude Code has a built-in `/goal` that sets a stop
   condition; a skill by that name would shadow a different feature.
 - `.claude-plugin/plugin.json`'s version and the git tags agree. At a tagged

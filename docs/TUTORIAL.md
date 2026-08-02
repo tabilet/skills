@@ -42,7 +42,7 @@ so this is the same payload:
 ```bash
 mkdir -p ~/.codex/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
 No clone, no temporary directory, no cleanup. Use `-C ~/.claude/skills` for

@@ -75,11 +75,11 @@ clone 自体で何かを実行することはありません。中からファ�
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-3 つのスラッシュコマンドは [harness/skills/](harness/skills/) にあります。Claude Code と Codex は同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
+3 つのスラッシュコマンドは [skills/](skills/) にあります。Claude Code と Codex は同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
 
-- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md)
-- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md)
-- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md)
+- [memory-bank-init](skills/memory-bank-init/SKILL.md)
+- [memory-bank-next](skills/memory-bank-next/SKILL.md)
+- [memory-bank-goal](skills/memory-bank-goal/SKILL.md)
 
 `.claude-plugin/` には、これらを Claude Code プラグインとしてインストールするためのマニフェストが入っています。`template/` にベンダー固有のファイルはありません。
 
@@ -425,7 +425,7 @@ COMMIT_POLICY: task
 ```bash
 mkdir -p ~/.codex/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
 プラグインを購読するよりファイルを自分で持ちたい場合は、同じ行の `-C` を `~/.claude/skills` に変えれば Claude Code でも使えます。バージョンを固定するには `refs/heads/main` を `refs/tags/<バージョン>` に、`skills-main` をその tarball 内のディレクトリ名 `skills-<バージョン>` に変えてください。

@@ -81,11 +81,11 @@ cd skills
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-三个斜杠命令，位于 [harness/skills/](harness/skills/)。Claude Code 和 Codex 读取同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
+三个斜杠命令，位于 [skills/](skills/)。Claude Code 和 Codex 读取同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
 
-- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md)
-- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md)
-- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md)
+- [memory-bank-init](skills/memory-bank-init/SKILL.md)
+- [memory-bank-next](skills/memory-bank-next/SKILL.md)
+- [memory-bank-goal](skills/memory-bank-goal/SKILL.md)
 
 `.claude-plugin/` 存放清单文件，使上述命令可以作为 Claude Code 插件安装。`template/` 里没有任何特定厂商的文件。
 
@@ -431,7 +431,7 @@ COMMIT_POLICY: task
 ```bash
 mkdir -p ~/.codex/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
 同一条命令把 `-C` 改成 `~/.claude/skills` 就适用于 Claude Code，如果你更想拥有这些文件而不是订阅插件的话。想固定版本，把 `refs/heads/main` 换成 `refs/tags/<版本号>`，并把 `skills-main` 改成 `skills-<版本号>`，与该 tarball 内的目录名保持一致。

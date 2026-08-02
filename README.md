@@ -106,14 +106,14 @@ home directory:
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-The three slash commands, in [harness/skills/](harness/skills/). Claude Code and
+The three slash commands, in [skills/](skills/). Claude Code and
 Codex read the same `SKILL.md` format, so there is one source per command:
 
-- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md) — interview a
+- [memory-bank-init](skills/memory-bank-init/SKILL.md) — interview a
   project into existence, then write its memory bank
-- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md) — tackle one row,
+- [memory-bank-next](skills/memory-bank-next/SKILL.md) — tackle one row,
   verify it, commit it
-- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md) — run an ordered
+- [memory-bank-goal](skills/memory-bank-goal/SKILL.md) — run an ordered
   set of milestones
 
 `.claude-plugin/` holds the manifests that let those install as a Claude Code
@@ -568,7 +568,7 @@ Both agents read the same `SKILL.md` format, so there is one source per command.
 ```bash
 mkdir -p ~/.codex/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
 ```
 
 The same line works for Claude Code with `-C ~/.claude/skills`, if you would
