@@ -576,6 +576,11 @@ across your configured marketplaces, so `memory-bank@tabilet` is the form worth
 learning. `codex plugin marketplace upgrade` refreshes the snapshot when a new
 version ships.
 
+**How you invoke them differs.** Claude Code registers them as slash commands —
+`/memory-bank-init`. Codex registers them as skills reached by name, so ask for
+them without a slash: *"use the memory-bank-init skill"*. Plain English works in
+both, which is what the memory bank is built around anyway.
+
 **Either agent, as plain files you own** rather than a managed plugin:
 
 ```bash

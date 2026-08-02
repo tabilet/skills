@@ -435,6 +435,8 @@ codex plugin add memory-bank@tabilet
 
 当插件名在你已配置的多个 marketplace 中不唯一时，Codex 要求带上 `@marketplace` 限定，因此值得记住 `memory-bank@tabilet` 这种写法。有新版本发布时，用 `codex plugin marketplace upgrade` 刷新快照。
 
+**两者的调用方式不同。** Claude Code 把它们注册为斜杠命令——`/memory-bank-init`。Codex 把它们注册为按名称调用的 skill，所以不要加斜杠，直接说：*“use the memory-bank-init skill”*。普通英语句子在两者中都有效，而这本来就是项目记忆库所依赖的方式。
+
 **两种智能体都可以改为把它们当作你自己的文件**，而不是受管理的插件：
 
 ```bash

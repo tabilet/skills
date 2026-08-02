@@ -9,7 +9,9 @@ argument-hint: M01 -> S01 -> A01?
 
 Execute several milestones in a defined order, rather than one row at a time.
 
-**This skill is not named `goal` on purpose.** Claude Code has a built-in
+**Invocation differs by agent.** Claude Code offers this as
+`/memory-bank-goal`; Codex exposes it as a skill reached by name, without a
+leading slash. **The name avoids `goal` on purpose.** Claude Code has a built-in
 `/goal` that sets a stop condition, which is a different thing; see *Keeping the
 session going* below.
 

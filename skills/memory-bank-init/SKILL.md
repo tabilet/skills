@@ -111,7 +111,7 @@ reproducing it by hand corrupts it. Copy the `GOAL.md` that sits beside this
 skill file — under `${CLAUDE_PLUGIN_ROOT}` when this was installed as a plugin,
 otherwise in this skill's own directory. If you cannot find it, say so and leave
 it out rather than writing an approximation; the project still works without it,
-and `/memory-bank-goal` will tell the user where to get it.
+and `memory-bank-goal` will tell the user where to get it.
 
 Tell the user it is optional and can be deleted: it is one way to run several
 milestones in order, not a requirement of the memory bank.
@@ -149,6 +149,8 @@ Markers: `` `[ ]` `` pending, `` `[+]` `` done, `` `[~]` `` in progress,
 Then tell the user what you could not fill and why. Anything left is a decision
 that was never actually made - ask for it rather than inventing it.
 
-Finally, state the two sentences that run the project from here: *"tackle next
-pending item in memory bank"* for one task, and `/memory-bank-goal` for an
-ordered set of milestones.
+Finally, tell the user how to run the project from here, using the form their
+agent actually accepts. Plain English works everywhere: *"tackle next pending
+item in memory bank"* for one task. For an ordered set of milestones, name the
+`memory-bank-goal` command — Claude Code invokes it as `/memory-bank-goal`,
+while Codex exposes it as a skill reached by name, with no leading slash.

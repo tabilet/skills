@@ -429,6 +429,8 @@ codex plugin add memory-bank@tabilet
 
 設定済みの marketplace 間でプラグイン名が一意でない場合、Codex は `@marketplace` 修飾を要求します。`memory-bank@tabilet` の形を覚えておくとよいでしょう。新しいバージョンが出たら `codex plugin marketplace upgrade` でスナップショットを更新します。
 
+**呼び出し方は両者で異なります。** Claude Code はスラッシュコマンドとして登録するので `/memory-bank-init` です。Codex は名前で呼ぶスキルとして登録するため、スラッシュなしで «use the memory-bank-init skill» のように依頼します。普通の文章はどちらでも通じますし、memory bank はもともとそれを前提にしています。
+
 **どちらのエージェントでも**、管理されたプラグインではなく自分が所有するファイルとして入れることもできます:
 
 ```bash

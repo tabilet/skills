@@ -429,6 +429,8 @@ codex plugin add memory-bank@tabilet
 
 Codex verlangt den `@marketplace`-Zusatz, wenn ein Plugin-Name über die konfigurierten Marketplaces hinweg nicht eindeutig ist — `memory-bank@tabilet` ist daher die Form, die man sich merkt. `codex plugin marketplace upgrade` aktualisiert den Snapshot, wenn eine neue Version erscheint.
 
+**Der Aufruf unterscheidet sich.** Claude Code registriert sie als Slash-Befehle — `/memory-bank-init`. Codex registriert sie als Skills, die über den Namen erreicht werden, also ohne Slash: „use the memory-bank-init skill“. Normale Sätze funktionieren in beiden, worauf die Memory Bank ohnehin ausgelegt ist.
+
 **Beide Agenten** nehmen sie auch als Dateien, die Ihnen gehören, statt als verwaltetes Plugin:
 
 ```bash

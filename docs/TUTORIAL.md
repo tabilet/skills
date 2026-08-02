@@ -45,6 +45,12 @@ codex plugin add memory-bank@tabilet
 Codex wants the `@marketplace` qualifier when the plugin name is not unique
 across your marketplaces, so `memory-bank@tabilet` is the form to learn.
 
+**Invocation differs between the two.** Claude Code registers these as slash
+commands, so `/memory-bank-init` autocompletes. Codex registers them as skills
+reached by name — ask for them without a slash: *"use the memory-bank-init
+skill"*. Every `/command` written below is the Claude Code form; drop the slash
+in Codex.
+
 Either agent can also take them as plain files you own instead of a managed
 plugin — no clone, no temp directory, nothing to clean up:
 
