@@ -4,7 +4,9 @@ Les agents de code travaillent mieux quand un projet sait s'expliquer — ce qu'
 
 Ce dépôt fait le pari inverse. Cinq ou six fichiers markdown, copiés dans votre projet, qui vous appartiennent entièrement. Aucun CLI à installer, aucun vocabulaire à apprendre, rien d'obligatoire. Supprimez-en n'importe lequel le jour où il cesse de mériter sa place.
 
-**Rien ne s'exécute ici.** Ce dépôt est un point de départ dont vous copiez le contenu *vers l'extérieur* — `template/` dans votre projet, `harness/` éventuellement dans votre répertoire personnel. Ensuite votre projet n'a aucune dépendance envers ce dépôt ni aucun lien de retour. C'est justement l'objectif : ce que vous obtenez vous appartient.
+**Ce que vous obtenez au bout vous appartient.** Ce dépôt est un point de départ dont vous copiez le contenu *vers l'extérieur* : `template/` dans votre projet, `harness/` éventuellement dans votre répertoire personnel. Ensuite, votre projet n'a plus aucune dépendance envers ce dépôt ni aucun lien de retour.
+
+Trois commandes slash optionnelles peuvent faire la copie et le remplissage à votre place — voir [Installer les trois commandes](#installer-les-trois-commandes). Elles ne changent rien au pari ci-dessus : elles *génèrent* des fichiers qui vous appartiennent ensuite, ne les mettent jamais à jour, et les désinstaller laisse votre projet intact.
 
 Votre projet finit par ressembler à ceci :
 
@@ -25,6 +27,8 @@ Dans tout ce document, **harness** désigne une commande reproductible qui prouv
 Autres versions linguistiques: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇪🇸 Español](README_es.md).
 
 ## Démarrage
+
+**Nouveau ici ?** [docs/TUTORIAL.md](docs/TUTORIAL.md) mène un projet jouet d’un répertoire vide à un premier commit en vingt minutes, en confiant la mise en place à `/memory-bank-init`. Le reste de ce README est une référence ; le tutoriel en est le parcours guidé.
 
 **Pour utiliser la memory bank, il vous faut `git`, et rien d’autre.** La memory bank est du markdown ordinaire : le travail quotidien — demander à un agent comme Codex ou Claude Code de traiter le prochain élément en attente — ne demande aucun runtime.
 

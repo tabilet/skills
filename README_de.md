@@ -4,7 +4,9 @@ Coding-Agenten arbeiten besser, wenn ein Projekt sich selbst erklären kann — 
 
 Dieses Repository setzt auf das Gegenteil. Fünf oder sechs Markdown-Dateien, in Ihr Projekt kopiert, vollständig Ihr Eigentum. Kein CLI zu installieren, kein Vokabular zu lernen, nichts verpflichtend. Löschen Sie jede davon an dem Tag, an dem sie ihren Platz nicht mehr verdient.
 
-**Hier läuft nichts.** Dieses Repository ist ein Ausgangspunkt, aus dem Sie herauskopieren — `template/` in Ihr Projekt, `harness/` optional in Ihr Home-Verzeichnis. Danach hat Ihr Projekt keine Abhängigkeit von diesem Repository und keine Verbindung zurück. Genau das ist der Punkt: Was Sie am Ende haben, gehört Ihnen.
+**Was am Ende herauskommt, gehört Ihnen.** Dieses Repository ist ein Ausgangspunkt, aus dem Sie herauskopieren — `template/` in Ihr Projekt, `harness/` optional in Ihr Home-Verzeichnis. Danach hat Ihr Projekt keine Abhängigkeit zu diesem Repository und keinen Rückverweis darauf.
+
+Drei optionale Slash-Befehle können das Kopieren und Ausfüllen für Sie erledigen — siehe [Die drei Befehle installieren](#die-drei-befehle-installieren). An der Wette oben ändern sie nichts: Sie *erzeugen* Dateien, die Ihnen danach gehören, aktualisieren sie nie wieder, und ihr Deinstallieren lässt Ihr Projekt unberührt.
 
 Ihr Projekt sieht am Ende so aus:
 
@@ -25,6 +27,8 @@ Durchgehend meint **Harness** einen wiederholbaren Befehl, der beweist, dass etw
 Weitere Sprachversionen: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).
 
 ## Erste Schritte
+
+**Neu hier?** [docs/TUTORIAL.md](docs/TUTORIAL.md) führt ein Spielzeugprojekt in zwanzig Minuten vom leeren Verzeichnis zum ersten Commit — das Einrichten übernimmt `/memory-bank-init`. Der Rest dieser README ist Referenz; das Tutorial ist der geführte Weg hindurch.
 
 **Um die Memory Bank zu nutzen, brauchen Sie `git` und sonst nichts.** Die Memory Bank ist reines Markdown, der Alltags-Workflow — einem Agenten wie Codex oder Claude Code sagen, er soll den nächsten offenen Punkt übernehmen — braucht also gar keine Laufzeitumgebung.
 

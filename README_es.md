@@ -4,7 +4,9 @@ Los agentes de código trabajan mejor cuando un proyecto sabe explicarse: qué e
 
 Este repositorio apuesta por lo contrario. Cinco o seis archivos markdown, copiados a su proyecto, suyos por completo. Ningún CLI que instalar, ningún vocabulario que aprender, nada obligatorio. Borre cualquiera de ellos el día en que deje de merecer su sitio.
 
-**Aquí no se ejecuta nada.** Este repositorio es un punto de partida del que se copia *hacia fuera*: `template/` a su proyecto y `harness/` opcionalmente a su directorio personal. Después su proyecto no depende de este repositorio ni mantiene enlace de vuelta. Ese es justamente el objetivo: lo que le queda es suyo.
+**Lo que acaba teniendo es suyo.** Este repositorio es un punto de partida del que se copia *hacia fuera*: `template/` a su proyecto, `harness/` opcionalmente a su directorio personal. Después, su proyecto no depende de este repositorio ni mantiene ningún vínculo con él.
+
+Tres comandos slash opcionales pueden hacer la copia y el rellenado por usted — vea [Instalar los tres comandos](#instalar-los-tres-comandos). No cambian nada de la apuesta anterior: *generan* archivos que después son suyos, nunca los actualizan, y desinstalarlos deja su proyecto intacto.
 
 Su proyecto acaba con este aspecto:
 
@@ -25,6 +27,8 @@ A lo largo del documento, **harness** significa un comando repetible que demuest
 Otras versiones de idioma: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md).
 
 ## Primeros pasos
+
+**¿Nuevo en esto?** [docs/TUTORIAL.md](docs/TUTORIAL.md) lleva un proyecto de juguete de un directorio vacío a un primer commit en veinte minutos, dejando la puesta en marcha a `/memory-bank-init`. El resto de este README es referencia; el tutorial es el recorrido guiado por él.
 
 **Para usar el memory bank necesita `git`, y nada más.** El memory bank es markdown corriente, así que el flujo diario —pedirle a un agente como Codex o Claude Code que atienda el siguiente pendiente— no necesita ningún runtime.
 

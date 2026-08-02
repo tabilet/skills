@@ -3,183 +3,221 @@
 You have an idea and an empty directory. No code yet.
 
 This walkthrough goes from that to an agent implementing your project against a
-memory bank it wrote itself, in seven steps:
+memory bank it wrote from interviewing you:
 
-1. Make an empty directory.
-2. Open your agent in it.
-3. **Talk through the idea** — product, tech stack, milestones.
-4. Point the agent at this package and copy the placeholder files.
-5. The agent fills in the memory bank from your conversation.
-6. It splits the work into status files by feature.
-7. `/goal` implements them in order.
+1. Install the three commands, once.
+2. Make an empty directory.
+3. Run `/memory-bank-init` and answer its questions.
+4. Approve the breakdown it proposes.
+5. Read what it wrote.
+6. Run the work: one row at a time, or a whole ordered set.
 
-Steps 1, 2, and 4 take a minute. Step 3 is where the real work happens, and
-steps 5–7 are only as good as it was.
+Twenty minutes, and most of it is step 3 — which is a conversation, not typing.
 
 The example is a Mario-style platformer called `stomper`, because a game
-decomposes into feature areas cleanly enough to show why step 6 exists. Every
-file shown below was produced by actually running this.
+decomposes into feature areas cleanly enough to show why lanes exist. Every file
+shown below was really generated.
 
 ## What You Need
 
-- **`git`**, and an agent — Claude Code, Codex, or anything that reads files and
-  runs commands in your repo.
-- **A clone of this package**, which you copy files out of:
-
-  ```bash
-  git clone https://github.com/tabilet/skills.git
-  ```
-
-  Below, `/path/to/skills` is that clone.
+- **`git`**, and an agent — Claude Code or Codex.
 - **An idea you can talk about for ten minutes.** That is the actual
-  prerequisite.
+  prerequisite. Everything else is mechanical.
 
 The example project uses Node and Python 3; yours needs whatever it needs.
 
-## Step 1 — An Empty Directory
+## Step 1 — Install The Three Commands
+
+In Claude Code:
+
+```bash
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+```
+
+In Codex, or if you would rather own the files outright, copy them in — both
+agents read the same `SKILL.md` format:
+
+```bash
+git clone --depth 1 https://github.com/tabilet/skills /tmp/sk
+cp -R /tmp/sk/harness/skills/. ~/.codex/skills/     # or ~/.claude/skills/
+rm -rf /tmp/sk
+```
+
+You now have three commands, and they are the whole interface:
+
+| Command | When |
+|---|---|
+| `/memory-bank-init` | Once per project, on the way in. |
+| `/memory-bank-next` | Every day. One row, verified, committed. |
+| `/memory-bank-goal` | Several milestones in a defined order. |
+
+*(Prefer to do it by hand? Every step below has a manual equivalent in the
+[README](../README.md#set-up-a-new-project). The commands are a convenience,
+not a requirement.)*
+
+## Step 2 — An Empty Directory
 
 ```bash
 mkdir stomper && cd stomper
 git init
-```
-
-That is all. Do not scaffold anything, do not create source files. The point of
-what follows is that the project's shape comes out of the conversation, not out
-of a template you picked before thinking.
-
-## Step 2 — Open Your Agent
-
-```bash
 claude
 ```
 
-Do not ask it to write code yet. Do not mention this package yet either.
+Do not scaffold anything. The project's shape comes out of the conversation, not
+out of a template you picked before thinking.
 
-## Step 3 — Talk Through The Idea
+## Step 3 — Run `/memory-bank-init`
 
-**This is the step that determines everything downstream**, and it is the one
-people skip. The memory bank an agent writes in step 5 is a transcript of the
-decisions you reached here. Decisions you never reached come out as vague prose,
-and vague prose is what makes an agent build the wrong thing confidently.
+```text
+/memory-bank-init
+```
 
-Chat until five things are settled:
+**This step decides everything downstream**, and it is a conversation rather
+than a form. The memory bank you end up with is a transcript of the decisions
+you reach here; decisions you never reach come out as vague prose, and vague
+prose is what makes an agent build the wrong thing confidently.
 
-| What | Why it matters later | Lands in |
+The command works down a dependency-ordered tree, **one question at a time, each
+with a recommended answer attached** so agreeing costs one word. Anything it can
+read from the repository it reads instead of asking — so in an empty directory
+almost everything is a question, and in an existing repo it will already know
+your stack and test command and ask you only about decisions.
+
+What it works through, and where each answer lands:
+
+| It asks | Why it matters | Lands in |
 |---|---|---|
-| **What it is** | Scope. | `product.md` |
-| **What it is *not*** | The most valuable thing you will say. | `product.md` |
-| **Tech stack and constraints** | Rules the agent must not break. | `tech-stack.md` |
-| **How you know it works** | Every task closes against this. | `tech-stack.md`, `AGENTS.md` |
-| **The feature areas, and their order** | Becomes milestones and lanes. | `milestone.md` |
+| What is this, who uses it? | Scope. | `product.md` |
+| **What is it *not*?** | The most valuable thing you will say. | `product.md` |
+| Stack and constraints | Rules the agent must not break. | `tech-stack.md` |
+| **How do you know it works?** | Everything downstream closes against this. | `tech-stack.md`, `AGENTS.md` |
+| Boundaries | What this owns, what it delegates. | `AGENTS.md` |
+| Feature areas, and their order | Becomes lanes and milestones. | `milestone.md` |
 
-Talk in your own words. The exchange that shaped this example ran roughly:
+The exchange that produced this example ran roughly:
 
-> **You:** I want a side-scrolling platformer like early Mario. Runs in a
-> browser. I mostly want to learn what makes movement feel good.
+> **`/memory-bank-init`:** What are we building, and who is it for?
 >
-> **Agent:** Original art, or are you planning to use Mario sprites?
+> **You:** A side-scrolling platformer like early Mario, in a browser. Mostly I
+> want to learn what makes movement feel good.
 >
-> **You:** Original — I don't want Nintendo's assets anywhere near it. Draw
-> everything in code.
+> **`/memory-bank-init`:** Original art, or Nintendo's sprites? I recommend
+> original — shipping their assets is a licensing problem, and drawing in code
+> keeps the repo dependency-free.
 >
-> **Agent:** What's the stack? A framework like Phaser would save you time, but
-> it also hides the physics, which is the part you said you want to learn.
+> **You:** Original. I don't want Nintendo's assets anywhere near it.
 >
-> **You:** Then no framework. Plain canvas, ES modules, no build step. I want to
-> open the file and have it run.
+> **`/memory-bank-init`:** Framework or plain canvas? I recommend plain canvas
+> with ES modules and no build step — a framework like Phaser would save you
+> time but hide the physics, which is the part you said you want to learn.
 >
-> **Agent:** Then how do we verify anything? Canvas rendering isn't testable
-> headlessly, and "feels good" isn't either.
+> **You:** Plain canvas. I want to open the file and have it run.
 >
-> **You:** …good question.
+> **`/memory-bank-init`:** Then how do we verify anything? Canvas rendering is
+> not testable headlessly and "feels good" is not either. I recommend keeping
+> physics, collision, and entity state in modules that import nothing from the
+> DOM, so they run under `node --test`; rendering and audio get verified by
+> playing. It costs one architectural rule and it is what makes the project
+> testable at all.
 >
-> **Agent:** One split works well here: keep physics, collision, and entity
-> state in modules that import nothing from the DOM. Those get real unit tests
-> under `node --test`. Rendering and audio read that state and are verified by
-> playing. It costs you one architectural rule, and it's the rule that makes the
-> project testable at all.
+> **You:** Do that.
 >
-> **You:** Do that. And the feature areas are basically: the world and camera,
-> the player and how it collides, enemies you can stomp, the HUD, and sound.
-> Sound is last and I might skip it.
+> **`/memory-bank-init`:** Feature areas? From what you have described I would
+> suggest world and camera, player and collision, enemies, HUD, and audio — with
+> audio last and conditional, since the game is playable without it.
+>
+> **You:** Right, and I might skip audio entirely.
 
 Notice what that produced: **a non-goal** (no Nintendo assets, no build step),
 **an architectural rule** (simulation imports nothing from the DOM), and **a
 verification command** (`node --test`). Those three are what an agent needs to
-work unsupervised. They came from being pushed on "how do we verify anything" —
-which is the question to make sure gets asked, about your project, before you
-move on.
+work unsupervised, and the third one arrived because the command pushed back
+instead of accepting "a platformer" and starting to type.
 
-## Step 4 — Point The Agent At This Package
+**Your job in this step is to answer, disagree, and say "no, actually."** The
+recommendations are there to be overridden. An interview where you said yes to
+everything produced a memory bank describing the command's assumptions, not your
+project.
 
-Now bring in the files. From the project root:
+## Step 4 — Approve The Breakdown
 
-```bash
-cp -R /path/to/skills/template/. .
-mkdir -p docs
+Before writing anything, `/memory-bank-init` proposes the shape as a numbered
+list: lane letters, milestones with acceptance criteria, the first milestone's
+rows, and the execution order. **Nothing is on disk yet.**
+
+For `stomper` it proposed five lanes, because the feature areas genuinely have
+different acceptance criteria — collision correctness is unit-testable, audio is
+a playtest:
+
+```markdown
+| Lane | Domain |
+|---|---|
+| `W` | World: tilemap, level data, camera. |
+| `P` | Player: input, movement, collision resolution. |
+| `E` | Entities: enemies, pickups, and their interactions with the player. |
+| `U` | UI: HUD, score, lives, title and game-over states. |
+| `A` | Audio: WebAudio cues. |
+| `M` | Default lane, for work that classifies as none of the above. |
 ```
 
-If you are in Claude Code, bridge the agent file — one line, no duplicate to
-drift ([details](../README.md#wiring-up-your-agent)):
+and this order, because these are not independent:
 
-```bash
-ln -s AGENTS.md CLAUDE.md
+```markdown
+W01 -> P01 -> E01 -> U01 -> A01?
 ```
 
-Then hand off. This prompt is the whole of step 4:
+`P01` needs tile queries from `W01`; `E01` reuses `P01`'s collision resolver.
+The trailing `?` marks `A01` **conditional** — skipped rather than cancelled
+when its trigger is absent.
 
-```text
-Read AGENTS.md, memory-bank/*, and evolution/* — they are placeholder templates
-from a starter package I just copied in.
+It will ask you three things. Answer them honestly, because this is the cheap
+moment to be wrong:
 
-Fill them in from the conversation we just had. Do not invent requirements I
-did not state; ask me instead. Specifically:
+- **Is the granularity right?** Too coarse, too fine?
+- **Are the dependencies correct?** Does each milestone depend only on what
+  genuinely gates it?
+- **Should anything be merged or split?**
 
-- product.md: what this is, who it's for, and the non-goals we agreed on.
-- architecture.md: the module layout and the DOM-free simulation boundary.
-- tech-stack.md: the stack, and the verification commands.
-- milestone.md: define the status ID lanes, one per feature area, then the
-  milestones and their acceptance criteria, and the execution order.
-- One status-<LANE><NN>.md per milestone, with actionable rows small enough
-  that one row is one commit.
-- evolution/prompt-v1.md and result-v1.md: the initial direction, and the fact
-  that nothing is built yet.
+Two rules it applies, worth knowing so you can tell when it has them wrong:
 
-Replace every bracketed placeholder. Tell me which ones you couldn't fill.
-```
+- **A milestone is a vertical slice** — a complete path through every layer,
+  demoable on its own. "The player moves, jumps, and collides" is a milestone.
+  "The database layer" is not; it is never independently done.
+- **A row is one commit** — small enough to be plainly done or not, and sized to
+  fit in one fresh context window.
 
-The last line matters. An agent that cannot fill something should say so rather
-than invent it, and the leftovers are usually a decision you never actually made
-in step 3.
+**Start with one lane (`M`) unless you have a real reason.** Lane letters can
+never be renamed once their file exists. This project earned five; most do not.
 
-## Step 5 — The Agent Fills The Memory Bank
+## Step 5 — Read What It Wrote
 
-The template ships 48 bracketed placeholders. You are not filling them by hand —
-that is what the conversation was for.
-
-What comes back:
+Only after you approve does it write:
 
 ```text
 stomper/
 ├── AGENTS.md              ← commands, boundaries, hard rules
-├── CLAUDE.md -> AGENTS.md
-├── GOAL.md                ← the execution protocol, used in step 7
+├── GOAL.md                ← copied, not written — a portable protocol
 ├── memory-bank/
 │   ├── product.md         ← what it is, and the non-goals
 │   ├── architecture.md    ← module layout, the DOM-free rule
-│   ├── tech-stack.md      ← stack, and how it's verified
+│   ├── tech-stack.md      ← stack, and how it is verified
 │   ├── milestone.md       ← lanes, milestones, execution order
-│   └── status-*.md        ← one per feature area (step 6)
+│   └── status-{W,P,E,U,A}01.md
 └── evolution/
     ├── prompt-v1.md
     └── result-v1.md
 ```
 
-**Read what it wrote.** This is your job in this step, and it takes five
-minutes. Three things worth checking:
+**These files are yours.** Nothing links back to the plugin, nothing updates
+them, and uninstalling the commands leaves them exactly as they are.
 
-*Did the non-goals survive?* They are the highest-value lines in the memory bank
-and the easiest for an agent to soften into nothing:
+You will not see a bracketed placeholder — the memory bank arrives filled in.
+Read it anyway; it takes five minutes and it is your last cheap correction.
+Three things worth checking:
+
+*Did the non-goals survive?* They are the highest-value lines and the easiest to
+soften into nothing:
 
 ```markdown
 ## Non-Goals
@@ -197,59 +235,13 @@ and the easiest for an agent to soften into nothing:
 
 `physics.js`, `world.js`, and `entities.js` **import nothing from the DOM.** No
 `document`, no `canvas`, no `Audio`. They take state and return state.
-
-Rendering reads that state and draws it; it never owns it. This is what keeps
-the simulation testable under `node --test`, and it is the boundary most likely
-to erode under time pressure.
 ```
 
-*Is the verification command real?* If `tech-stack.md` says something the agent
-has never run, every task after this will close against a command that does not
-work. Run it yourself now, even with zero tests, and confirm it exits cleanly.
+*Is the verification command real?* Run it yourself now, even with zero tests.
+If `tech-stack.md` names a command that does not work, every task after this
+closes against nothing.
 
-Fix anything wrong by telling the agent, not by hand-editing. It is faster, and
-it keeps the memory bank consistent with what the agent believes.
-
-## Step 6 — Lanes By Feature
-
-The starter ships one status file, `status-M01.md`, on the default `M` lane. For
-a small project that is the right answer and you should keep it.
-
-This project earns more. Its feature areas have genuinely different acceptance
-criteria — collision correctness is unit-testable, audio is a playtest — so
-they review as separate units. The agent defined a lane per area in
-`milestone.md`:
-
-```markdown
-| Lane | Domain |
-|---|---|
-| `W` | World: tilemap, level data, camera. |
-| `P` | Player: input, movement, collision resolution. |
-| `E` | Entities: enemies, pickups, and their interactions with the player. |
-| `U` | UI: HUD, score, lives, title and game-over states. |
-| `A` | Audio: WebAudio cues. |
-| `M` | Default lane, for work that classifies as none of the above. |
-```
-
-and an execution order, because these are not independent:
-
-```markdown
-W01 -> P01 -> E01 -> U01 -> A01?
-```
-
-`P01` needs tile queries from `W01`; `E01` reuses `P01`'s collision resolver.
-The trailing `?` on `A01` marks it **conditional** — skipped rather than
-cancelled when its trigger is absent.
-
-Two details from the real run:
-
-- `status-M01.md` was **deleted.** Every piece of work classifies into a feature
-  lane, so an unused default lane is just a file that makes readers wonder what
-  belongs in it.
-- IDs are never reused or renamed once their file exists. Pick letters you can
-  live with. See [Status ID lanes](../README.md#status-id-lanes).
-
-A status file is a table of rows, each small enough to be one commit:
+A status file is a table of rows, each sized to be one commit:
 
 ```markdown
 # Status P01 - The Player Moves, Jumps, And Collides
@@ -257,40 +249,40 @@ A status file is a table of rows, each small enough to be one commit:
 **Depends on.** W01 (needs `tileAt`).
 
 **Acceptance.** `node --test` passes, including the tile-seam regression test.
-Variable jump height and coyote time verified by playtest.
 
 | Item | State | Notes |
 |---|---|---|
 | Fixed timestep integration | `[ ]` | Accumulator loop. Physics must not vary with frame rate. |
-| Horizontal accel and friction | `[ ]` | Separate ground and air friction constants. |
-| Gravity and terminal velocity | `[ ]` | |
 | Axis-separated AABB resolution | `[ ]` | Horizontal, then vertical. Resolving both at once causes seam catching. |
 | Tile-seam regression test | `[ ]` | Walk across a flat run of tiles at several speeds; assert no horizontal stall. |
 | Variable jump height | `[ ]` | Releasing the key early cuts upward velocity. |
 | Coyote time and jump buffer | `[ ]` | ~6 frames each. The two together are most of what makes it feel right. |
 ```
 
+Note what those rows are not: they are not "build the player." Each names
+something either done or not, and two exist only because the interview surfaced
+a specific failure mode worth testing for.
+
 **The backticks around `` `[ ]` `` are load-bearing.** A bare `[ ]` is invisible
 to every tool that reads the file — see [When It Goes
 Wrong](#when-it-goes-wrong). Markers are `` `[ ]` `` pending, `` `[+]` `` done,
 `` `[~]` `` in progress, `` `[!]` `` blocked, `` `[X]` `` cancelled.
 
-Note what those rows are not: they are not "build the player." Each names a
-thing that is either done or not, and two of them exist only because the chat
-surfaced a specific failure mode worth testing for.
+If something is wrong, tell the agent rather than hand-editing. Faster, and it
+keeps the memory bank consistent with what the agent believes.
 
 ## Checkpoint — Before You Start A Long Run
 
 Everything so far is prose an agent interprets loosely. Before handing it a run
 that works unattended, get a hard yes or no.
 
-This package ships an optional [API harness](../README.md#install-the-api-harness)
-that runs local checks before it calls any API — is there an `AGENTS.md`, is
-this a git worktree, are there lane files, are there actionable rows, is the
-worktree clean. Point it at a dead endpoint to reach those checks and stop:
+The optional [API harness](../README.md#install-the-api-harness) runs local
+checks before it calls any API — is there an `AGENTS.md`, is this a git
+worktree, are there lane files, are there actionable rows, is the worktree
+clean. Point it at a dead endpoint to reach those checks and stop:
 
 ```bash
-git add -A && git commit -m "Add memory bank from design conversation"
+git add -A && git commit -m "Add memory bank"
 
 LLM_MODEL=check LLM_API_KEY=x LLM_API_BASE=http://127.0.0.1:1/v1 MAX_RUNS=1 \
   python3 /path/to/skills/harness/tackle-memory-bank-api-loop .
@@ -301,7 +293,7 @@ echo $?
 on your side passed; the only failure was the network call you sabotaged on
 purpose. No API key, no cost, no model involved.
 
-The same harness can show you what it found:
+The same harness shows what it found:
 
 ```text
 | Status file | Actionable rows | Blocked rows |
@@ -313,80 +305,53 @@ The same harness can show you what it found:
 | memory-bank/status-W01.md | 5 | 0 |
 ```
 
-Twenty-six rows of work, parsed out of the files an agent wrote from a ten-minute
+Twenty-six rows of work, parsed out of files written from a ten-minute
 conversation. If a lane you expected shows `0`, its markers are wrong.
 
-## Step 7 — Hand It To `/goal`
+## Step 6 — Run The Work
 
-One row at a time is the everyday workflow — *"tackle next pending item in memory
-bank"*, and nothing else to learn. For a defined sequence of milestones, this is
-what [GOAL.md](../GOAL.md) is for. It reconciles dependencies before each
-milestone, reconciles the milestones downstream of one that just closed, and
-stops rather than guessing when a decision or authority is missing.
-
-The request is the same whatever your agent — it names the file, the order, and
-the commit policy:
+**One row at a time**, which is the everyday mode:
 
 ```text
-Using GOAL.md, execute this loop.
-
-STATUS_ORDER:
-W01 -> P01 -> E01 -> U01 -> A01?
-
-DOWNSTREAM_IMPACTS:
-W01 -> P01, E01
-P01 -> E01, U01
-
-COMMIT_POLICY: task
+/memory-bank-next
 ```
 
-Three things about that block:
+It reads `AGENTS.md`, finds the next actionable row in the right lane file, and
+does **exactly one**: implement, verify, update the status row, commit. Blocked
+rows are skipped in favour of actionable ones. If the row closes a milestone it
+runs the milestone review first.
 
-**`COMMIT_POLICY` is not optional in practice.** Its default is `none`, meaning
-no commits at all. For the length of a goal run it is the *entire* commit rule —
-`AGENTS.md` may say every row is a commit unit, but `none` overrides it, and
-that is correct behavior rather than a conflict. Write `task` for the usual
-per-row commits.
+Plain English works identically — *"tackle next pending item in memory bank"* —
+the command just carries the full instruction instead of your paraphrase of it.
 
-**`DOWNSTREAM_IMPACTS` is why this beats a to-do list.** When `W01` closes, the
-tilemap that actually got built is not exactly the one `P01` was written
-against. The arrows say: before starting `P01`, go re-read it and rewrite what
-is now wrong. Plans written before the code exists are always a little wrong;
-this is the step that fixes them instead of implementing them anyway.
+**A whole ordered set**, for a release or a migration with real dependencies:
 
-**`A01?` is skipped, not cancelled**, when its trigger is absent. It stays
-pending and does not block the goal from completing.
+```text
+/memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
+```
 
-### How to send it
+That follows [GOAL.md](../GOAL.md): reconcile before each milestone, implement,
+verify, deep-review, then reconcile the milestones downstream of the one that
+just closed. It sends `COMMIT_POLICY: task` for you — worth knowing, because
+`GOAL.md`'s own default is `none`, meaning no commits at all.
 
-`/goal` is not the same command in every agent, so this part differs. Full
-detail in [Run an ordered set of
-milestones](../README.md#run-an-ordered-set-of-milestones).
+Reconciling downstream is what makes this better than a to-do list. When `W01`
+closes, the tilemap that actually got built is not the one `P01` was written
+against — so `P01` gets re-read and rewritten before it starts, rather than
+implemented as planned and wrong.
 
-**Claude Code.** `/goal` is built in, and it does not start a task — it sets a
-stop condition that Claude checks before finishing, so the session keeps working
-across turns. Send the block above as an ordinary message, then:
+**In Claude Code, pair it with the built-in `/goal`** to keep the session going
+across turns. That `/goal` is a different feature — it sets a stop condition,
+not a task:
 
 ```text
 /goal every row in W01, P01, E01 and U01 is `[+]` and node --test passes
 ```
 
-`/goal active` shows it, `/goal clear` ends it early. If you want the block
-itself saved as a command, name it anything but `goal` — the built-in owns that
-name. `.claude/commands/milestones.md` works.
-
-**Codex.** There is no built-in `/goal`, so you make one: custom prompts are
-markdown files in `~/.codex/prompts/` invoked by filename. Put the block in
-`~/.codex/prompts/goal.md` with `STATUS_ORDER: $ARGUMENTS`, and run
-`/goal W01 -> P01 -> E01 -> U01 -> A01?`.
-
-**Anything else.** Paste the block as an ordinary request. Naming the file is
-all the protocol needs.
-
-Then watch the first milestone. `git log` should show one commit per row, each
-with code and its status-row flip together. If the agent closed three rows in
-one commit, say so now — the memory bank is instructions, not enforcement, and
-early corrections stick.
+Then watch the first milestone. `git log` should show one commit per row, code
+and status-row flip together. If the agent closed three rows in one commit, say
+so now — the memory bank is instructions, not enforcement, and early
+corrections stick.
 
 ## When It Goes Wrong
 
@@ -396,21 +361,23 @@ Verified against real runs of the checkpoint above:
 |---|---|---|
 | `21` | Reached the network. **Everything else passed.** | Nothing. This is success. |
 | `0` | "No actionable memory-bank rows remain." | **Markers without backticks** — `[ ]` instead of `` `[ ]` ``. Your rows are invisible. |
-| `11` | No lane files found. | Filename is `status-P1.md`, not `status-P01.md`. The number is always **two digits**. |
+| `11` | No lane files found. | Filename is `status-P1.md`, not `status-P01.md`. Always **two digits**. |
 | `4` | Worktree was dirty before the run. | Commit or stash first. |
 | `3` | Only `` `[!]` `` blocked rows remain. | Not a failure. A human needs to unblock something. |
-| `10` | No `AGENTS.md`. | Wrong directory, or the copy in step 4 did not land. |
+| `10` | No `AGENTS.md`. | Wrong directory, or `/memory-bank-init` never finished. |
 
 Exit `0` is the one that costs an afternoon, because nothing looks broken: the
 agent reads the file, finds no rows it recognizes, and reports there is nothing
 to do. If a run ends instantly with nothing to do, check the backticks first.
 
-Full table in [EXECUTION.md](EXECUTION.md#exit-codes).
+`/memory-bank-init` checks all three of these before it reports done, so they
+mostly bite when you hand-edit afterwards. Full table in
+[EXECUTION.md](EXECUTION.md#exit-codes).
 
 ## What You Own At The End
 
 A project whose memory bank came out of a conversation you had, in files you can
-edit or delete, with no dependency on the package you copied them from.
+edit or delete, with no dependency on the plugin that generated them.
 
 The memory bank is mutable and expected to change: `product.md`,
 `architecture.md`, and `tech-stack.md` get rewritten in the same commit as the
