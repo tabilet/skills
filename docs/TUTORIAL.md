@@ -97,6 +97,21 @@ What it works through, and where each answer lands:
 
 ### Already ran `/grill-me`?
 
+Plenty of people install `/grill-me`, run it, and find they want more than a
+sharpened design. They want the whole engineering harness on the other side of
+it: several milestones, each carrying its own tasks, and a way to drive the
+project to completion with a single batch command rather than a hundred
+prompts. That is the gap this tutorial closes, and step 6 is where it lands —
+one line that runs the entire project:
+
+```text
+/memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
+```
+
+Five milestones, twenty-six tasks, each one implemented, verified, and
+committed on its own, in dependency order, with the later milestones rewritten
+as the earlier ones change what is true.
+
 If you came here from
 [mattpocock/skills](https://github.com/mattpocock/skills) and have just finished
 a grilling session, **do not start over.** Run `/memory-bank-init` in the same
