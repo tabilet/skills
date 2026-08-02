@@ -95,6 +95,7 @@ Only after approval.
 
 ```text
 AGENTS.md                        what an agent reads first
+GOAL.md                          optional protocol for multi-milestone runs
 memory-bank/product.md           what this is, who it is for, what it is not
 memory-bank/architecture.md      layout, data flow, the boundaries that matter
 memory-bank/tech-stack.md        stack, dependencies, verification commands
@@ -103,6 +104,17 @@ memory-bank/status-<LANE><NN>.md one per milestone, one row per task
 evolution/prompt-v1.md           the initial direction
 evolution/result-v1.md           the state this starts from
 ```
+
+`GOAL.md` is **copied, never written from memory.** It is a portable protocol
+that must stay byte-identical across every project that carries it, so
+reproducing it by hand corrupts it. Copy the `GOAL.md` that sits beside this
+skill file — under `${CLAUDE_PLUGIN_ROOT}` when this was installed as a plugin,
+otherwise in this skill's own directory. If you cannot find it, say so and leave
+it out rather than writing an approximation; the project still works without it,
+and `/memory-bank-goal` will tell the user where to get it.
+
+Tell the user it is optional and can be deleted: it is one way to run several
+milestones in order, not a requirement of the memory bank.
 
 `AGENTS.md` stays short: what to read and in what order, the essential commands,
 the boundaries, the hard rules, and the work cadence. It points at the memory

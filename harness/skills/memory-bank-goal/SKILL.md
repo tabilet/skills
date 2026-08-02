@@ -20,9 +20,10 @@ reconcile before each milestone, implement its task units, verify and
 deep-review, reconcile the milestones downstream of the one that just closed,
 then continue or stop.
 
-If the project has no `GOAL.md`, say so and stop. Do not improvise a
-multi-milestone protocol - ask the user whether to work one row at a time
-instead, or to supply their own protocol.
+If the project has no `GOAL.md`, do not improvise a multi-milestone protocol.
+Tell the user where to get one - it ships beside the `memory-bank-init` skill,
+and at <https://github.com/tabilet/skills/blob/main/GOAL.md> - and offer to work
+one row at a time meanwhile, or to follow a protocol they supply.
 
 Use this as the request:
 

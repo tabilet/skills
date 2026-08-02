@@ -109,12 +109,22 @@ def harness_parses():
 # --------------------------------------------------------------------------
 @check("GOAL.md and template/GOAL.md are byte-identical")
 def goal_copies():
-    a, b = ROOT / "GOAL.md", ROOT / "template" / "GOAL.md"
-    if not a.exists() or not b.exists():
-        return [f"missing {'GOAL.md' if not a.exists() else 'template/GOAL.md'}"]
-    if a.read_bytes() != b.read_bytes():
-        return ["copies differ; change both together"]
-    return []
+    # Three copies now: the root one, the project payload, and the one bundled
+    # with memory-bank-init so a plugin user gets it without this repo.
+    copies = [
+        ROOT / "GOAL.md",
+        ROOT / "template" / "GOAL.md",
+        SKILLS_DIR / "memory-bank-init" / "GOAL.md",
+    ]
+    problems = [f"missing {p.relative_to(ROOT)}" for p in copies if not p.exists()]
+    if problems:
+        return problems
+    first = copies[0].read_bytes()
+    return [
+        f"{p.relative_to(ROOT)} differs; change all copies together"
+        for p in copies[1:]
+        if p.read_bytes() != first
+    ]
 
 
 # --------------------------------------------------------------------------
@@ -188,6 +198,37 @@ def skills_manifest():
     # Claude Code owns /goal; a skill by that name would collide.
     if "goal" in on_disk:
         problems.append("a skill named 'goal' collides with Claude Code's built-in")
+    return problems
+
+
+# --------------------------------------------------------------------------
+# 3bb. The generator and the copyable payload must agree on what a project
+#      gets. They drifted once already: init omitted GOAL.md while
+#      memory-bank-goal required it, so init -> goal dead-ended.
+# --------------------------------------------------------------------------
+@check("memory-bank-init writes what template/ ships")
+def init_covers_template():
+    skill = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
+    if not skill.exists():
+        return ["memory-bank-init/SKILL.md is missing"]
+    block = re.search(r"```text\n(.*?)```", skill.read_text(), re.S)
+    if not block:
+        return ["memory-bank-init/SKILL.md has no file-list block"]
+    listed = {l.split()[0] for l in block.group(1).strip().splitlines() if l.strip()}
+    shipped = {
+        str(p.relative_to(ROOT / "template"))
+        for p in (ROOT / "template").rglob("*")
+        if p.is_file()
+    }
+    problems = []
+    for f in sorted(shipped):
+        # One status file ships as an example; the skill names the pattern.
+        if f.startswith("memory-bank/status-"):
+            if not any(x.startswith("memory-bank/status-") for x in listed):
+                problems.append("init lists no status-<LANE><NN>.md file")
+            continue
+        if f not in listed:
+            problems.append(f"init never writes {f}, but template/ ships it")
     return problems
 
 
