@@ -40,6 +40,10 @@ Language versions: [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](READM
 
 ## Getting Started
 
+**New to this?** [docs/TUTORIAL.md](docs/TUTORIAL.md) walks a toy project from
+empty directory to first committed task in twenty minutes. The rest of this
+README is reference — the tutorial is the guided path through it.
+
 **To use the memory bank you need `git`, and nothing else.** The memory bank is
 plain markdown, so the everyday workflow — telling an agent such as Codex or
 Claude Code to tackle the next pending item — needs no runtime at all.
