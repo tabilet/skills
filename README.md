@@ -403,17 +403,72 @@ that: it reconciles dependencies before each milestone, reconciles the
 milestones downstream of one that just closed, and stops rather than guessing
 when a decision or authority is missing.
 
-It is invoked, not ambient. Both Codex and Claude Code provide a `/goal`
-command — Claude Code's keeps working across turns until the goal's condition is
-met — and the request names the file and the order:
+It is invoked, not ambient. Whatever your agent, the request that starts a run is
+the same block — it names the file, the order, and the commit policy:
 
 ```text
-/goal
 Using GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
+
+How you send that block differs, because `/goal` is not the same command in every
+agent. Use the section for yours.
+
+#### If you use Claude Code
+
+`/goal` is built in, and it is **not** a way to start a task. It sets a stop
+condition — "a goal Claude checks before stopping" — so the session keeps
+working across turns instead of ending after one reply.
+
+So it takes two messages. Send the block above as an ordinary message, then set
+the condition that decides when the run is over:
+
+```text
+/goal every row in M01 and S01 is `[+]` and the required verification passes
+```
+
+`/goal active` shows the current condition and `/goal clear` ends it early. The
+condition is capped at 4000 characters, needs a trusted workspace, and is
+unavailable when hooks are disabled by settings or policy.
+
+To keep the block itself reusable, save it as a project command — but not as
+`.claude/commands/goal.md`, because the built-in owns that name. Call it
+`.claude/commands/milestones.md` and invoke it as `/milestones`.
+
+#### If you use Codex
+
+There is no built-in `/goal`. Custom prompts are markdown files in
+`~/.codex/prompts/`, invoked by filename, so you can create the command yourself
+and have it take the order as an argument. Write `~/.codex/prompts/goal.md`:
+
+```markdown
+---
+description: Execute an ordered set of milestones using GOAL.md.
+argument-hint: M01 -> S01 -> A01?
+---
+
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: $ARGUMENTS
+COMMIT_POLICY: task
+```
+
+Then one message runs it:
+
+```text
+/goal M01 -> S01 -> A01?
+```
+
+This is the same mechanism as the shipped
+[tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
+prompt, which installs to the same directory.
+
+#### Any other agent
+
+Paste the block as an ordinary request. Naming the file is all the protocol
+needs; nothing depends on a slash command existing.
 
 `COMMIT_POLICY` matters, and a goal run is a deliberate exception to the usual
 rule. For the length of the run it is the entire commit rule: `AGENTS.md` may say

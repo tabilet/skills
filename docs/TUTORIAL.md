@@ -324,8 +324,10 @@ what [GOAL.md](../GOAL.md) is for. It reconciles dependencies before each
 milestone, reconciles the milestones downstream of one that just closed, and
 stops rather than guessing when a decision or authority is missing.
 
+The request is the same whatever your agent — it names the file, the order, and
+the commit policy:
+
 ```text
-/goal
 Using GOAL.md, execute this loop.
 
 STATUS_ORDER:
@@ -355,8 +357,31 @@ this is the step that fixes them instead of implementing them anyway.
 **`A01?` is skipped, not cancelled**, when its trigger is absent. It stays
 pending and does not block the goal from completing.
 
-If your agent has no `/goal` command, paste the same block as an ordinary
-request — it names the file, which is all the protocol needs.
+### How to send it
+
+`/goal` is not the same command in every agent, so this part differs. Full
+detail in [Run an ordered set of
+milestones](../README.md#run-an-ordered-set-of-milestones).
+
+**Claude Code.** `/goal` is built in, and it does not start a task — it sets a
+stop condition that Claude checks before finishing, so the session keeps working
+across turns. Send the block above as an ordinary message, then:
+
+```text
+/goal every row in W01, P01, E01 and U01 is `[+]` and node --test passes
+```
+
+`/goal active` shows it, `/goal clear` ends it early. If you want the block
+itself saved as a command, name it anything but `goal` — the built-in owns that
+name. `.claude/commands/milestones.md` works.
+
+**Codex.** There is no built-in `/goal`, so you make one: custom prompts are
+markdown files in `~/.codex/prompts/` invoked by filename. Put the block in
+`~/.codex/prompts/goal.md` with `STATUS_ORDER: $ARGUMENTS`, and run
+`/goal W01 -> P01 -> E01 -> U01 -> A01?`.
+
+**Anything else.** Paste the block as an ordinary request. Naming the file is
+all the protocol needs.
 
 Then watch the first milestone. `git log` should show one commit per row, each
 with code and its status-row flip together. If the agent closed three rows in

@@ -136,15 +136,25 @@ def embedded_task():
 # 4. GOAL.md defaults COMMIT_POLICY to `none`. An example that omits it
 #    quietly promises no commits at all.
 # --------------------------------------------------------------------------
-@check("every /goal example sets an explicit COMMIT_POLICY")
+@check("every GOAL.md invocation sets an explicit COMMIT_POLICY")
 def goal_examples():
+    # Keyed on naming GOAL.md, not on `/goal`. Claude Code has a built-in
+    # `/goal <condition>` that sets a stop condition and has nothing to do with
+    # this protocol; requiring COMMIT_POLICY there would be wrong. The protocol
+    # itself requires a request to name the file, so this is the honest anchor.
     problems = []
     for md in markdown_files():
         if md.name == "GOAL.md":  # the protocol itself documents the default
             continue
-        for block in re.findall(r"```text\n(.*?)```", md.read_text(), re.S):
-            if "/goal" in block and "COMMIT_POLICY" not in block:
-                problems.append(f"{md.relative_to(ROOT)}: /goal example without COMMIT_POLICY")
+        for block in re.findall(r"```(?:text|markdown)\n(.*?)```", md.read_text(), re.S):
+            # "GOAL.md" alone is too loose: a file tree that merely lists the
+            # file is not an invocation. Key on the two things only a real
+            # invocation carries.
+            invokes = "STATUS_ORDER" in block or "Using GOAL.md" in block
+            if invokes and "COMMIT_POLICY" not in block:
+                problems.append(
+                    f"{md.relative_to(ROOT)}: GOAL.md invocation without COMMIT_POLICY"
+                )
     return problems
 
 

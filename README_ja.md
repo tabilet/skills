@@ -308,13 +308,58 @@ Status 行は次のマーカーを使います。
 
 常駐ではなく、呼び出して使います。Codex にも Claude Code にも `/goal` コマンドがあり（Claude Code のものは goal の条件が満たされるまでターンをまたいで動き続けます）、リクエストでファイルと順序を指定します。
 
+これは常駐ではなく、呼び出して使います。どのエージェントでも、実行を開始するリクエストは同じ内容です。ファイル、順序、commit ポリシーを明示します:
+
 ```text
-/goal
 Using GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
+
+その内容をどう送るかは異なります。`/goal` はエージェントごとに同じコマンドではないからです。自分が使うものの節を読んでください。
+
+#### Claude Code を使う場合
+
+`/goal` は組み込みコマンドですが、タスクを開始するためのものでは**ありません**。停止条件——「Claude が停止する前に確認する目標」——を設定するもので、1 回返答して終わるのではなく、セッションがターンをまたいで作業を続けます。
+
+そのためメッセージは 2 通になります。上記の内容を通常のメッセージとして送り、次に実行の終了を判定する条件を設定します:
+
+```text
+/goal every row in M01 and S01 is `[+]` and the required verification passes
+```
+
+`/goal active` で現在の条件を表示、`/goal clear` で早期終了します。条件は 4000 文字までで、信頼済みワークスペースが必要です。設定やポリシーで hooks が無効な場合は使用できません。
+
+この内容自体を再利用したい場合は、プロジェクトコマンドとして保存します。ただし `.claude/commands/goal.md` という名前は組み込みコマンドが使っているので避けてください。`.claude/commands/milestones.md` にして `/milestones` で呼び出します。
+
+#### Codex を使う場合
+
+組み込みの `/goal` はありません。カスタムプロンプトは `~/.codex/prompts/` 内の markdown ファイルで、ファイル名で呼び出します。つまりコマンドを自分で作り、順序を引数として受け取らせることができます。`~/.codex/prompts/goal.md` を作成します:
+
+```markdown
+---
+description: Execute an ordered set of milestones using GOAL.md.
+argument-hint: M01 -> S01 -> A01?
+---
+
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: $ARGUMENTS
+COMMIT_POLICY: task
+```
+
+あとは 1 通のメッセージで実行できます:
+
+```text
+/goal M01 -> S01 -> A01?
+```
+
+これは同梱の [tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md) プロンプトと同じ仕組みで、同じディレクトリにインストールされます。
+
+#### その他のエージェント
+
+この内容を通常のリクエストとして貼り付けてください。プロトコルに必要なのはファイル名を挙げることだけで、スラッシュコマンドの有無には依存しません。
 
 `COMMIT_POLICY` は重要で、ゴールループは通常の規則に対する意図的な例外です。その実行のあいだ、これが commit 規則のすべてになります。`AGENTS.md` が「1 行が 1 commit 単位」と書いていても、`COMMIT_POLICY: none`——この protocol の既定値——は commit を一切作らないという意味であり、これは矛盾ではなく正しい挙動です。通常どおり行ごとに commit したいときは `task` と書きます。優先順位はリクエスト、`GOAL.md`、`AGENTS.md` の順で、commit にだけ、その実行の中でだけ適用されます。
 

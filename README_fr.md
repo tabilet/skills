@@ -308,13 +308,58 @@ Le flux ci-dessus avance une ligne à la fois. Pour traiter plusieurs milestones
 
 Il s’invoque, il n’est pas permanent. Codex et Claude Code proposent tous deux une commande `/goal` — celle de Claude Code continue de travailler d’un tour à l’autre jusqu’à ce que la condition du goal soit remplie — et la demande nomme le fichier et l’ordre :
 
+Il s’invoque, il n’est pas permanent. Quel que soit votre agent, la requête qui lance une exécution est le même bloc — elle nomme le fichier, l’ordre et la politique de commit :
+
 ```text
-/goal
 Using GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
+
+La façon d’envoyer ce bloc diffère, car `/goal` n’est pas la même commande dans tous les agents. Reportez-vous à la section correspondant au vôtre.
+
+#### Si vous utilisez Claude Code
+
+`/goal` est intégré, et ce **n’est pas** un moyen de lancer une tâche. Il définit une condition d’arrêt — « un objectif que Claude vérifie avant de s’arrêter » — de sorte que la session continue à travailler sur plusieurs tours au lieu de s’arrêter après une réponse.
+
+Il faut donc deux messages. Envoyez le bloc ci-dessus comme un message ordinaire, puis définissez la condition qui décide de la fin de l’exécution :
+
+```text
+/goal every row in M01 and S01 is `[+]` and the required verification passes
+```
+
+`/goal active` affiche la condition courante et `/goal clear` y met fin par avance. La condition est limitée à 4000 caractères, exige un espace de travail de confiance, et n’est pas disponible lorsque les hooks sont désactivés par les réglages ou par une politique.
+
+Pour rendre le bloc lui-même réutilisable, enregistrez-le comme commande de projet — mais pas sous `.claude/commands/goal.md`, car la commande intégrée occupe ce nom. Appelez-le `.claude/commands/milestones.md` et invoquez-le avec `/milestones`.
+
+#### Si vous utilisez Codex
+
+Il n’y a pas de `/goal` intégré. Les prompts personnalisés sont des fichiers markdown dans `~/.codex/prompts/`, invoqués par leur nom de fichier : vous pouvez donc créer la commande vous-même et lui faire prendre l’ordre en argument. Créez `~/.codex/prompts/goal.md` :
+
+```markdown
+---
+description: Execute an ordered set of milestones using GOAL.md.
+argument-hint: M01 -> S01 -> A01?
+---
+
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: $ARGUMENTS
+COMMIT_POLICY: task
+```
+
+Un seul message suffit alors à le lancer :
+
+```text
+/goal M01 -> S01 -> A01?
+```
+
+C’est le même mécanisme que le prompt [tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md) livré avec le paquet, installé dans le même répertoire.
+
+#### Tout autre agent
+
+Collez le bloc comme une requête ordinaire. Le protocole a seulement besoin que le fichier soit nommé ; rien ne dépend de l’existence d’une commande slash.
 
 `COMMIT_POLICY` compte, et une boucle de goal est une exception délibérée à la règle habituelle. Le temps de l’exécution, c’est toute la règle de commit : `AGENTS.md` a beau dire que chaque ligne de statut est une unité de commit, `COMMIT_POLICY: none` — la valeur par défaut du protocole — signifie aucun commit du tout, et c’est le comportement correct, pas un conflit. Écrivez `task` pour retrouver les commits par ligne. L’ordre de priorité est la demande, puis `GOAL.md`, puis `AGENTS.md` — et seulement pour les commits, et seulement pendant l’exécution.
 

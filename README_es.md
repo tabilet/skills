@@ -308,13 +308,58 @@ El flujo anterior avanza una fila cada vez. Para recorrer varios milestones en u
 
 Se invoca, no está siempre activo. Codex y Claude Code ofrecen un comando `/goal` —el de Claude Code sigue trabajando entre turnos hasta que se cumple la condición del goal— y la petición nombra el archivo y el orden:
 
+Se invoca, no está siempre activo. Sea cual sea tu agente, la petición que inicia una ejecución es el mismo bloque: nombra el archivo, el orden y la política de commits:
+
 ```text
-/goal
 Using GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
+
+Cómo envías ese bloque cambia, porque `/goal` no es el mismo comando en todos los agentes. Usa la sección del tuyo.
+
+#### Si usas Claude Code
+
+`/goal` está integrado y **no** es una forma de iniciar una tarea. Define una condición de parada —«un objetivo que Claude comprueba antes de detenerse»—, de modo que la sesión sigue trabajando a lo largo de varios turnos en vez de terminar tras una respuesta.
+
+Por eso hacen falta dos mensajes. Envía el bloque anterior como un mensaje normal y luego define la condición que decide cuándo termina la ejecución:
+
+```text
+/goal every row in M01 and S01 is `[+]` and the required verification passes
+```
+
+`/goal active` muestra la condición actual y `/goal clear` la termina antes de tiempo. La condición está limitada a 4000 caracteres, necesita un espacio de trabajo de confianza y no está disponible cuando los hooks están desactivados por configuración o por política.
+
+Para que el bloque en sí sea reutilizable, guárdalo como comando de proyecto, pero no como `.claude/commands/goal.md`, porque ese nombre lo ocupa el comando integrado. Llámalo `.claude/commands/milestones.md` e invócalo con `/milestones`.
+
+#### Si usas Codex
+
+No hay un `/goal` integrado. Los prompts personalizados son archivos markdown en `~/.codex/prompts/`, invocados por su nombre de archivo, así que puedes crear el comando tú mismo y hacer que reciba el orden como argumento. Crea `~/.codex/prompts/goal.md`:
+
+```markdown
+---
+description: Execute an ordered set of milestones using GOAL.md.
+argument-hint: M01 -> S01 -> A01?
+---
+
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: $ARGUMENTS
+COMMIT_POLICY: task
+```
+
+Entonces un solo mensaje lo ejecuta:
+
+```text
+/goal M01 -> S01 -> A01?
+```
+
+Es el mismo mecanismo que el prompt [tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md) incluido, que se instala en el mismo directorio.
+
+#### Cualquier otro agente
+
+Pega el bloque como una petición normal. Al protocolo solo le hace falta que se nombre el archivo; nada depende de que exista un comando slash.
 
 `COMMIT_POLICY` importa, y un bucle de goal es una excepción deliberada a la regla habitual. Durante esa ejecución es toda la regla de commits: `AGENTS.md` puede decir que cada fila de estado es una unidad de commit, pero `COMMIT_POLICY: none` —el valor por defecto del protocolo— significa ningún commit en absoluto, y eso es el comportamiento correcto, no un conflicto. Escriba `task` cuando quiera los commits por fila de siempre. La precedencia es la petición, luego `GOAL.md`, luego `AGENTS.md`, y solo para los commits, y solo dentro de la ejecución.
 

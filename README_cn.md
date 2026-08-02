@@ -314,13 +314,58 @@ tackle next pending item in memory bank
 
 它是被调用的，不是常驻的。Codex 和 Claude Code 都提供 `/goal` 命令——Claude Code 的版本会跨多轮持续工作，直到目标条件达成——请求里写明文件和顺序：
 
+它是被调用的，不是常驻的。无论你用哪个智能体，启动一次运行的请求都是同一段内容——写明文件、顺序和 commit 策略：
+
 ```text
-/goal
 Using GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
+
+发送这段内容的方式各不相同，因为 `/goal` 在不同智能体里并不是同一个命令。请看你所用智能体对应的小节。
+
+#### 如果你用 Claude Code
+
+`/goal` 是内置命令，但它**不是**用来启动任务的。它设置的是一个停止条件——“Claude 在停下之前会检查的目标”——因此会话会跨多轮持续工作，而不是回复一次就结束。
+
+所以需要两条消息。先把上面那段内容作为普通消息发出去，然后设置判断这次运行何时结束的条件：
+
+```text
+/goal every row in M01 and S01 is `[+]` and the required verification passes
+```
+
+`/goal active` 查看当前条件，`/goal clear` 提前结束。条件上限为 4000 个字符，需要受信任的工作区，并且当 hooks 被设置或策略禁用时不可用。
+
+如果想让这段内容本身可复用，把它存成项目命令——但不要叫 `.claude/commands/goal.md`，因为这个名字被内置命令占用了。改名为 `.claude/commands/milestones.md`，用 `/milestones` 调用。
+
+#### 如果你用 Codex
+
+Codex 没有内置的 `/goal`。自定义提示词是 `~/.codex/prompts/` 下的 markdown 文件，按文件名调用，所以你可以自己创建这个命令，并让它把顺序作为参数接收。写入 `~/.codex/prompts/goal.md`：
+
+```markdown
+---
+description: Execute an ordered set of milestones using GOAL.md.
+argument-hint: M01 -> S01 -> A01?
+---
+
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER: $ARGUMENTS
+COMMIT_POLICY: task
+```
+
+然后一条消息即可运行：
+
+```text
+/goal M01 -> S01 -> A01?
+```
+
+这与随包提供的 [tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md) 提示词是同一套机制，安装到同一个目录。
+
+#### 其他智能体
+
+把这段内容作为普通请求粘贴过去即可。协议只需要请求里写明文件名；没有任何东西依赖斜杠命令的存在。
 
 `COMMIT_POLICY` 很关键，而且目标循环是对常规规则的一次有意例外。在这次运行期间，它就是全部的 commit 规则：`AGENTS.md` 里可以写“每条状态行就是一个 commit 单元”，但 `COMMIT_POLICY: none`——也就是该协议的默认值——意味着完全不产生 commit，这是正确行为，而不是冲突。想要照常按行提交时，就写 `task`。优先级依次是请求、`GOAL.md`、`AGENTS.md`，而且只针对 commit，只在这次运行之内。
 
