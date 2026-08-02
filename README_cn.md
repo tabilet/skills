@@ -22,6 +22,8 @@ your-project/
 └── evolution/             方向变化的原因与时间
 ```
 
+*memory bank*（项目记忆库）这一说法由 [Cline](https://docs.cline.bot/best-practices/memory-bank) 推广开来；这里是同一想法的另一种实现，只用纯文件，不带任何运行时。
+
 全文中的 **harness** 指的是一条可重复执行、用来证明某件事可用的命令——你的测试套件、一个 CI job、一个脚本。你的项目在 `tech-stack.md` 里定义自己的 harness。本仓库另外提供一个可选的 harness：一个通过 API 驱动智能体、无人值守地推进项目记忆库的循环。
 
 其他语言版本: [🇬🇧 English](README.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).

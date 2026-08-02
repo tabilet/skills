@@ -22,6 +22,8 @@ your-project/
 └── evolution/             方向が変わった理由と時期
 ```
 
+*memory bank* という用語は [Cline](https://docs.cline.bot/best-practices/memory-bank) が広めたものです。ここにあるのは同じ発想の別実装で、ランタイムを持たないただのファイル群です。
+
 本文を通じて **harness** とは、何かが動くことを証明する繰り返し実行可能なコマンド——テストスイート、CI job、スクリプト——を指します。プロジェクトは自分の harness を `tech-stack.md` に定義します。このリポジトリはさらに任意の harness を 1 つ同梱しています。API 経由でエージェントを動かし、memory bank を無人で進めるループです。
 
 他の言語版: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) · [🇪🇸 Español](README_es.md).

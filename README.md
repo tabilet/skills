@@ -34,6 +34,9 @@ your-project/
 └── evolution/             why the direction changed, when it did
 ```
 
+The term *memory bank* was popularised by [Cline](https://docs.cline.bot/best-practices/memory-bank); this is a different
+implementation of the same idea, in plain files with no runtime.
+
 Throughout, **harness** means a repeatable command that proves something works —
 your test suite, a CI job, a script. Your project defines its own in
 `tech-stack.md`. This repository also ships one optional harness of its own, an

@@ -22,6 +22,8 @@ your-project/
 └── evolution/             por qué cambió la dirección
 ```
 
+El término *memory bank* lo popularizó [Cline](https://docs.cline.bot/best-practices/memory-bank); esto es otra implementación de la misma idea, en archivos simples y sin runtime.
+
 A lo largo del documento, **harness** significa un comando repetible que demuestra que algo funciona: su suite de pruebas, un job de CI, un script. Su proyecto define el suyo en `tech-stack.md`. Este repositorio incluye además un harness opcional: un bucle por API que conduce a un agente a través del memory bank sin supervisión.
 
 Otras versiones de idioma: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md).
