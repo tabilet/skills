@@ -375,6 +375,36 @@ COMMIT_POLICY: task
 
 没有任何地方要求你使用它。`/goal` 是你的智能体提供的命令，不属于这套 harness——你可以带上自己的协议，或者干脆不用，项目记忆库的行为完全一样。之所以提供 `GOAL.md`，只是因为这类协议写起来比较琐碎，而不是因为这里的任何东西依赖它。如果你有自己的协议，把提到 `GOAL.md` 的两处——`AGENTS.md` 和 `memory-bank/milestone.md`——指向它，或者直接删掉。
 
+## 安装这三个命令
+
+同样是可选的。上面的一切都可以靠输入普通句子完成；这三个命令只是让那三个时刻可重复，并且携带完整指令，而不是你临时转述的版本。
+
+| 命令 | 何时使用 |
+|---|---|
+| `/memory-bank-init` | 一次性：项目还没有 `memory-bank/` 时。它会向你提问、提出拆分方案，然后写入文件。 |
+| `/memory-bank-next` | 日常：处理一行、验证、提交。 |
+| `/memory-bank-goal` | 想按顺序执行多个里程碑时。 |
+
+`/memory-bank-init` 带来的改变最大：它一次只问一个问题并附上推荐答案，凡是能从仓库里读到的都自己查而不问你，并且在你认可拆分方案之前不写任何文件。你不会看到任何方括号占位符——项目记忆库交付时就是填好的。（提问技巧改编自 [mattpocock/skills](https://github.com/mattpocock/skills) 的 `grilling` skill，MIT 许可。）
+
+两种智能体读取的是同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
+
+```bash
+# Claude Code — as a plugin, updates when this repo ships
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+
+# Claude Code — or as plain files you own and can edit
+cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
+
+# Codex
+cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
+```
+
+插件安装的是**生成器**，不是产物。它写进你项目里的内容属于你，不会从这里被更新，卸载插件后依然存在。
+
+这个 skill 特意没有命名为 `goal`：Claude Code 有内置的 `/goal` 用于设置停止条件，那是另一回事。两者可以配合使用，见「按顺序执行多个里程碑」一节。
+
 ## 安装 API Harness
 
 本节是可选的。上面的内容不依赖它——harness 只是多提供一个无人值守循环，用 API 驱动智能体，省去你手动输入。如果 Codex、Claude Code 或别的智能体已经在替你做这件事，可以跳过。

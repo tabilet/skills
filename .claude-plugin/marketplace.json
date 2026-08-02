@@ -1,0 +1,22 @@
+{
+  "name": "tabilet",
+  "owner": {
+    "name": "Peter Bi",
+    "url": "https://github.com/tabilet"
+  },
+  "description": "A minimal engineering harness: a memory bank your project owns, and three commands that drive it.",
+  "plugins": [
+    {
+      "name": "memory-bank",
+      "source": "./",
+      "description": "Interview a project into existence, tackle the next row, or run an ordered set of milestones.",
+      "category": "engineering",
+      "keywords": [
+        "memory-bank",
+        "agents-md",
+        "milestones",
+        "planning"
+      ]
+    }
+  ]
+}

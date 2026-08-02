@@ -1,0 +1,23 @@
+{
+  "name": "memory-bank",
+  "version": "0.1.0",
+  "description": "Three commands for the memory-bank workflow: interview a project into existence, tackle the next row, or run an ordered set of milestones. The files it generates are yours and never update themselves.",
+  "author": {
+    "name": "Peter Bi"
+  },
+  "homepage": "https://github.com/tabilet/skills",
+  "repository": "https://github.com/tabilet/skills",
+  "license": "MIT",
+  "keywords": [
+    "memory-bank",
+    "agents-md",
+    "milestones",
+    "status",
+    "planning"
+  ],
+  "skills": [
+    "./harness/skills/memory-bank-init",
+    "./harness/skills/memory-bank-next",
+    "./harness/skills/memory-bank-goal"
+  ]
+}

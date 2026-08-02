@@ -369,6 +369,36 @@ COMMIT_POLICY: task
 
 使うことを求めてはいません。`/goal` はあなたのエージェントのコマンドであって、この harness のものではありません。自前の protocol を持ち込んでも、何も使わなくても、memory bank のふるまいは変わりません。`GOAL.md` を同梱しているのは、この種の protocol を書くのが面倒だからであって、ここにある何かがそれに依存しているからではありません。自前のものがあるなら、`GOAL.md` に触れている 2 か所——`AGENTS.md` と `memory-bank/milestone.md`——をそちらに向けるか、削除してください。
 
+## 3 つのコマンドをインストールする
+
+これも任意です。上記はすべて普通の文を入力すれば動きます。この 3 つのコマンドは、その 3 つの場面を再現可能にし、あなたの言い換えではなく完全な指示を運ぶだけのものです。
+
+| コマンド | 使う場面 |
+|---|---|
+| `/memory-bank-init` | 一度だけ。`memory-bank/` がまだないプロジェクトで。質問し、分割案を提示し、それからファイルを書きます。 |
+| `/memory-bank-next` | 毎日。1 行を実装し、検証し、コミットします。 |
+| `/memory-bank-goal` | 複数の milestone を順番に実行したいとき。 |
+
+体験を最も変えるのは `/memory-bank-init` です。推奨する回答を添えて 1 問ずつ尋ね、リポジトリから読み取れることは聞かずに自分で調べ、分割案をあなたが承認するまで何も書きません。角括弧のプレースホルダーを目にすることはなく、memory bank は記入済みで届きます。（インタビュー手法は [mattpocock/skills](https://github.com/mattpocock/skills) の `grilling` skill を参考にしています。MIT ライセンス。）
+
+どちらのエージェントも同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
+
+```bash
+# Claude Code — as a plugin, updates when this repo ships
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+
+# Claude Code — or as plain files you own and can edit
+cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
+
+# Codex
+cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
+```
+
+プラグインがインストールするのは**生成器**であって、生成物ではありません。プロジェクトに書き込まれた内容はあなたのもので、ここから更新されることはなく、アンインストールしても残ります。
+
+この skill をあえて `goal` という名前にしていないのは、Claude Code に停止条件を設定する組み込みの `/goal` があり、別物だからです。両者は併用できます。「複数の milestone を順番に実行する」を参照してください。
+
 ## API Harness をインストールする
 
 このセクションは任意です。ここまでの内容はこれなしで成立します。harness は、あなたが手で入力する代わりに API 経由でエージェントを動かす無人ループを足すだけです。Codex や Claude Code など、すでに使っているエージェントがその役割を果たしているなら省略してかまいません。

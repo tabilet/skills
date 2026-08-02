@@ -369,6 +369,36 @@ Una `?` final marca un milestone como condicional: se omite, no se cancela, cuan
 
 Nada le obliga a usarlo. `/goal` es el comando de su agente, no de este harness: traiga su propio protocolo, o ninguno, y el memory bank se comporta igual. `GOAL.md` se incluye porque escribir uno de estos es engorroso, no porque algo de aquí dependa de él. Si tiene el suyo, apunte a él las dos menciones de `GOAL.md` —en `AGENTS.md` y `memory-bank/milestone.md`— o bórrelas.
 
+## Instalar los tres comandos
+
+También opcional. Todo lo anterior funciona escribiendo frases normales; estos comandos solo hacen repetibles esos tres momentos y llevan la instrucción completa en vez de tu paráfrasis.
+
+| Comando | Cuándo |
+|---|---|
+| `/memory-bank-init` | Una vez, en un proyecto que aún no tiene `memory-bank/`. Te entrevista, propone un desglose y luego escribe los archivos. |
+| `/memory-bank-next` | A diario. Resolver una fila, verificar, hacer commit. |
+| `/memory-bank-goal` | Cuando quieres ejecutar varios milestones en orden. |
+
+`/memory-bank-init` es el que más cambia la experiencia: pregunta de una en una, con una respuesta recomendada incluida, busca por su cuenta todo lo que puede leer del repositorio en vez de preguntarlo, y no escribe nada hasta que apruebas el desglose. No verás ni un marcador entre corchetes: la memory bank llega rellenada. (Técnica de entrevista adaptada del skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
+
+Ambos agentes leen el mismo formato `SKILL.md`, así que hay una sola fuente por comando:
+
+```bash
+# Claude Code — as a plugin, updates when this repo ships
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+
+# Claude Code — or as plain files you own and can edit
+cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
+
+# Codex
+cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
+```
+
+El plugin instala el **generador**, no el resultado. Lo que escribe en tu proyecto es tuyo, nunca se actualiza desde aquí y sobrevive a desinstalarlo.
+
+El skill no se llama `goal` a propósito: Claude Code tiene un `/goal` integrado que define una condición de parada, que es otra cosa. Ambos funcionan juntos; consulta «Ejecutar varios milestones en orden».
+
 ## Instalar el API Harness
 
 Esta sección es opcional. Todo lo anterior funciona sin ella: el harness solo añade un bucle desatendido que maneja un agente por la API en vez de que usted escriba. Omítala si Codex, Claude Code u otro agente ya hace eso por usted.

@@ -32,6 +32,8 @@ import unicodedata
 ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
 PROMPT_COPY = ROOT / "harness" / "prompts" / "tackle-next-memory-bank-todo.md"
+SKILLS_DIR = ROOT / "harness" / "skills"
+PLUGIN_JSON = ROOT / ".claude-plugin" / "plugin.json"
 LANGS = ("cn", "ja", "de", "fr", "es")
 
 CHECKS: list[tuple[str, object]] = []
@@ -129,6 +131,76 @@ def embedded_task():
     ).strip()
     if body != PROMPT_COPY.read_text().strip():
         return ["EMBEDDED_TASK and the prompt file have diverged"]
+    return []
+
+
+# --------------------------------------------------------------------------
+# 3b. The skills are the plugin's payload and are also copied to
+#     ~/.claude/skills or ~/.codex/skills. Both agents read the same SKILL.md
+#     format, so there is one source per command - keep it that way.
+# --------------------------------------------------------------------------
+def skill_frontmatter(path: pathlib.Path) -> dict:
+    text = path.read_text()
+    m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+    if not m:
+        return {}
+    out = {}
+    for line in m.group(1).splitlines():
+        if ":" in line and not line.startswith(" "):
+            k, _, v = line.partition(":")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def skill_body(path: pathlib.Path) -> str:
+    text = re.sub(r"^---\n.*?\n---\n", "", path.read_text(), flags=re.S)
+    return "\n".join(l for l in text.splitlines() if not l.startswith("# ")).strip()
+
+
+@check("skills declare themselves and match the plugin manifest")
+def skills_manifest():
+    import json
+
+    problems = []
+    if not SKILLS_DIR.exists():
+        return ["harness/skills/ is missing"]
+    on_disk = sorted(p.name for p in SKILLS_DIR.iterdir() if p.is_dir())
+    for name in on_disk:
+        skill = SKILLS_DIR / name / "SKILL.md"
+        if not skill.exists():
+            problems.append(f"{name}/ has no SKILL.md")
+            continue
+        fm = skill_frontmatter(skill)
+        if fm.get("name") != name:
+            problems.append(f"{name}/SKILL.md: frontmatter name is {fm.get('name')!r}")
+        if not fm.get("description"):
+            problems.append(f"{name}/SKILL.md: no description")
+        # These orchestrate; they must not fire on their own.
+        if fm.get("disable-model-invocation") != "true":
+            problems.append(f"{name}/SKILL.md: missing disable-model-invocation")
+    if not PLUGIN_JSON.exists():
+        return problems + [".claude-plugin/plugin.json is missing"]
+    listed = sorted(
+        p.rsplit("/", 1)[-1] for p in json.loads(PLUGIN_JSON.read_text())["skills"]
+    )
+    if listed != on_disk:
+        problems.append(f"plugin.json lists {listed}, disk has {on_disk}")
+    # Claude Code owns /goal; a skill by that name would collide.
+    if "goal" in on_disk:
+        problems.append("a skill named 'goal' collides with Claude Code's built-in")
+    return problems
+
+
+# --------------------------------------------------------------------------
+# 3c. The daily instruction now exists in three places. Machine-check it.
+# --------------------------------------------------------------------------
+@check("memory-bank-next skill matches the daily prompt")
+def skill_matches_prompt():
+    skill = SKILLS_DIR / "memory-bank-next" / "SKILL.md"
+    if not skill.exists() or not PROMPT_COPY.exists():
+        return ["memory-bank-next/SKILL.md or the prompt copy is missing"]
+    if skill_body(skill) != PROMPT_COPY.read_text().strip():
+        return ["memory-bank-next/SKILL.md and the prompt file have diverged"]
     return []
 
 

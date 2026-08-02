@@ -31,7 +31,8 @@ the file:
 |---|---|
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
 | `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/GOAL.md` are byte-identical. |
-| `harness/` | Account payload, installed into `~/.local/bin` and `~/.codex/prompts`. |
+| `harness/` | Account payload, installed into `~/.local/bin`, `~/.codex/prompts`, and `~/.claude/skills` or `~/.codex/skills`. |
+| `.claude-plugin/` | Plugin and marketplace manifests, so `harness/skills/` installs as a Claude Code plugin. Vendor-specific, and allowed here because it is account payload — the ban is on vendor files in `template/`. |
 | `docs/`, `README*.md`, `AGENTS.md` | This repository's own documentation. |
 
 Two consequences that matter constantly:
@@ -218,4 +219,10 @@ provider section and the language-version links that `README.md` carries.
 - Ship no vendor-specific agent files in `template/`. `AGENTS.md` is an open
   cross-vendor standard; tools that read another filename get a documented
   one-line bridge in the README, not a file in the payload.
+- One `SKILL.md` per command in `harness/skills/`, never a per-agent copy.
+  Claude Code and Codex read the same format from `~/.claude/skills` and
+  `~/.codex/skills`, so a second copy would only be a place to drift. The
+  directory name, the frontmatter `name`, and the `plugin.json` list must agree.
+- No skill named `goal`. Claude Code has a built-in `/goal` that sets a stop
+  condition; a skill by that name would shadow a different feature.
 - Run the required verification before claiming a change is done.

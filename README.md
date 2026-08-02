@@ -492,6 +492,47 @@ not because anything here depends on it. If you have your own, point the two
 `GOAL.md` mentions — in `AGENTS.md` and `memory-bank/milestone.md` — at it, or
 delete them.
 
+## Install The Three Commands
+
+Also optional. Everything above works by typing plain sentences; these just make
+the three moments repeatable, and carry the full instruction rather than your
+paraphrase of it.
+
+| Command | When |
+|---|---|
+| `/memory-bank-init` | Once, on a project that has no `memory-bank/` yet. It interviews you, proposes a breakdown, then writes the files. |
+| `/memory-bank-next` | Every day. Tackle one row, verify, commit. |
+| `/memory-bank-goal` | When you want several milestones run in order. |
+
+`/memory-bank-init` is the one that changes the experience most: it asks one
+question at a time with a recommended answer attached, looks up anything it can
+read from the repository instead of asking, and writes nothing until you approve
+the breakdown. You never see a bracketed placeholder — the memory bank arrives
+filled in. *(Interview technique adapted from the `grilling` skill in
+[mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
+
+Both agents read the same `SKILL.md` format, so there is one source per command:
+
+```bash
+# Claude Code — as a plugin, updates when this repo ships
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+
+# Claude Code — or as plain files you own and can edit
+cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
+
+# Codex
+cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
+```
+
+The plugin installs the *generator*, not the output. What it writes into your
+project is yours, is never updated from here, and survives uninstalling it.
+
+The skill is deliberately not named `goal`: Claude Code has a built-in `/goal`
+that sets a stop condition, which is a different thing. The two work together —
+see [Run an ordered set of
+milestones](#run-an-ordered-set-of-milestones).
+
 ## Install The API Harness
 
 This section is optional. Everything above works without it — the harness only
