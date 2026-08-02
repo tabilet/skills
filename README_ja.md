@@ -34,6 +34,17 @@ your-project/
 
 このリポジトリを一度 clone してください。以下の `cp` コマンドの `/path/to/skills` は、その clone を指します:
 
+**最短の方法に clone は不要です。** 3 つのコマンドをインストールし、`/memory-bank-init` に質問させて memory bank を書かせます:
+
+```bash
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+```
+
+プロジェクト（空でも既存でも）で `/memory-bank-init` を実行し、質問に答えてください。Codex での同等の方法と、ファイルをそのまま使う選択肢は[3 つのコマンドをインストールする](#3-つのコマンドをインストールする)にあります。
+
+ファイルを手作業で扱う場合は、このリポジトリを一度 clone します。以下の `cp` コマンドの `/path/to/skills` はその clone を指します:
+
 ```bash
 git clone https://github.com/tabilet/skills.git
 cd skills
@@ -59,6 +70,14 @@ clone 自体で何かを実行することはありません。中からファ�
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
+
+3 つのスラッシュコマンドは [harness/skills/](harness/skills/) にあります。Claude Code と Codex は同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
+
+- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md)
+- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md)
+- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md)
+
+`.claude-plugin/` には、これらを Claude Code プラグインとしてインストールするためのマニフェストが入っています。`template/` にベンダー固有のファイルはありません。
 
 Harness 参考資料:
 
@@ -128,6 +147,8 @@ succeeds against the staging payment sandbox.
 **各マーカーを囲むバッククォートは必須です。** harness が一致させるのは `` `[ ]` `` であり、`[ ]` ではありません。`| Item | [ ] | Notes |` と書かれた行は黙って無視され、harness は「No actionable memory-bank rows remain」と表示して正常終了します。作業が終わったかのように見えてしまいます。
 
 ## 新規プロジェクトをセットアップする
+
+[3 つのコマンド](#3-つのコマンドをインストールする)をインストールしていれば、`/memory-bank-init` がこの節の作業をすべて行います。質問し、レーンと milestone の案を提示し、承認を待ってから、記入済みのファイルを書きます。以下の 2 つの手順は、同じ作業を手作業で行うものです。
 
 ### 手動
 
@@ -201,6 +222,8 @@ the first actionable milestone rows.
 
 ## 既存プロジェクトをセットアップする
 
+`/memory-bank-init` はこのケースにも対応し、しかも素のプロンプトより上手くこなします。リポジトリがすでに述べていること（README、テスト、ビルドや CI の設定）を読み、そこから分からない決定だけを尋ねます。多くの場合、非目標、境界、作業の順序です。
+
 ### 手動
 
 既存プロジェクトでは、書く前に読みます。
@@ -260,6 +283,7 @@ memory bank に対して作業を進める方法は 3 つあり、どれも任�
 | 実行方法 | 範囲 | 必要なもの |
 |---|---|---|
 | エージェントに依頼を打つ | 1 行ずつ、あなたがループの中にいる | なし |
+| [`/memory-bank-next`](#3-つのコマンドをインストールする) | 同じだが、言い換えではなく完全な指示を伴う | 3 つのコマンド |
 | [API harness](#api-harness-をインストールする) | 1 回の実行につき 1 行、無人 | Python 3 |
 | [ゴールループ](#複数の-milestone-を順番に実行する) | 複数の milestone を順番に | `/goal` コマンド |
 

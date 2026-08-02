@@ -40,6 +40,17 @@ your-project/
 
 先克隆本仓库一次。下面所有 `cp` 命令中的 `/path/to/skills` 都指向你的这份克隆：
 
+**最快的方式完全不需要 clone。** 安装这三个命令，然后让 `/memory-bank-init` 向你提问并写出项目记忆库：
+
+```bash
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+```
+
+在你的项目里运行 `/memory-bank-init`——空项目或已有项目都可以——然后回答它的问题。Codex 的等价做法和「直接用文件」的选项见[安装这三个命令](#安装这三个命令)。
+
+如果想手工处理这些文件，先把本仓库 clone 一次。下面所有 `cp` 命令中的 `/path/to/skills` 都指你的这份 clone：
+
 ```bash
 git clone https://github.com/tabilet/skills.git
 cd skills
@@ -65,6 +76,14 @@ cd skills
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
+
+三个斜杠命令，位于 [harness/skills/](harness/skills/)。Claude Code 和 Codex 读取同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
+
+- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md)
+- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md)
+- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md)
+
+`.claude-plugin/` 存放清单文件，使上述命令可以作为 Claude Code 插件安装。`template/` 里没有任何特定厂商的文件。
 
 Harness 参考：
 
@@ -134,6 +153,8 @@ succeeds against the staging payment sandbox.
 **每个标记两侧的反引号是必需的。** harness 匹配的是 `` `[ ]` ``，而不是 `[ ]`。写成 `| Item | [ ] | Notes |` 的状态行会被静默忽略：harness 会报告“No actionable memory-bank rows remain”并正常退出，就好像工作已经做完了一样。
 
 ## 为新项目设置
+
+如果你安装了[这三个命令](#安装这三个命令)，`/memory-bank-init` 可以完成本节的全部工作：它向你提问，提出线与里程碑的方案，等你认可，然后写出已经填好的文件。下面两条路径是同样的工作，只是手工完成。
 
 ### 手动设置
 
@@ -207,6 +228,8 @@ the first actionable milestone rows.
 
 ## 为已有项目设置
 
+`/memory-bank-init` 同样适用于这种情况，而且比一句冷启动的提示词做得更好：它会读取仓库里已经写明的内容——README、测试、构建与 CI 文件——只就那些无法从中得知的决策向你提问，通常是非目标、边界，以及工作顺序。
+
 ### 手动设置
 
 已有项目应先盘点，再改写：
@@ -266,6 +289,7 @@ Do not invent product direction that is not supported by the existing project.
 | 执行方式 | 范围 | 需要 |
 |---|---|---|
 | 直接对智能体提出请求 | 一次一条状态行，你在回路里 | 无 |
+| [`/memory-bank-next`](#安装这三个命令) | 同上，但携带完整指令而不是你的转述 | 这三个命令 |
 | [API harness](#安装-api-harness) | 每次运行一条状态行，无人值守 | Python 3 |
 | [目标循环](#按顺序执行多个里程碑) | 按顺序执行多个里程碑 | 一个 `/goal` 命令 |
 

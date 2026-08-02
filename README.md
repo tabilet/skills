@@ -10,10 +10,15 @@ This is the opposite bet. Five or six markdown files, copied into your project,
 owned outright by you. No CLI to install, no vocabulary to learn, nothing
 mandatory. Delete any of it the day it stops earning its place.
 
-**Nothing here runs.** This repository is a starting point you copy *out* of —
-`template/` into your project, `harness/` optionally into your home directory.
-Afterwards your project has no dependency on this repository and no link back to
-it. That is the point: what you end up with is yours.
+**What you end up with is yours.** This repository is a starting point you copy
+*out* of — `template/` into your project, `harness/` optionally into your home
+directory. Afterwards your project has no dependency on this repository and no
+link back to it.
+
+Three optional slash commands can do the copying and the filling for you — see
+[Install The Three Commands](#install-the-three-commands). They change nothing
+about the bet above: they *generate* files you then own outright, they never
+update them afterwards, and uninstalling them leaves your project untouched.
 
 Your project ends up looking like this:
 
@@ -56,16 +61,28 @@ you drive the memory bank through an agent you already use.
 The existing-project instructions below also use
 [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) for the initial inventory.
 
-Clone this repository once. Every `cp` command below refers to your clone as
-`/path/to/skills`:
+**The quickest path needs no clone at all.** Install the three commands, then let
+`/memory-bank-init` interview you and write the memory bank:
+
+```bash
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+```
+
+Run `/memory-bank-init` in your project — empty or existing — and answer its
+questions. The Codex equivalent and the plain-files option are in [Install The
+Three Commands](#install-the-three-commands).
+
+To work from the files by hand instead, clone this repository once. Every `cp`
+command below refers to your clone as `/path/to/skills`:
 
 ```bash
 git clone https://github.com/tabilet/skills.git
 cd skills
 ```
 
-Nothing here runs from the clone itself. You copy files out of it: `template/`
-into a project, `harness/` into your home directory.
+Nothing runs from the clone itself. You copy files out of it: `template/` into a
+project, `harness/` into your home directory.
 
 ## What Is In This Repository
 
@@ -87,6 +104,19 @@ home directory:
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
+
+The three slash commands, in [harness/skills/](harness/skills/). Claude Code and
+Codex read the same `SKILL.md` format, so there is one source per command:
+
+- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md) — interview a
+  project into existence, then write its memory bank
+- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md) — tackle one row,
+  verify it, commit it
+- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md) — run an ordered
+  set of milestones
+
+`.claude-plugin/` holds the manifests that let those install as a Claude Code
+plugin. Nothing in `template/` is vendor-specific.
 
 Harness references:
 
@@ -162,6 +192,11 @@ ignored: the harness reports "No actionable memory-bank rows remain" and exits
 successfully, as though the work were finished.
 
 ## Set Up A New Project
+
+If you installed [the three commands](#install-the-three-commands),
+`/memory-bank-init` does everything in this section: it interviews you, proposes
+lanes and milestones, waits for your approval, and then writes the files already
+filled in. The two routes below are the same work done by hand.
 
 ### Manual
 
@@ -248,6 +283,11 @@ contain the first actionable milestone rows.
 
 ## Set Up An Existing Project
 
+`/memory-bank-init` handles this case too, and handles it better than a cold
+prompt: it reads what the repository already states — README, tests, build and
+CI files — and asks you only about the decisions those cannot reveal, usually
+the non-goals, the boundaries, and the order of work.
+
 ### Manual
 
 For an existing project, read before writing:
@@ -317,6 +357,7 @@ optional — the memory bank is plain markdown and works on its own:
 | Way to execute | Scope | Needs |
 |---|---|---|
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
+| [`/memory-bank-next`](#install-the-three-commands) | The same, with the full instruction rather than your paraphrase | The three commands |
 | [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3 |
 | [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | A `/goal` command |
 

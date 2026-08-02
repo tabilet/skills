@@ -34,6 +34,17 @@ Les instructions pour un projet existant, plus bas, utilisent aussi [ripgrep](ht
 
 Clonez ce dépôt une fois. Chaque commande `cp` ci-dessous désigne votre clone par `/path/to/skills` :
 
+**Le chemin le plus rapide ne demande aucun clone.** Installez les trois commandes, puis laissez `/memory-bank-init` vous interroger et écrire la memory bank :
+
+```bash
+/plugin marketplace add tabilet/skills
+/plugin install memory-bank
+```
+
+Lancez `/memory-bank-init` dans votre projet — vide ou existant — et répondez à ses questions. L’équivalent Codex et l’option « fichiers simples » se trouvent dans [Installer les trois commandes](#installer-les-trois-commandes).
+
+Pour travailler directement avec les fichiers, clonez ce dépôt une fois. Chaque commande `cp` ci-dessous désigne votre clone par `/path/to/skills` :
+
 ```bash
 git clone https://github.com/tabilet/skills.git
 cd skills
@@ -59,6 +70,14 @@ Fichiers d’exemple au niveau du compte utilisateur :
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
+
+Les trois commandes slash sont dans [harness/skills/](harness/skills/). Claude Code et Codex lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande :
+
+- [memory-bank-init](harness/skills/memory-bank-init/SKILL.md)
+- [memory-bank-next](harness/skills/memory-bank-next/SKILL.md)
+- [memory-bank-goal](harness/skills/memory-bank-goal/SKILL.md)
+
+`.claude-plugin/` contient les manifestes qui permettent de les installer comme plugin Claude Code. Rien dans `template/` n’est spécifique à un fournisseur.
 
 Références harness :
 
@@ -128,6 +147,8 @@ Ensuite `memory-bank/status-S01.md` porte les lignes de ce milestone :
 **Les backticks autour de chaque marqueur sont obligatoires.** Le harness reconnaît `` `[ ]` ``, pas `[ ]`. Une ligne écrite `| Item | [ ] | Notes |` est ignorée en silence : le harness affiche « No actionable memory-bank rows remain » et se termine avec succès, comme si le travail était fini.
 
 ## Configurer un nouveau projet
+
+Si vous avez installé [les trois commandes](#installer-les-trois-commandes), `/memory-bank-init` fait tout ce que décrit cette section : il vous interroge, propose des voies et des milestones, attend votre approbation, puis écrit les fichiers déjà remplis. Les deux routes ci-dessous sont le même travail fait à la main.
 
 ### Manuellement
 
@@ -201,6 +222,8 @@ the first actionable milestone rows.
 
 ## Configurer un projet existant
 
+`/memory-bank-init` couvre aussi ce cas, et mieux qu’une invite partie de zéro : il lit ce que le dépôt dit déjà — README, tests, fichiers de build et de CI — et ne vous interroge que sur les décisions qu’ils ne révèlent pas, généralement les non-objectifs, les frontières et l’ordre du travail.
+
 ### Manuellement
 
 Pour un projet existant, lire avant d’écrire :
@@ -260,6 +283,7 @@ Il y a trois façons d’exécuter du travail sur la memory bank, toutes optionn
 | Façon d’exécuter | Portée | Nécessite |
 |---|---|---|
 | Taper une demande à votre agent | Une ligne à la fois, vous dans la boucle | Rien |
+| [`/memory-bank-next`](#installer-les-trois-commandes) | Pareil, avec l’instruction complète plutôt que votre paraphrase | Les trois commandes |
 | [Le harness API](#installer-le-harness-api) | Une ligne par exécution, sans surveillance | Python 3 |
 | [Une boucle de goal](#exécuter-plusieurs-milestones-dans-lordre) | Plusieurs milestones dans l’ordre | Une commande `/goal` |
 
