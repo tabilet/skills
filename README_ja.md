@@ -427,6 +427,30 @@ cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 
 この skill をあえて `goal` という名前にしていないのは、Claude Code に停止条件を設定する組み込みの `/goal` があり、別物だからです。両者は併用できます。「複数の milestone を順番に実行する」を参照してください。
 
+### すでに `/grill-me` を使っている場合
+
+[mattpocock/skills](https://github.com/mattpocock/skills) の `/grill-me` と `/grilling` は、意図した場所で止まります: *"Do not act on it until I confirm we have reached a shared understanding."*（共通理解に達したと私が確認するまで実行しないこと）。汎用のインタビューとしてはそこで止まるのが正しく、だからこそあらゆる対象に使えます。
+
+ですがセッションが終わると、その理解も一緒に終わります。ディスクには何も残らず、明日のエージェントは引き継げず、実行する対象もありません。
+
+`/memory-bank-init` は同じインタビューの規律を、残る成果物へ向けたものです——1 問ずつ、推奨する回答を添えて、調べられる事実は聞かずに調べます。**grill の直後、同じセッションで**実行してください:
+
+```text
+/grill-me            # explore the design; no files written
+/memory-bank-init    # turn those decisions into a memory bank
+```
+
+すでに決めたことを聞き直すことはありません。「事実は調べ、決定は尋ねる」はリポジトリだけでなく会話にも適用されるので、grill を終えた直後のインタビューは短くなります。多くはレーンと milestone の分割案を確認するだけです。
+
+| | `/grill-me` の後 | `/memory-bank-init` の後 |
+|---|---|---|
+| 決定がある場所 | 会話の中 | `product.md`、`architecture.md`、`tech-stack.md` |
+| 明日のエージェント | ゼロから | `AGENTS.md` を読めば分かる |
+| 次の行動 | あなたが決める | 次の `` `[ ]` `` 行 |
+| 実行手段 | — | `/memory-bank-next`、まとめてなら `/memory-bank-goal` |
+
+この 2 つは競合ではなく補完です。プロジェクトを生まない決定——アーキテクチャの議論、採用計画、講演の構成——には `/grill-me` を使い続けてください。grill の対象が、来週も自分が何であるかを知っている必要のあるコードベースなら `/memory-bank-init` です。
+
 ## API Harness をインストールする
 
 このセクションは任意です。ここまでの内容はこれなしで成立します。harness は、あなたが手で入力する代わりに API 経由でエージェントを動かす無人ループを足すだけです。Codex や Claude Code など、すでに使っているエージェントがその役割を果たしているなら省略してかまいません。

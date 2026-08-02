@@ -95,6 +95,22 @@ What it works through, and where each answer lands:
 | Boundaries | What this owns, what it delegates. | `AGENTS.md` |
 | Feature areas, and their order | Becomes lanes and milestones. | `milestone.md` |
 
+### Already ran `/grill-me`?
+
+If you came here from
+[mattpocock/skills](https://github.com/mattpocock/skills) and have just finished
+a grilling session, **do not start over.** Run `/memory-bank-init` in the same
+session and it will read the decisions already in the conversation instead of
+re-asking them — "look up facts, ask about decisions" applies to what you have
+already said, not just to the repository.
+
+Expect a much shorter step 3: it will confirm what it picked up, ask about
+whatever the grill did not reach — usually the verification command and the
+order of work — and move on to the breakdown in step 4. That is the whole
+difference between the two skills. `/grill-me` deliberately stops at shared
+understanding; this turns that understanding into files that outlive the
+session.
+
 The exchange that produced this example ran roughly:
 
 > **`/memory-bank-init`:** What are we building, and who is it for?

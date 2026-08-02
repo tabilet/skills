@@ -427,6 +427,30 @@ Das Plugin installiert den **Generator**, nicht das Ergebnis. Was es in dein Pro
 
 Der Skill heißt bewusst nicht `goal`: Claude Code hat ein eingebautes `/goal`, das eine Stoppbedingung setzt — etwas anderes. Beide arbeiten zusammen, siehe „Mehrere Milestones der Reihe nach abarbeiten“.
 
+### Wenn Sie bereits `/grill-me` nutzen
+
+`/grill-me` und `/grilling` aus [mattpocock/skills](https://github.com/mattpocock/skills) enden dort, wo sie es beabsichtigen: *"Do not act on it until I confirm we have reached a shared understanding."* — handle nicht, bevor ich bestätige, dass wir ein gemeinsames Verständnis haben. Für ein allgemeines Interview ist das genau richtig, und es ist der Grund, warum jener Skill auf alles anwendbar ist.
+
+Endet die Sitzung, endet das Verständnis mit ihr. Nichts liegt auf der Platte, nichts, was ein Agent morgen aufgreifen kann, und nichts, wogegen sich arbeiten ließe.
+
+`/memory-bank-init` ist dieselbe Interview-Disziplin, nur auf ein bleibendes Artefakt gerichtet — eine Frage nach der anderen, jeweils mit empfohlener Antwort, Nachschlagbares wird nachgeschlagen statt gefragt. Führen Sie es **in derselben Sitzung direkt nach dem Grill** aus:
+
+```text
+/grill-me            # explore the design; no files written
+/memory-bank-init    # turn those decisions into a memory bank
+```
+
+Es fragt nicht erneut, was Sie schon geklärt haben. „Fakten nachschlagen, nach Entscheidungen fragen“ gilt für das Gespräch ebenso wie für das Repository, also fällt das Interview nach einem frischen Grill kurz aus — meist bestätigen Sie nur eine vorgeschlagene Aufteilung in Lanes und Milestones.
+
+| | Nach `/grill-me` | Nach `/memory-bank-init` |
+|---|---|---|
+| Wo die Entscheidungen liegen | Im Gespräch | `product.md`, `architecture.md`, `tech-stack.md` |
+| Der Agent von morgen | Fängt kalt an | Liest `AGENTS.md` und weiß Bescheid |
+| Nächster Schritt | Sie entscheiden | Die nächste `` `[ ]` ``-Zeile |
+| Ausführung | — | `/memory-bank-next`, oder `/memory-bank-goal` für einen Satz |
+
+Die beiden ergänzen sich, sie konkurrieren nicht. Behalten Sie `/grill-me` für Entscheidungen, aus denen kein Projekt entsteht — ein Architekturstreit, ein Einstellungsplan, ein Vortragsgerüst. Greifen Sie zu `/memory-bank-init`, wenn das, worüber Sie grillen, eine Codebasis ist, die nächste Woche noch wissen muss, was sie ist.
+
 ## Den API-Harness installieren
 
 Dieser Abschnitt ist optional. Alles oben funktioniert auch ohne ihn — der Harness ergänzt lediglich eine unbeaufsichtigte Schleife, die einen Agenten über die API steuert, statt dass Sie selbst tippen. Lassen Sie ihn weg, wenn Codex, Claude Code oder ein anderer Agent das bereits für Sie erledigt.

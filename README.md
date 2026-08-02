@@ -575,6 +575,45 @@ that sets a stop condition, which is a different thing. The two work together �
 see [Run an ordered set of
 milestones](#run-an-ordered-set-of-milestones).
 
+### If you already use `/grill-me`
+
+`/grill-me` and `/grilling` from
+[mattpocock/skills](https://github.com/mattpocock/skills) end where they mean
+to: *"Do not act on it until I confirm we have reached a shared understanding."*
+Stopping there is the right call for a general-purpose interview, and it is why
+that skill works on anything.
+
+But when the session closes, the understanding closes with it. Nothing is on
+disk, nothing an agent can pick up tomorrow, and nothing to execute against.
+
+`/memory-bank-init` is the same interview discipline pointed at a persistent
+artifact — one question at a time, each with a recommended answer, facts looked
+up rather than asked. Run it **in the same session, right after the grill**:
+
+```text
+/grill-me            # explore the design; no files written
+/memory-bank-init    # turn those decisions into a memory bank
+```
+
+It will not re-ask what you already settled. "Look up facts, ask about
+decisions" applies to the conversation as much as to the repository, so a grill
+you have just finished makes for a short interview — mostly confirming a
+proposed breakdown of lanes and milestones.
+
+What you get that the grill alone does not leave behind:
+
+| | After `/grill-me` | After `/memory-bank-init` |
+|---|---|---|
+| Where the decisions live | The conversation | `product.md`, `architecture.md`, `tech-stack.md` |
+| Tomorrow's agent | Starts cold | Reads `AGENTS.md` and knows |
+| Next action | You decide | The next `` `[ ]` `` row |
+| Executing it | — | `/memory-bank-next`, or `/memory-bank-goal` for a set |
+
+The two are complements, not rivals. Keep `/grill-me` for decisions that produce
+no project — an architecture argument, a hiring plan, a talk outline. Reach for
+`/memory-bank-init` when the thing you are grilling about is a codebase that has
+to still know what it is next week.
+
 ## Install The API Harness
 
 This section is optional. Everything above works without it — the harness only

@@ -433,6 +433,30 @@ cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 
 这个 skill 特意没有命名为 `goal`：Claude Code 有内置的 `/goal` 用于设置停止条件，那是另一回事。两者可以配合使用，见「按顺序执行多个里程碑」一节。
 
+### 如果你已经在用 `/grill-me`
+
+[mattpocock/skills](https://github.com/mattpocock/skills) 的 `/grill-me` 和 `/grilling` 在它们打算停下的地方停下：*"Do not act on it until I confirm we have reached a shared understanding."*（在我确认我们达成共识之前，不要动手）。对一个通用的访谈技巧来说，停在那里是正确的，这也正是它能用在任何事情上的原因。
+
+但会话一结束，那份共识也随之消失。磁盘上没有任何东西，明天的智能体接不上，也没有可以执行的对象。
+
+`/memory-bank-init` 是同一套访谈方法，只不过指向一份会留存下来的产物——一次只问一个问题，每个问题都附带推荐答案，能查到的事实自己查而不问。请在**同一个会话里，紧接着 grill 之后**运行它：
+
+```text
+/grill-me            # explore the design; no files written
+/memory-bank-init    # turn those decisions into a memory bank
+```
+
+它不会重复问你已经确定的事。「能查的事实自己查，决策才问你」同样适用于对话本身，而不只是仓库，所以刚做完 grill 之后的访谈会很短——大多只是确认一份线与里程碑的拆分方案。
+
+| | `/grill-me` 之后 | `/memory-bank-init` 之后 |
+|---|---|---|
+| 决策存放在哪里 | 对话里 | `product.md`、`architecture.md`、`tech-stack.md` |
+| 明天的智能体 | 从零开始 | 读 `AGENTS.md` 就知道 |
+| 下一步做什么 | 你来决定 | 下一条 `` `[ ]` `` 状态行 |
+| 怎么执行 | — | `/memory-bank-next`，或用 `/memory-bank-goal` 跑一组 |
+
+两者是互补的，不是竞争关系。那些不产出项目的决策——架构上的争论、招聘计划、演讲提纲——继续用 `/grill-me`。当你 grill 的对象是一个下周还得知道自己是什么的代码库时，就该用 `/memory-bank-init`。
+
 ## 安装 API Harness
 
 本节是可选的。上面的内容不依赖它——harness 只是多提供一个无人值守循环，用 API 驱动智能体，省去你手动输入。如果 Codex、Claude Code 或别的智能体已经在替你做这件事，可以跳过。
