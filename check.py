@@ -233,6 +233,48 @@ def init_covers_template():
 
 
 # --------------------------------------------------------------------------
+# 3bc. A registry reads plugin.json's version from the default branch, so a
+#      tag and a manifest that disagree ship a version claiming to be another.
+# --------------------------------------------------------------------------
+def version_tuple(v: str) -> tuple:
+    return tuple(int(p) for p in v.split("."))
+
+
+@check("plugin.json version agrees with the git tags")
+def plugin_version():
+    import json
+
+    if not PLUGIN_JSON.exists():
+        return [".claude-plugin/plugin.json is missing"]
+    version = json.loads(PLUGIN_JSON.read_text()).get("version")
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version or ""):
+        return [f"plugin.json version is {version!r}, want MAJOR.MINOR.PATCH"]
+
+    def git(*args):
+        p = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+        return p.stdout.split() if p.returncode == 0 else []
+
+    tags = [t for t in git("tag", "--list", "v*") if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
+    if not tags:
+        # A shallow clone without tags cannot answer this. Say so rather than
+        # passing silently -- CI must fetch tags for this check to mean anything.
+        return ["no v* tags found; fetch tags so this check can run"]
+
+    latest = max(tags, key=lambda t: version_tuple(t[1:]))
+    here = [t for t in git("tag", "--points-at", "HEAD") if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
+    if here:
+        # At a tagged commit the two must be identical: this is what a registry
+        # and a release download would disagree about.
+        exact = max(here, key=lambda t: version_tuple(t[1:]))
+        if exact[1:] != version:
+            return [f"HEAD is tagged {exact} but plugin.json says {version}"]
+        return []
+    if version_tuple(version) < version_tuple(latest[1:]):
+        return [f"plugin.json says {version}, behind the latest tag {latest}"]
+    return []
+
+
+# --------------------------------------------------------------------------
 # 3c. The daily instruction now exists in three places. Machine-check it.
 # --------------------------------------------------------------------------
 @check("memory-bank-next skill matches the daily prompt")

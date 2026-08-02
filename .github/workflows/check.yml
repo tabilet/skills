@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Tags are not fetched by default, and the plugin-version check needs
+          # them to compare plugin.json against the latest release.
+          fetch-tags: true
+          fetch-depth: 0
       # No setup-python step: check.py and the harness both use the standard
       # library only, so the runner's python3 is enough. Keeping CI
       # dependency-free follows the same rule as the code it checks.

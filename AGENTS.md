@@ -94,12 +94,19 @@ cp -R template/. /tmp/scratch-project/
 ```
 
 `check.py` enforces the hard rules below so they are not left to memory. It runs
-the nine invariants this repository has actually broken at least once —
-identical `GOAL.md` copies, the `EMBEDDED_TASK` duplicate, explicit
-`COMMIT_POLICY` in every `/goal` example, links *and* heading anchors, the
-documented exit codes, the status-marker regexes, the shipped payload, and
-translation parity. Standard library only, like the harness. When you add a
-rule to this file, add the check that enforces it.
+the fourteen invariants this repository has actually broken at least once —
+identical `GOAL.md` copies, the `EMBEDDED_TASK` duplicate, the skill manifest
+and its `SKILL.md` twin, the generator agreeing with `template/`, the plugin
+version against the tags, explicit `COMMIT_POLICY` in every `GOAL.md`
+invocation, links *and* heading anchors, the documented exit codes, the
+status-marker regexes, the shipped payload, and translation parity. Standard
+library only, like the harness. When you add a rule to this file, add the check
+that enforces it.
+
+The plugin-version check needs tags, which `actions/checkout` does not fetch by
+default; the workflow passes `fetch-tags`. Without them the check fails rather
+than passing quietly, because a check that cannot see its input has not verified
+anything.
 
 It syntax-checks the harness with `ast.parse` rather than `python3 -m
 py_compile`: py_compile writes a `__pycache__/` next to the script, inside the
@@ -225,4 +232,9 @@ provider section and the language-version links that `README.md` carries.
   directory name, the frontmatter `name`, and the `plugin.json` list must agree.
 - No skill named `goal`. Claude Code has a built-in `/goal` that sets a stop
   condition; a skill by that name would shadow a different feature.
+- `.claude-plugin/plugin.json`'s version and the git tags agree. At a tagged
+  commit they must be identical, and on an untagged commit the manifest must
+  never be behind the latest tag. A registry reads that version off the default
+  branch, so a mismatch publishes a release claiming to be another one. Bump the
+  manifest in the same change as the tag.
 - Run the required verification before claiming a change is done.
