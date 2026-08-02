@@ -411,17 +411,24 @@ Rien ne vous oblige à l’utiliser. `/goal` est la commande de votre agent, pas
 
 Les deux agents lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande :
 
+Les deux agents lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande.
+
+**Claude Code** les installe comme plugin, mis à jour à chaque livraison de ce dépôt :
+
 ```bash
-# Claude Code — as a plugin, updates when this repo ships
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
-
-# Claude Code — or as plain files you own and can edit
-cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
-
-# Codex
-cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 ```
+
+**Codex** lit `~/.codex/skills/`, donc une seule commande suffit, sans clone — pas de `git`, pas de répertoire temporaire, rien à nettoyer :
+
+```bash
+mkdir -p ~/.codex/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+```
+
+La même ligne fonctionne pour Claude Code avec `-C ~/.claude/skills`, si vous préférez posséder les fichiers plutôt que vous abonner au plugin. Pour figer une version, remplacez `refs/heads/main` par `refs/tags/<version>` et `skills-main` par `skills-<version>`, en accord avec le répertoire contenu dans cette archive.
 
 Le plugin installe le **générateur**, pas le résultat. Ce qu’il écrit dans votre projet vous appartient, n’est jamais mis à jour depuis ici, et survit à sa désinstallation.
 

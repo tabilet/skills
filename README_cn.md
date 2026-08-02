@@ -417,17 +417,24 @@ COMMIT_POLICY: task
 
 两种智能体读取的是同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
 
+两种智能体读取的是同一种 `SKILL.md` 格式，因此每个命令只有一份源文件。
+
+**Claude Code** 以插件方式安装，本仓库发版时会自动更新：
+
 ```bash
-# Claude Code — as a plugin, updates when this repo ships
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
-
-# Claude Code — or as plain files you own and can edit
-cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
-
-# Codex
-cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 ```
+
+**Codex** 读取 `~/.codex/skills/`，所以只要一条命令，不需要 clone——不需要 `git`，不需要临时目录，事后也没有东西要清理：
+
+```bash
+mkdir -p ~/.codex/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+```
+
+同一条命令把 `-C` 改成 `~/.claude/skills` 就适用于 Claude Code，如果你更想拥有这些文件而不是订阅插件的话。想固定版本，把 `refs/heads/main` 换成 `refs/tags/<版本号>`，并把 `skills-main` 改成 `skills-<版本号>`，与该 tarball 内的目录名保持一致。
 
 插件安装的是**生成器**，不是产物。它写进你项目里的内容属于你，不会从这里被更新，卸载插件后依然存在。
 

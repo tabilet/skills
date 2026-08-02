@@ -411,17 +411,24 @@ COMMIT_POLICY: task
 
 どちらのエージェントも同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
 
+どちらのエージェントも同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです。
+
+**Claude Code** はプラグインとして入れます。このリポジトリが更新されると自動で追随します:
+
 ```bash
-# Claude Code — as a plugin, updates when this repo ships
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
-
-# Claude Code — or as plain files you own and can edit
-cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
-
-# Codex
-cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 ```
+
+**Codex** は `~/.codex/skills/` を読むので、clone なしのコマンド 1 つで済みます。`git` も一時ディレクトリも不要で、あと片付けもありません:
+
+```bash
+mkdir -p ~/.codex/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+```
+
+プラグインを購読するよりファイルを自分で持ちたい場合は、同じ行の `-C` を `~/.claude/skills` に変えれば Claude Code でも使えます。バージョンを固定するには `refs/heads/main` を `refs/tags/<バージョン>` に、`skills-main` をその tarball 内のディレクトリ名 `skills-<バージョン>` に変えてください。
 
 プラグインがインストールするのは**生成器**であって、生成物ではありません。プロジェクトに書き込まれた内容はあなたのもので、ここから更新されることはなく、アンインストールしても残ります。
 

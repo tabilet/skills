@@ -411,17 +411,24 @@ Ebenfalls optional. Alles oben funktioniert, indem du gewöhnliche Sätze tippst
 
 Beide Agenten lesen dasselbe `SKILL.md`-Format, es gibt also eine Quelle pro Befehl:
 
+Beide Agenten lesen dasselbe `SKILL.md`-Format, es gibt also eine Quelle pro Befehl.
+
+**Claude Code** installiert sie als Plugin, das sich aktualisiert, sobald dieses Repository etwas ausliefert:
+
 ```bash
-# Claude Code — as a plugin, updates when this repo ships
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
-
-# Claude Code — or as plain files you own and can edit
-cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
-
-# Codex
-cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 ```
+
+**Codex** liest `~/.codex/skills/`, also genügt ein Befehl ohne Clone — kein `git`, kein temporäres Verzeichnis, nichts aufzuräumen:
+
+```bash
+mkdir -p ~/.codex/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+```
+
+Dieselbe Zeile funktioniert für Claude Code mit `-C ~/.claude/skills`, falls Sie die Dateien lieber besitzen als das Plugin zu abonnieren. Zum Festpinnen einer Version ersetzen Sie `refs/heads/main` durch `refs/tags/<version>` und `skills-main` durch `skills-<version>`, passend zum Verzeichnis in jenem Tarball.
 
 Das Plugin installiert den **Generator**, nicht das Ergebnis. Was es in dein Projekt schreibt, gehört dir, wird von hier nie aktualisiert und bleibt auch nach dem Deinstallieren bestehen.
 

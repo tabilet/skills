@@ -411,17 +411,24 @@ También opcional. Todo lo anterior funciona escribiendo frases normales; estos 
 
 Ambos agentes leen el mismo formato `SKILL.md`, así que hay una sola fuente por comando:
 
+Ambos agentes leen el mismo formato `SKILL.md`, así que hay una sola fuente por comando.
+
+**Claude Code** los instala como plugin, que se actualiza cuando este repositorio publica algo:
+
 ```bash
-# Claude Code — as a plugin, updates when this repo ships
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
-
-# Claude Code — or as plain files you own and can edit
-cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
-
-# Codex
-cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 ```
+
+**Codex** lee `~/.codex/skills/`, así que basta un comando y sin clonar: ni `git`, ni directorio temporal, ni nada que limpiar después:
+
+```bash
+mkdir -p ~/.codex/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+```
+
+La misma línea sirve para Claude Code con `-C ~/.claude/skills`, si prefiere ser dueño de los archivos en vez de suscribirse al plugin. Para fijar una versión, cambie `refs/heads/main` por `refs/tags/<versión>` y `skills-main` por `skills-<versión>`, igual que el directorio dentro de ese tarball.
 
 El plugin instala el **generador**, no el resultado. Lo que escribe en tu proyecto es tuyo, nunca se actualiza desde aquí y sobrevive a desinstalarlo.
 

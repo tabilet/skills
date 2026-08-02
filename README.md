@@ -553,19 +553,28 @@ the breakdown. You never see a bracketed placeholder — the memory bank arrives
 filled in. *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
-Both agents read the same `SKILL.md` format, so there is one source per command:
+Both agents read the same `SKILL.md` format, so there is one source per command.
+
+**Claude Code** installs them as a plugin, which updates when this repo ships:
 
 ```bash
-# Claude Code — as a plugin, updates when this repo ships
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
-
-# Claude Code — or as plain files you own and can edit
-cp -R /path/to/skills/harness/skills/. ~/.claude/skills/
-
-# Codex
-cp -R /path/to/skills/harness/skills/. ~/.codex/skills/
 ```
+
+**Codex** reads `~/.codex/skills/`, so this is one command and no clone — no
+`git`, no temporary directory, nothing to clean up afterwards:
+
+```bash
+mkdir -p ~/.codex/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
+```
+
+The same line works for Claude Code with `-C ~/.claude/skills`, if you would
+rather own the files than subscribe to the plugin. To pin a version, swap
+`refs/heads/main` for `refs/tags/<version>` and change `skills-main` to
+`skills-<version>` to match the directory inside that tarball.
 
 The plugin installs the *generator*, not the output. What it writes into your
 project is yours, is never updated from here, and survives uninstalling it.

@@ -35,14 +35,18 @@ In Claude Code:
 /plugin install memory-bank
 ```
 
-In Codex, or if you would rather own the files outright, copy them in — both
-agents read the same `SKILL.md` format:
+In Codex — or in Claude Code, if you would rather own the files than subscribe
+to the plugin — it is one command. Both agents read the same `SKILL.md` format,
+so this is the same payload:
 
 ```bash
-git clone --depth 1 https://github.com/tabilet/skills /tmp/sk
-cp -R /tmp/sk/harness/skills/. ~/.codex/skills/     # or ~/.claude/skills/
-rm -rf /tmp/sk
+mkdir -p ~/.codex/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=3 -C ~/.codex/skills 'skills-main/harness/skills'
 ```
+
+No clone, no temporary directory, no cleanup. Use `-C ~/.claude/skills` for
+Claude Code instead.
 
 You now have three commands, and they are the whole interface:
 
