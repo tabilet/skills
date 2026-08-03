@@ -6,7 +6,7 @@ scaffold, a set of slash commands, a folder of generated artifacts. Six months
 later you are maintaining that system's files as much as your own code, and your
 project lives inside its conventions rather than yours.
 
-This is the opposite bet: a small set of markdown files, copied into your
+This is the opposite bet: a small set of plain-text files, mostly markdown, copied into your
 project and owned outright by you. There is no mandatory project CLI or
 runtime, no vocabulary to learn, and nothing you cannot replace. Optional
 plugins can generate the files, and an optional API runner can execute rows
@@ -33,7 +33,8 @@ your-project/
 │   ├── architecture.md    layout, data flow, boundaries
 │   ├── tech-stack.md      commands, dependencies, how you verify
 │   ├── milestone.md       milestones and their acceptance criteria
-│   └── status-M01.md      one permanent file per milestone, one row per task
+│   ├── status-M01.md      one permanent file per milestone, one row per task
+│   └── suggested.txt      disposable multi-milestone launch reference
 └── evolution/             versioned direction snapshots
     ├── prompt-v1.md       the initial direction
     └── result-v1.md       the state it produced
@@ -124,6 +125,11 @@ The three skills are in [skills/](skills/). Claude Code and Codex read the same
   verify it, commit it
 - [memory-bank-goal](skills/memory-bank-goal/SKILL.md) — run an ordered
   set of milestones
+
+Unlike the copyable template, `memory-bank-init` can derive project-specific
+goal input. It writes `memory-bank/suggested.txt` with a proposed
+`STATUS_ORDER`, `STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is
+advisory and disposable; the milestone and status files remain authoritative.
 
 `.claude-plugin/` holds the compatibility manifest used to install the same
 plugin in Claude Code and Codex. Nothing in `template/` is vendor-specific.
@@ -465,6 +471,17 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
+When `memory-bank-init` created the project, it also wrote the complete proposed
+request to `memory-bank/suggested.txt`. Treat that file as a launch suggestion,
+not a second roadmap: reconcile it against `milestone.md` and the current status
+files, then delete it after launch or whenever it becomes stale. To reference it
+directly:
+
+```text
+Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+COMMIT_POLICY: task
+```
+
 You can paste that block into any agent as an ordinary request. If you installed
 the plugin, its goal skill supplies the same protocol and commit policy:
 
@@ -472,6 +489,10 @@ the plugin, its goal skill supplies the same protocol and commit policy:
 /memory-bank:memory-bank-goal M01 -> S01 -> A01?   # Claude Code plugin
 $memory-bank:memory-bank-goal M01 -> S01 -> A01?   # Codex plugin
 ```
+
+With no arguments, the skill prefers a valid `suggested.txt`, shows the complete
+resolved request for confirmation, and falls back to deriving the order from
+`milestone.md` when the file is absent or stale.
 
 Plain-file installations use `/memory-bank-goal` in Claude Code and
 `$memory-bank-goal` in Codex. Plain English remains valid everywhere.
@@ -483,7 +504,7 @@ optional alternative launcher for a long run. Give it the complete protocol
 request and a measurable completion condition together:
 
 ```text
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 Run `/goal` with no arguments to show its status, and `/goal clear` to stop it.

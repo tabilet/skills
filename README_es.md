@@ -2,7 +2,7 @@
 
 Los agentes de código trabajan mejor cuando un proyecto sabe explicarse: qué es, qué está hecho, qué viene después. La forma habitual de conseguirlo es adoptar un sistema: un CLI, un scaffold, un conjunto de comandos slash, una carpeta de artefactos generados. Seis meses después mantiene los archivos de ese sistema tanto como su propio código, y su proyecto vive dentro de las convenciones de ese sistema en lugar de las suyas.
 
-Este repositorio apuesta por lo contrario: un pequeño conjunto de archivos markdown, copiado a su proyecto y suyo por completo. No hay ningún CLI ni runtime de proyecto obligatorio. Los plugins opcionales pueden generar los archivos y un runner API opcional puede ejecutar filas sin supervisión; ninguno se convierte en dependencia del proyecto.
+Este repositorio apuesta por lo contrario: un pequeño conjunto de archivos de texto, principalmente markdown, copiado a su proyecto y suyo por completo. No hay ningún CLI ni runtime de proyecto obligatorio. Los plugins opcionales pueden generar los archivos y un runner API opcional puede ejecutar filas sin supervisión; ninguno se convierte en dependencia del proyecto.
 
 **Lo que acaba teniendo es suyo.** Este repositorio es un punto de partida del que se copia *hacia fuera*: `template/` a su proyecto, `harness/` opcionalmente a su directorio personal. Después, su proyecto no depende de este repositorio ni mantiene ningún vínculo con él.
 
@@ -19,7 +19,8 @@ your-project/
 │   ├── architecture.md    estructura, flujo de datos, fronteras
 │   ├── tech-stack.md      comandos, dependencias, verificación
 │   ├── milestone.md       milestones y criterios de aceptación
-│   └── status-M01.md      un archivo permanente por milestone, una fila por tarea
+│   ├── status-M01.md      un archivo permanente por milestone, una fila por tarea
+│   └── suggested.txt      referencia desechable para lanzar varios milestones
 └── evolution/             instantáneas de dirección versionadas
     ├── prompt-v1.md       la dirección inicial
     └── result-v1.md       el estado resultante
@@ -349,14 +350,28 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
+Cuando `memory-bank-init` crea el proyecto, también escribe la petición
+propuesta completa en `memory-bank/suggested.txt`, con `STATUS_ORDER`,
+`STATUS_FILE_MAP` y `DOWNSTREAM_IMPACTS`. Es una referencia de lanzamiento
+desechable, no una segunda roadmap. Antes de usarla, reconcíliala con
+`milestone.md` y los archivos de estado actuales; bórrala después del
+lanzamiento o cuando quede obsoleta:
+
+```text
+Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+COMMIT_POLICY: task
+```
+
 Puedes pegar el bloque anterior como una petición normal en cualquier agente. Con el plugin, el mismo protocolo se inicia mediante `/memory-bank:memory-bank-goal M01 -> S01 -> A01?` en Claude Code o `$memory-bank:memory-bank-goal M01 -> S01 -> A01?` en Codex. Los skills instalados directamente usan `/memory-bank-goal` y `$memory-bank-goal`.
+
+Sin argumentos, el skill goal reconcilia primero un `suggested.txt` válido y muestra la petición completamente resuelta para confirmarla. Si el archivo falta o está obsoleto, deriva el orden desde `milestone.md`.
 
 #### Si usas Claude Code
 
 El `/goal` integrado de Claude Code es un lanzador alternativo opcional para una ejecución larga. Incluye a la vez la petición completa del protocolo, la política de commits y una condición de finalización medible:
 
 ```text
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 Ejecuta `/goal` sin argumentos para ver su estado y `/goal clear` para detenerlo. El skill `memory-bank-goal` sigue siendo el lanzador portable compartido con Codex.

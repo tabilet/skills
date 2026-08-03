@@ -18,7 +18,7 @@ This article covers a **new project** — an empty directory and an idea. Using 
 
 ## What you end up with
 
-A compact set of markdown files, in your repository, owned outright by you:
+A compact set of plain-text files, mostly markdown, in your repository and owned outright by you:
 
 ```
 your-project/
@@ -29,7 +29,8 @@ your-project/
 │   ├── architecture.md    layout, data flow, the boundaries that matter
 │   ├── tech-stack.md      stack, dependencies, how you verify
 │   ├── milestone.md       milestones and their acceptance criteria
-│   └── status-M01.md      one permanent file per milestone, one row per task
+│   ├── status-M01.md      one permanent file per milestone, one row per task
+│   └── suggested.txt      disposable goal order, file map, and impacts
 └── evolution/             versioned direction snapshots
     ├── prompt-v1.md       the initial direction
     └── result-v1.md       the state it produced
@@ -222,12 +223,14 @@ $memory-bank:memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
 
 One request can cover five milestones and twenty-six tasks in dependency order. Each completed task is implemented, verified, and committed on its own. If only blocked work remains, the run stops for the missing decision or authority instead of pretending the whole set necessarily finished.
 
+Init has already written the approved order, its ID-to-file mapping, and the known downstream relationships into `memory-bank/suggested.txt`. Run the goal skill with no arguments to reconcile that disposable suggestion and show the resolved request before execution. It is not another roadmap; delete it after launch or whenever the milestone and status files make it stale.
+
 That last clause is what makes this more than an agent running a to-do list. When `W01` closes, the tilemap that actually got built is not quite the one `P01` was written against — plans written before the code exists always are a little wrong. So before starting `P01`, the protocol re-reads it and rewrites what is now false, rather than implementing a stale plan faithfully.
 
 In Claude Code the [built-in `/goal`](https://code.claude.com/docs/en/goal) is an optional alternative launcher for a long run. Give it the protocol, order, commit policy, and measurable completion condition together:
 
 ```
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: W01 -> P01 -> E01 -> U01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and node --test passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and node --test passes.
 ```
 
 Use `/goal` with no arguments to see its status and `/goal clear` to stop it. In Codex, use the namespaced plugin skill shown above.

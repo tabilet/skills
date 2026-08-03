@@ -239,6 +239,65 @@ def init_covers_template():
 
 
 # --------------------------------------------------------------------------
+# 3bbc. Init derives project-specific multi-milestone input that the static
+#       template cannot know. Keep it disposable, complete, and reconciled by
+#       the goal skill rather than turning it into a second roadmap.
+# --------------------------------------------------------------------------
+@check("init and goal share a disposable goal launch reference")
+def suggested_goal_reference():
+    init_path = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
+    goal_path = SKILLS_DIR / "memory-bank-goal" / "SKILL.md"
+    if not init_path.exists() or not goal_path.exists():
+        return ["memory-bank-init or memory-bank-goal skill is missing"]
+
+    init = init_path.read_text()
+    goal = goal_path.read_text()
+    problems = []
+
+    for token in (
+        "memory-bank/suggested.txt",
+        "STATUS_ORDER",
+        "STATUS_FILE_MAP",
+        "DOWNSTREAM_IMPACTS",
+        "COMMIT_POLICY: task",
+        "EXTERNAL_MUTATIONS: none",
+        "Completion condition:",
+    ):
+        if token not in init:
+            problems.append(f"memory-bank-init/SKILL.md: missing {token}")
+
+    for token in (
+        "memory-bank/suggested.txt",
+        "STATUS_FILE_MAP",
+        "DOWNSTREAM_IMPACTS",
+        "Explicit `$ARGUMENTS` replace",
+        "not a source of truth",
+    ):
+        if token not in goal:
+            problems.append(f"memory-bank-goal/SKILL.md: missing {token}")
+
+    if (ROOT / "template" / "memory-bank" / "suggested.txt").exists():
+        problems.append(
+            "template/memory-bank/suggested.txt must not ship; init derives it "
+            "from the approved project graph"
+        )
+
+    public = [
+        ROOT / "README.md",
+        *(ROOT / f"README_{lang}.md" for lang in LANGS),
+        ROOT / "docs" / "TUTORIAL.md",
+        ROOT / "docs" / "medium.md",
+        ROOT / "medium-new-project.md",
+    ]
+    for path in public:
+        if "memory-bank/suggested.txt" not in path.read_text():
+            problems.append(
+                f"{path.relative_to(ROOT)}: missing disposable goal launch reference"
+            )
+    return problems
+
+
+# --------------------------------------------------------------------------
 # 3bc. A registry reads plugin.json's version from the default branch, so a
 #      tag and a manifest that disagree ship a version claiming to be another.
 # --------------------------------------------------------------------------

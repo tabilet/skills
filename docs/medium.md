@@ -42,6 +42,8 @@ Account-level files, optional:
 
 The repository also packages three optional skills — `memory-bank-init`, `memory-bank-next`, and `memory-bank-goal` — as one plugin for Claude Code and Codex. Plugin invocations are namespaced: `/memory-bank:memory-bank-next` in Claude Code and `$memory-bank:memory-bank-next` in Codex. Plain-file installs remain unnamespaced.
 
+When `memory-bank-init` derives a multi-milestone plan, it also writes `memory-bank/suggested.txt`: a disposable launch request containing the proposed status order, file map, and downstream impacts. It is deliberately excluded from the required read order and meant to be deleted after launch or when stale; the milestone and status files remain the source of truth.
+
 ## Bootstrapping — with a little help from your agent
 
 Setting up the harness once is a small upfront step, and you don't have to do it alone.
@@ -88,7 +90,7 @@ You can use it for one row, for an unattended loop, for evaluations across model
 
 One row at a time is the default granularity, and for most work it's the right one. When you do want to run several milestones in a defined order — a release, a migration, a sequence with real dependencies between its parts — `GOAL.md` describes that loop: reconcile before each milestone, implement its task units, verify and deep-review, reconcile the milestones downstream of the one that just closed, then continue or stop.
 
-It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. It is one markdown file, it is invoked rather than always-on, and it introduces no directories or generated artifacts. Paste a complete `Using GOAL.md` request, or use the optional `memory-bank-goal` skill. It carries no project-specific paths or lane names either — it reads those from `AGENTS.md` and the memory bank, which is why the same file works unchanged across projects.
+It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. `GOAL.md` itself is one portable markdown file, invoked rather than always-on. Paste a complete `Using GOAL.md` request, use the optional `memory-bank-goal` skill, or reference the disposable `suggested.txt` that init derived from the approved breakdown. The protocol carries no project-specific paths or lane names — those stay in the memory bank and its temporary launch reference — which is why the same `GOAL.md` works unchanged across projects.
 
 So: four ways to execute, none of them required. Type a request and stay in the loop. Invoke the optional one-row skill. Run the script unattended. Or hand over an ordered set of milestones. The memory bank underneath doesn't know or care which you chose — that's the property worth protecting.
 

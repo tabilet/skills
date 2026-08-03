@@ -261,7 +261,8 @@ stomper/
 │   ├── architecture.md    ← module layout, the DOM-free rule
 │   ├── tech-stack.md      ← stack, and how it is verified
 │   ├── milestone.md       ← lanes, milestones, execution order
-│   └── status-{W,P,E,U,A}01.md
+│   ├── status-{W,P,E,U,A}01.md
+│   └── suggested.txt      ← disposable goal order, file map, and impacts
 └── evolution/
     ├── prompt-v1.md
     └── result-v1.md
@@ -397,6 +398,13 @@ verify, deep-review, then reconcile the milestones downstream of the one that
 just closed. It sends `COMMIT_POLICY: task` for you — worth knowing, because
 `GOAL.md`'s own default is `none`, meaning no commits at all.
 
+The init skill also writes a complete proposed `STATUS_ORDER`,
+`STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS` to
+`memory-bank/suggested.txt`. It is disposable input, not project truth. Run the
+goal skill with no arguments to have it reconcile that file and show the
+resolved request before starting; delete the file after launch or when it
+becomes stale.
+
 Reconciling downstream is what makes this better than a to-do list. When `W01`
 closes, the tilemap that actually got built is not the one `P01` was written
 against — so `P01` gets re-read and rewritten before it starts, rather than
@@ -407,7 +415,7 @@ an optional alternative launcher** for a long run. Include the complete protocol
 request, commit policy, and measurable completion condition in the invocation:
 
 ```text
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: W01 -> P01 -> E01 -> U01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and node --test passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and node --test passes.
 ```
 
 Use `/goal` with no arguments to see its status and `/goal clear` to stop it.

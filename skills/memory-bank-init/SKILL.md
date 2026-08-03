@@ -1,6 +1,6 @@
 ---
 name: memory-bank-init
-description: Interview the user about a project, then generate its memory bank - product, architecture, tech stack, milestones, and status lanes. Use when a project has no memory-bank/ yet.
+description: Interview the user about a project, then generate its memory bank - product, architecture, tech stack, milestones, status lanes, and a disposable multi-milestone launch reference. Use when a project has no memory-bank/ yet.
 disable-model-invocation: false
 argument-hint: (no arguments)
 ---
@@ -63,7 +63,8 @@ confirm.
 Present the breakdown as a numbered list. **Write nothing to disk yet.**
 
 Show the lane letters and what each means, the milestones with their acceptance
-criteria, the first milestone's rows, and the execution order with dependencies.
+criteria, the first milestone's rows, the execution order, the status-file map,
+and the known downstream impacts between milestones.
 
 Rules for the breakdown:
 
@@ -101,6 +102,7 @@ memory-bank/architecture.md      layout, data flow, the boundaries that matter
 memory-bank/tech-stack.md        stack, dependencies, verification commands
 memory-bank/milestone.md         lane meanings, milestone index, acceptance
 memory-bank/status-<LANE><NN>.md one per milestone, one row per task
+memory-bank/suggested.txt        disposable multi-milestone launch reference
 evolution/prompt-v1.md           the initial direction
 evolution/result-v1.md           the state this starts from
 ```
@@ -115,6 +117,52 @@ and `memory-bank-goal` will tell the user where to get it.
 
 Tell the user it is optional and can be deleted: it is one way to run several
 milestones in order, not a requirement of the memory bank.
+
+### Disposable goal launch reference
+
+Write `memory-bank/suggested.txt` from the approved milestone breakdown. It is
+an advisory launch reference, not project truth: `milestone.md`, the status
+files, and the implementation remain authoritative. Do not add it to
+`AGENTS.md`'s required read order or the milestone index. Tell the user to
+delete it after launching the goal, or whenever it becomes stale.
+
+Make it a complete request that can be pasted into an agent or referenced by a
+slash/dollar goal command:
+
+```text
+# Disposable multi-milestone launch reference.
+# Reconcile this suggestion against milestone.md and the current status files.
+# Delete it after launching the goal, or whenever it becomes stale.
+
+Using GOAL.md, execute this loop.
+
+STATUS_ORDER:
+M01 -> S01 -> A01?
+
+STATUS_FILE_MAP:
+M01 = memory-bank/status-M01.md
+S01 = memory-bank/status-S01.md
+A01 = memory-bank/status-A01.md
+
+DOWNSTREAM_IMPACTS:
+M01 -> S01, A01
+S01 -> A01
+
+COMMIT_POLICY: task
+EXTERNAL_MUTATIONS: none
+
+Completion condition: every required status is complete, every triggered
+conditional status is complete, and every milestone's documented verification
+passes.
+```
+
+Replace the example IDs, paths, order, conditional suffixes, and impacts with
+the approved project values. Map every status in `STATUS_ORDER` to exactly one
+file. In `DOWNSTREAM_IMPACTS`, list each known pending status whose assumptions,
+tasks, or acceptance may need reconciliation after the source milestone; the
+goal loop will discover additional consumers. Write `DOWNSTREAM_IMPACTS: none`
+when no such relationship is known. Never leave example values or bracketed
+placeholders in the generated file.
 
 `AGENTS.md` stays short: what to read and in what order, the essential commands,
 the boundaries, the hard rules, and the work cadence. It points at the memory
@@ -144,7 +192,9 @@ Markers: `` `[ ]` `` pending, `` `[+]` `` done, `` `[~]` `` in progress,
    to **two** digits - `status-M01.md`, never `status-M1.md`.
 3. The milestone index in `milestone.md` lists exactly the status files that
    exist, and every link resolves.
-4. No bracketed placeholder is left anywhere.
+4. `suggested.txt` maps every ordered ID to an existing status file, and its
+   order and impact map match the approved dependency breakdown.
+5. No bracketed placeholder is left anywhere.
 
 Then tell the user what you could not fill and why. Anything left is a decision
 that was never actually made - ask for it rather than inventing it.
@@ -154,4 +204,8 @@ installation accepts. Plain English works everywhere: *"tackle next pending
 item in memory bank"* for one task. Plugin installs use
 `/memory-bank:memory-bank-goal` in Claude Code and
 `$memory-bank:memory-bank-goal` in Codex. Plain-file installs use
-`/memory-bank-goal` in Claude Code and `$memory-bank-goal` in Codex.
+`/memory-bank-goal` in Claude Code and `$memory-bank-goal` in Codex. Explain
+that running the goal skill with no arguments reconciles `suggested.txt` and
+shows the resolved request for confirmation. For Claude Code's built-in
+`/goal`, show the complete reference-based command from the goal skill rather
+than telling the user to reconstruct the maps by hand.

@@ -2,7 +2,7 @@
 
 Les agents de code travaillent mieux quand un projet sait s'expliquer — ce qu'il est, ce qui est fait, ce qui vient ensuite. La façon habituelle d'y arriver est d'adopter un système : un CLI, un scaffold, une série de commandes slash, un dossier d'artefacts générés. Six mois plus tard, vous maintenez les fichiers de ce système autant que votre propre code, et votre projet vit dans ses conventions plutôt que dans les vôtres.
 
-Ce dépôt fait le pari inverse : un petit ensemble de fichiers markdown, copié dans votre projet et qui vous appartient entièrement. Aucun CLI ni runtime de projet n’est obligatoire. Des plugins optionnels peuvent générer les fichiers et un runner API optionnel peut exécuter les lignes sans surveillance ; aucun des deux ne devient une dépendance du projet.
+Ce dépôt fait le pari inverse : un petit ensemble de fichiers texte, principalement en markdown, copié dans votre projet et qui vous appartient entièrement. Aucun CLI ni runtime de projet n’est obligatoire. Des plugins optionnels peuvent générer les fichiers et un runner API optionnel peut exécuter les lignes sans surveillance ; aucun des deux ne devient une dépendance du projet.
 
 **Ce que vous obtenez au bout vous appartient.** Ce dépôt est un point de départ dont vous copiez le contenu *vers l'extérieur* : `template/` dans votre projet, `harness/` éventuellement dans votre répertoire personnel. Ensuite, votre projet n'a plus aucune dépendance envers ce dépôt ni aucun lien de retour.
 
@@ -19,7 +19,8 @@ your-project/
 │   ├── architecture.md    structure, flux de données, frontières
 │   ├── tech-stack.md      commandes, dépendances, vérification
 │   ├── milestone.md       milestones et critères d'acceptation
-│   └── status-M01.md      un fichier durable par milestone, une ligne par tâche
+│   ├── status-M01.md      un fichier durable par milestone, une ligne par tâche
+│   └── suggested.txt      référence de lancement multi-milestone jetable
 └── evolution/             instantanés de direction versionnés
     ├── prompt-v1.md       la direction initiale
     └── result-v1.md       l’état qui en résulte
@@ -349,14 +350,28 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
+Quand `memory-bank-init` a créé le projet, il écrit aussi la requête proposée
+complète dans `memory-bank/suggested.txt`, avec `STATUS_ORDER`,
+`STATUS_FILE_MAP` et `DOWNSTREAM_IMPACTS`. Ce fichier est une référence de
+lancement jetable, pas une seconde roadmap. Réconciliez-le avec `milestone.md`
+et les fichiers de statut actuels avant usage, puis supprimez-le après le
+lancement ou dès qu’il devient obsolète :
+
+```text
+Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+COMMIT_POLICY: task
+```
+
 Vous pouvez coller ce bloc comme requête ordinaire dans n’importe quel agent. Avec le plugin, le même protocole démarre via `/memory-bank:memory-bank-goal M01 -> S01 -> A01?` dans Claude Code ou `$memory-bank:memory-bank-goal M01 -> S01 -> A01?` dans Codex. Les skills installés directement utilisent `/memory-bank-goal` et `$memory-bank-goal`.
+
+Sans argument, le skill goal réconcilie d’abord un `suggested.txt` valide et affiche la requête entièrement résolue pour confirmation. Si le fichier manque ou est obsolète, il déduit l’ordre depuis `milestone.md`.
 
 #### Si vous utilisez Claude Code
 
 Le `/goal` intégré de Claude Code est un lanceur alternatif facultatif pour une longue exécution. Donnez-lui ensemble la requête de protocole complète, la politique de commit et une condition d’achèvement mesurable :
 
 ```text
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 Lancez `/goal` sans argument pour afficher son état, et `/goal clear` pour l’arrêter. Le skill `memory-bank-goal` reste le lanceur portable partagé avec Codex.

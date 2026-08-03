@@ -2,7 +2,7 @@
 
 编码智能体在项目能自我说明时表现更好——这是什么、做完了什么、接下来做什么。通常的做法是引入一整套系统：一个 CLI、一套脚手架、一组斜杠命令、一堆自动生成的产物。半年之后，你维护这套系统文件的精力不亚于维护自己的代码，项目活在它的约定里，而不是你的约定里。
 
-这个仓库押的是相反的方向：一小组 markdown 文件复制进项目后完全归你所有。项目没有必须安装的 CLI 或 runtime，也没有强制词汇。可选插件可以生成文件，可选 API runner 可以无人值守地执行状态行；两者都不会成为项目依赖。
+这个仓库押的是相反的方向：一小组纯文本文件（大多是 markdown）复制进项目后完全归你所有。项目没有必须安装的 CLI 或 runtime，也没有强制词汇。可选插件可以生成文件，可选 API runner 可以无人值守地执行状态行；两者都不会成为项目依赖。
 
 **最终得到的东西属于你。** 本仓库是一个供你往外复制的起点——把 `template/` 复制进你的项目，`harness/` 按需复制到你的主目录。之后你的项目既不依赖本仓库，也不与它保持任何关联。
 
@@ -19,7 +19,8 @@ your-project/
 │   ├── architecture.md    目录布局、数据流、边界
 │   ├── tech-stack.md      命令、依赖、如何验证
 │   ├── milestone.md       里程碑及其验收标准
-│   └── status-M01.md      每个里程碑一个永久文件，每个任务一行
+│   ├── status-M01.md      每个里程碑一个永久文件，每个任务一行
+│   └── suggested.txt      可丢弃的多里程碑启动参考
 └── evolution/             版本化的方向快照
     ├── prompt-v1.md       初始方向
     └── result-v1.md       由此产生的状态
@@ -355,14 +356,26 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
+如果项目由 `memory-bank-init` 创建，它还会把完整的建议请求写入
+`memory-bank/suggested.txt`，其中包括 `STATUS_ORDER`、`STATUS_FILE_MAP`
+和 `DOWNSTREAM_IMPACTS`。这只是启动参考，不是第二份路线图；使用前要和
+`milestone.md` 及当前状态文件核对，启动后或内容过时时即可删除：
+
+```text
+Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+COMMIT_POLICY: task
+```
+
 你可以把上面的内容作为普通请求粘贴给任何智能体。安装插件后，也可以用相同协议的命名空间 skill：Claude Code 使用 `/memory-bank:memory-bank-goal M01 -> S01 -> A01?`，Codex 使用 `$memory-bank:memory-bank-goal M01 -> S01 -> A01?`。直接安装的 skill 分别使用 `/memory-bank-goal` 和 `$memory-bank-goal`。
+
+不带参数运行 goal skill 时，它会优先核对有效的 `suggested.txt`，展示完整的已解析请求供确认；文件缺失或过时时，则从 `milestone.md` 推导顺序。
 
 #### 如果你用 Claude Code
 
 Claude Code 内置的 `/goal` 是长任务的可选替代启动方式。一次性给出完整协议请求、commit 策略和可衡量的完成条件：
 
 ```text
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 不带参数运行 `/goal` 可查看状态，`/goal clear` 可停止。`memory-bank-goal` skill 仍是与 Codex 共用的可移植启动方式。

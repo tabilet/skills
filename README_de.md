@@ -2,7 +2,7 @@
 
 Coding-Agenten arbeiten besser, wenn ein Projekt sich selbst erklären kann — was es ist, was fertig ist, was als Nächstes kommt. Der übliche Weg dorthin ist, ein System zu übernehmen: ein CLI, ein Scaffold, eine Reihe von Slash-Befehlen, einen Ordner generierter Artefakte. Ein halbes Jahr später pflegen Sie die Dateien dieses Systems ebenso wie Ihren eigenen Code, und Ihr Projekt lebt in dessen Konventionen statt in Ihren.
 
-Dieses Repository setzt auf das Gegenteil: eine kleine Gruppe von Markdown-Dateien, in Ihr Projekt kopiert und vollständig Ihr Eigentum. Es gibt kein verpflichtendes Projekt-CLI und keine Pflicht-Runtime. Optionale Plugins können die Dateien erzeugen, ein optionaler API-Runner kann Zeilen unbeaufsichtigt ausführen; beides wird nicht zur Projektabhängigkeit.
+Dieses Repository setzt auf das Gegenteil: eine kleine Gruppe einfacher Textdateien, überwiegend Markdown, in Ihr Projekt kopiert und vollständig Ihr Eigentum. Es gibt kein verpflichtendes Projekt-CLI und keine Pflicht-Runtime. Optionale Plugins können die Dateien erzeugen, ein optionaler API-Runner kann Zeilen unbeaufsichtigt ausführen; beides wird nicht zur Projektabhängigkeit.
 
 **Was am Ende herauskommt, gehört Ihnen.** Dieses Repository ist ein Ausgangspunkt, aus dem Sie herauskopieren — `template/` in Ihr Projekt, `harness/` optional in Ihr Home-Verzeichnis. Danach hat Ihr Projekt keine Abhängigkeit zu diesem Repository und keinen Rückverweis darauf.
 
@@ -19,7 +19,8 @@ your-project/
 │   ├── architecture.md    Layout, Datenfluss, Grenzen
 │   ├── tech-stack.md      Befehle, Abhängigkeiten, Verifikation
 │   ├── milestone.md       Milestones und Akzeptanzkriterien
-│   └── status-M01.md      eine dauerhafte Datei je Milestone, eine Zeile je Aufgabe
+│   ├── status-M01.md      eine dauerhafte Datei je Milestone, eine Zeile je Aufgabe
+│   └── suggested.txt      verwerfbare Startreferenz für mehrere Milestones
 └── evolution/             versionierte Richtungssnapshots
     ├── prompt-v1.md       die anfängliche Richtung
     └── result-v1.md       der daraus entstandene Zustand
@@ -349,14 +350,28 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
+Wenn `memory-bank-init` das Projekt erstellt hat, schreibt es außerdem die
+vollständige vorgeschlagene Anfrage mit `STATUS_ORDER`, `STATUS_FILE_MAP` und
+`DOWNSTREAM_IMPACTS` nach `memory-bank/suggested.txt`. Die Datei ist eine
+verwerfbare Startreferenz, keine zweite Roadmap. Gleichen Sie sie vor Gebrauch
+mit `milestone.md` und den aktuellen Statusdateien ab und löschen Sie sie nach
+dem Start oder sobald sie veraltet ist:
+
+```text
+Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+COMMIT_POLICY: task
+```
+
 Den Block oben können Sie jedem Agenten als gewöhnliche Anfrage senden. Mit dem Plugin startet dasselbe Protokoll über `/memory-bank:memory-bank-goal M01 -> S01 -> A01?` in Claude Code oder `$memory-bank:memory-bank-goal M01 -> S01 -> A01?` in Codex. Direkt installierte Skills verwenden `/memory-bank-goal` beziehungsweise `$memory-bank-goal`.
+
+Ohne Argumente gleicht der Goal-Skill bevorzugt eine gültige `suggested.txt` ab und zeigt die vollständig aufgelöste Anfrage zur Bestätigung. Fehlt die Datei oder ist sie veraltet, leitet er die Reihenfolge aus `milestone.md` ab.
 
 #### Wenn du Claude Code nutzt
 
 Claude Codes eingebautes `/goal` ist ein optionaler alternativer Starter für lange Läufe. Geben Sie die vollständige Protokollanfrage, Commit-Policy und messbare Abschlussbedingung gemeinsam an:
 
 ```text
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 `/goal` ohne Argumente zeigt den Status, `/goal clear` beendet den Lauf. Der Skill `memory-bank-goal` bleibt der mit Codex gemeinsam nutzbare portable Starter.

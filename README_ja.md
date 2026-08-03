@@ -2,7 +2,7 @@
 
 コーディングエージェントは、プロジェクトが自分自身を説明できるとき——これが何で、何が終わっていて、次が何か——うまく動きます。そのための一般的な方法は、CLI、スキャフォールド、スラッシュコマンド群、生成された成果物のフォルダといったシステムを丸ごと導入することです。半年後には、自分のコードと同じくらいそのシステムのファイルを保守していて、プロジェクトは自分の規約ではなくそのシステムの規約の中で生きています。
 
-このリポジトリは逆に賭けます。小さな markdown ファイル群をプロジェクトにコピーし、完全にあなたのものにします。必須のプロジェクト CLI や runtime はありません。任意のプラグインでファイルを生成し、任意の API runner で無人実行できますが、どちらもプロジェクトの依存関係にはなりません。
+このリポジトリは逆に賭けます。大半が markdown の小さなプレーンテキストファイル群をプロジェクトにコピーし、完全にあなたのものにします。必須のプロジェクト CLI や runtime はありません。任意のプラグインでファイルを生成し、任意の API runner で無人実行できますが、どちらもプロジェクトの依存関係にはなりません。
 
 **最終的に手に入るものはあなたのものです。** このリポジトリはコピー*元*となる出発点です。`template/` をプロジェクトへ、`harness/` は必要なら home ディレクトリへ。その後、プロジェクトはこのリポジトリに依存せず、リンクも残りません。
 
@@ -19,7 +19,8 @@ your-project/
 │   ├── architecture.md    レイアウト、データフロー、境界
 │   ├── tech-stack.md      コマンド、依存関係、検証方法
 │   ├── milestone.md       milestone と受け入れ基準
-│   └── status-M01.md      milestone ごとの永続ファイル、タスクごとに 1 行
+│   ├── status-M01.md      milestone ごとの永続ファイル、タスクごとに 1 行
+│   └── suggested.txt      破棄可能な複数 milestone 起動リファレンス
 └── evolution/             バージョン化された方向スナップショット
     ├── prompt-v1.md       初期方針
     └── result-v1.md       そこから生じた状態
@@ -349,14 +350,27 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
+`memory-bank-init` がプロジェクトを作成した場合、`STATUS_ORDER`、
+`STATUS_FILE_MAP`、`DOWNSTREAM_IMPACTS` を含む完全な提案リクエストを
+`memory-bank/suggested.txt` にも書きます。これは第 2 の roadmap ではなく
+起動用の一時的な参考です。`milestone.md` と現在の status ファイルに照合し、
+起動後または古くなった時点で削除してください。
+
+```text
+Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+COMMIT_POLICY: task
+```
+
 上のブロックは、どのエージェントにも通常の依頼として貼り付けられます。プラグインを入れた場合は、同じプロトコルを `/memory-bank:memory-bank-goal M01 -> S01 -> A01?`（Claude Code）または `$memory-bank:memory-bank-goal M01 -> S01 -> A01?`（Codex）で実行できます。skill ファイルを直接入れた場合は `/memory-bank-goal` と `$memory-bank-goal` です。
+
+引数なしで goal skill を実行すると、有効な `suggested.txt` を優先して照合し、解決済みの完全なリクエストを確認用に表示します。ファイルがない、または古い場合は `milestone.md` から順序を導出します。
 
 #### Claude Code を使う場合
 
 Claude Code の組み込み `/goal` は、長い実行のための任意の代替ランチャーです。完全なプロトコル依頼、commit 方針、測定可能な完了条件を一緒に渡します:
 
 ```text
-/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
+/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 引数なしの `/goal` で状態を表示し、`/goal clear` で停止します。`memory-bank-goal` skill は Codex と共有できる移植可能なランチャーです。
