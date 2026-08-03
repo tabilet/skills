@@ -44,21 +44,21 @@ Der Harness signalisiert jedes Ergebnis über seinen Exit-Code. Die Codes `3` bi
 
 | Code | Bedeutung |
 |---|---|
-| `0` | 実行可能な行が残っていません。作業なし。 |
-| `2` | `LLM_MODEL` が未設定、または `LLM_PROVIDER` が `openai`/`anthropic` ではありません。 |
-| `3` | blocked 行だけが残っています。人間による解除が必要です。 |
-| `4` | 実行前に worktree が clean ではありませんでした。先に commit か stash をしてください。 |
-| `5` | エージェントが未 commit の変更を残しました。 |
-| `6` | エージェントが commit を作りませんでした。空回りを防ぎます。 |
-| `7` | `MAX_RUNS` に達しました。 |
-| `10` | 対象リポジトリに `AGENTS.md` がありません。 |
-| `11` | `memory-bank/` がない、またはその中に `status-<LANE><NN>.md` がありません。 |
-| `12` | 対象パスが git worktree の中にありません。 |
-| `13` | git `HEAD` を読めませんでした。 |
-| `20` | API が HTTP エラーを返しました。 |
-| `21` | API に到達できませんでした。 |
-| `22` | API のレスポンス形式が想定と異なりました。 |
-| `30` | モデルが行を終えないまま `MAX_TURNS` を使い切りました。 |
+| `0` | Keine ausführbaren Zeilen mehr übrig. Nichts zu tun. |
+| `2` | `LLM_MODEL` nicht gesetzt oder `LLM_PROVIDER` ist weder `openai` noch `anthropic`. |
+| `3` | Nur noch blockierte Zeilen übrig. Ein Mensch muss sie entsperren. |
+| `4` | Der Worktree war vor einem Lauf nicht sauber. Erst committen oder stashen. |
+| `5` | Der Agent hat uncommitted changes hinterlassen. |
+| `6` | Der Agent hat keinen Commit erzeugt. Verhindert eine Endlosschleife. |
+| `7` | `MAX_RUNS` wurde erreicht. |
+| `10` | Kein `AGENTS.md` im Ziel-Repository. |
+| `11` | Kein `memory-bank/` oder keine `status-<LANE><NN>.md`-Dateien darin. |
+| `12` | Der Zielpfad liegt nicht in einem git worktree. |
+| `13` | Git `HEAD` konnte nicht gelesen werden. |
+| `20` | Die API hat einen HTTP-Fehler zurückgegeben. |
+| `21` | Die API war nicht erreichbar. |
+| `22` | Die API-Antwort entsprach nicht der erwarteten Form. |
+| `30` | Das Modell hat `MAX_TURNS` verbraucht, ohne eine Zeile abzuschließen. |
 
 Die Codes `10` bis `13` bedeuten, dass das Ziel-Repository noch nicht eingerichtet ist. `20` bis `22` sind Provider- oder Netzwerkprobleme, keine Projektprobleme.
 

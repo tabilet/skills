@@ -2,24 +2,27 @@
 
 编码智能体在项目能自我说明时表现更好——这是什么、做完了什么、接下来做什么。通常的做法是引入一整套系统：一个 CLI、一套脚手架、一组斜杠命令、一堆自动生成的产物。半年之后，你维护这套系统文件的精力不亚于维护自己的代码，项目活在它的约定里，而不是你的约定里。
 
-这个仓库押的是相反的方向。五六个 markdown 文件，复制进你的项目，完全归你所有。没有 CLI 要安装，没有词汇表要学，没有任何强制项。哪天某个文件不再值得保留，删掉就是。
+这个仓库押的是相反的方向：一小组 markdown 文件复制进项目后完全归你所有。项目没有必须安装的 CLI 或 runtime，也没有强制词汇。可选插件可以生成文件，可选 API runner 可以无人值守地执行状态行；两者都不会成为项目依赖。
 
 **最终得到的东西属于你。** 本仓库是一个供你往外复制的起点——把 `template/` 复制进你的项目，`harness/` 按需复制到你的主目录。之后你的项目既不依赖本仓库，也不与它保持任何关联。
 
-三个可选的斜杠命令可以替你完成复制和填写——见[安装这三个命令](#安装这三个命令)。它们不改变上面的取舍：它们*生成*的文件此后完全归你所有，之后不会再更新它们，卸载它们也不会动你的项目分毫。
+三个可选 skill 可以替你完成复制和填写——见[安装这三个命令](#安装这三个命令)。它们不改变上面的取舍：它们*生成*的文件此后完全归你所有，之后不会再更新它们，卸载它们也不会动你的项目分毫。
 
 你的项目最终会长成这样：
 
 ```text
 your-project/
 ├── AGENTS.md              智能体首先该读的文件
+├── GOAL.md                可选的多里程碑协议
 ├── memory-bank/           当前为真的内容
 │   ├── product.md         项目是什么、不是什么
 │   ├── architecture.md    目录布局、数据流、边界
 │   ├── tech-stack.md      命令、依赖、如何验证
 │   ├── milestone.md       里程碑及其验收标准
-│   └── status-M01.md      每个里程碑一个文件，每个任务一行
-└── evolution/             方向变化的原因与时间
+│   └── status-M01.md      每个里程碑一个永久文件，每个任务一行
+└── evolution/             版本化的方向快照
+    ├── prompt-v1.md       初始方向
+    └── result-v1.md       由此产生的状态
 ```
 
 *memory bank*（项目记忆库）这一说法由 [Cline](https://docs.cline.bot/best-practices/memory-bank) 推广开来；这里是同一想法的另一种实现，只用纯文件，不带任何运行时。
@@ -36,7 +39,7 @@ your-project/
 
 ## 快速开始
 
-**第一次接触？**[docs/TUTORIAL.md](docs/TUTORIAL.md) 用二十分钟把一个玩具项目从空目录带到第一次提交，其中的搭建工作由 `/memory-bank-init` 完成。README 的其余部分是参考资料——教程是贯穿它的引导路径。
+**第一次接触？**[docs/TUTORIAL.md](docs/TUTORIAL.md) 用二十分钟把一个玩具项目从空目录带到第一次提交，其中的搭建工作由 `memory-bank-init` 完成。README 的其余部分是参考资料——教程是贯穿它的引导路径。
 
 **使用项目记忆库只需要 `git`，别无其他。** 项目记忆库就是普通的 markdown，因此日常工作流——让 Codex、Claude Code 这类智能体去处理下一条待办——完全不需要任何运行时。
 
@@ -46,14 +49,15 @@ your-project/
 
 先克隆本仓库一次。下面所有 `cp` 命令中的 `/path/to/skills` 都指向你的这份克隆：
 
-**最快的方式完全不需要 clone。** 安装这三个命令，然后让 `/memory-bank-init` 向你提问并写出项目记忆库：
+**最快的方式完全不需要 clone。** 安装插件，然后让其中带命名空间的 init skill 向你提问并写出项目记忆库：
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
+/memory-bank:memory-bank-init
 ```
 
-在你的项目里运行 `/memory-bank-init`——空项目或已有项目都可以——然后回答它的问题。Codex 的等价做法和「直接用文件」的选项见[安装这三个命令](#安装这三个命令)。
+在 Claude Code 的项目里运行这些命令——空项目或已有项目都可以——然后回答问题。Codex 的等价做法和「直接用文件」的选项见[安装这三个命令](#安装这三个命令)。
 
 如果想手工处理这些文件，先把本仓库 clone 一次。下面所有 `cp` 命令中的 `/path/to/skills` 都指你的这份 clone：
 
@@ -78,18 +82,18 @@ cd skills
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
 - [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
-用户账号级示例文件：
+可选 API runner 及其仅供仓库参考的人类可读指令副本：
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-三个斜杠命令，位于 [skills/](skills/)。Claude Code 和 Codex 读取同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
+三个 skill 位于 [skills/](skills/)。Claude Code 和 Codex 读取同一种 `SKILL.md` 格式，因此每个 skill 只有一份源文件：
 
 - [memory-bank-init](skills/memory-bank-init/SKILL.md)
 - [memory-bank-next](skills/memory-bank-next/SKILL.md)
 - [memory-bank-goal](skills/memory-bank-goal/SKILL.md)
 
-`.claude-plugin/` 存放清单文件，使上述命令可以作为 Claude Code 插件安装。`template/` 里没有任何特定厂商的文件。
+`.claude-plugin/` 存放兼容清单，使同一个插件可以安装到 Claude Code 和 Codex。`template/` 里没有任何特定厂商的文件。
 
 Harness 参考：
 
@@ -160,7 +164,7 @@ succeeds against the staging payment sandbox.
 
 ## 为新项目设置
 
-如果你安装了[这三个命令](#安装这三个命令)，`/memory-bank-init` 可以完成本节的全部工作：它向你提问，提出线与里程碑的方案，等你认可，然后写出已经填好的文件。下面两条路径是同样的工作，只是手工完成。
+如果你安装了[这三个命令](#安装这三个命令)，`memory-bank-init` 可以完成本节的全部工作：它向你提问，提出线与里程碑的方案，等你认可，然后写出已经填好的文件。下面两条路径是同样的工作，只是手工完成。
 
 ### 手动设置
 
@@ -234,7 +238,7 @@ the first actionable milestone rows.
 
 ## 为已有项目设置
 
-`/memory-bank-init` 同样适用于这种情况，而且比一句冷启动的提示词做得更好：它会读取仓库里已经写明的内容——README、测试、构建与 CI 文件——只就那些无法从中得知的决策向你提问，通常是非目标、边界，以及工作顺序。
+`memory-bank-init` 同样适用于这种情况，而且比一句冷启动的提示词做得更好：它会读取仓库里已经写明的内容——README、测试、构建与 CI 文件——只就那些无法从中得知的决策向你提问，通常是非目标、边界，以及工作顺序。
 
 ### 手动设置
 
@@ -290,14 +294,14 @@ Do not invent product direction that is not supported by the existing project.
 
 ## 使用项目记忆库
 
-围绕项目记忆库执行工作有三种方式，而且都是可选的——项目记忆库本身就是普通 markdown，单独用也成立：
+围绕项目记忆库执行工作有四种方式，而且都是可选的——项目记忆库本身就是普通 markdown，单独用也成立：
 
 | 执行方式 | 范围 | 需要 |
 |---|---|---|
 | 直接对智能体提出请求 | 一次一条状态行，你在回路里 | 无 |
-| [`/memory-bank-next`](#安装这三个命令) | 同上，但携带完整指令而不是你的转述 | 这三个命令 |
+| [`memory-bank-next`](#安装这三个命令) | 同上，但携带完整指令而不是你的转述 | 可选 skills |
 | [API harness](#安装-api-harness) | 每次运行一条状态行，无人值守 | Python 3 |
-| [目标循环](#按顺序执行多个里程碑) | 按顺序执行多个里程碑 | 一个 `/goal` 命令 |
+| [目标循环](#按顺序执行多个里程碑) | 按顺序执行多个里程碑 | `GOAL.md` 与普通请求或可选 skill |
 
 使用 Codex 或 Claude Code 这类智能体时，用户侧的操作可以很简单，例如：
 
@@ -342,8 +346,6 @@ tackle next pending item in memory bank
 
 上面的流程一次推进一条状态行。如果要按既定顺序走完多个里程碑，[GOAL.md](template/GOAL.md) 是可选的一种协议：它在每个里程碑开始前核对依赖，在某个里程碑收尾后核对其下游里程碑，并在缺少决策或授权时停下来而不是猜测。
 
-它是被调用的，不是常驻的。Codex 和 Claude Code 都提供 `/goal` 命令——Claude Code 的版本会跨多轮持续工作，直到目标条件达成——请求里写明文件和顺序：
-
 它是被调用的，不是常驻的。无论你用哪个智能体，启动一次运行的请求都是同一段内容——写明文件、顺序和 commit 策略：
 
 ```text
@@ -353,45 +355,27 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-发送这段内容的方式各不相同，因为 `/goal` 在不同智能体里并不是同一个命令。请看你所用智能体对应的小节。
+你可以把上面的内容作为普通请求粘贴给任何智能体。安装插件后，也可以用相同协议的命名空间 skill：Claude Code 使用 `/memory-bank:memory-bank-goal M01 -> S01 -> A01?`，Codex 使用 `$memory-bank:memory-bank-goal M01 -> S01 -> A01?`。直接安装的 skill 分别使用 `/memory-bank-goal` 和 `$memory-bank-goal`。
 
 #### 如果你用 Claude Code
 
-`/goal` 是内置命令，但它**不是**用来启动任务的。它设置的是一个停止条件——“Claude 在停下之前会检查的目标”——因此会话会跨多轮持续工作，而不是回复一次就结束。
-
-所以需要两条消息。先把上面那段内容作为普通消息发出去，然后设置判断这次运行何时结束的条件：
+Claude Code 内置的 `/goal` 是长任务的可选替代启动方式。一次性给出完整协议请求、commit 策略和可衡量的完成条件：
 
 ```text
-/goal every row in M01 and S01 is `[+]` and the required verification passes
+/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
 ```
 
-`/goal active` 查看当前条件，`/goal clear` 提前结束。条件上限为 4000 个字符，需要受信任的工作区，并且当 hooks 被设置或策略禁用时不可用。
-
-如果想让这段内容本身可复用，把它存成项目命令——但不要叫 `.claude/commands/goal.md`，因为这个名字被内置命令占用了。改名为 `.claude/commands/milestones.md`，用 `/milestones` 调用。
+不带参数运行 `/goal` 可查看状态，`/goal clear` 可停止。`memory-bank-goal` skill 仍是与 Codex 共用的可移植启动方式。
 
 #### 如果你用 Codex
 
-Codex 没有内置的 `/goal`。自定义提示词是 `~/.codex/prompts/` 下的 markdown 文件，按文件名调用，所以你可以自己创建这个命令，并让它把顺序作为参数接收。写入 `~/.codex/prompts/goal.md`：
-
-```markdown
----
-description: Execute an ordered set of milestones using GOAL.md.
-argument-hint: M01 -> S01 -> A01?
----
-
-Using GOAL.md, execute this loop.
-
-STATUS_ORDER: $ARGUMENTS
-COMMIT_POLICY: task
-```
-
-然后一条消息即可运行：
+直接调用插件 skill：
 
 ```text
-/goal M01 -> S01 -> A01?
+$memory-bank:memory-bank-goal M01 -> S01 -> A01?
 ```
 
-这与随包提供的 [tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md) 提示词是同一套机制，安装到同一个目录。
+如果直接安装 skill 文件，则使用 `$memory-bank-goal M01 -> S01 -> A01?`。Codex 自定义提示词已经弃用，应改用 skill，因此本仓库不再安装或推荐独立的 `goal.md` 提示词。
 
 #### 其他智能体
 
@@ -403,7 +387,7 @@ COMMIT_POLICY: task
 
 `GOAL.md` 不包含任何项目专有路径、状态线字母或命令。它从 `AGENTS.md` 和项目记忆库中读取这些内容，因此同一份文件可以原样用于任何复制了它的项目。
 
-没有任何地方要求你使用它。`/goal` 是你的智能体提供的命令，不属于这套 harness——你可以带上自己的协议，或者干脆不用，项目记忆库的行为完全一样。之所以提供 `GOAL.md`，只是因为这类协议写起来比较琐碎，而不是因为这里的任何东西依赖它。如果你有自己的协议，把提到 `GOAL.md` 的两处——`AGENTS.md` 和 `memory-bank/milestone.md`——指向它，或者直接删掉。
+没有任何地方要求你使用它。你可以带上自己的协议，或者干脆不用，项目记忆库的行为完全一样。之所以提供 `GOAL.md`，只是因为这类协议写起来比较琐碎，而不是因为这里的任何东西依赖它。如果你有自己的协议，把提到 `GOAL.md` 的两处——`AGENTS.md` 和 `memory-bank/milestone.md`——指向它，或者直接删掉。
 
 ## 安装这三个命令
 
@@ -411,11 +395,11 @@ COMMIT_POLICY: task
 
 | 命令 | 何时使用 |
 |---|---|
-| `/memory-bank-init` | 一次性：项目还没有 `memory-bank/` 时。它会向你提问、提出拆分方案，然后写入文件。 |
-| `/memory-bank-next` | 日常：处理一行、验证、提交。 |
-| `/memory-bank-goal` | 想按顺序执行多个里程碑时。 |
+| `memory-bank-init` | 一次性：项目还没有 `memory-bank/` 时。它会向你提问、提出拆分方案，然后写入文件。 |
+| `memory-bank-next` | 日常：处理一行、验证、提交。 |
+| `memory-bank-goal` | 想按顺序执行多个里程碑时。 |
 
-`/memory-bank-init` 带来的改变最大：它一次只问一个问题并附上推荐答案，凡是能从仓库里读到的都自己查而不问你，并且在你认可拆分方案之前不写任何文件。你不会看到任何方括号占位符——项目记忆库交付时就是填好的。（提问技巧改编自 [mattpocock/skills](https://github.com/mattpocock/skills) 的 `grilling` skill，MIT 许可。）
+`memory-bank-init` 带来的改变最大：它一次只问一个问题并附上推荐答案，凡是能从仓库里读到的都自己查而不问你，并且在你认可拆分方案之前不写任何文件。你不会看到任何方括号占位符——项目记忆库交付时就是填好的。（提问技巧改编自 [mattpocock/skills](https://github.com/mattpocock/skills) 的 `grilling` skill，MIT 许可。）
 
 两种智能体读取的是同一种 `SKILL.md` 格式，因此每个命令只有一份源文件：
 
@@ -437,15 +421,22 @@ codex plugin add memory-bank@tabilet
 
 当插件名在你已配置的多个 marketplace 中不唯一时，Codex 要求带上 `@marketplace` 限定，因此值得记住 `memory-bank@tabilet` 这种写法。有新版本发布时，用 `codex plugin marketplace upgrade` 刷新快照。
 
-**两者的调用方式不同。** Claude Code 把它们注册为斜杠命令——`/memory-bank-init`。Codex 把它们注册为按名称调用的 skill，所以不要加斜杠，直接说：*“use the memory-bank-init skill”*。普通英语句子在两者中都有效，而这本来就是项目记忆库所依赖的方式。
+**插件安装使用命名空间。** Claude Code 使用 `/memory-bank:memory-bank-init`、`/memory-bank:memory-bank-next` 和 `/memory-bank:memory-bank-goal`；Codex 使用 `$memory-bank:memory-bank-init`、`$memory-bank:memory-bank-next` 和 `$memory-bank:memory-bank-goal`。两者都仍然支持普通英语请求。
 
 **两种智能体都可以改为把它们当作你自己的文件**，而不是受管理的插件：
 
 ```bash
-mkdir -p ~/.codex/skills            # or ~/.claude/skills
+mkdir -p ~/.agents/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
+  | tar -xz --strip-components=2 -C ~/.agents/skills 'skills-main/skills'
+
+# Claude Code alternative
+mkdir -p ~/.claude/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=2 -C ~/.claude/skills 'skills-main/skills'
 ```
+
+直接安装 skill 文件时不带命名空间：Claude Code 使用 `/memory-bank-init`，Codex 使用 `$memory-bank-init`，另外两个 skill 依此类推。
 
 想固定版本，把 `refs/heads/main` 换成 `refs/tags/<版本号>`，并把 `skills-main` 改成 `skills-<版本号>`，与该 tarball 内的目录名保持一致。
 
@@ -457,23 +448,24 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 
 但会话一结束，那份共识也随之消失。磁盘上没有任何东西，明天的智能体接不上，也没有可以执行的对象。
 
-`/memory-bank-init` 是同一套访谈方法，只不过指向一份会留存下来的产物——一次只问一个问题，每个问题都附带推荐答案，能查到的事实自己查而不问。请在**同一个会话里，紧接着 grill 之后**运行它：
+`memory-bank-init` 是同一套访谈方法，只不过指向一份会留存下来的产物——一次只问一个问题，每个问题都附带推荐答案，能查到的事实自己查而不问。请在**同一个会话里，紧接着 grill 之后**运行它：
 
 ```text
 /grill-me            # explore the design; no files written
-/memory-bank-init    # turn those decisions into a memory bank
+/memory-bank:memory-bank-init    # Claude Code plugin
+$memory-bank:memory-bank-init    # Codex plugin
 ```
 
 它不会重复问你已经确定的事。「能查的事实自己查，决策才问你」同样适用于对话本身，而不只是仓库，所以刚做完 grill 之后的访谈会很短——大多只是确认一份线与里程碑的拆分方案。
 
-| | `/grill-me` 之后 | `/memory-bank-init` 之后 |
+| | `/grill-me` 之后 | `memory-bank-init` 之后 |
 |---|---|---|
 | 决策存放在哪里 | 对话里 | `product.md`、`architecture.md`、`tech-stack.md` |
 | 明天的智能体 | 从零开始 | 读 `AGENTS.md` 就知道 |
 | 下一步做什么 | 你来决定 | 下一条 `` `[ ]` `` 状态行 |
-| 怎么执行 | — | `/memory-bank-next`，或用 `/memory-bank-goal` 跑一组 |
+| 怎么执行 | — | `memory-bank-next`，或用 `memory-bank-goal` 跑一组 |
 
-两者是互补的，不是竞争关系。那些不产出项目的决策——架构上的争论、招聘计划、演讲提纲——继续用 `/grill-me`。当你 grill 的对象是一个下周还得知道自己是什么的代码库时，就该用 `/memory-bank-init`。
+两者是互补的，不是竞争关系。那些不产出项目的决策——架构上的争论、招聘计划、演讲提纲——继续用 `/grill-me`。当你 grill 的对象是一个下周还得知道自己是什么的代码库时，就该用 `memory-bank-init`。
 
 ## 安装 API Harness
 
@@ -482,9 +474,8 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 API harness 是账号级工具，因为它可以驱动任何采用这套项目记忆库结构的仓库。 它只需要 Python 3。
 
 ```bash
-mkdir -p ~/.local/bin ~/.codex/prompts
+mkdir -p ~/.local/bin
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
-cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 ```
 
@@ -497,13 +488,13 @@ export PATH="$HOME/.local/bin:$PATH"
 只运行一条状态行：
 
 ```bash
-LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
 循环运行多条状态行：
 
 ```bash
-LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```
 
 使用兼容 OpenAI API 的服务商：
@@ -511,7 +502,7 @@ LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```bash
 LLM_API_BASE=https://openrouter.ai/api/v1 \
 LLM_API_KEY=... \
-LLM_MODEL=openai/gpt-5.5 \
+LLM_MODEL=openai/gpt-5.6 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -535,7 +526,9 @@ MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
 
-这个 harness 会把任务说明直接嵌入 API 提示词。它不调用 Codex CLI，运行时也不依赖外部提示词文件。仓库中保留提示词文件，是为了给开发者和智能体提供可复用参考。
+这个 harness 会把任务说明直接嵌入 API 提示词。它不调用 Codex CLI，运行时也不依赖外部提示词文件。仓库中保留提示词文件，是为了与嵌入指令保持一致的人类可读副本；不会把它安装到 Codex 提示词目录。
+
+模型名称会变化。示例使用当前的 `gpt-5.6` family alias 和 `claude-opus-5`；真实运行前请查看官方 [OpenAI model catalog](https://developers.openai.com/api/docs/models) 与 [Anthropic model catalog](https://platform.claude.com/docs/en/about-claude/models/overview)。
 
 ### 第一次运行
 

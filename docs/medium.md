@@ -19,13 +19,14 @@ The bet is that a *small* operating manual humans and agents read together beats
 - a versioned record for when direction actually changes,
 - and a way to advance work one verified step at a time.
 
-That's it. No CLI. No methodology. No slash-command vocabulary. **Nothing is mandatory.** You bring the files into your project once, fill in the placeholders, and stop when the manual reflects your work. The files end up as yours — editable, deletable, replaceable whenever you want.
+That's it. No mandatory project CLI, runtime, methodology, or command surface. **Nothing is mandatory.** You bring the files into your project once, fill in the placeholders, and stop when the manual reflects your work. Optional skills can generate the files and an optional API runner can execute them, but the files end up as yours — editable and replaceable whenever you want.
 
 ## What's in the box
 
 Project-level files you drop into a repo:
 
 - **`AGENTS.md`** — the bootstrap pointer. Short. Tells the agent what to read and in what order.
+- **`GOAL.md`** — an optional portable protocol for ordered multi-milestone runs.
 - **`memory-bank/`** — the current source of truth.
   - `product.md` — what this is, who uses it, what it isn't.
   - `architecture.md` — layout, data flow, ownership boundaries.
@@ -37,7 +38,9 @@ Project-level files you drop into a repo:
 Account-level files, optional:
 
 - `harness/tackle-memory-bank-api-loop` — a Python runner that drives any OpenAI- or Anthropic-compatible model. Installs to `~/.local/bin/`.
-- `harness/prompts/tackle-next-memory-bank-todo.md` — the same instruction the runner embeds, kept as a reusable reference. Installs to `~/.codex/prompts/`.
+- `harness/prompts/tackle-next-memory-bank-todo.md` — the same instruction the runner embeds, retained in the repository as its human-readable duplicate rather than installed as a custom prompt.
+
+The repository also packages three optional skills — `memory-bank-init`, `memory-bank-next`, and `memory-bank-goal` — as one plugin for Claude Code and Codex. Plugin invocations are namespaced: `/memory-bank:memory-bank-next` in Claude Code and `$memory-bank:memory-bank-next` in Codex. Plain-file installs remain unnamespaced.
 
 ## Bootstrapping — with a little help from your agent
 
@@ -49,13 +52,15 @@ Setting up the harness once is a small upfront step, and you don't have to do it
 
 Think of this first pass as a kind of constitution for the project: it establishes what the project is, what it owns, what it isn't, and what comes next. **It does not need to be perfect.** A rough draft is enough to start working. The memory bank is *mutable* — as the project changes, `product.md`, `architecture.md`, and `tech-stack.md` are updated in the same commit as the code that changed them. The `evolution/` folder is reserved for the rare moments when direction actually shifts. The harness and the project it describes evolve together; you're not committing to a fixed snapshot, and you're not stuck living with the first draft's mistakes.
 
-## No slash commands. On purpose.
+## No mandatory command surface. On purpose.
 
 The day-to-day workflow is one sentence:
 
 > *tackle next pending item in memory bank*
 
-That's the whole interface. No `/specify`, no `/plan`, no `/tasks`, no learned vocabulary. The harness doesn't own your prompt surface, because slash commands are an *interface* opinion — they tie you to whichever agent implements them. Plain English is portable: type it into Claude Code, paste it into Codex, send it as an API call, or build your own UI on top. Same result.
+That can be the whole interface. No `/specify`, no `/plan`, no `/tasks`, no learned vocabulary. Plain English is portable: type it into Claude Code, paste it into Codex, send it as an API call, or build your own UI on top. The optional plugin exists for people who prefer a repeatable named workflow; it does not replace the file-owned interface.
+
+There are four execution choices: type the plain-English request, invoke `memory-bank-next`, run the API harness one row at a time, or hand `GOAL.md` an ordered set of milestones through `memory-bank-goal` or an ordinary request. The memory bank underneath does not care which one you chose.
 
 Under the surface, the loop is:
 
@@ -71,7 +76,7 @@ Each row is a commit unit. That's the only commit discipline this asks for, and 
 
 ## The bundled runner — optional, multi-provider
 
-`tackle-memory-bank-api-loop` is a ~540-line Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
+`tackle-memory-bank-api-loop` is a dependency-free Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
 
 It checks the worktree is clean before each run, blocks a short list of catastrophic commands (`git reset --hard`, `git clean -fd`, `rm -rf /`, `sudo`), requires the model to commit if it modified files, and stops on the first sign that something needs human attention — only blocked rows left, uncommitted changes, no commit made, no actionable rows left.
 
@@ -83,9 +88,9 @@ You can use it for one row, for an unattended loop, for evaluations across model
 
 One row at a time is the default granularity, and for most work it's the right one. When you do want to run several milestones in a defined order — a release, a migration, a sequence with real dependencies between its parts — `GOAL.md` describes that loop: reconcile before each milestone, implement its task units, verify and deep-review, reconcile the milestones downstream of the one that just closed, then continue or stop.
 
-It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. It is one markdown file, it is invoked rather than always-on, and it introduces no directories, no artifacts, and no commands you have to learn beyond the `/goal` your agent already ships. It carries no project-specific paths or lane names either — it reads those from `AGENTS.md` and the memory bank, which is why the same file works unchanged across projects.
+It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. It is one markdown file, it is invoked rather than always-on, and it introduces no directories or generated artifacts. Paste a complete `Using GOAL.md` request, or use the optional `memory-bank-goal` skill. It carries no project-specific paths or lane names either — it reads those from `AGENTS.md` and the memory bank, which is why the same file works unchanged across projects.
 
-So: three ways to execute, none of them required. Type a request and stay in the loop. Run the script unattended for one row at a time. Or hand over an ordered set of milestones. The memory bank underneath doesn't know or care which you chose — that's the property worth protecting.
+So: four ways to execute, none of them required. Type a request and stay in the loop. Invoke the optional one-row skill. Run the script unattended. Or hand over an ordered set of milestones. The memory bank underneath doesn't know or care which you chose — that's the property worth protecting.
 
 ## Under control
 
@@ -93,7 +98,7 @@ The unifying property across every part of this system is that *you* own the fil
 
 - `memory-bank/architecture.md` is rewritten as reality changes. There's no history of stale architecture docs to maintain.
 - `evolution/` versions are rare by design. You add one when direction really shifted — not on every feature.
-- Status rows are simple checkboxes that close out when milestones close. Old `status-<LANE><NN>.md` files can stay or go; nothing depends on preserving them.
+- Status rows are simple checkboxes that can evolve while pending. Once a status ID and file exist, they remain as the durable milestone record and are never renamed or reused.
 - There are no per-feature spec folders, so the repo doesn't grow a graveyard of historical artifacts that no longer match the code.
 
 The AI's job is to help you advance the project — bootstrap the harness from your notes, pick the next row, do the work, update the memory bank, commit. Your job is to know what the project is and to course-correct when the agent drifts. The harness sits in between, light enough that you can throw it out whenever you want.

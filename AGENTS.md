@@ -31,8 +31,8 @@ the file:
 |---|---|
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
 | `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/GOAL.md` are byte-identical. |
-| `harness/` | Account payload, installed into `~/.local/bin` and `~/.codex/prompts`. |
-| `skills/` | The three slash commands, one `SKILL.md` each. **Must stay at the repository root** — see below. |
+| `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
+| `skills/` | The three optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
 | `docs/`, `README*.md`, `AGENTS.md` | This repository's own documentation. |
 
@@ -95,7 +95,7 @@ cp -R template/. /tmp/scratch-project/
 ```
 
 `check.py` enforces the hard rules below so they are not left to memory. It runs
-the fourteen invariants this repository has actually broken at least once —
+the fifteen invariants this repository has actually broken at least once —
 identical `GOAL.md` copies, the `EMBEDDED_TASK` duplicate, the skill manifest
 and its `SKILL.md` twin, the generator agreeing with `template/`, the plugin
 version against the tags, explicit `COMMIT_POLICY` in every `GOAL.md`
@@ -191,9 +191,6 @@ commands, code blocks, and example prompts stay in English.
 Section links differ per language: heading anchors are slugified from the
 translated heading, so `docs/EXECUTION_cn.md#退出码` is correct where the
 English is `#exit-codes`. Check anchors, not just filenames, when adding links.
-
-Known gap, pre-existing: the localized READMEs are missing the Anthropic
-provider section and the language-version links that `README.md` carries.
 
 ## Hard Rules
 

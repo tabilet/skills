@@ -2,24 +2,27 @@
 
 Los agentes de código trabajan mejor cuando un proyecto sabe explicarse: qué es, qué está hecho, qué viene después. La forma habitual de conseguirlo es adoptar un sistema: un CLI, un scaffold, un conjunto de comandos slash, una carpeta de artefactos generados. Seis meses después mantiene los archivos de ese sistema tanto como su propio código, y su proyecto vive dentro de las convenciones de ese sistema en lugar de las suyas.
 
-Este repositorio apuesta por lo contrario. Cinco o seis archivos markdown, copiados a su proyecto, suyos por completo. Ningún CLI que instalar, ningún vocabulario que aprender, nada obligatorio. Borre cualquiera de ellos el día en que deje de merecer su sitio.
+Este repositorio apuesta por lo contrario: un pequeño conjunto de archivos markdown, copiado a su proyecto y suyo por completo. No hay ningún CLI ni runtime de proyecto obligatorio. Los plugins opcionales pueden generar los archivos y un runner API opcional puede ejecutar filas sin supervisión; ninguno se convierte en dependencia del proyecto.
 
 **Lo que acaba teniendo es suyo.** Este repositorio es un punto de partida del que se copia *hacia fuera*: `template/` a su proyecto, `harness/` opcionalmente a su directorio personal. Después, su proyecto no depende de este repositorio ni mantiene ningún vínculo con él.
 
-Tres comandos slash opcionales pueden hacer la copia y el rellenado por usted — vea [Instalar los tres comandos](#instalar-los-tres-comandos). No cambian nada de la apuesta anterior: *generan* archivos que después son suyos, nunca los actualizan, y desinstalarlos deja su proyecto intacto.
+Tres skills opcionales pueden hacer la copia y el rellenado por usted — vea [Instalar los tres comandos](#instalar-los-tres-comandos). No cambian nada de la apuesta anterior: *generan* archivos que después son suyos, nunca los actualizan, y desinstalarlos deja su proyecto intacto.
 
 Su proyecto acaba con este aspecto:
 
 ```text
 your-project/
 ├── AGENTS.md              lo que un agente debe leer primero
+├── GOAL.md                protocolo multi-milestone opcional
 ├── memory-bank/           lo que es cierto ahora
 │   ├── product.md         qué es y qué no es
 │   ├── architecture.md    estructura, flujo de datos, fronteras
 │   ├── tech-stack.md      comandos, dependencias, verificación
 │   ├── milestone.md       milestones y criterios de aceptación
-│   └── status-M01.md      un archivo por milestone, una fila por tarea
-└── evolution/             por qué cambió la dirección
+│   └── status-M01.md      un archivo permanente por milestone, una fila por tarea
+└── evolution/             instantáneas de dirección versionadas
+    ├── prompt-v1.md       la dirección inicial
+    └── result-v1.md       el estado resultante
 ```
 
 El término *memory bank* lo popularizó [Cline](https://docs.cline.bot/best-practices/memory-bank); esto es otra implementación de la misma idea, en archivos simples y sin runtime.
@@ -30,7 +33,7 @@ Otras versiones de idioma: [🇬🇧 English](README.md) · [🇨🇳 中文](RE
 
 ## Primeros pasos
 
-**¿Nuevo en esto?** [docs/TUTORIAL.md](docs/TUTORIAL.md) lleva un proyecto de juguete de un directorio vacío a un primer commit en veinte minutos, dejando la puesta en marcha a `/memory-bank-init`. El resto de este README es referencia; el tutorial es el recorrido guiado por él.
+**¿Nuevo en esto?** [docs/TUTORIAL.md](docs/TUTORIAL.md) lleva un proyecto de juguete de un directorio vacío a un primer commit en veinte minutos, dejando la puesta en marcha a `memory-bank-init`. El resto de este README es referencia; el tutorial es el recorrido guiado por él.
 
 **Para usar el memory bank necesita `git`, y nada más.** El memory bank es markdown corriente, así que el flujo diario —pedirle a un agente como Codex o Claude Code que atienda el siguiente pendiente— no necesita ningún runtime.
 
@@ -40,14 +43,15 @@ Las instrucciones para proyectos existentes, más abajo, también usan [ripgrep]
 
 Clone este repositorio una vez. Cada comando `cp` de abajo se refiere a su clon como `/path/to/skills`:
 
-**El camino más rápido no necesita clonar nada.** Instale los tres comandos y deje que `/memory-bank-init` le entreviste y escriba la memory bank:
+**El camino más rápido no necesita clonar nada.** Instale el plugin y deje que su skill init namespaced le entreviste y escriba la memory bank:
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
+/memory-bank:memory-bank-init
 ```
 
-Ejecute `/memory-bank-init` en su proyecto —vacío o existente— y responda a sus preguntas. El equivalente en Codex y la opción de archivos sueltos están en [Instalar los tres comandos](#instalar-los-tres-comandos).
+Ejecute estos comandos en Claude Code desde su proyecto —vacío o existente— y responda a las preguntas. El equivalente en Codex y la opción de archivos sueltos están en [Instalar los tres comandos](#instalar-los-tres-comandos).
 
 Para trabajar directamente con los archivos, clone este repositorio una vez. Cada comando `cp` de abajo se refiere a su clon como `/path/to/skills`:
 
@@ -72,18 +76,18 @@ Archivos de ejemplo a nivel de proyecto:
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
 - [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
-Archivos de ejemplo a nivel de cuenta de usuario:
+El runner API opcional y su copia legible de la instrucción, conservada solo en el repositorio:
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-Los tres comandos slash están en [skills/](skills/). Claude Code y Codex leen el mismo formato `SKILL.md`, así que hay una sola fuente por comando:
+Los tres skills están en [skills/](skills/). Claude Code y Codex leen el mismo formato `SKILL.md`, así que hay una sola fuente por skill:
 
 - [memory-bank-init](skills/memory-bank-init/SKILL.md)
 - [memory-bank-next](skills/memory-bank-next/SKILL.md)
 - [memory-bank-goal](skills/memory-bank-goal/SKILL.md)
 
-`.claude-plugin/` contiene los manifiestos que permiten instalarlos como plugin de Claude Code. Nada en `template/` es específico de un proveedor.
+`.claude-plugin/` contiene el manifiesto de compatibilidad que permite instalar el mismo plugin en Claude Code y Codex. Nada en `template/` es específico de un proveedor.
 
 Referencias de harness:
 
@@ -154,7 +158,7 @@ Después `memory-bank/status-S01.md` lleva las filas de ese milestone:
 
 ## Configurar un proyecto nuevo
 
-Si instaló [los tres comandos](#instalar-los-tres-comandos), `/memory-bank-init` hace todo lo de esta sección: le entrevista, propone carriles y milestones, espera su aprobación y luego escribe los archivos ya rellenados. Las dos rutas de abajo son el mismo trabajo hecho a mano.
+Si instaló [los tres comandos](#instalar-los-tres-comandos), `memory-bank-init` hace todo lo de esta sección: le entrevista, propone carriles y milestones, espera su aprobación y luego escribe los archivos ya rellenados. Las dos rutas de abajo son el mismo trabajo hecho a mano.
 
 ### Manual
 
@@ -228,7 +232,7 @@ the first actionable milestone rows.
 
 ## Configurar un proyecto existente
 
-`/memory-bank-init` también cubre este caso, y mejor que un prompt en frío: lee lo que el repositorio ya dice —README, pruebas, archivos de build y CI— y solo le pregunta por las decisiones que esos no revelan, normalmente los no-objetivos, los límites y el orden del trabajo.
+`memory-bank-init` también cubre este caso, y mejor que un prompt en frío: lee lo que el repositorio ya dice —README, pruebas, archivos de build y CI— y solo le pregunta por las decisiones que esos no revelan, normalmente los no-objetivos, los límites y el orden del trabajo.
 
 ### Manual
 
@@ -284,14 +288,14 @@ El agente debe:
 
 ## Usar el Memory Bank
 
-Hay tres formas de ejecutar trabajo sobre el memory bank, y todas son opcionales: el memory bank es markdown corriente y funciona por sí solo:
+Hay cuatro formas de ejecutar trabajo sobre el memory bank, y todas son opcionales: el memory bank es markdown corriente y funciona por sí solo:
 
 | Forma de ejecutar | Alcance | Necesita |
 |---|---|---|
 | Escribirle una petición a su agente | Una fila cada vez, con usted en el bucle | Nada |
-| [`/memory-bank-next`](#instalar-los-tres-comandos) | Lo mismo, con la instrucción completa en vez de su paráfrasis | Los tres comandos |
+| [`memory-bank-next`](#instalar-los-tres-comandos) | Lo mismo, con la instrucción completa en vez de su paráfrasis | Los skills opcionales |
 | [El harness API](#instalar-el-api-harness) | Una fila por ejecución, desatendido | Python 3 |
-| [Un bucle de goal](#ejecutar-varios-milestones-en-orden) | Varios milestones en orden | Un comando `/goal` |
+| [Un bucle de goal](#ejecutar-varios-milestones-en-orden) | Varios milestones en orden | `GOAL.md` y una petición normal o un skill opcional |
 
 Con un agente como Codex o Claude Code, el flujo de trabajo visible para el usuario puede ser tan simple como escribir:
 
@@ -336,8 +340,6 @@ Las filas de estado usan estos marcadores:
 
 El flujo anterior avanza una fila cada vez. Para recorrer varios milestones en un orden definido, [GOAL.md](template/GOAL.md) es un protocolo posible para eso: concilia las dependencias antes de cada milestone, concilia los milestones posteriores al que acaba de cerrarse y se detiene en vez de adivinar cuando falta una decisión o una autorización.
 
-Se invoca, no está siempre activo. Codex y Claude Code ofrecen un comando `/goal` —el de Claude Code sigue trabajando entre turnos hasta que se cumple la condición del goal— y la petición nombra el archivo y el orden:
-
 Se invoca, no está siempre activo. Sea cual sea tu agente, la petición que inicia una ejecución es el mismo bloque: nombra el archivo, el orden y la política de commits:
 
 ```text
@@ -347,45 +349,27 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-Cómo envías ese bloque cambia, porque `/goal` no es el mismo comando en todos los agentes. Usa la sección del tuyo.
+Puedes pegar el bloque anterior como una petición normal en cualquier agente. Con el plugin, el mismo protocolo se inicia mediante `/memory-bank:memory-bank-goal M01 -> S01 -> A01?` en Claude Code o `$memory-bank:memory-bank-goal M01 -> S01 -> A01?` en Codex. Los skills instalados directamente usan `/memory-bank-goal` y `$memory-bank-goal`.
 
 #### Si usas Claude Code
 
-`/goal` está integrado y **no** es una forma de iniciar una tarea. Define una condición de parada —«un objetivo que Claude comprueba antes de detenerse»—, de modo que la sesión sigue trabajando a lo largo de varios turnos en vez de terminar tras una respuesta.
-
-Por eso hacen falta dos mensajes. Envía el bloque anterior como un mensaje normal y luego define la condición que decide cuándo termina la ejecución:
+El `/goal` integrado de Claude Code es un lanzador alternativo opcional para una ejecución larga. Incluye a la vez la petición completa del protocolo, la política de commits y una condición de finalización medible:
 
 ```text
-/goal every row in M01 and S01 is `[+]` and the required verification passes
+/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
 ```
 
-`/goal active` muestra la condición actual y `/goal clear` la termina antes de tiempo. La condición está limitada a 4000 caracteres, necesita un espacio de trabajo de confianza y no está disponible cuando los hooks están desactivados por configuración o por política.
-
-Para que el bloque en sí sea reutilizable, guárdalo como comando de proyecto, pero no como `.claude/commands/goal.md`, porque ese nombre lo ocupa el comando integrado. Llámalo `.claude/commands/milestones.md` e invócalo con `/milestones`.
+Ejecuta `/goal` sin argumentos para ver su estado y `/goal clear` para detenerlo. El skill `memory-bank-goal` sigue siendo el lanzador portable compartido con Codex.
 
 #### Si usas Codex
 
-No hay un `/goal` integrado. Los prompts personalizados son archivos markdown en `~/.codex/prompts/`, invocados por su nombre de archivo, así que puedes crear el comando tú mismo y hacer que reciba el orden como argumento. Crea `~/.codex/prompts/goal.md`:
-
-```markdown
----
-description: Execute an ordered set of milestones using GOAL.md.
-argument-hint: M01 -> S01 -> A01?
----
-
-Using GOAL.md, execute this loop.
-
-STATUS_ORDER: $ARGUMENTS
-COMMIT_POLICY: task
-```
-
-Entonces un solo mensaje lo ejecuta:
+Invoca directamente el skill del plugin:
 
 ```text
-/goal M01 -> S01 -> A01?
+$memory-bank:memory-bank-goal M01 -> S01 -> A01?
 ```
 
-Es el mismo mecanismo que el prompt [tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md) incluido, que se instala en el mismo directorio.
+Con los archivos de skill instalados directamente, usa `$memory-bank-goal M01 -> S01 -> A01?`. Los prompts personalizados de Codex están obsoletos en favor de los skills; por eso este repositorio ya no instala ni recomienda un prompt `goal.md` separado.
 
 #### Cualquier otro agente
 
@@ -397,7 +381,7 @@ Una `?` final marca un milestone como condicional: se omite, no se cancela, cuan
 
 `GOAL.md` no lleva rutas, letras de carril ni comandos propios de un proyecto. Los lee de `AGENTS.md` y del memory bank, así que el mismo archivo sirve sin cambios en cualquier proyecto que lo copie.
 
-Nada le obliga a usarlo. `/goal` es el comando de su agente, no de este harness: traiga su propio protocolo, o ninguno, y el memory bank se comporta igual. `GOAL.md` se incluye porque escribir uno de estos es engorroso, no porque algo de aquí dependa de él. Si tiene el suyo, apunte a él las dos menciones de `GOAL.md` —en `AGENTS.md` y `memory-bank/milestone.md`— o bórrelas.
+Nada le obliga a usarlo. Traiga su propio protocolo, o ninguno, y el memory bank se comporta igual. `GOAL.md` se incluye porque escribir uno de estos es engorroso, no porque algo de aquí dependa de él. Si tiene el suyo, apunte a él las dos menciones de `GOAL.md` —en `AGENTS.md` y `memory-bank/milestone.md`— o bórrelas.
 
 ## Instalar los tres comandos
 
@@ -405,11 +389,11 @@ También opcional. Todo lo anterior funciona escribiendo frases normales; estos 
 
 | Comando | Cuándo |
 |---|---|
-| `/memory-bank-init` | Una vez, en un proyecto que aún no tiene `memory-bank/`. Te entrevista, propone un desglose y luego escribe los archivos. |
-| `/memory-bank-next` | A diario. Resolver una fila, verificar, hacer commit. |
-| `/memory-bank-goal` | Cuando quieres ejecutar varios milestones en orden. |
+| `memory-bank-init` | Una vez, en un proyecto que aún no tiene `memory-bank/`. Te entrevista, propone un desglose y luego escribe los archivos. |
+| `memory-bank-next` | A diario. Resolver una fila, verificar, hacer commit. |
+| `memory-bank-goal` | Cuando quieres ejecutar varios milestones en orden. |
 
-`/memory-bank-init` es el que más cambia la experiencia: pregunta de una en una, con una respuesta recomendada incluida, busca por su cuenta todo lo que puede leer del repositorio en vez de preguntarlo, y no escribe nada hasta que apruebas el desglose. No verás ni un marcador entre corchetes: la memory bank llega rellenada. (Técnica de entrevista adaptada del skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
+`memory-bank-init` es el que más cambia la experiencia: pregunta de una en una, con una respuesta recomendada incluida, busca por su cuenta todo lo que puede leer del repositorio en vez de preguntarlo, y no escribe nada hasta que apruebas el desglose. No verás ni un marcador entre corchetes: la memory bank llega rellenada. (Técnica de entrevista adaptada del skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
 
 Ambos agentes leen el mismo formato `SKILL.md`, así que hay una sola fuente por comando:
 
@@ -431,15 +415,22 @@ codex plugin add memory-bank@tabilet
 
 Codex exige el calificador `@marketplace` cuando el nombre del plugin no es único entre sus marketplaces configurados, así que `memory-bank@tabilet` es la forma que conviene aprender. `codex plugin marketplace upgrade` refresca la instantánea cuando sale una versión nueva.
 
-**La invocación cambia entre ambos.** Claude Code los registra como comandos slash — `/memory-bank-init`. Codex los registra como skills a los que se llega por su nombre, así que sin barra: «use the memory-bank-init skill». Una frase normal sirve en los dos, que es en lo que se apoya el memory bank de todos modos.
+**Las invocaciones del plugin llevan namespace.** Claude Code usa `/memory-bank:memory-bank-init`, `/memory-bank:memory-bank-next` y `/memory-bank:memory-bank-goal`; Codex usa `$memory-bank:memory-bank-init`, `$memory-bank:memory-bank-next` y `$memory-bank:memory-bank-goal`. Las peticiones en lenguaje natural siguen funcionando en ambos.
 
 **Cualquiera de los dos agentes** puede tomarlos también como archivos suyos en vez de un plugin gestionado:
 
 ```bash
-mkdir -p ~/.codex/skills            # or ~/.claude/skills
+mkdir -p ~/.agents/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
+  | tar -xz --strip-components=2 -C ~/.agents/skills 'skills-main/skills'
+
+# Claude Code alternative
+mkdir -p ~/.claude/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=2 -C ~/.claude/skills 'skills-main/skills'
 ```
+
+Los archivos de skill instalados directamente no llevan namespace: `/memory-bank-init` en Claude Code y `$memory-bank-init` en Codex, con el mismo patrón para los otros dos skills.
 
 Para fijar una versión, cambie `refs/heads/main` por `refs/tags/<versión>` y `skills-main` por `skills-<versión>`, igual que el directorio dentro de ese tarball.
 
@@ -451,23 +442,24 @@ El skill no se llama `goal` a propósito: Claude Code tiene un `/goal` integrado
 
 Pero cuando la sesión se cierra, el entendimiento se cierra con ella. Nada en disco, nada que un agente pueda retomar mañana y nada contra lo que ejecutar.
 
-`/memory-bank-init` es la misma disciplina de entrevista, apuntada a un artefacto que permanece: una pregunta cada vez, cada una con una respuesta recomendada, y lo que se puede consultar se consulta en vez de preguntarse. Ejecútalo **en la misma sesión, justo después del grill**:
+`memory-bank-init` es la misma disciplina de entrevista, apuntada a un artefacto que permanece: una pregunta cada vez, cada una con una respuesta recomendada, y lo que se puede consultar se consulta en vez de preguntarse. Ejecútalo **en la misma sesión, justo después del grill**:
 
 ```text
 /grill-me            # explore the design; no files written
-/memory-bank-init    # turn those decisions into a memory bank
+/memory-bank:memory-bank-init    # Claude Code plugin
+$memory-bank:memory-bank-init    # Codex plugin
 ```
 
 No volverá a preguntar lo que ya decidiste. «Consultar los hechos, preguntar las decisiones» se aplica a la conversación tanto como al repositorio, así que tras un grill reciente la entrevista es corta: sobre todo confirmar un desglose propuesto de carriles y milestones.
 
-| | Después de `/grill-me` | Después de `/memory-bank-init` |
+| | Después de `/grill-me` | Después de `memory-bank-init` |
 |---|---|---|
 | Dónde viven las decisiones | La conversación | `product.md`, `architecture.md`, `tech-stack.md` |
 | El agente de mañana | Empieza en frío | Lee `AGENTS.md` y lo sabe |
 | Siguiente acción | Decides tú | La siguiente fila `` `[ ]` `` |
-| Para ejecutarlo | — | `/memory-bank-next`, o `/memory-bank-goal` para un conjunto |
+| Para ejecutarlo | — | `memory-bank-next`, o `memory-bank-goal` para un conjunto |
 
-Los dos son complementarios, no rivales. Conserva `/grill-me` para decisiones que no producen ningún proyecto: una discusión de arquitectura, un plan de contratación, el guion de una charla. Usa `/memory-bank-init` cuando aquello sobre lo que grillas es una base de código que la semana que viene todavía debe saber qué es.
+Los dos son complementarios, no rivales. Conserva `/grill-me` para decisiones que no producen ningún proyecto: una discusión de arquitectura, un plan de contratación, el guion de una charla. Usa `memory-bank-init` cuando aquello sobre lo que grillas es una base de código que la semana que viene todavía debe saber qué es.
 
 ## Instalar el API Harness
 
@@ -476,9 +468,8 @@ Esta sección es opcional. Todo lo anterior funciona sin ella: el harness solo a
 El API harness es a nivel de cuenta porque puede manejar cualquier proyecto que siga esta forma de memory-bank. Necesita Python 3 y nada más.
 
 ```bash
-mkdir -p ~/.local/bin ~/.codex/prompts
+mkdir -p ~/.local/bin
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
-cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 ```
 
@@ -491,13 +482,13 @@ export PATH="$HOME/.local/bin:$PATH"
 Ejecutar una fila:
 
 ```bash
-LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
 Ejecutar un bucle:
 
 ```bash
-LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```
 
 Usar un proveedor compatible con OpenAI:
@@ -505,7 +496,7 @@ Usar un proveedor compatible con OpenAI:
 ```bash
 LLM_API_BASE=https://openrouter.ai/api/v1 \
 LLM_API_KEY=... \
-LLM_MODEL=openai/gpt-5.5 \
+LLM_MODEL=openai/gpt-5.6 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -529,7 +520,9 @@ MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
 
-El harness incrusta la instrucción de la tarea en su prompt API. No llama a Codex CLI y no requiere el archivo externo de prompt en tiempo de ejecución. El archivo de prompt se incluye como referencia reutilizable para personas y agentes.
+El harness incrusta la instrucción de la tarea en su prompt API. No llama a Codex CLI y no requiere el archivo externo de prompt en tiempo de ejecución. Ese archivo permanece en el repositorio como copia legible sincronizada con la instrucción incrustada; no se instala en un directorio de prompts de Codex.
+
+Los nombres de modelo cambian. Los ejemplos usan el alias de familia actual `gpt-5.6` y `claude-opus-5`; consulte los catálogos oficiales de [OpenAI](https://developers.openai.com/api/docs/models) y [Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview) para una ejecución real.
 
 ### Primera ejecución
 

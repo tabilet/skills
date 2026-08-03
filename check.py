@@ -146,7 +146,7 @@ def embedded_task():
 
 # --------------------------------------------------------------------------
 # 3b. The skills are the plugin's payload and are also copied to
-#     ~/.claude/skills or ~/.codex/skills. Both agents read the same SKILL.md
+#     ~/.claude/skills or ~/.agents/skills. Both agents read the same SKILL.md
 #     format, so there is one source per command - keep it that way.
 # --------------------------------------------------------------------------
 def skill_frontmatter(path: pathlib.Path) -> dict:
@@ -444,7 +444,7 @@ def sampling_params():
     try:
         messages = [{"role": "system", "content": "s"}, {"role": "user", "content": "u"}]
         mod.call_anthropic("https://example/v1", "k", "claude-opus-5", messages, None, 16000)
-        mod.call_openai("https://example/v1", "k", "gpt-5.5", messages, None, 16000)
+        mod.call_openai("https://example/v1", "k", "gpt-5.6", messages, None, 16000)
     finally:
         mod._post_json = original
 
@@ -486,6 +486,105 @@ def translations():
         for name in ["README.md"] + [f"README_{l}.md" for l in LANGS]:
             if marker not in (ROOT / name).read_text():
                 problems.append(f"{name}: missing {label}")
+    return problems
+
+
+# --------------------------------------------------------------------------
+# 11. Public setup and invocation examples are an interface. Keep plugin
+#     namespaces, personal skill paths, model examples, and localized exit
+#     tables from drifting back to obsolete product behavior.
+# --------------------------------------------------------------------------
+@check("public invocation, installation, model, and locale guidance is current")
+def public_interfaces():
+    problems = []
+    readmes = [ROOT / "README.md"] + [ROOT / f"README_{lang}.md" for lang in LANGS]
+    public = readmes + [
+        ROOT / "docs" / "TUTORIAL.md",
+        ROOT / "docs" / "medium.md",
+        ROOT / "medium-new-project.md",
+    ] + sorted(SKILLS_DIR.glob("*/SKILL.md"))
+
+    plugin_tokens = (
+        "/memory-bank:memory-bank-init",
+        "/memory-bank:memory-bank-next",
+        "/memory-bank:memory-bank-goal",
+        "$memory-bank:memory-bank-init",
+        "$memory-bank:memory-bank-next",
+        "$memory-bank:memory-bank-goal",
+    )
+    for path in readmes + [ROOT / "docs" / "TUTORIAL.md", ROOT / "medium-new-project.md"]:
+        text = path.read_text()
+        for token in plugin_tokens:
+            if token not in text:
+                problems.append(f"{path.relative_to(ROOT)}: missing plugin invocation {token}")
+
+    for path in readmes + [ROOT / "docs" / "TUTORIAL.md"]:
+        if "~/.agents/skills" not in path.read_text():
+            problems.append(f"{path.relative_to(ROOT)}: missing Codex personal skill path")
+
+    model_catalogs = (
+        "https://developers.openai.com/api/docs/models",
+        "https://platform.claude.com/docs/en/about-claude/models/overview",
+    )
+    for path in readmes:
+        text = path.read_text()
+        if "gpt-5.6" not in text or "claude-opus-5" not in text:
+            problems.append(f"{path.relative_to(ROOT)}: missing current model examples")
+        for catalog in model_catalogs:
+            if catalog not in text:
+                problems.append(f"{path.relative_to(ROOT)}: missing model catalog {catalog}")
+    if "gpt-5.6" not in HARNESS.read_text() or "claude-opus-5" not in HARNESS.read_text():
+        problems.append("harness help is missing current model examples")
+
+    forbidden = {
+        "~/" + ".codex/skills": "obsolete Codex personal skill path",
+        "~/" + ".codex/prompts": "deprecated Codex custom-prompt installation",
+        "drop the " + "slash": "obsolete Codex invocation advice",
+        "gpt-5" + ".5": "obsolete OpenAI model example",
+        "/goal " + "active": "obsolete Claude Code goal-status syntax",
+    }
+    for path in public + [HARNESS, ROOT / "AGENTS.md"]:
+        text = path.read_text()
+        for needle, label in forbidden.items():
+            if needle in text:
+                problems.append(f"{path.relative_to(ROOT)}: {label}")
+
+    prompt_name = "tackle-next-memory-bank-todo.md"
+    for path in readmes:
+        for block in re.findall(r"```(?:bash|sh)\n(.*?)```", path.read_text(), re.S):
+            if prompt_name in block:
+                problems.append(
+                    f"{path.relative_to(ROOT)}: installs the human-readable prompt copy"
+                )
+
+    expected_codes = ["0", "2", "3", "4", "5", "6", "7", "10", "11", "12", "13", "20", "21", "22", "30"]
+    localized_zero = {
+        "cn": "没有可执行状态行了，无事可做。",
+        "ja": "実行可能な行が残っていません。作業なし。",
+        "de": "Keine ausführbaren Zeilen mehr übrig. Nichts zu tun.",
+        "fr": "Il ne reste aucune ligne actionnable. Rien à faire.",
+        "es": "No quedan filas accionables. Nada que hacer.",
+    }
+    seen_tables = {}
+    for lang in LANGS:
+        path = ROOT / "docs" / f"EXECUTION_{lang}.md"
+        section = path.read_text().split("### ", 1)[1].split("\n## ", 1)[0]
+        rows = re.findall(r"^\| `(\d+)` \| (.*?) \|$", section, re.M)
+        codes = [code for code, _ in rows]
+        if codes != expected_codes:
+            problems.append(f"{path.relative_to(ROOT)}: localized exit-code rows differ")
+            continue
+        meanings = dict(rows)
+        if meanings["0"] != localized_zero[lang]:
+            problems.append(f"{path.relative_to(ROOT)}: exit table is not in {lang}")
+        table_identity = tuple(meaning for _, meaning in rows)
+        if table_identity in seen_tables:
+            problems.append(
+                f"{path.relative_to(ROOT)}: exit table duplicates "
+                f"{seen_tables[table_identity]}"
+            )
+        seen_tables[table_identity] = path.relative_to(ROOT)
+
     return problems
 
 

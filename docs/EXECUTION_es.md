@@ -44,21 +44,21 @@ El harness señala cada resultado con su código de salida. Los códigos `3` a `
 
 | Código | Significado |
 |---|---|
-| `0` | Il ne reste aucune ligne actionnable. Rien à faire. |
-| `2` | `LLM_MODEL` non défini, ou `LLM_PROVIDER` n’est ni `openai` ni `anthropic`. |
-| `3` | Il ne reste que des lignes bloquées. Un humain doit les débloquer. |
-| `4` | Le worktree n’était pas propre avant l’exécution. Committez ou stashez d’abord. |
-| `5` | L’agent a laissé des modifications non commitées. |
-| `6` | L’agent n’a créé aucun commit. Évite une boucle à vide. |
-| `7` | `MAX_RUNS` a été atteint. |
-| `10` | Pas de `AGENTS.md` dans le dépôt cible. |
-| `11` | Pas de `memory-bank/`, ou aucun fichier `status-<LANE><NN>.md` dedans. |
-| `12` | Le chemin cible n’est pas dans un worktree git. |
-| `13` | Impossible de lire le `HEAD` git. |
-| `20` | L’API a renvoyé une erreur HTTP. |
-| `21` | L’API était injoignable. |
-| `22` | La réponse de l’API ne correspondait pas à la forme attendue. |
-| `30` | Le modèle a épuisé `MAX_TURNS` sans terminer une ligne. |
+| `0` | No quedan filas accionables. Nada que hacer. |
+| `2` | `LLM_MODEL` no está definido, o `LLM_PROVIDER` no es `openai` ni `anthropic`. |
+| `3` | Solo quedan filas bloqueadas. Una persona debe desbloquearlas. |
+| `4` | El worktree no estaba limpio antes de la ejecución. Haga commit o stash primero. |
+| `5` | El agente dejó cambios sin commit. |
+| `6` | El agente no creó ningún commit. Evita un bucle sin progreso. |
+| `7` | Se alcanzó `MAX_RUNS`. |
+| `10` | No hay `AGENTS.md` en el repositorio de destino. |
+| `11` | No hay `memory-bank/`, o no contiene archivos `status-<LANE><NN>.md`. |
+| `12` | La ruta de destino no está dentro de un worktree de git. |
+| `13` | No se pudo leer el `HEAD` de git. |
+| `20` | La API devolvió un error HTTP. |
+| `21` | No se pudo contactar con la API. |
+| `22` | La respuesta de la API no tenía la forma esperada. |
+| `30` | El modelo agotó `MAX_TURNS` sin terminar una fila. |
 
 Los códigos `10` a `13` significan que el repositorio de destino aún no está preparado. Los `20` a `22` son problemas del proveedor o de red, no del proyecto.
 

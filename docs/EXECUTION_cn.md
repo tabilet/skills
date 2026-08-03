@@ -44,21 +44,21 @@ harness 通过退出码表达每一种结果。`3` 到 `7` 是正常的停止条
 
 | 退出码 | 含义 |
 |---|---|
-| `0` | No actionable rows remain. Nothing to do. |
-| `2` | `LLM_MODEL` unset, or `LLM_PROVIDER` is not `openai`/`anthropic`. |
-| `3` | Only blocked rows remain. A human needs to unblock them. |
-| `4` | The worktree was dirty before a run. Commit or stash first. |
-| `5` | The agent left uncommitted changes. |
-| `6` | The agent made no commit. Stops a spin loop. |
-| `7` | `MAX_RUNS` was reached. |
-| `10` | No `AGENTS.md` in the target repository. |
-| `11` | No `memory-bank/`, or no `status-<LANE><NN>.md` lane files in it. |
-| `12` | The target path is not inside a git worktree. |
-| `13` | Git `HEAD` could not be read. |
-| `20` | The API returned an HTTP error. |
-| `21` | The API could not be reached. |
-| `22` | The API response did not match the expected shape. |
-| `30` | The model used `MAX_TURNS` without finishing a row. |
+| `0` | 没有可执行状态行了，无事可做。 |
+| `2` | 未设置 `LLM_MODEL`，或 `LLM_PROVIDER` 不是 `openai`/`anthropic`。 |
+| `3` | 只剩下被阻塞的状态行，需要人工解除阻塞。 |
+| `4` | 运行前工作区不干净。请先 commit 或 stash。 |
+| `5` | 智能体留下了未提交的修改。 |
+| `6` | 智能体没有产生 commit。用于避免空转。 |
+| `7` | 达到了 `MAX_RUNS` 上限。 |
+| `10` | 目标仓库中没有 `AGENTS.md`。 |
+| `11` | 没有 `memory-bank/`，或其中没有 `status-<LANE><NN>.md` 状态文件。 |
+| `12` | 目标路径不在 git worktree 中。 |
+| `13` | 无法读取 git `HEAD`。 |
+| `20` | API 返回了 HTTP 错误。 |
+| `21` | 无法连接到 API。 |
+| `22` | API 响应结构与预期不符。 |
+| `30` | 模型用完了 `MAX_TURNS` 仍未完成一条状态行。 |
 
 `10` 到 `13` 表示目标仓库尚未准备好。`20` 到 `22` 是提供方或网络问题，不是项目问题。
 

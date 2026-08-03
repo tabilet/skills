@@ -87,7 +87,7 @@ Then ask the user:
 - Should anything be merged or split?
 
 Iterate until the user approves. A wrong breakdown is cheap to fix now and
-expensive to fix once six files exist.
+expensive to fix once permanent status IDs and files exist.
 
 ## Phase 3 - Write
 
@@ -120,9 +120,9 @@ milestones in order, not a requirement of the memory bank.
 the boundaries, the hard rules, and the work cadence. It points at the memory
 bank rather than restating it.
 
-Status files are tables. **The backticks around every marker are required** - a
-bare `[ ]` is invisible to tools that read these files, and the run will report
-that no work remains:
+Status files are tables. **The backticks around every marker are required by
+the included API harness parser** - a bare `[ ]` is invisible to that parser,
+and an API-harness run will report that no work remains:
 
 ```markdown
 # Status M01 - <milestone title>
@@ -150,7 +150,8 @@ Then tell the user what you could not fill and why. Anything left is a decision
 that was never actually made - ask for it rather than inventing it.
 
 Finally, tell the user how to run the project from here, using the form their
-agent actually accepts. Plain English works everywhere: *"tackle next pending
-item in memory bank"* for one task. For an ordered set of milestones, name the
-`memory-bank-goal` command — Claude Code invokes it as `/memory-bank-goal`,
-while Codex exposes it as a skill reached by name, with no leading slash.
+installation accepts. Plain English works everywhere: *"tackle next pending
+item in memory bank"* for one task. Plugin installs use
+`/memory-bank:memory-bank-goal` in Claude Code and
+`$memory-bank:memory-bank-goal` in Codex. Plain-file installs use
+`/memory-bank-goal` in Claude Code and `$memory-bank-goal` in Codex.

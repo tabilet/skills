@@ -44,21 +44,21 @@ Le harness signale chaque résultat par son code de sortie. Les codes `3` à `7`
 
 | Code | Signification |
 |---|---|
-| `0` | Keine ausführbaren Zeilen mehr übrig. Nichts zu tun. |
-| `2` | `LLM_MODEL` nicht gesetzt oder `LLM_PROVIDER` ist weder `openai` noch `anthropic`. |
-| `3` | Nur noch blockierte Zeilen übrig. Ein Mensch muss sie entsperren. |
-| `4` | Der Worktree war vor einem Lauf nicht sauber. Erst committen oder stashen. |
-| `5` | Der Agent hat uncommitted changes hinterlassen. |
-| `6` | Der Agent hat keinen Commit erzeugt. Verhindert eine Endlosschleife. |
-| `7` | `MAX_RUNS` wurde erreicht. |
-| `10` | Kein `AGENTS.md` im Ziel-Repository. |
-| `11` | Kein `memory-bank/` oder keine `status-<LANE><NN>.md`-Dateien darin. |
-| `12` | Der Zielpfad liegt nicht in einem git worktree. |
-| `13` | Git `HEAD` konnte nicht gelesen werden. |
-| `20` | Die API hat einen HTTP-Fehler zurückgegeben. |
-| `21` | Die API war nicht erreichbar. |
-| `22` | Die API-Antwort entsprach nicht der erwarteten Form. |
-| `30` | Das Modell hat `MAX_TURNS` verbraucht, ohne eine Zeile abzuschließen. |
+| `0` | Il ne reste aucune ligne actionnable. Rien à faire. |
+| `2` | `LLM_MODEL` non défini, ou `LLM_PROVIDER` n’est ni `openai` ni `anthropic`. |
+| `3` | Il ne reste que des lignes bloquées. Un humain doit les débloquer. |
+| `4` | Le worktree n’était pas propre avant l’exécution. Committez ou stashez d’abord. |
+| `5` | L’agent a laissé des modifications non commitées. |
+| `6` | L’agent n’a créé aucun commit. Évite une boucle à vide. |
+| `7` | `MAX_RUNS` a été atteint. |
+| `10` | Pas de `AGENTS.md` dans le dépôt cible. |
+| `11` | Pas de `memory-bank/`, ou aucun fichier `status-<LANE><NN>.md` dedans. |
+| `12` | Le chemin cible n’est pas dans un worktree git. |
+| `13` | Impossible de lire le `HEAD` git. |
+| `20` | L’API a renvoyé une erreur HTTP. |
+| `21` | L’API était injoignable. |
+| `22` | La réponse de l’API ne correspondait pas à la forme attendue. |
+| `30` | Le modèle a épuisé `MAX_TURNS` sans terminer une ligne. |
 
 Les codes `10` à `13` signifient que le dépôt cible n’est pas encore configuré. Les codes `20` à `22` sont des problèmes de fournisseur ou de réseau, pas de projet.
 

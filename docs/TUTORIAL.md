@@ -5,9 +5,9 @@ You have an idea and an empty directory. No code yet.
 This walkthrough goes from that to an agent implementing your project against a
 memory bank it wrote from interviewing you:
 
-1. Install the three commands, once.
+1. Install the three skills, once.
 2. Make an empty directory.
-3. Run `/memory-bank-init` and answer its questions.
+3. Run `memory-bank-init` and answer its questions.
 4. Approve the breakdown it proposes.
 5. Read what it wrote.
 6. Run the work: one row at a time, or a whole ordered set.
@@ -26,7 +26,7 @@ shown below was really generated.
 
 The example project uses Node and Python 3; yours needs whatever it needs.
 
-## Step 1 — Install The Three Commands
+## Step 1 — Install The Three Skills
 
 In Claude Code:
 
@@ -45,28 +45,38 @@ codex plugin add memory-bank@tabilet
 Codex wants the `@marketplace` qualifier when the plugin name is not unique
 across your marketplaces, so `memory-bank@tabilet` is the form to learn.
 
-**Invocation differs between the two.** Claude Code registers these as slash
-commands, so `/memory-bank-init` autocompletes. Codex registers them as skills
-reached by name — ask for them without a slash: *"use the memory-bank-init
-skill"*. Every `/command` written below is the Claude Code form; drop the slash
-in Codex.
+**Plugin invocation is namespaced.** Following current [Claude Code skill
+namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex skill
+invocation](https://developers.openai.com/plugins/build/skills), Claude Code uses
+`/memory-bank:memory-bank-init`, `/memory-bank:memory-bank-next`, and
+`/memory-bank:memory-bank-goal`. Codex uses
+`$memory-bank:memory-bank-init`, `$memory-bank:memory-bank-next`, and
+`$memory-bank:memory-bank-goal`. Plain English also works in both.
 
 Either agent can also take them as plain files you own instead of a managed
 plugin — no clone, no temp directory, nothing to clean up:
 
 ```bash
-mkdir -p ~/.codex/skills            # or ~/.claude/skills
+mkdir -p ~/.agents/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
+  | tar -xz --strip-components=2 -C ~/.agents/skills 'skills-main/skills'
+
+# Claude Code alternative
+mkdir -p ~/.claude/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=2 -C ~/.claude/skills 'skills-main/skills'
 ```
+
+Plain-file installs are unnamespaced: `/memory-bank-init` in Claude Code and
+`$memory-bank-init` in Codex, with the same pattern for the other two skills.
 
 You now have three commands, and they are the whole interface:
 
-| Command | When |
+| Skill | When |
 |---|---|
-| `/memory-bank-init` | Once per project, on the way in. |
-| `/memory-bank-next` | Every day. One row, verified, committed. |
-| `/memory-bank-goal` | Several milestones in a defined order. |
+| `memory-bank-init` | Once per project, on the way in. |
+| `memory-bank-next` | Every day. One row, verified, committed. |
+| `memory-bank-goal` | Several milestones in a defined order. |
 
 *(Prefer to do it by hand? Every step below has a manual equivalent in the
 [README](../README.md#set-up-a-new-project). The commands are a convenience,
@@ -77,16 +87,17 @@ not a requirement.)*
 ```bash
 mkdir stomper && cd stomper
 git init
-claude
+claude   # or: codex
 ```
 
 Do not scaffold anything. The project's shape comes out of the conversation, not
 out of a template you picked before thinking.
 
-## Step 3 — Run `/memory-bank-init`
+## Step 3 — Run `memory-bank-init`
 
 ```text
-/memory-bank-init
+/memory-bank:memory-bank-init   # Claude Code plugin
+$memory-bank:memory-bank-init   # Codex plugin
 ```
 
 **This step decides everything downstream**, and it is a conversation rather
@@ -115,22 +126,22 @@ What it works through, and where each answer lands:
 
 Plenty of people install `/grill-me`, run it, and find they want more than a
 sharpened design. They want the whole engineering harness on the other side of
-it: several milestones, each carrying its own tasks, and a way to drive the
-project to completion with a single batch command rather than a hundred
-prompts. That is the gap this tutorial closes, and step 6 is where it lands —
-one line that runs the entire project:
+it: several milestones, each carrying its own tasks, and a way to work through
+them without a hundred repeated prompts. That is the gap this tutorial closes,
+and step 6 is where it lands — a blocker-aware ordered run:
 
 ```text
-/memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
+/memory-bank:memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
 ```
 
-Five milestones, twenty-six tasks, each one implemented, verified, and
-committed on its own, in dependency order, with the later milestones rewritten
-as the earlier ones change what is true.
+It works in dependency order, rewriting later milestones as earlier ones change
+what is true. Each completed task is verified and committed on its own. If only
+blocked work remains, it stops for the missing decision or authority instead of
+claiming the entire set necessarily finished.
 
 If you came here from
 [mattpocock/skills](https://github.com/mattpocock/skills) and have just finished
-a grilling session, **do not start over.** Run `/memory-bank-init` in the same
+a grilling session, **do not start over.** Run `memory-bank-init` in the same
 session and it will read the decisions already in the conversation instead of
 re-asking them — "look up facts, ask about decisions" applies to what you have
 already said, not just to the repository.
@@ -144,24 +155,24 @@ session.
 
 The exchange that produced this example ran roughly:
 
-> **`/memory-bank-init`:** What are we building, and who is it for?
+> **`memory-bank-init`:** What are we building, and who is it for?
 >
 > **You:** A side-scrolling platformer like early Mario, in a browser. Mostly I
 > want to learn what makes movement feel good.
 >
-> **`/memory-bank-init`:** Original art, or Nintendo's sprites? I recommend
+> **`memory-bank-init`:** Original art, or Nintendo's sprites? I recommend
 > original — shipping their assets is a licensing problem, and drawing in code
 > keeps the repo dependency-free.
 >
 > **You:** Original. I don't want Nintendo's assets anywhere near it.
 >
-> **`/memory-bank-init`:** Framework or plain canvas? I recommend plain canvas
+> **`memory-bank-init`:** Framework or plain canvas? I recommend plain canvas
 > with ES modules and no build step — a framework like Phaser would save you
 > time but hide the physics, which is the part you said you want to learn.
 >
 > **You:** Plain canvas. I want to open the file and have it run.
 >
-> **`/memory-bank-init`:** Then how do we verify anything? Canvas rendering is
+> **`memory-bank-init`:** Then how do we verify anything? Canvas rendering is
 > not testable headlessly and "feels good" is not either. I recommend keeping
 > physics, collision, and entity state in modules that import nothing from the
 > DOM, so they run under `node --test`; rendering and audio get verified by
@@ -170,7 +181,7 @@ The exchange that produced this example ran roughly:
 >
 > **You:** Do that.
 >
-> **`/memory-bank-init`:** Feature areas? From what you have described I would
+> **`memory-bank-init`:** Feature areas? From what you have described I would
 > suggest world and camera, player and collision, enemies, HUD, and audio — with
 > audio last and conditional, since the game is playable without it.
 >
@@ -189,7 +200,7 @@ project.
 
 ## Step 4 — Approve The Breakdown
 
-Before writing anything, `/memory-bank-init` proposes the shape as a numbered
+Before writing anything, `memory-bank-init` proposes the shape as a numbered
 list: lane letters, milestones with acceptance criteria, the first milestone's
 rows, and the execution order. **Nothing is on disk yet.**
 
@@ -310,9 +321,11 @@ Note what those rows are not: they are not "build the player." Each names
 something either done or not, and two exist only because the interview surfaced
 a specific failure mode worth testing for.
 
-**The backticks around `` `[ ]` `` are load-bearing.** A bare `[ ]` is invisible
-to every tool that reads the file — see [When It Goes
-Wrong](#when-it-goes-wrong). Markers are `` `[ ]` `` pending, `` `[+]` `` done,
+**The backticks around `` `[ ]` `` are load-bearing for the included API
+harness parser.** A bare `[ ]` is invisible to that parser — see [When It Goes
+Wrong](#when-it-goes-wrong). Other agents may still understand the prose, but
+the shipped automation deliberately requires this exact table syntax. Markers
+are `` `[ ]` `` pending, `` `[+]` `` done,
 `` `[~]` `` in progress, `` `[!]` `` blocked, `` `[X]` `` cancelled.
 
 If something is wrong, tell the agent rather than hand-editing. Faster, and it
@@ -360,7 +373,8 @@ conversation. If a lane you expected shows `0`, its markers are wrong.
 **One row at a time**, which is the everyday mode:
 
 ```text
-/memory-bank-next
+/memory-bank:memory-bank-next   # Claude Code plugin
+$memory-bank:memory-bank-next   # Codex plugin
 ```
 
 It reads `AGENTS.md`, finds the next actionable row in the right lane file, and
@@ -374,7 +388,8 @@ the command just carries the full instruction instead of your paraphrase of it.
 **A whole ordered set**, for a release or a migration with real dependencies:
 
 ```text
-/memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
+/memory-bank:memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
+$memory-bank:memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
 ```
 
 That follows [GOAL.md](../GOAL.md): reconcile before each milestone, implement,
@@ -387,13 +402,15 @@ closes, the tilemap that actually got built is not the one `P01` was written
 against — so `P01` gets re-read and rewritten before it starts, rather than
 implemented as planned and wrong.
 
-**In Claude Code, pair it with the built-in `/goal`** to keep the session going
-across turns. That `/goal` is a different feature — it sets a stop condition,
-not a task:
+**In Claude Code, the [built-in `/goal`](https://code.claude.com/docs/en/goal) is
+an optional alternative launcher** for a long run. Include the complete protocol
+request, commit policy, and measurable completion condition in the invocation:
 
 ```text
-/goal every row in W01, P01, E01 and U01 is `[+]` and node --test passes
+/goal Using GOAL.md, execute this loop. STATUS_ORDER: W01 -> P01 -> E01 -> U01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and node --test passes.
 ```
+
+Use `/goal` with no arguments to see its status and `/goal clear` to stop it.
 
 Then watch the first milestone. `git log` should show one commit per row, code
 and status-row flip together. If the agent closed three rows in one commit, say
@@ -411,20 +428,20 @@ Verified against real runs of the checkpoint above:
 | `11` | No lane files found. | Filename is `status-P1.md`, not `status-P01.md`. Always **two digits**. |
 | `4` | Worktree was dirty before the run. | Commit or stash first. |
 | `3` | Only `` `[!]` `` blocked rows remain. | Not a failure. A human needs to unblock something. |
-| `10` | No `AGENTS.md`. | Wrong directory, or `/memory-bank-init` never finished. |
+| `10` | No `AGENTS.md`. | Wrong directory, or `memory-bank-init` never finished. |
 
 Exit `0` is the one that costs an afternoon, because nothing looks broken: the
 agent reads the file, finds no rows it recognizes, and reports there is nothing
 to do. If a run ends instantly with nothing to do, check the backticks first.
 
-`/memory-bank-init` checks all three of these before it reports done, so they
+`memory-bank-init` checks all three of these before it reports done, so they
 mostly bite when you hand-edit afterwards. Full table in
 [EXECUTION.md](EXECUTION.md#exit-codes).
 
 ## What You Own At The End
 
 A project whose memory bank came out of a conversation you had, in files you can
-edit or delete, with no dependency on the plugin that generated them.
+edit, with no dependency on the plugin that generated them.
 
 The memory bank is mutable and expected to change: `product.md`,
 `architecture.md`, and `tech-stack.md` get rewritten in the same commit as the
@@ -436,7 +453,7 @@ Two things to know as you keep going:
 - **A pending status file is a planning baseline, not a contract.** It was
   written before the code existed. Rewriting it when reality disagrees is the
   intended behavior, not drift.
-- **The lane letters are permanent, the rows are not.** Add, split, and delete
-  rows freely. Renaming `P01` later is the one thing that hurts.
-
-When a file stops earning its place, delete it. Nothing here breaks.
+- **Status IDs and their files are permanent once created.** Pending rows are a
+  planning baseline: add, split, rewrite, cancel, or remove them as reality
+  changes, but do not rename or reuse `P01`, and keep its status file as the
+  durable milestone record.

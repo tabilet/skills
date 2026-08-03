@@ -9,11 +9,12 @@ argument-hint: M01 -> S01 -> A01?
 
 Execute several milestones in a defined order, rather than one row at a time.
 
-**Invocation differs by agent.** Claude Code offers this as
-`/memory-bank-goal`; Codex exposes it as a skill reached by name, without a
-leading slash. **The name avoids `goal` on purpose.** Claude Code has a built-in
-`/goal` that sets a stop condition, which is a different thing; see *Keeping the
-session going* below.
+**Use the form supplied by the installation.** Plugin installs use
+`/memory-bank:memory-bank-goal` in Claude Code and
+`$memory-bank:memory-bank-goal` in Codex. Plain-file installs use
+`/memory-bank-goal` and `$memory-bank-goal`, respectively. **The name avoids
+`goal` on purpose.** Claude Code has a built-in `/goal` for long-running goals;
+see *Keeping the session going* below.
 
 ## What to do
 
@@ -56,21 +57,20 @@ completing.
 
 ## Keeping the session going
 
-Long runs stop when the agent thinks it is finished.
-
-In **Claude Code**, the built-in `/goal` sets a stop condition the model checks
-before finishing, so the session keeps working across turns. Send this skill
-first, then set the condition:
+In **Claude Code**, the built-in `/goal` is an optional alternative launcher for
+a long run. Include the complete protocol request, order, commit policy, and a
+measurable completion condition:
 
 ```text
-/goal every row in the requested milestones is `[+]` and the verification passes
+/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
 ```
 
-`/goal active` shows it and `/goal clear` ends it early. The condition is capped
-at 4000 characters and needs a trusted workspace.
+Run `/goal` with no arguments to show its status and `/goal clear` to stop it.
+The `memory-bank-goal` skill remains the portable launcher shared with Codex.
 
-In **Codex** and other agents there is no such mechanism; run this skill and
-review its completion report when it stops.
+In **Codex**, use `$memory-bank:memory-bank-goal` for a plugin install or
+`$memory-bank-goal` for a plain-file install, then review the completion report.
+For other agents, paste the complete request block from *What to do*.
 
 ## Report
 

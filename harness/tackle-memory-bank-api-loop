@@ -392,17 +392,17 @@ def parse_args() -> argparse.Namespace:
 
               One-row run:
 
-                LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+                LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 
               Loop run:
 
-                LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+                LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 
               OpenRouter-style:
 
                 LLM_API_BASE=https://openrouter.ai/api/v1 \\
                 LLM_API_KEY=... \\
-                LLM_MODEL=openai/gpt-5.5 \\
+                LLM_MODEL=openai/gpt-5.6 \\
                 MAX_RUNS=1 tackle-memory-bank-api-loop .
 
               Local OpenAI-compatible server:
@@ -414,7 +414,7 @@ def parse_args() -> argparse.Namespace:
               Anthropic:
 
                 LLM_PROVIDER=anthropic \\
-                LLM_MODEL=claude-opus-4-7 \\
+                LLM_MODEL=claude-opus-5 \\
                 ANTHROPIC_API_KEY=... \\
                 MAX_RUNS=1 tackle-memory-bank-api-loop .
 

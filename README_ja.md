@@ -2,24 +2,27 @@
 
 コーディングエージェントは、プロジェクトが自分自身を説明できるとき——これが何で、何が終わっていて、次が何か——うまく動きます。そのための一般的な方法は、CLI、スキャフォールド、スラッシュコマンド群、生成された成果物のフォルダといったシステムを丸ごと導入することです。半年後には、自分のコードと同じくらいそのシステムのファイルを保守していて、プロジェクトは自分の規約ではなくそのシステムの規約の中で生きています。
 
-このリポジトリは逆に賭けます。markdown ファイル 5〜6 個をプロジェクトにコピーし、完全にあなたのものにする。インストールする CLI も、覚える語彙も、必須のものもありません。役目を終えた日に削除してかまいません。
+このリポジトリは逆に賭けます。小さな markdown ファイル群をプロジェクトにコピーし、完全にあなたのものにします。必須のプロジェクト CLI や runtime はありません。任意のプラグインでファイルを生成し、任意の API runner で無人実行できますが、どちらもプロジェクトの依存関係にはなりません。
 
 **最終的に手に入るものはあなたのものです。** このリポジトリはコピー*元*となる出発点です。`template/` をプロジェクトへ、`harness/` は必要なら home ディレクトリへ。その後、プロジェクトはこのリポジトリに依存せず、リンクも残りません。
 
-3 つの任意のスラッシュコマンドが、そのコピーと記入を代行できます（[3 つのコマンドをインストールする](#3-つのコマンドをインストールする)を参照）。上の前提は変わりません。生成されたファイルはあなたのものになり、あとから更新されることはなく、アンインストールしてもプロジェクトはそのままです。
+3 つの任意の skill が、そのコピーと記入を代行できます（[3 つのコマンドをインストールする](#3-つのコマンドをインストールする)を参照）。上の前提は変わりません。生成されたファイルはあなたのものになり、あとから更新されることはなく、アンインストールしてもプロジェクトはそのままです。
 
 プロジェクトは最終的にこうなります。
 
 ```text
 your-project/
 ├── AGENTS.md              エージェントが最初に読むもの
+├── GOAL.md                任意の複数 milestone 用プロトコル
 ├── memory-bank/           いま真であること
 │   ├── product.md         これが何で、何ではないか
 │   ├── architecture.md    レイアウト、データフロー、境界
 │   ├── tech-stack.md      コマンド、依存関係、検証方法
 │   ├── milestone.md       milestone と受け入れ基準
-│   └── status-M01.md      milestone ごとに 1 ファイル、タスクごとに 1 行
-└── evolution/             方向が変わった理由と時期
+│   └── status-M01.md      milestone ごとの永続ファイル、タスクごとに 1 行
+└── evolution/             バージョン化された方向スナップショット
+    ├── prompt-v1.md       初期方針
+    └── result-v1.md       そこから生じた状態
 ```
 
 *memory bank* という用語は [Cline](https://docs.cline.bot/best-practices/memory-bank) が広めたものです。ここにあるのは同じ発想の別実装で、ランタイムを持たないただのファイル群です。
@@ -30,7 +33,7 @@ your-project/
 
 ## はじめに
 
-**はじめてですか？** [docs/TUTORIAL.md](docs/TUTORIAL.md) は、空のディレクトリから最初のコミットまで、おもちゃのプロジェクトを 20 分で辿ります。セットアップは `/memory-bank-init` が行います。この README の残りはリファレンスで、チュートリアルはそこを通る案内付きの道筋です。
+**はじめてですか？** [docs/TUTORIAL.md](docs/TUTORIAL.md) は、空のディレクトリから最初のコミットまで、おもちゃのプロジェクトを 20 分で辿ります。セットアップは `memory-bank-init` が行います。この README の残りはリファレンスで、チュートリアルはそこを通る案内付きの道筋です。
 
 **memory bank を使うのに必要なのは `git` だけです。** memory bank はただの markdown なので、日々のワークフロー——Codex や Claude Code のようなエージェントに次の未処理項目を任せること——にランタイムは一切不要です。
 
@@ -40,14 +43,15 @@ your-project/
 
 このリポジトリを一度 clone してください。以下の `cp` コマンドの `/path/to/skills` は、その clone を指します:
 
-**最短の方法に clone は不要です。** 3 つのコマンドをインストールし、`/memory-bank-init` に質問させて memory bank を書かせます:
+**最短の方法に clone は不要です。** プラグインをインストールし、名前空間付きの init skill に質問させて memory bank を書かせます:
 
 ```bash
 /plugin marketplace add tabilet/skills
 /plugin install memory-bank
+/memory-bank:memory-bank-init
 ```
 
-プロジェクト（空でも既存でも）で `/memory-bank-init` を実行し、質問に答えてください。Codex での同等の方法と、ファイルをそのまま使う選択肢は[3 つのコマンドをインストールする](#3-つのコマンドをインストールする)にあります。
+Claude Code のプロジェクト（空でも既存でも）でこれらを実行し、質問に答えてください。Codex での同等の方法と、ファイルをそのまま使う選択肢は[3 つのコマンドをインストールする](#3-つのコマンドをインストールする)にあります。
 
 ファイルを手作業で扱う場合は、このリポジトリを一度 clone します。以下の `cp` コマンドの `/path/to/skills` はその clone を指します:
 
@@ -72,18 +76,18 @@ clone 自体で何かを実行することはありません。中からファ�
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
 - [template/evolution/result-v1.md](template/evolution/result-v1.md)
 
-ユーザーアカウントレベルのサンプルファイル:
+任意の API runner と、リポジトリ内だけに置く人間向け指示コピー:
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-3 つのスラッシュコマンドは [skills/](skills/) にあります。Claude Code と Codex は同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
+3 つの skill は [skills/](skills/) にあります。Claude Code と Codex は同じ `SKILL.md` 形式を読むので、skill ごとにソースは 1 つです:
 
 - [memory-bank-init](skills/memory-bank-init/SKILL.md)
 - [memory-bank-next](skills/memory-bank-next/SKILL.md)
 - [memory-bank-goal](skills/memory-bank-goal/SKILL.md)
 
-`.claude-plugin/` には、これらを Claude Code プラグインとしてインストールするためのマニフェストが入っています。`template/` にベンダー固有のファイルはありません。
+`.claude-plugin/` には、同じプラグインを Claude Code と Codex にインストールするための互換マニフェストが入っています。`template/` にベンダー固有のファイルはありません。
 
 Harness 参考資料:
 
@@ -154,7 +158,7 @@ succeeds against the staging payment sandbox.
 
 ## 新規プロジェクトをセットアップする
 
-[3 つのコマンド](#3-つのコマンドをインストールする)をインストールしていれば、`/memory-bank-init` がこの節の作業をすべて行います。質問し、レーンと milestone の案を提示し、承認を待ってから、記入済みのファイルを書きます。以下の 2 つの手順は、同じ作業を手作業で行うものです。
+[3 つのコマンド](#3-つのコマンドをインストールする)をインストールしていれば、`memory-bank-init` がこの節の作業をすべて行います。質問し、レーンと milestone の案を提示し、承認を待ってから、記入済みのファイルを書きます。以下の 2 つの手順は、同じ作業を手作業で行うものです。
 
 ### 手動
 
@@ -228,7 +232,7 @@ the first actionable milestone rows.
 
 ## 既存プロジェクトをセットアップする
 
-`/memory-bank-init` はこのケースにも対応し、しかも素のプロンプトより上手くこなします。リポジトリがすでに述べていること（README、テスト、ビルドや CI の設定）を読み、そこから分からない決定だけを尋ねます。多くの場合、非目標、境界、作業の順序です。
+`memory-bank-init` はこのケースにも対応し、しかも素のプロンプトより上手くこなします。リポジトリがすでに述べていること（README、テスト、ビルドや CI の設定）を読み、そこから分からない決定だけを尋ねます。多くの場合、非目標、境界、作業の順序です。
 
 ### 手動
 
@@ -284,14 +288,14 @@ Do not invent product direction that is not supported by the existing project.
 
 ## Memory Bank を使う
 
-memory bank に対して作業を進める方法は 3 つあり、どれも任意です。memory bank 自体はただの markdown なので、単独でも成立します。
+memory bank に対して作業を進める方法は 4 つあり、どれも任意です。memory bank 自体はただの markdown なので、単独でも成立します。
 
 | 実行方法 | 範囲 | 必要なもの |
 |---|---|---|
 | エージェントに依頼を打つ | 1 行ずつ、あなたがループの中にいる | なし |
-| [`/memory-bank-next`](#3-つのコマンドをインストールする) | 同じだが、言い換えではなく完全な指示を伴う | 3 つのコマンド |
+| [`memory-bank-next`](#3-つのコマンドをインストールする) | 同じだが、言い換えではなく完全な指示を伴う | 任意の skills |
 | [API harness](#api-harness-をインストールする) | 1 回の実行につき 1 行、無人 | Python 3 |
-| [ゴールループ](#複数の-milestone-を順番に実行する) | 複数の milestone を順番に | `/goal` コマンド |
+| [ゴールループ](#複数の-milestone-を順番に実行する) | 複数の milestone を順番に | `GOAL.md` と通常の依頼または任意の skill |
 
 Codex や Claude Code のようなエージェントでは、ユーザー側のワークフローは次のように入力するだけで済みます。
 
@@ -336,8 +340,6 @@ Status 行は次のマーカーを使います。
 
 上のワークフローは 1 行ずつ進みます。決められた順序で複数の milestone を消化したい場合は、[GOAL.md](template/GOAL.md) はそのための protocol の一つです。各 milestone の開始前に依存関係を照合し、閉じた milestone の下流を照合し、判断や権限が足りないときは推測せず停止します。
 
-常駐ではなく、呼び出して使います。Codex にも Claude Code にも `/goal` コマンドがあり（Claude Code のものは goal の条件が満たされるまでターンをまたいで動き続けます）、リクエストでファイルと順序を指定します。
-
 これは常駐ではなく、呼び出して使います。どのエージェントでも、実行を開始するリクエストは同じ内容です。ファイル、順序、commit ポリシーを明示します:
 
 ```text
@@ -347,45 +349,27 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-その内容をどう送るかは異なります。`/goal` はエージェントごとに同じコマンドではないからです。自分が使うものの節を読んでください。
+上のブロックは、どのエージェントにも通常の依頼として貼り付けられます。プラグインを入れた場合は、同じプロトコルを `/memory-bank:memory-bank-goal M01 -> S01 -> A01?`（Claude Code）または `$memory-bank:memory-bank-goal M01 -> S01 -> A01?`（Codex）で実行できます。skill ファイルを直接入れた場合は `/memory-bank-goal` と `$memory-bank-goal` です。
 
 #### Claude Code を使う場合
 
-`/goal` は組み込みコマンドですが、タスクを開始するためのものでは**ありません**。停止条件——「Claude が停止する前に確認する目標」——を設定するもので、1 回返答して終わるのではなく、セッションがターンをまたいで作業を続けます。
-
-そのためメッセージは 2 通になります。上記の内容を通常のメッセージとして送り、次に実行の終了を判定する条件を設定します:
+Claude Code の組み込み `/goal` は、長い実行のための任意の代替ランチャーです。完全なプロトコル依頼、commit 方針、測定可能な完了条件を一緒に渡します:
 
 ```text
-/goal every row in M01 and S01 is `[+]` and the required verification passes
+/goal Using GOAL.md, execute this loop. STATUS_ORDER: M01 -> S01 -> A01? COMMIT_POLICY: task. Completion condition: every non-skipped row in those milestones is `[+]` and the required verification passes.
 ```
 
-`/goal active` で現在の条件を表示、`/goal clear` で早期終了します。条件は 4000 文字までで、信頼済みワークスペースが必要です。設定やポリシーで hooks が無効な場合は使用できません。
-
-この内容自体を再利用したい場合は、プロジェクトコマンドとして保存します。ただし `.claude/commands/goal.md` という名前は組み込みコマンドが使っているので避けてください。`.claude/commands/milestones.md` にして `/milestones` で呼び出します。
+引数なしの `/goal` で状態を表示し、`/goal clear` で停止します。`memory-bank-goal` skill は Codex と共有できる移植可能なランチャーです。
 
 #### Codex を使う場合
 
-組み込みの `/goal` はありません。カスタムプロンプトは `~/.codex/prompts/` 内の markdown ファイルで、ファイル名で呼び出します。つまりコマンドを自分で作り、順序を引数として受け取らせることができます。`~/.codex/prompts/goal.md` を作成します:
-
-```markdown
----
-description: Execute an ordered set of milestones using GOAL.md.
-argument-hint: M01 -> S01 -> A01?
----
-
-Using GOAL.md, execute this loop.
-
-STATUS_ORDER: $ARGUMENTS
-COMMIT_POLICY: task
-```
-
-あとは 1 通のメッセージで実行できます:
+プラグイン skill を直接呼び出します:
 
 ```text
-/goal M01 -> S01 -> A01?
+$memory-bank:memory-bank-goal M01 -> S01 -> A01?
 ```
 
-これは同梱の [tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md) プロンプトと同じ仕組みで、同じディレクトリにインストールされます。
+skill ファイルを直接インストールした場合は `$memory-bank-goal M01 -> S01 -> A01?` を使います。Codex のカスタムプロンプトは skill を優先する形で非推奨になったため、このリポジトリは独立した `goal.md` プロンプトをインストールも推奨もしません。
 
 #### その他のエージェント
 
@@ -405,11 +389,11 @@ COMMIT_POLICY: task
 
 | コマンド | 使う場面 |
 |---|---|
-| `/memory-bank-init` | 一度だけ。`memory-bank/` がまだないプロジェクトで。質問し、分割案を提示し、それからファイルを書きます。 |
-| `/memory-bank-next` | 毎日。1 行を実装し、検証し、コミットします。 |
-| `/memory-bank-goal` | 複数の milestone を順番に実行したいとき。 |
+| `memory-bank-init` | 一度だけ。`memory-bank/` がまだないプロジェクトで。質問し、分割案を提示し、それからファイルを書きます。 |
+| `memory-bank-next` | 毎日。1 行を実装し、検証し、コミットします。 |
+| `memory-bank-goal` | 複数の milestone を順番に実行したいとき。 |
 
-体験を最も変えるのは `/memory-bank-init` です。推奨する回答を添えて 1 問ずつ尋ね、リポジトリから読み取れることは聞かずに自分で調べ、分割案をあなたが承認するまで何も書きません。角括弧のプレースホルダーを目にすることはなく、memory bank は記入済みで届きます。（インタビュー手法は [mattpocock/skills](https://github.com/mattpocock/skills) の `grilling` skill を参考にしています。MIT ライセンス。）
+体験を最も変えるのは `memory-bank-init` です。推奨する回答を添えて 1 問ずつ尋ね、リポジトリから読み取れることは聞かずに自分で調べ、分割案をあなたが承認するまで何も書きません。角括弧のプレースホルダーを目にすることはなく、memory bank は記入済みで届きます。（インタビュー手法は [mattpocock/skills](https://github.com/mattpocock/skills) の `grilling` skill を参考にしています。MIT ライセンス。）
 
 どちらのエージェントも同じ `SKILL.md` 形式を読むので、コマンドごとにソースは 1 つです:
 
@@ -431,15 +415,22 @@ codex plugin add memory-bank@tabilet
 
 設定済みの marketplace 間でプラグイン名が一意でない場合、Codex は `@marketplace` 修飾を要求します。`memory-bank@tabilet` の形を覚えておくとよいでしょう。新しいバージョンが出たら `codex plugin marketplace upgrade` でスナップショットを更新します。
 
-**呼び出し方は両者で異なります。** Claude Code はスラッシュコマンドとして登録するので `/memory-bank-init` です。Codex は名前で呼ぶスキルとして登録するため、スラッシュなしで «use the memory-bank-init skill» のように依頼します。普通の文章はどちらでも通じますし、memory bank はもともとそれを前提にしています。
+**プラグインからの呼び出しには名前空間が付きます。** Claude Code は `/memory-bank:memory-bank-init`、`/memory-bank:memory-bank-next`、`/memory-bank:memory-bank-goal` を使い、Codex は `$memory-bank:memory-bank-init`、`$memory-bank:memory-bank-next`、`$memory-bank:memory-bank-goal` を使います。どちらでも普通の文章による依頼も使えます。
 
 **どちらのエージェントでも**、管理されたプラグインではなく自分が所有するファイルとして入れることもできます:
 
 ```bash
-mkdir -p ~/.codex/skills            # or ~/.claude/skills
+mkdir -p ~/.agents/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=2 -C ~/.codex/skills 'skills-main/skills'
+  | tar -xz --strip-components=2 -C ~/.agents/skills 'skills-main/skills'
+
+# Claude Code alternative
+mkdir -p ~/.claude/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=2 -C ~/.claude/skills 'skills-main/skills'
 ```
+
+skill ファイルを直接インストールした場合は名前空間なしです。Claude Code では `/memory-bank-init`、Codex では `$memory-bank-init` を使い、ほかの 2 つも同じ形式です。
 
 バージョンを固定するには `refs/heads/main` を `refs/tags/<バージョン>` に、`skills-main` をその tarball 内のディレクトリ名 `skills-<バージョン>` に変えてください。
 
@@ -451,23 +442,24 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 
 ですがセッションが終わると、その理解も一緒に終わります。ディスクには何も残らず、明日のエージェントは引き継げず、実行する対象もありません。
 
-`/memory-bank-init` は同じインタビューの規律を、残る成果物へ向けたものです——1 問ずつ、推奨する回答を添えて、調べられる事実は聞かずに調べます。**grill の直後、同じセッションで**実行してください:
+`memory-bank-init` は同じインタビューの規律を、残る成果物へ向けたものです——1 問ずつ、推奨する回答を添えて、調べられる事実は聞かずに調べます。**grill の直後、同じセッションで**実行してください:
 
 ```text
 /grill-me            # explore the design; no files written
-/memory-bank-init    # turn those decisions into a memory bank
+/memory-bank:memory-bank-init    # Claude Code plugin
+$memory-bank:memory-bank-init    # Codex plugin
 ```
 
 すでに決めたことを聞き直すことはありません。「事実は調べ、決定は尋ねる」はリポジトリだけでなく会話にも適用されるので、grill を終えた直後のインタビューは短くなります。多くはレーンと milestone の分割案を確認するだけです。
 
-| | `/grill-me` の後 | `/memory-bank-init` の後 |
+| | `/grill-me` の後 | `memory-bank-init` の後 |
 |---|---|---|
 | 決定がある場所 | 会話の中 | `product.md`、`architecture.md`、`tech-stack.md` |
 | 明日のエージェント | ゼロから | `AGENTS.md` を読めば分かる |
 | 次の行動 | あなたが決める | 次の `` `[ ]` `` 行 |
-| 実行手段 | — | `/memory-bank-next`、まとめてなら `/memory-bank-goal` |
+| 実行手段 | — | `memory-bank-next`、まとめてなら `memory-bank-goal` |
 
-この 2 つは競合ではなく補完です。プロジェクトを生まない決定——アーキテクチャの議論、採用計画、講演の構成——には `/grill-me` を使い続けてください。grill の対象が、来週も自分が何であるかを知っている必要のあるコードベースなら `/memory-bank-init` です。
+この 2 つは競合ではなく補完です。プロジェクトを生まない決定——アーキテクチャの議論、採用計画、講演の構成——には `/grill-me` を使い続けてください。grill の対象が、来週も自分が何であるかを知っている必要のあるコードベースなら `memory-bank-init` です。
 
 ## API Harness をインストールする
 
@@ -476,9 +468,8 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 API harness は、この memory-bank 構造に従う任意のプロジェクトを駆動できるため、アカウントレベルのツールです。 必要なのは Python 3 だけです。
 
 ```bash
-mkdir -p ~/.local/bin ~/.codex/prompts
+mkdir -p ~/.local/bin
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
-cp /path/to/skills/harness/prompts/tackle-next-memory-bank-todo.md ~/.codex/prompts/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 ```
 
@@ -491,13 +482,13 @@ export PATH="$HOME/.local/bin:$PATH"
 1 行だけ実行する:
 
 ```bash
-LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
 ループを実行する:
 
 ```bash
-LLM_MODEL=gpt-5.5 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```
 
 OpenAI 互換プロバイダーを使う:
@@ -505,7 +496,7 @@ OpenAI 互換プロバイダーを使う:
 ```bash
 LLM_API_BASE=https://openrouter.ai/api/v1 \
 LLM_API_KEY=... \
-LLM_MODEL=openai/gpt-5.5 \
+LLM_MODEL=openai/gpt-5.6 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -529,7 +520,9 @@ MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
 
-この harness はタスク指示を API prompt に埋め込みます。Codex CLI は呼び出さず、実行時に外部 prompt ファイルも必要としません。prompt ファイルは、人間とエージェントが再利用できる参考として含まれています。
+この harness はタスク指示を API prompt に埋め込みます。Codex CLI は呼び出さず、実行時に外部 prompt ファイルも必要としません。prompt ファイルは埋め込み指示と同期する人間向けコピーとしてリポジトリに残し、Codex の prompt ディレクトリにはインストールしません。
+
+モデル名は変わります。例では現在の `gpt-5.6` family alias と `claude-opus-5` を使っています。実際の実行では公式の [OpenAI model catalog](https://developers.openai.com/api/docs/models) と [Anthropic model catalog](https://platform.claude.com/docs/en/about-claude/models/overview) を確認してください。
 
 ### 最初の実行
 
