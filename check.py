@@ -50,6 +50,26 @@ def check(name: str):
 
 
 def markdown_files() -> list[pathlib.Path]:
+    tracked_or_unignored = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "--",
+            "*.md",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if tracked_or_unignored.returncode == 0:
+        return sorted(
+            ROOT / line
+            for line in tracked_or_unignored.stdout.splitlines()
+            if line
+        )
     return sorted(
         p for p in ROOT.rglob("*.md") if ".git" not in p.parts and "node_modules" not in p.parts
     )
@@ -287,7 +307,6 @@ def suggested_goal_reference():
         *(ROOT / f"README_{lang}.md" for lang in LANGS),
         ROOT / "docs" / "TUTORIAL.md",
         ROOT / "docs" / "medium.md",
-        ROOT / "medium-new-project.md",
     ]
     for path in public:
         if "memory-bank/suggested.txt" not in path.read_text():
@@ -560,7 +579,6 @@ def public_interfaces():
     public = readmes + [
         ROOT / "docs" / "TUTORIAL.md",
         ROOT / "docs" / "medium.md",
-        ROOT / "medium-new-project.md",
     ] + sorted(SKILLS_DIR.glob("*/SKILL.md"))
 
     plugin_tokens = (
@@ -571,7 +589,7 @@ def public_interfaces():
         "$memory-bank:memory-bank-next",
         "$memory-bank:memory-bank-goal",
     )
-    for path in readmes + [ROOT / "docs" / "TUTORIAL.md", ROOT / "medium-new-project.md"]:
+    for path in readmes + [ROOT / "docs" / "TUTORIAL.md"]:
         text = path.read_text()
         for token in plugin_tokens:
             if token not in text:
