@@ -1,26 +1,24 @@
 # A Minimal Engineering Harness
 
-Coding agents work better when a project can explain itself — what it is, what's
-done, what's next. The usual way to get that is to adopt a system: a CLI, a
-scaffold, a set of slash commands, a folder of generated artifacts. Six months
-later you are maintaining that system's files as much as your own code, and your
-project lives inside its conventions rather than yours.
+Coding agents work better when a project can explain itself: what it is, what is
+done, and what comes next. This repository gives you a small set of plain-text
+files, mostly markdown, that do exactly that. You copy them into your project and
+own them from that moment on.
 
-This is the opposite bet: a small set of plain-text files, mostly markdown, copied into your
-project and owned outright by you. There is no mandatory project CLI or
-runtime, no vocabulary to learn, and nothing you cannot replace. Optional
-plugins can generate the files, and an optional API runner can execute rows
-unattended; neither becomes a project dependency.
+Everything here is plain text, so `git` is the only tool you need. You can read
+the files, edit them by hand, rename them, or delete them, and any agent that
+reads markdown can work with them. An optional plugin will generate the files for
+you, and an optional API runner will work through them unattended; both stay
+outside your project.
 
-**What you end up with is yours.** This repository is a starting point you copy
-*out* of — `template/` into your project, `harness/` optionally into your home
-directory. Afterwards your project has no dependency on this repository and no
-link back to it.
+`template/` goes into your project, and `harness/` goes into your home directory
+if you want the API runner. Once the files are in place they belong to your
+project, and your project stays independent of this repository. Six months from
+now, the only files you are maintaining are still your own.
 
-Three optional skills can do the copying and the filling for you — see
-[Install The Three Skills](#install-the-three-skills). They change nothing
-about the bet above: they *generate* files you then own outright, they never
-update them afterwards, and uninstalling them leaves your project untouched.
+Three optional skills can do the copying and the filling for you; see
+[Install The Three Skills](#install-the-three-skills). The files they write are
+yours from the moment they appear, and they stay exactly as you leave them.
 
 Your project ends up looking like this:
 
@@ -43,8 +41,8 @@ your-project/
 The term *memory bank* was popularised by [Cline](https://docs.cline.bot/best-practices/memory-bank); this is a different
 implementation of the same idea, in plain files with no runtime.
 
-Throughout, **harness** means a repeatable command that proves something works —
-your test suite, a CI job, a script. Your project defines its own in
+Throughout, **harness** means a repeatable command that proves something works,
+such as your test suite, a CI job, or a script. Your project defines its own in
 `tech-stack.md`. This repository also ships one optional harness of its own, an
 API loop that drives an agent through the memory bank unattended.
 
@@ -56,12 +54,12 @@ Language versions: [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](READM
 
 **New to this?** [docs/TUTORIAL.md](docs/TUTORIAL.md) walks a toy project from
 an empty directory to a first committed task in twenty minutes, using
-the `memory-bank-init` skill to do the setup. The rest of this README is reference — the
-tutorial is the guided path through it.
+the `memory-bank-init` skill to do the setup. The rest of this README is
+reference material, and the tutorial is a guided path through it.
 
-**To use the memory bank you need `git`, and nothing else.** The memory bank is
-plain markdown, so the everyday workflow — telling an agent such as Codex or
-Claude Code to tackle the next pending item — needs no runtime at all.
+The memory bank needs `git` and nothing else. It is plain markdown, so the
+everyday workflow needs no runtime: you tell an agent such as Codex or Claude
+Code to tackle the next pending item, and it edits the files directly.
 
 **Python 3 is only for the optional API harness**, the unattended loop described
 in [Install The API Harness](#install-the-api-harness). It uses nothing but the
@@ -71,8 +69,9 @@ you drive the memory bank through an agent you already use.
 The existing-project instructions below also use
 [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) for the initial inventory.
 
-**The quickest path needs no clone at all.** Install the plugin, then let its
-namespaced `memory-bank-init` skill interview you and write the memory bank:
+The quickest way to start does not require cloning anything. Install the plugin
+and let its namespaced `memory-bank-init` skill interview you and write the
+memory bank for you:
 
 ```bash
 /plugin marketplace add tabilet/skills
@@ -80,7 +79,8 @@ namespaced `memory-bank-init` skill interview you and write the memory bank:
 /memory-bank:memory-bank-init
 ```
 
-Run those commands in Claude Code from your project — empty or existing — and
+Run those commands in Claude Code from your project, whether it is empty or
+already has code, and
 answer the questions. The Codex equivalent and plain-file installation are in
 [Install The Three Skills](#install-the-three-skills).
 
@@ -153,7 +153,7 @@ It owns cart state, pricing, and the handoff to payments.
 ```
 
 `memory-bank/milestone.md` is the file that decides how everything else is
-organised — it names the lanes and what each one covers:
+organised. It names the lanes and states what each one covers:
 
 ```markdown
 ## Status ID Pattern
@@ -233,8 +233,8 @@ Then edit the copied files in this order:
    [Status ID lanes](#status-id-lanes)) and the first milestone.
 5. `memory-bank/status-M01.md`: define the first milestone's actionable rows.
    See [what a filled-in memory bank looks
-   like](#what-a-filled-in-memory-bank-looks-like) — the marker backticks
-   matter.
+   like](#what-a-filled-in-memory-bank-looks-like), and note that the marker
+   backticks matter.
 6. `evolution/prompt-v1.md`: record the initial direction.
 7. `evolution/result-v1.md`: record the current starting state.
 8. `AGENTS.md`: replace placeholders with project-specific commands and rules.
@@ -244,7 +244,7 @@ Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
 ### Wiring up your agent
 
 `AGENTS.md` is an [open cross-vendor standard](https://agents.md) stewarded by
-the Agentic AI Foundation. Most coding agents read it with no setup at all —
+the Agentic AI Foundation. Most coding agents read it with no setup at all,
 among them Codex, Cursor, Gemini CLI, GitHub Copilot's coding agent, Devin,
 Windsurf, Jules, Junie, Zed, Aider, VS Code, Warp, goose, opencode, and Amp.
 
@@ -301,9 +301,9 @@ contain the first actionable milestone rows.
 ## Set Up An Existing Project
 
 `memory-bank-init` handles this case too, and handles it better than a cold
-prompt: it reads what the repository already states — README, tests, build and
-CI files — and asks you only about the decisions those cannot reveal, usually
-the non-goals, the boundaries, and the order of work.
+prompt. It reads what the repository already states in the README, the tests,
+and the build and CI files, then asks you only about the decisions those cannot
+reveal, usually the non-goals, the boundaries, and the order of work.
 
 ### Manual
 
@@ -369,7 +369,7 @@ The agent should:
 ## Use The Memory Bank
 
 There are four ways to execute against the memory bank, and all of them are
-optional — the memory bank is plain markdown and works on its own:
+optional, because the memory bank is plain markdown and works on its own:
 
 | Way to execute | Scope | Needs |
 |---|---|---|
@@ -398,8 +398,8 @@ direction materially changed.
 
 Before you trust any of this, give the agent something to verify against. Fill
 the **Execution harnesses** table in `memory-bank/tech-stack.md` with the command
-that proves your project works — `make test`, `npm test`, a script, whatever you
-already run — and what passing it proves. A row should not reach `[+]` until that
+that proves your project works, such as `make test`, `npm test`, or a script you
+already run, and record what passing it proves. A row should not reach `[+]` until that
 command has passed. Without it, "mark a row complete only when verified" has no
 referent and the agent will decide for itself what verified means.
 
@@ -430,17 +430,18 @@ into a domain lane. A lane holds at most 99 files; when a lane fills up, open a
 new letter instead of adding a third digit. `memory-bank/milestone.md` records
 what each letter means and never lets an ID be reused.
 
-**Choosing lanes.** A lane is a long-lived track of work, not a milestone and
-not a sprint. Classify by domain — the part of the product a change belongs to —
-rather than by team, priority, or date, because domains outlive all three. Start
+**Choosing lanes.** A lane is a long-lived track of work, on the scale of a
+product area rather than a milestone or a sprint. Classify by domain, meaning the
+part of the product a change belongs to, because domains outlive teams,
+priorities, and dates. Start
 with `M` alone; split a letter out the first time a domain has enough work that
 its rows would drown out everything else, or when it needs its own review
 cadence. Two or three lanes is a normal steady state, and a project can run a
 long time on one.
 
 Under-splitting is cheap to fix: open a new letter and put new work there. Over-
-splitting is not, because IDs are never reused or renamed once their file
-exists — a lane you regret stays in the tree forever. When unsure, leave it in
+splitting is permanent, because an ID keeps its name for the life of the
+project once its file exists. When unsure, leave it in
 `M`.
 
 Status rows use these markers:
@@ -462,7 +463,7 @@ milestones downstream of one that just closed, and stops rather than guessing
 when a decision or authority is missing.
 
 It is invoked, not ambient. Whatever your agent, the request that starts a run is
-the same block — it names the file, the order, and the commit policy:
+the same block, and it names the file, the order, and the commit policy:
 
 ```text
 Using GOAL.md, execute this loop.
@@ -532,9 +533,9 @@ needs; nothing depends on a slash command existing.
 
 `COMMIT_POLICY` matters, and a goal run is a deliberate exception to the usual
 rule. For the length of the run it is the entire commit rule: `AGENTS.md` may say
-each status row is a commit unit, but `COMMIT_POLICY: none` — the protocol's
-default — means no commits at all, and that is correct behavior rather than a
-conflict. Say `task` when you want the usual per-row commits. Precedence runs
+each status row is a commit unit, but `COMMIT_POLICY: none`, which is the
+protocol's default, means no commits at all. That is correct behavior rather
+than a conflict. Say `task` when you want the usual per-row commits. Precedence runs
 request, then `GOAL.md`, then `AGENTS.md`, and only for commits, and only inside
 the run.
 
@@ -549,8 +550,8 @@ Nothing requires you to use it. Bring your own protocol, or none at all, and
 the memory bank behaves exactly the same. `GOAL.md` is offered because writing
 one of these is fiddly,
 not because anything here depends on it. If you have your own, point the two
-`GOAL.md` mentions — in `AGENTS.md` and `memory-bank/milestone.md` — at it, or
-delete them.
+`GOAL.md` mentions at it instead, or delete them. They are in `AGENTS.md` and
+`memory-bank/milestone.md`.
 
 ## Install The Three Skills
 
@@ -567,8 +568,8 @@ paraphrase of it.
 `memory-bank-init` is the one that changes the experience most: it asks one
 question at a time with a recommended answer attached, looks up anything it can
 read from the repository instead of asking, and writes nothing until you approve
-the breakdown. You never see a bracketed placeholder — the memory bank arrives
-filled in. *(Interview technique adapted from the `grilling` skill in
+the breakdown. You never see a bracketed placeholder, because the memory bank
+arrives filled in. *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
 Both agents read the same `SKILL.md` format **and the same manifest**, so there
@@ -629,7 +630,7 @@ The plugin installs the *generator*, not the output. What it writes into your
 project is yours, is never updated from here, and survives uninstalling it.
 
 The skill is deliberately not named `goal`: Claude Code has a built-in `/goal`
-that sets a stop condition, which is a different thing. The two work together —
+that sets a stop condition, which is a different thing. The two work together;
 see [Run an ordered set of
 milestones](#run-an-ordered-set-of-milestones).
 
@@ -645,8 +646,8 @@ But when the session closes, the understanding closes with it. Nothing is on
 disk, nothing an agent can pick up tomorrow, and nothing to execute against.
 
 `memory-bank-init` is the same interview discipline pointed at a persistent
-artifact — one question at a time, each with a recommended answer, facts looked
-up rather than asked. Run it **in the same session, right after the grill**:
+artifact. It asks one question at a time, each with a recommended answer, and
+looks facts up rather than asking about them. Run it **in the same session, right after the grill**:
 
 ```text
 /grill-me                              # explore the design; no files written
@@ -656,10 +657,10 @@ $memory-bank:memory-bank-init          # Codex plugin
 
 It will not re-ask what you already settled. "Look up facts, ask about
 decisions" applies to the conversation as much as to the repository, so a grill
-you have just finished makes for a short interview — mostly confirming a
+you have just finished makes for a short interview, mostly confirming a
 proposed breakdown of lanes and milestones.
 
-What you get that the grill alone does not leave behind:
+What the memory bank keeps after the session ends:
 
 | | After `/grill-me` | After `memory-bank-init` |
 |---|---|---|
@@ -669,14 +670,14 @@ What you get that the grill alone does not leave behind:
 | Executing it | — | `memory-bank-next`, or `memory-bank-goal` for a set |
 
 The two are complements, not rivals. Keep `/grill-me` for decisions that produce
-no project — an architecture argument, a hiring plan, a talk outline. Reach for
+no project, such as an architecture argument, a hiring plan, or a talk outline. Reach for
 `memory-bank-init` when the thing you are grilling about is a codebase that has
 to still know what it is next week.
 
 ## Install The API Harness
 
-This section is optional. Everything above works without it — the harness only
-adds an unattended loop that drives an agent through the API instead of you
+This section is optional. Everything above works without it, because the harness
+only adds an unattended loop that drives an agent through the API instead of you
 typing into one. Skip it if Codex, Claude Code, or another agent already does
 that for you.
 
@@ -767,7 +768,7 @@ Run 1/1: asking LLM to tackle one row.
 ```
 
 The harness stops early on purpose, and its exit code says why. `3` through `7`
-are normal stopping conditions rather than failures — for example `4` means the
+are normal stopping conditions rather than failures. For example, `4` means the
 worktree was dirty before the run, and `6` means the agent finished without
 committing. `11` means it found no `status-<LANE><NN>.md` files, which usually
 means the memory bank has not been filled in yet. The full table is in

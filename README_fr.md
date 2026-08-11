@@ -1,12 +1,12 @@
 # Un harness d’ingénierie minimal
 
-Les agents de code travaillent mieux quand un projet sait s'expliquer — ce qu'il est, ce qui est fait, ce qui vient ensuite. La façon habituelle d'y arriver est d'adopter un système : un CLI, un scaffold, une série de commandes slash, un dossier d'artefacts générés. Six mois plus tard, vous maintenez les fichiers de ce système autant que votre propre code, et votre projet vit dans ses conventions plutôt que dans les vôtres.
+Les agents de code travaillent mieux quand un projet sait s'expliquer : ce qu'il est, ce qui est fait et ce qui vient ensuite. Ce dépôt vous donne un petit ensemble de fichiers texte, principalement en markdown, qui font exactement cela. Vous les copiez dans votre projet et ils vous appartiennent dès cet instant.
 
-Ce dépôt fait le pari inverse : un petit ensemble de fichiers texte, principalement en markdown, copié dans votre projet et qui vous appartient entièrement. Aucun CLI ni runtime de projet n’est obligatoire. Des plugins optionnels peuvent générer les fichiers et un runner API optionnel peut exécuter les lignes sans surveillance ; aucun des deux ne devient une dépendance du projet.
+Tout ici est du texte brut, donc `git` est le seul outil nécessaire. Vous pouvez lire les fichiers, les modifier à la main, les renommer ou les supprimer, et tout agent qui lit le markdown sait les traiter. Un plugin optionnel génère les fichiers pour vous et un runner API optionnel les traite sans surveillance ; tous deux restent en dehors de votre projet.
 
-**Ce que vous obtenez au bout vous appartient.** Ce dépôt est un point de départ dont vous copiez le contenu *vers l'extérieur* : `template/` dans votre projet, `harness/` éventuellement dans votre répertoire personnel. Ensuite, votre projet n'a plus aucune dépendance envers ce dépôt ni aucun lien de retour.
+`template/` va dans votre projet et `harness/` dans votre répertoire personnel si vous voulez le runner API. Une fois les fichiers en place, ils appartiennent à votre projet, et votre projet reste indépendant de ce dépôt. Six mois plus tard, vous ne maintenez toujours que votre propre code.
 
-Trois skills optionnels peuvent faire la copie et le remplissage à votre place — voir [Installer les trois commandes](#installer-les-trois-commandes). Ils ne changent rien au pari ci-dessus : ils *génèrent* des fichiers qui vous appartiennent ensuite, ne les mettent jamais à jour, et les désinstaller laisse votre projet intact.
+Trois skills optionnels peuvent faire la copie et le remplissage à votre place ; voir [Installer les trois commandes](#installer-les-trois-commandes). Les fichiers qu'ils écrivent vous appartiennent dès leur apparition et restent exactement tels que vous les laissez.
 
 Votre projet finit par ressembler à ceci :
 
@@ -28,7 +28,7 @@ your-project/
 
 Le terme *memory bank* a été popularisé par [Cline](https://docs.cline.bot/best-practices/memory-bank) ; ceci en est une autre implémentation, en fichiers simples et sans runtime.
 
-Dans tout ce document, **harness** désigne une commande reproductible qui prouve que quelque chose fonctionne — votre suite de tests, un job CI, un script. Votre projet définit le sien dans `tech-stack.md`. Ce dépôt fournit en plus un harness optionnel : une boucle API qui pilote un agent à travers la memory bank sans surveillance.
+Dans tout ce document, **harness** désigne une commande reproductible qui prouve que quelque chose fonctionne, comme votre suite de tests, un job CI ou un script. Votre projet définit le sien dans `tech-stack.md`. Ce dépôt fournit en plus un harness optionnel : une boucle API qui pilote un agent à travers la memory bank sans surveillance.
 
 Autres versions linguistiques: [🇬🇧 English](README.md) · [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) · [🇩🇪 Deutsch](README_de.md) · [🇪🇸 Español](README_es.md).
 
@@ -36,15 +36,13 @@ Autres versions linguistiques: [🇬🇧 English](README.md) · [🇨🇳 中文
 
 **Nouveau ici ?** [docs/TUTORIAL.md](docs/TUTORIAL.md) mène un projet jouet d’un répertoire vide à un premier commit en vingt minutes, en confiant la mise en place à `memory-bank-init`. Le reste de ce README est une référence ; le tutoriel en est le parcours guidé.
 
-**Pour utiliser la memory bank, il vous faut `git`, et rien d’autre.** La memory bank est du markdown ordinaire : le travail quotidien — demander à un agent comme Codex ou Claude Code de traiter le prochain élément en attente — ne demande aucun runtime.
+La memory bank demande `git`, et rien d’autre. C’est du markdown ordinaire, donc le travail quotidien ne demande aucun runtime : vous demandez à un agent comme Codex ou Claude Code de traiter le prochain élément en attente, et il modifie les fichiers directement.
 
 **Python 3 ne sert qu’au harness API optionnel**, la boucle autonome décrite dans [Installer le harness API](#installer-le-harness-api). Il n’utilise que la bibliothèque standard, il n’y a donc rien à installer avec `pip`. Ignorez-le complètement si vous pilotez déjà la memory bank depuis un agent que vous utilisez.
 
 Les instructions pour un projet existant, plus bas, utilisent aussi [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) pour l’inventaire initial.
 
-Clonez ce dépôt une fois. Chaque commande `cp` ci-dessous désigne votre clone par `/path/to/skills` :
-
-**Le chemin le plus rapide ne demande aucun clone.** Installez le plugin, puis laissez son skill init namespacé vous interroger et écrire la memory bank :
+La façon la plus rapide de démarrer ne demande aucun clone. Installez le plugin et laissez son skill `memory-bank-init` namespacé vous interroger et écrire la memory bank pour vous :
 
 ```bash
 /plugin marketplace add tabilet/skills
@@ -52,7 +50,7 @@ Clonez ce dépôt une fois. Chaque commande `cp` ci-dessous désigne votre clone
 /memory-bank:memory-bank-init
 ```
 
-Lancez ces commandes dans Claude Code depuis votre projet — vide ou existant — et répondez aux questions. L’équivalent Codex et l’option « fichiers simples » se trouvent dans [Installer les trois commandes](#installer-les-trois-commandes).
+Lancez ces commandes dans Claude Code depuis votre projet, qu’il soit vide ou qu’il contienne déjà du code, et répondez aux questions. L’équivalent Codex et l’option « fichiers simples » se trouvent dans [Installer les trois commandes](#installer-les-trois-commandes).
 
 Pour travailler directement avec les fichiers, clonez ce dépôt une fois. Chaque commande `cp` ci-dessous désigne votre clone par `/path/to/skills` :
 
@@ -176,7 +174,7 @@ Modifiez ensuite les fichiers copiés dans cet ordre :
 2. `memory-bank/architecture.md` : définir le layout, le flux de données et les frontières.
 3. `memory-bank/tech-stack.md` : définir les commandes, dépendances et harnesses.
 4. `memory-bank/milestone.md` : définir le premier milestone.
-5. `memory-bank/status-M01.md` : définir les premières lignes actionnables. Voir plus bas « À quoi ressemble un fichier de statut rempli » — les backticks autour des marqueurs sont déterminants.
+5. `memory-bank/status-M01.md` : définir les premières lignes actionnables. Voir plus bas « À quoi ressemble un fichier de statut rempli », en notant que les backticks autour des marqueurs sont déterminants.
 6. `evolution/prompt-v1.md` : consigner la direction initiale.
 7. `evolution/result-v1.md` : consigner l’état de départ actuel.
 8. `AGENTS.md` : remplacer les placeholders par les commandes et règles propres au projet.
@@ -233,7 +231,7 @@ the first actionable milestone rows.
 
 ## Configurer un projet existant
 
-`memory-bank-init` couvre aussi ce cas, et mieux qu’une invite partie de zéro : il lit ce que le dépôt dit déjà — README, tests, fichiers de build et de CI — et ne vous interroge que sur les décisions qu’ils ne révèlent pas, généralement les non-objectifs, les frontières et l’ordre du travail.
+`memory-bank-init` couvre aussi ce cas, et mieux qu’une invite partie de zéro : il lit ce que le dépôt dit déjà, à savoir le README, les tests et les fichiers de build et de CI, puis ne vous interroge que sur les décisions qu’ils ne révèlent pas, généralement les non-objectifs, les frontières et l’ordre du travail.
 
 ### Manuellement
 
@@ -289,7 +287,7 @@ L’agent doit :
 
 ## Utiliser la Memory Bank
 
-Il y a quatre façons d’exécuter du travail sur la memory bank, toutes optionnelles — la memory bank est du markdown ordinaire et fonctionne seule :
+Il y a quatre façons d’exécuter du travail sur la memory bank, toutes optionnelles, car la memory bank est du markdown ordinaire et fonctionne seule :
 
 | Façon d’exécuter | Portée | Nécessite |
 |---|---|---|
@@ -306,7 +304,7 @@ tackle next pending item in memory bank
 
 L’agent doit trouver la prochaine ligne actionnable dans `memory-bank/status-<LANE><NN>.md`, terminer cette tâche, exécuter la vérification requise, mettre à jour la memory bank et créer un git commit au périmètre clair. Si cette ligne est le dernier élément ouvert d’un milestone, l’agent doit lancer la revue de milestone depuis `memory-bank/milestone.md` avant de continuer. Pendant cette revue, il doit aussi décider si `evolution/` a besoin d’une nouvelle version parce que la direction produit, la frontière d’architecture, la cible du milestone ou la direction du contrat public/privé a changé matériellement.
 
-Avant de faire confiance à tout cela, donnez à l’agent quelque chose à vérifier. Remplissez le tableau **Execution harnesses** de `memory-bank/tech-stack.md` avec la commande qui prouve que votre projet fonctionne — `make test`, `npm test`, un script, ce que vous lancez déjà — et ce que sa réussite prouve. Une ligne ne devrait pas passer à `[+]` avant que cette commande soit passée. Sans cela, « ne marquer une ligne terminée qu’après vérification » n’a aucun référent et l’agent décide seul de ce que vérifier veut dire.
+Avant de faire confiance à tout cela, donnez à l’agent quelque chose à vérifier. Remplissez le tableau **Execution harnesses** de `memory-bank/tech-stack.md` avec la commande qui prouve que votre projet fonctionne, par exemple `make test`, `npm test` ou un script que vous lancez déjà, et notez ce que sa réussite prouve. Une ligne ne devrait pas passer à `[+]` avant que cette commande soit passée. Sans cela, « ne marquer une ligne terminée qu’après vérification » n’a aucun référent et l’agent décide seul de ce que vérifier veut dire.
 
 Sous la surface, le workflow normal de l’agent est :
 
@@ -323,9 +321,9 @@ Sous la surface, le workflow normal de l’agent est :
 
 Les fichiers de statut sont nommés `memory-bank/status-<LANE><NN>.md`. La lettre de voie classe le travail et le nombre s’écrit sur deux chiffres avec un zéro initial : les milestones de comptabilité deviennent `status-A01.md` et `status-A02.md`, ceux de la boutique `status-S01.md`. `M` est la voie par défaut pour le travail qui n’entre dans aucune voie de domaine. Une voie contient au plus 99 fichiers ; quand elle est pleine, ouvrez une nouvelle lettre au lieu d’ajouter un troisième chiffre. `memory-bank/milestone.md` consigne le sens de chaque lettre et interdit de réutiliser un identifiant.
 
-**Choisir ses voies.** Une voie est un axe de travail durable, pas un milestone ni un sprint. Classez par domaine — la partie du produit à laquelle un changement appartient — plutôt que par équipe, priorité ou date, car les domaines survivent aux trois. Commencez avec `M` seul ; détachez une lettre la première fois qu'un domaine a assez de travail pour noyer le reste, ou quand il lui faut son propre rythme de revue. Deux ou trois voies est un régime permanent normal, et un projet peut tenir longtemps avec une seule.
+**Choisir ses voies.** Une voie est un axe de travail durable, à l’échelle d’un pan de produit plutôt que d’un milestone ou d’un sprint. Classez par domaine, c’est-à-dire la partie du produit à laquelle un changement appartient, car les domaines survivent aux équipes, aux priorités et aux dates. Commencez avec `M` seul ; détachez une lettre la première fois qu'un domaine a assez de travail pour noyer le reste, ou quand il lui faut son propre rythme de revue. Deux ou trois voies est un régime permanent normal, et un projet peut tenir longtemps avec une seule.
 
-Sous-découper se corrige à peu de frais : ouvrez une nouvelle lettre et mettez-y le travail à venir. Sur-découper non, car les identifiants ne sont jamais réutilisés ni renommés une fois le fichier créé — une voie que vous regrettez reste dans l'arbre pour toujours. Dans le doute, laissez dans `M`.
+Sous-découper se corrige à peu de frais : ouvrez une nouvelle lettre et mettez-y le travail à venir. Sur-découper est définitif, car un identifiant garde son nom pour toute la vie du projet dès que son fichier existe. Dans le doute, laissez dans `M`.
 
 Les lignes de statut utilisent ces marqueurs :
 
@@ -341,7 +339,7 @@ Les lignes de statut utilisent ces marqueurs :
 
 Le flux ci-dessus avance une ligne à la fois. Pour traiter plusieurs milestones dans un ordre défini, [GOAL.md](template/GOAL.md) est un protocole possible pour cela : il réconcilie les dépendances avant chaque milestone, réconcilie les milestones en aval de celui qui vient de se clore, et s’arrête au lieu de deviner quand une décision ou une autorisation manque.
 
-Il s’invoque, il n’est pas permanent. Quel que soit votre agent, la requête qui lance une exécution est le même bloc — elle nomme le fichier, l’ordre et la politique de commit :
+Il s’invoque, il n’est pas permanent. Quel que soit votre agent, la requête qui lance une exécution est le même bloc, et elle nomme le fichier, l’ordre et la politique de commit :
 
 ```text
 Using GOAL.md, execute this loop.
@@ -390,13 +388,13 @@ Avec les fichiers de skill installés directement, utilisez `$memory-bank-goal M
 
 Collez le bloc comme une requête ordinaire. Le protocole a seulement besoin que le fichier soit nommé ; rien ne dépend de l’existence d’une commande slash.
 
-`COMMIT_POLICY` compte, et une boucle de goal est une exception délibérée à la règle habituelle. Le temps de l’exécution, c’est toute la règle de commit : `AGENTS.md` a beau dire que chaque ligne de statut est une unité de commit, `COMMIT_POLICY: none` — la valeur par défaut du protocole — signifie aucun commit du tout, et c’est le comportement correct, pas un conflit. Écrivez `task` pour retrouver les commits par ligne. L’ordre de priorité est la demande, puis `GOAL.md`, puis `AGENTS.md` — et seulement pour les commits, et seulement pendant l’exécution.
+`COMMIT_POLICY` compte, et une boucle de goal est une exception délibérée à la règle habituelle. Le temps de l’exécution, c’est toute la règle de commit : `AGENTS.md` a beau dire que chaque ligne de statut est une unité de commit, `COMMIT_POLICY: none`, la valeur par défaut du protocole, signifie aucun commit du tout. C’est le comportement correct, pas un conflit. Écrivez `task` pour retrouver les commits par ligne. L’ordre de priorité est la demande, puis `GOAL.md`, puis `AGENTS.md`, et cela ne vaut que pour les commits et que pendant l’exécution.
 
 Un `?` final marque un milestone conditionnel : il est ignoré, pas annulé, quand son déclencheur documenté est absent.
 
 `GOAL.md` ne contient aucun chemin, aucune lettre de voie ni aucune commande propres à un projet. Il les lit depuis `AGENTS.md` et la memory bank, ce qui permet au même fichier de fonctionner tel quel dans tout projet qui le copie.
 
-Rien ne vous oblige à l’utiliser. Apportez votre propre protocole, ou aucun : la memory bank se comporte exactement pareil. `GOAL.md` est fourni parce qu’écrire ce genre de protocole est fastidieux, pas parce que quoi que ce soit ici en dépend. Si vous avez le vôtre, faites pointer dessus les deux mentions de `GOAL.md` — dans `AGENTS.md` et `memory-bank/milestone.md` — ou supprimez-les.
+Rien ne vous oblige à l’utiliser. Apportez votre propre protocole, ou aucun : la memory bank se comporte exactement pareil. `GOAL.md` est fourni parce qu’écrire ce genre de protocole est fastidieux, pas parce que quoi que ce soit ici en dépend. Si vous avez le vôtre, faites pointer dessus les deux mentions de `GOAL.md`, ou supprimez-les. Elles se trouvent dans `AGENTS.md` et `memory-bank/milestone.md`.
 
 ## Installer les trois commandes
 
@@ -408,9 +406,7 @@ Rien ne vous oblige à l’utiliser. Apportez votre propre protocole, ou aucun :
 | `memory-bank-next` | Au quotidien. Traiter une ligne, vérifier, committer. |
 | `memory-bank-goal` | Quand vous voulez exécuter plusieurs milestones dans l’ordre. |
 
-`memory-bank-init` est celle qui change le plus l’expérience : elle pose une question à la fois, assortie d’une réponse recommandée, cherche elle-même tout ce qu’elle peut lire dans le dépôt au lieu de le demander, et n’écrit rien tant que vous n’avez pas approuvé le découpage. Vous ne voyez aucun placeholder entre crochets — la memory bank arrive remplie. (Technique d’entretien adaptée du skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
-
-Les deux agents lisent le même format `SKILL.md`, il n’y a donc qu’une source par commande :
+`memory-bank-init` est celle qui change le plus l’expérience : elle pose une question à la fois, assortie d’une réponse recommandée, cherche elle-même tout ce qu’elle peut lire dans le dépôt au lieu de le demander, et n’écrit rien tant que vous n’avez pas approuvé le découpage. Vous ne voyez aucun placeholder entre crochets, car la memory bank arrive remplie. (Technique d’entretien adaptée du skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
 
 Les deux agents lisent le même format `SKILL.md` **et le même manifeste**, il n’y a donc qu’une source par commande et une seule version à installer.
 
@@ -453,7 +449,7 @@ Le skill ne s’appelle délibérément pas `goal` : Claude Code possède un `/g
 
 ### Si vous utilisez déjà `/grill-me`
 
-`/grill-me` et `/grilling` de [mattpocock/skills](https://github.com/mattpocock/skills) s’arrêtent là où ils le veulent : *"Do not act on it until I confirm we have reached a shared understanding."* — n’agis pas tant que je n’ai pas confirmé que nous avons une compréhension commune. Pour un entretien généraliste c’est le bon choix, et c’est ce qui permet à ce skill de s’appliquer à tout.
+`/grill-me` et `/grilling` de [mattpocock/skills](https://github.com/mattpocock/skills) s’arrêtent là où ils le veulent : *"Do not act on it until I confirm we have reached a shared understanding."* (n’agis pas tant que je n’ai pas confirmé que nous avons une compréhension commune). Pour un entretien généraliste c’est le bon choix, et c’est ce qui permet à ce skill de s’appliquer à tout.
 
 Mais quand la session se ferme, la compréhension se ferme avec elle. Rien sur le disque, rien qu’un agent puisse reprendre demain, rien contre quoi exécuter.
 
@@ -465,7 +461,7 @@ Mais quand la session se ferme, la compréhension se ferme avec elle. Rien sur l
 $memory-bank:memory-bank-init    # Codex plugin
 ```
 
-Il ne vous redemandera pas ce que vous avez déjà tranché. « Chercher les faits, demander les décisions » vaut pour la conversation autant que pour le dépôt : après un grill tout frais, l’entretien est court — surtout la confirmation d’un découpage en voies et milestones.
+Il ne vous redemandera pas ce que vous avez déjà tranché. « Chercher les faits, demander les décisions » vaut pour la conversation autant que pour le dépôt : après un grill tout frais, l’entretien est court et se limite le plus souvent à confirmer un découpage en voies et milestones.
 
 | | Après `/grill-me` | Après `memory-bank-init` |
 |---|---|---|
