@@ -57,6 +57,18 @@ Link each row once its status file exists.
 | M02 | `status-M02.md` | [Milestone summary.] |
 | [A]01 | `status-A01.md` | [Domain milestone summary.] |
 
+## Candidate Directions
+
+Candidate directions are outside the active execution horizon. They are not
+milestones: they have no lane, permanent status ID, status file, or place in an
+execution order. A promotion trigger causes fresh reconciliation and approval,
+not automatic scheduling. Assign the next unused permanent ID only after a
+candidate is promoted.
+
+| Direction | Why Deferred | Promotion Trigger |
+|---|---|---|
+| [Later direction.] | [Why detailed planning would be premature.] | [Decision, evidence, or completed milestone that makes it ready.] |
+
 ## Milestone review procedure
 
 When the last open row in a milestone's status file is flipped to `[+]` during
@@ -74,9 +86,12 @@ the next milestone:
 4. Check `evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
    product direction, architecture boundary, milestone target, or public/private
    contract direction materially changes.
-5. Run required verification, then commit any review changes. Do not create an
+5. Revisit candidate directions affected by the milestone. Update their reason
+   or trigger; when a trigger is now true, propose a reconciled milestone and
+   obtain approval before allocating its permanent ID and status file.
+6. Run required verification, then commit any review changes. Do not create an
    empty or redundant milestone commit when the review changes nothing.
-6. Report a short review summary: what was verified, what memory-bank files
+7. Report a short review summary: what was verified, what memory-bank files
    changed, any review commit, and whether an evolution bump was made.
 
 ## M01 - [Milestone name]

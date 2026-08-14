@@ -30,9 +30,9 @@ your-project/
 │   ├── product.md         what this is, and is not
 │   ├── architecture.md    layout, data flow, boundaries
 │   ├── tech-stack.md      commands, dependencies, how you verify
-│   ├── milestone.md       milestones and their acceptance criteria
-│   ├── status-M01.md      one permanent file per milestone, one row per task
-│   └── suggested.txt      disposable multi-milestone launch reference
+│   ├── milestone.md       active milestones plus unnumbered later directions
+│   ├── status-M01.md      one permanent file per active milestone
+│   └── suggested.txt      optional active-horizon launch reference
 └── evolution/             versioned direction snapshots
     ├── prompt-v1.md       the initial direction
     └── result-v1.md       the state it produced
@@ -127,9 +127,13 @@ The three skills are in [skills/](skills/). Claude Code and Codex read the same
   set of milestones
 
 Unlike the copyable template, `memory-bank-init` can derive project-specific
-goal input. It writes `memory-bank/suggested.txt` with a proposed
-`STATUS_ORDER`, `STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is
-advisory and disposable; the milestone and status files remain authoritative.
+goal input. When the project contains an approved compatible `GOAL.md`, init
+writes `memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
+`STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is advisory and disposable,
+covers only the approved active horizon, and excludes unnumbered candidate
+directions; the milestone and status files remain authoritative. Init omits the
+launch reference when no compatible protocol exists instead of naming a missing
+or incompatible file.
 
 `.claude-plugin/` holds the compatibility manifest used to install the same
 plugin in Claude Code and Codex. Nothing in `template/` is vendor-specific.
@@ -302,8 +306,9 @@ contain the first actionable milestone rows.
 
 `memory-bank-init` handles this case too, and handles it better than a cold
 prompt. It reads what the repository already states in the README, the tests,
-and the build and CI files, then asks you only about the decisions those cannot
-reveal, usually the non-goals, the boundaries, and the order of work.
+build and CI files, interfaces, schemas, source layout, and infrastructure. It
+then asks only about decisions the evidence cannot settle, growing relevant
+branches instead of assuming every project needs the same interview.
 
 ### Manual
 
@@ -431,6 +436,12 @@ into a domain lane. A lane holds at most 99 files; when a lane fills up, open a
 new letter instead of adding a third digit. `memory-bank/milestone.md` records
 what each letter means and never lets an ID be reused.
 
+The milestone file also holds **candidate directions** outside the active
+execution horizon. They remain unnumbered and have no status files until their
+promotion trigger is met, the work is reconciled again, and the promoted
+breakdown is approved. This keeps permanent IDs and task lists from freezing
+speculative far-future work.
+
 **Choosing lanes.** A lane is a long-lived track of work, on the scale of a
 product area rather than a milestone or a sprint. Classify by domain, meaning the
 part of the product a change belongs to, because domains outlive teams,
@@ -473,11 +484,12 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-When `memory-bank-init` created the project, it also wrote the complete proposed
-request to `memory-bank/suggested.txt`. Treat that file as a launch suggestion,
-not a second roadmap: reconcile it against `milestone.md` and the current status
-files, then delete it after launch or whenever it becomes stale. To reference it
-directly:
+When `memory-bank-init` created or approved a compatible `GOAL.md`, it also wrote
+the complete proposed request to `memory-bank/suggested.txt`. Treat that file as
+a launch suggestion, not a second roadmap: reconcile it against `milestone.md`
+and the current status files, then delete it after launch or whenever it becomes
+stale. If the protocol was unavailable or incompatible, init omits this file and
+leaves one-row execution available. To reference an existing suggestion directly:
 
 ```text
 Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
@@ -541,7 +553,9 @@ request, then `GOAL.md`, then `AGENTS.md`, and only for commits, and only inside
 the run.
 
 A trailing `?` marks a milestone conditional: it is skipped, not cancelled, when
-its documented trigger is absent.
+its documented trigger is absent. Use it only for work conditionally required to
+reach the active outcome; discretionary later work stays an unnumbered candidate
+direction instead.
 
 `GOAL.md` carries no project-specific paths, lane letters, or commands. It
 discovers those from `AGENTS.md` and the memory bank, so the same file works
@@ -566,11 +580,12 @@ paraphrase of it.
 | `memory-bank-next` | Every day. Tackle one row, verify, commit. |
 | `memory-bank-goal` | When you want several milestones run in order. |
 
-`memory-bank-init` is the one that changes the experience most: it asks one
-question at a time with a recommended answer attached, looks up anything it can
-read from the repository instead of asking, and writes nothing until you approve
-the breakdown. You never see a bracketed placeholder, because the memory bank
-arrives filled in. *(Interview technique adapted from the `grilling` skill in
+`memory-bank-init` is the one that changes the experience most: it maps one
+delivery boundary as a design tree, asks each dependency-ready frontier as a
+numbered round with recommended answers, and looks up repository facts instead
+of asking you for them. It writes nothing until you approve both the active
+horizon and every file action. You never see a bracketed placeholder, because
+the memory bank arrives filled in. *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
 Both agents read the same `SKILL.md` format **and the same manifest**, so there
@@ -647,8 +662,10 @@ But when the session closes, the understanding closes with it. Nothing is on
 disk, nothing an agent can pick up tomorrow, and nothing to execute against.
 
 `memory-bank-init` is the same interview discipline pointed at a persistent
-artifact. It asks one question at a time, each with a recommended answer, and
-looks facts up rather than asking about them. Run it **in the same session, right after the grill**:
+artifact. It asks dependency-independent decisions together in frontier rounds,
+each with a recommended answer, and looks facts up rather than asking about
+them. Ask for one-at-a-time pacing if that is easier. Run it **in the same
+session, right after the grill**:
 
 ```text
 /grill-me                              # explore the design; no files written

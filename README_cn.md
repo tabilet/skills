@@ -18,9 +18,9 @@ your-project/
 │   ├── product.md         项目是什么、不是什么
 │   ├── architecture.md    目录布局、数据流、边界
 │   ├── tech-stack.md      命令、依赖、如何验证
-│   ├── milestone.md       里程碑及其验收标准
-│   ├── status-M01.md      每个里程碑一个永久文件，每个任务一行
-│   └── suggested.txt      可丢弃的多里程碑启动参考
+│   ├── milestone.md       活跃里程碑和未编号的后续方向
+│   ├── status-M01.md      每个活跃里程碑一个永久文件
+│   └── suggested.txt      可选且可丢弃的活跃范围启动参考
 └── evolution/             版本化的方向快照
     ├── prompt-v1.md       初始方向
     └── result-v1.md       由此产生的状态
@@ -237,7 +237,7 @@ the first actionable milestone rows.
 
 ## 为已有项目设置
 
-`memory-bank-init` 同样适用，而且比一句冷启动的提示词做得更好。它会先读仓库里已经写明的内容，包括 README、测试以及构建和 CI 文件，然后只就那些读不出来的决策向你提问，通常是非目标、边界和工作顺序。
+`memory-bank-init` 同样适用，而且比一句冷启动的提示词做得更好。它会先读仓库里已经写明的内容，包括 README、测试、构建与 CI 文件、接口、schema、源码布局和基础设施，然后只询问证据无法决定的事项，并按项目实际情况展开相关分支，而不是让每个项目回答同一套问题。
 
 ### 手动设置
 
@@ -327,6 +327,8 @@ tackle next pending item in memory bank
 
 状态文件命名为 `memory-bank/status-<LANE><NN>.md`。字母表示这条状态线所属的领域，数字用两位零填充：会计相关的里程碑写成 `status-A01.md`、`status-A02.md`，购物相关的写成 `status-S01.md`。归不进任何领域的工作用默认字母 `M`。每个字母最多 99 个文件，写满就启用新字母，不要扩展到三位数字。`memory-bank/milestone.md` 记录每个字母的含义，并保证状态 ID 不被重复使用。
 
+里程碑文件还会记录活跃执行范围之外的**候选方向**。它们保持未编号，也没有状态文件；只有在晋升触发条件满足、重新核对工作并批准晋升方案后，才会获得永久 ID。这样不会过早冻结推测性的远期任务。
+
 **如何选择状态线。** 一条状态线是长期存在的工作轨道，尺度接近一个产品领域，而不是一个里程碑或一次迭代。划分时请按领域，也就是看一次变更属于产品的哪一部分，因为领域比团队、优先级和日期都活得久。一开始只用 `M` 就够了。等某个领域的工作量大到会淹没其他内容，或者需要自己的评审节奏，再拆出一个字母。两三条状态线是常见的稳定状态，很多项目长期只用一条也没问题。
 
 拆得太少很容易补救，新开一个字母，把新工作放进去就是了。拆得太多则是永久的：状态文件一旦存在，这个 ID 就会在项目的余生里一直用这个名字。拿不准的时候先放进 `M`。
@@ -354,10 +356,10 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-如果项目由 `memory-bank-init` 创建，它还会把完整的建议请求写进
+如果 `memory-bank-init` 创建或批准了兼容的 `GOAL.md`，它还会把完整的建议请求写进
 `memory-bank/suggested.txt`，包括 `STATUS_ORDER`、`STATUS_FILE_MAP`
-和 `DOWNSTREAM_IMPACTS`。这只是启动参考，不是第二份路线图。用之前要和
-`milestone.md` 及当前状态文件核对，启动后或内容过时就可以删掉：
+和 `DOWNSTREAM_IMPACTS`。它只覆盖已批准的活跃范围，不包含未编号的候选方向。这只是启动参考，不是第二份路线图。用之前要和
+`milestone.md` 及当前状态文件核对，启动后或内容过时就可以删掉。如果没有兼容的协议，init 会省略这个文件，单行执行仍然可用：
 
 ```text
 Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
@@ -394,7 +396,7 @@ $memory-bank:memory-bank-goal M01 -> S01 -> A01?
 
 `COMMIT_POLICY` 很关键，而且目标循环是对常规规则的一次有意例外。在这次运行期间，它就是全部的 commit 规则。`AGENTS.md` 里可以写「每条状态行就是一个 commit 单元」，但只要写的是 `COMMIT_POLICY: none`，就完全不会产生 commit。这是该协议的默认值，属于正确行为，而不是冲突。想照常按行提交，就写 `task`。优先级依次是请求、`GOAL.md`、`AGENTS.md`，而且只针对 commit，只在这次运行之内。
 
-结尾的 `?` 表示条件里程碑：触发条件不存在就跳过，不是取消。
+结尾的 `?` 表示条件里程碑：触发条件不存在就跳过，不是取消。它只用于达成活跃结果时按条件必需的工作；可选的后续工作应保持为未编号的候选方向。
 
 `GOAL.md` 不包含任何项目专有路径、状态线字母或命令。这些内容它从 `AGENTS.md` 和项目记忆库里读，所以同一份文件可以原样用在任何复制了它的项目上。
 
@@ -410,7 +412,7 @@ $memory-bank:memory-bank-goal M01 -> S01 -> A01?
 | `memory-bank-next` | 日常：处理一行、验证、提交。 |
 | `memory-bank-goal` | 想按顺序执行多个里程碑时。 |
 
-`memory-bank-init` 带来的改变最大。它一次只问一个问题，并附上推荐答案；凡是能从仓库里读到的都自己去查，不来问你；在你认可拆分方案之前，它不写任何文件。你不会看到方括号占位符，因为项目记忆库交付时就已经填好了。（提问技巧改编自 [mattpocock/skills](https://github.com/mattpocock/skills) 的 `grilling` skill，MIT 许可。）
+`memory-bank-init` 带来的改变最大。它把一个交付边界映射成决策树，把当前依赖已满足的问题组成带编号的 frontier 轮次，并为每个问题附上推荐答案；凡是能从仓库读到的事实都自己去查。在你批准活跃范围和每个文件操作之前，它不写任何文件。你不会看到方括号占位符，因为项目记忆库交付时就已经填好了。（提问技巧改编自 [mattpocock/skills](https://github.com/mattpocock/skills) 的 `grilling` skill，MIT 许可。）
 
 两种智能体读同一种 `SKILL.md` 格式**和同一份清单文件**，所以每个命令只有一份源文件，也只有一个版本需要安装。
 
@@ -457,7 +459,7 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 
 但会话一结束，那份共识也就没了。磁盘上什么都没留下，明天的智能体接不上，也没有可以执行的对象。
 
-`memory-bank-init` 用的是同一套访谈方法，只不过它指向一份会留存下来的产物。它一次只问一个问题，每个问题都附带推荐答案，能查到的事实自己去查，而不是拿来问你。请在**同一个会话里，紧接着 grill 之后**运行它：
+`memory-bank-init` 用的是同一套访谈方法，只不过它指向一份会留存下来的产物。相互独立且前置决策已完成的问题会放在同一个 frontier 轮次中，每个问题都有推荐答案；能查到的事实自己去查。需要更专注时可以要求一次只问一个问题。请在**同一个会话里，紧接着 grill 之后**运行它：
 
 ```text
 /grill-me            # explore the design; no files written

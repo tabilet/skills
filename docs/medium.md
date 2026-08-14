@@ -42,7 +42,9 @@ Account-level files, optional:
 
 The repository also packages three optional skills — `memory-bank-init`, `memory-bank-next`, and `memory-bank-goal` — as one plugin for Claude Code and Codex. Plugin invocations are namespaced: `/memory-bank:memory-bank-next` in Claude Code and `$memory-bank:memory-bank-next` in Codex. Plain-file installs remain unnamespaced.
 
-When `memory-bank-init` derives a multi-milestone plan, it also writes `memory-bank/suggested.txt`: a disposable launch request containing the proposed status order, file map, and downstream impacts. It is deliberately excluded from the required read order and meant to be deleted after launch or when stale; the milestone and status files remain the source of truth.
+When `memory-bank-init` derives a multi-milestone plan and the project contains an approved compatible `GOAL.md`, it also writes `memory-bank/suggested.txt`: a disposable launch request containing the proposed status order, file map, and downstream impacts. It omits the launch reference when no compatible protocol exists. The file is deliberately excluded from the required read order and meant to be deleted after launch or when stale; the milestone and status files remain the source of truth.
+
+Initialization maps one delivery boundary broadly, but assigns permanent IDs only to the smallest dependency-closed horizon that reaches the next verifiable outcome. Later directions remain unnumbered with promotion triggers until fresher evidence makes detailed planning worthwhile.
 
 ## Bootstrapping — with a little help from your agent
 

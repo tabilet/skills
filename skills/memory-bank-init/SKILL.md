@@ -1,6 +1,6 @@
 ---
 name: memory-bank-init
-description: Interview the user about a project, then generate its memory bank - product, architecture, tech stack, milestones, status lanes, and a disposable multi-milestone launch reference. Use when a project has no memory-bank/ yet.
+description: Map one delivery boundary through an adaptive, repository-grounded interview, propose a dependency-closed active milestone horizon, then generate its memory bank and, when a compatible goal protocol is available, a disposable launch reference. Use when a new or existing project has no memory-bank/ yet.
 disable-model-invocation: false
 argument-hint: (no arguments)
 ---
@@ -14,198 +14,138 @@ wherever this skill came from, and nothing will update it but them.
 
 ## Phase 1 - Grill
 
-Interview the user until you share an understanding of the project. Rules:
+Map the project as a **design tree**: decisions branch into the decisions that
+depend on them. Interview the user until every applicable branch is settled or
+explicitly deferred.
 
-- **One question at a time.** Wait for the answer before asking the next.
-  Asking several at once is bewildering and produces shallow answers.
-- **Give your recommended answer with each question**, so agreeing costs one
-  word. A question with no recommendation attached is work you handed back.
-- **Facts you can look up, look up. Decisions are the user's.** If the answer is
-  discoverable from the repository - the test command, the language, the
-  dependencies, the CI config - read it and confirm briefly rather than asking.
-  Never guess at a decision to save a question.
-- **Walk the tree in order.** Later answers depend on earlier ones.
-- **Do not act until the user confirms** you have it right.
+### Inspect before asking
+
+For an existing project, read applicable agent instructions, the README and
+docs, manifests, tests, build and CI configuration, source layout, public
+interfaces and schemas, and deployment or infrastructure files. Reuse facts and
+decisions already present in the conversation. Inventory existing destination
+files such as `AGENTS.md`, `GOAL.md`, and `evolution/` so the proposal can say
+which will be created, merged, preserved, or omitted.
+
+Keep a working **evidence ledger** in the conversation:
+
+- **Observed fact** - cite the repository path or prior user statement.
+- **User decision** - record the choice and its reason.
+- **Open decision** - record who can answer it and what depends on it.
+- **Inapplicable branch** - record why it does not apply; do not invent filler.
+
+Facts are your job; decisions are the user's. Investigate independent facts in
+parallel when the environment supports it. A fact still being researched blocks
+only the questions that depend on it.
+
+### Work the frontier in rounds
+
+The **frontier** is every open decision whose prerequisites are settled. Ask the
+whole frontier in one numbered round, give a recommended answer for every
+question, then wait. No question in a round may depend on another answer in that
+round. Recompute the design tree and its frontier after every response.
+
+Use this shape so the user can answer by number:
+
+```text
+❓ Q1 - <short title>: <question and meaningful choices>
+
+➡️ <recommended answer and the project evidence or tradeoff behind it>
+```
+
+Honor a request for one-question-at-a-time pacing. Do not impose a fixed number
+of questions or stop merely because the seed coverage below has been mentioned.
+
+### Grow the design tree
+
+Use these as coverage roots, not a fixed sequence or ceiling:
+
+- **Delivery boundary:** what this is, who owns and uses it, the outcome it
+  produces, primary workflows, and real non-goals.
+- **Current and target state:** existing capabilities, domain concepts, known
+  gaps, and what the next delivery outcome changes.
+- **System shape:** layout, data flow, ownership boundaries, integrations,
+  public contracts, and compatibility obligations.
+- **Constraints:** chosen stack rules, runtime and operational assumptions,
+  dependencies, hard rules, and risky-change procedures.
+- **Evidence:** runnable build/test/lint/format commands, integration harnesses,
+  model evals when applicable, and any named manual acceptance evidence.
+- **Work graph:** feature areas, dependencies, downstream impacts, sequencing,
+  and the boundary between active work and later direction.
+
+Grow conditional branches when the project calls for them: persistent data and
+migrations; authentication, security, privacy, or compliance; distributed
+failure and observability; UI accessibility and visual review; model behavior,
+evaluation, cost, and provider failure; deployment and rollback; multi-repo or
+external-system authority; or public API and file-format compatibility.
+
+One memory bank covers one coherent product, ownership, and verification
+boundary. If the repository contains independent delivery units, ask the user
+to select one. Treat the others as external dependencies or initialize them
+separately; do not turn lanes into separate products merely because they share a
+repository.
+
+For a broad project, map the whole selected boundary breadth-first, then deepen
+the branches needed to define the next reliable delivery outcome. Later
+directions need a reason and a promotion trigger, not speculative task lists.
+
+### Complete the grill
+
+Do not defer a decision that defines scope, ownership, a public contract, or
+acceptance. A narrower unknown may become blocked work only when it has a named
+owner or source, missing input, impact, and unblock condition.
+
+The grill is complete when the frontier is empty and the evidence ledger can
+populate every applicable output section without guessing. Present a structured
+confirmation covering the delivery boundary, users and workflows, non-goals,
+current and target state, architecture and contracts, constraints, verification,
+active delivery outcome, later directions, and any blockers. Do not proceed
+until the user confirms the shared understanding.
 
 *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
-### The tree
-
-1. **What is this, and who uses it?**
-2. **What is it not?** Push until you have at least two real non-goals. These
-   are the highest-value lines in the memory bank and the ones users skip; they
-   are what stops an agent helpfully building the wrong thing.
-3. **Stack and constraints.** Include the constraints that are choices - no
-   build step, no runtime dependencies, must run offline.
-4. **How do you know it works?** A command that exits non-zero on failure.
-   **This question gates everything after it**: acceptance criteria are written
-   against it, and without one no unattended work is possible. If the honest
-   answer is "there is no such command yet," the first status row is creating
-   one. If part of the project can only be judged by hand - feel, rendering,
-   layout - say so explicitly and note which parts.
-5. **Boundaries.** What this project owns, and what belongs elsewhere.
-6. **Feature areas.** The domains the work splits into. Candidate lanes.
-7. **Order and dependencies** between those areas.
-
-**Existing project:** read the README, tests, build and CI files *first*, then
-ask only what they cannot tell you. Usually that is questions 2, 5, and 7.
-
-**Empty directory:** everything is a question, and question 4 is the one people
-have not thought about.
-
-Stop when you can state in one paragraph what the project is, how you would know
-it works, and what the first milestone delivers. Say it back and ask the user to
-confirm.
-
 ## Phase 2 - Propose
 
-Present the breakdown as a numbered list. **Write nothing to disk yet.**
+Present the breakdown and file actions. **Write nothing to disk yet.**
 
-Show the lane letters and what each means, the milestones with their acceptance
-criteria, the first milestone's rows, the execution order, the status-file map,
-and the known downstream impacts between milestones.
+Define the **active horizon** as the smallest dependency-closed sequence of
+vertical milestones that reaches the next user-verifiable delivery outcome.
+Assign permanent status IDs only inside that horizon.
 
-Rules for the breakdown:
+Show:
 
-- **A milestone is a vertical slice.** It cuts a narrow but complete path
-  through every layer and is demoable or verifiable on its own. "The player
-  moves, jumps, and collides" is a milestone. "The database layer" is not - it
-  is a horizontal slice that is never independently done.
-- **A row is one commit.** Small enough to be plainly done or not done, and
-  sized to fit in a single fresh context window.
-- **Every milestone's acceptance names the verification command** from question
-  4. An acceptance criterion nobody can run is a wish.
-- **Start with one lane** (`M`) unless the areas genuinely have different
-  acceptance criteria. Splitting early buys nothing. Lane letters can never be
-  renamed once their file exists, so propose them only when they have earned it.
+1. The selected delivery boundary and next delivery outcome.
+2. Lane letters and meanings earned by active work. Start with `M`; open a
+   domain lane only when that long-lived domain has enough active work to drown
+   out other work or needs its own review cadence. A different acceptance method
+   alone does not earn a lane.
+3. Every active milestone's goal, scope, acceptance evidence, dependencies,
+   downstream impacts, and complete set of commit-sized rows.
+4. The execution order and exact status-file map.
+5. Later **candidate directions**, each unnumbered and carrying its reason for
+   deferral and promotion trigger.
+6. Every destination file action: create, merge, preserve, or omit.
 
-Then ask the user:
+Rules:
 
-- Is the granularity right - too coarse, too fine?
-- Are the dependencies correct? Does each milestone depend only on what
-  genuinely gates it?
-- Should anything be merged or split?
+- A milestone is a narrow, complete, independently verifiable vertical slice.
+- A row is one commit and fits in one fresh context window.
+- Acceptance names real commands and any required manual or model-eval evidence;
+  it never refers to an interview question number.
+- Every indexed milestone gets one status file. A candidate direction gets no
+  lane, ID, status file, or disposable launch entry.
+- A promotion trigger causes fresh reconciliation, not automatic scheduling.
+  Allocate an ID only after the promoted breakdown is approved.
 
-Iterate until the user approves. A wrong breakdown is cheap to fix now and
-expensive to fix once permanent status IDs and files exist.
+Ask the user, as a numbered frontier round, whether the boundary and delivery
+outcome are right, whether milestone granularity and dependencies are right,
+whether the horizon ends in the right place, whether candidates should move in
+or out, and whether every file action is safe. Iterate until approved.
 
 ## Phase 3 - Write
 
-Only after approval.
-
-```text
-AGENTS.md                        what an agent reads first
-GOAL.md                          optional protocol for multi-milestone runs
-memory-bank/product.md           what this is, who it is for, what it is not
-memory-bank/architecture.md      layout, data flow, the boundaries that matter
-memory-bank/tech-stack.md        stack, dependencies, verification commands
-memory-bank/milestone.md         lane meanings, milestone index, acceptance
-memory-bank/status-<LANE><NN>.md one per milestone, one row per task
-memory-bank/suggested.txt        disposable multi-milestone launch reference
-evolution/prompt-v1.md           the initial direction
-evolution/result-v1.md           the state this starts from
-```
-
-`GOAL.md` is **copied, never written from memory.** It is a portable protocol
-that must stay byte-identical across every project that carries it, so
-reproducing it by hand corrupts it. Copy the `GOAL.md` that sits beside this
-skill file — under `${CLAUDE_PLUGIN_ROOT}` when this was installed as a plugin,
-otherwise in this skill's own directory. If you cannot find it, say so and leave
-it out rather than writing an approximation; the project still works without it,
-and `memory-bank-goal` will tell the user where to get it.
-
-Tell the user it is optional and can be deleted: it is one way to run several
-milestones in order, not a requirement of the memory bank.
-
-### Disposable goal launch reference
-
-Write `memory-bank/suggested.txt` from the approved milestone breakdown. It is
-an advisory launch reference, not project truth: `milestone.md`, the status
-files, and the implementation remain authoritative. Do not add it to
-`AGENTS.md`'s required read order or the milestone index. Tell the user to
-delete it after launching the goal, or whenever it becomes stale.
-
-Make it a complete request that can be pasted into an agent or referenced by a
-slash/dollar goal command:
-
-```text
-# Disposable multi-milestone launch reference.
-# Reconcile this suggestion against milestone.md and the current status files.
-# Delete it after launching the goal, or whenever it becomes stale.
-
-Using GOAL.md, execute this loop.
-
-STATUS_ORDER:
-M01 -> S01 -> A01?
-
-STATUS_FILE_MAP:
-M01 = memory-bank/status-M01.md
-S01 = memory-bank/status-S01.md
-A01 = memory-bank/status-A01.md
-
-DOWNSTREAM_IMPACTS:
-M01 -> S01, A01
-S01 -> A01
-
-COMMIT_POLICY: task
-EXTERNAL_MUTATIONS: none
-
-Completion condition: every required status is complete, every triggered
-conditional status is complete, and every milestone's documented verification
-passes.
-```
-
-Replace the example IDs, paths, order, conditional suffixes, and impacts with
-the approved project values. Map every status in `STATUS_ORDER` to exactly one
-file. In `DOWNSTREAM_IMPACTS`, list each known pending status whose assumptions,
-tasks, or acceptance may need reconciliation after the source milestone; the
-goal loop will discover additional consumers. Write `DOWNSTREAM_IMPACTS: none`
-when no such relationship is known. Never leave example values or bracketed
-placeholders in the generated file.
-
-`AGENTS.md` stays short: what to read and in what order, the essential commands,
-the boundaries, the hard rules, and the work cadence. It points at the memory
-bank rather than restating it.
-
-Status files are tables. **The backticks around every marker are required by
-the included API harness parser** - a bare `[ ]` is invisible to that parser,
-and an API-harness run will report that no work remains:
-
-```markdown
-# Status M01 - <milestone title>
-
-**Acceptance.** <the verification command, and what it must show>
-
-| Item | State | Notes |
-|---|---|---|
-| <task> | `[ ]` | <constraint, edge case, or decision from the interview> |
-```
-
-Markers: `` `[ ]` `` pending, `` `[+]` `` done, `` `[~]` `` in progress,
-`` `[!]` `` blocked, `` `[X]` `` cancelled.
-
-### Before reporting done, check your own output
-
-1. Every marker is wrapped in backticks.
-2. Every status filename is `status-<LANE><NN>.md` with the number zero-padded
-   to **two** digits - `status-M01.md`, never `status-M1.md`.
-3. The milestone index in `milestone.md` lists exactly the status files that
-   exist, and every link resolves.
-4. `suggested.txt` maps every ordered ID to an existing status file, and its
-   order and impact map match the approved dependency breakdown.
-5. No bracketed placeholder is left anywhere.
-
-Then tell the user what you could not fill and why. Anything left is a decision
-that was never actually made - ask for it rather than inventing it.
-
-Finally, tell the user how to run the project from here, using the form their
-installation accepts. Plain English works everywhere: *"tackle next pending
-item in memory bank"* for one task. Plugin installs use
-`/memory-bank:memory-bank-goal` in Claude Code and
-`$memory-bank:memory-bank-goal` in Codex. Plain-file installs use
-`/memory-bank-goal` in Claude Code and `$memory-bank-goal` in Codex. Explain
-that running the goal skill with no arguments reconciles `suggested.txt` and
-shows the resolved request for confirmation. For Claude Code's built-in
-`/goal`, show the complete reference-based command from the goal skill rather
-than telling the user to reconstruct the maps by hand.
+Only after approval, read [references/write-contract.md](references/write-contract.md)
+completely and follow it. It owns the file actions, generated file set, portable
+`GOAL.md` copy rule, status tables, disposable launch reference, output checks,
+and final handoff.

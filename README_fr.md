@@ -18,9 +18,9 @@ your-project/
 │   ├── product.md         ce que c'est, et ce que ce n'est pas
 │   ├── architecture.md    structure, flux de données, frontières
 │   ├── tech-stack.md      commandes, dépendances, vérification
-│   ├── milestone.md       milestones et critères d'acceptation
-│   ├── status-M01.md      un fichier durable par milestone, une ligne par tâche
-│   └── suggested.txt      référence de lancement multi-milestone jetable
+│   ├── milestone.md       milestones actifs et directions futures non numérotées
+│   ├── status-M01.md      un fichier durable par milestone actif
+│   └── suggested.txt      référence facultative et jetable de l’horizon actif
 └── evolution/             instantanés de direction versionnés
     ├── prompt-v1.md       la direction initiale
     └── result-v1.md       l’état qui en résulte
@@ -231,7 +231,7 @@ the first actionable milestone rows.
 
 ## Configurer un projet existant
 
-`memory-bank-init` couvre aussi ce cas, et mieux qu’une invite partie de zéro : il lit ce que le dépôt dit déjà, à savoir le README, les tests et les fichiers de build et de CI, puis ne vous interroge que sur les décisions qu’ils ne révèlent pas, généralement les non-objectifs, les frontières et l’ordre du travail.
+`memory-bank-init` couvre aussi ce cas, et mieux qu’une invite partie de zéro : il lit README, tests, build et CI, interfaces, schémas, structure du code et infrastructure, puis ne demande que les décisions que ces preuves ne tranchent pas. Il développe les branches pertinentes plutôt que d’imposer le même entretien à chaque projet.
 
 ### Manuellement
 
@@ -321,6 +321,8 @@ Sous la surface, le workflow normal de l’agent est :
 
 Les fichiers de statut sont nommés `memory-bank/status-<LANE><NN>.md`. La lettre de voie classe le travail et le nombre s’écrit sur deux chiffres avec un zéro initial : les milestones de comptabilité deviennent `status-A01.md` et `status-A02.md`, ceux de la boutique `status-S01.md`. `M` est la voie par défaut pour le travail qui n’entre dans aucune voie de domaine. Une voie contient au plus 99 fichiers ; quand elle est pleine, ouvrez une nouvelle lettre au lieu d’ajouter un troisième chiffre. `memory-bank/milestone.md` consigne le sens de chaque lettre et interdit de réutiliser un identifiant.
 
+Le fichier de milestones contient aussi des **directions candidates** hors de l’horizon d’exécution actif. Elles restent sans numéro ni fichier de statut. Elles ne reçoivent un identifiant permanent qu’après déclenchement de leur condition de promotion, nouvelle réconciliation et approbation du découpage. Cela évite de figer trop tôt un travail futur spéculatif.
+
 **Choisir ses voies.** Une voie est un axe de travail durable, à l’échelle d’un pan de produit plutôt que d’un milestone ou d’un sprint. Classez par domaine, c’est-à-dire la partie du produit à laquelle un changement appartient, car les domaines survivent aux équipes, aux priorités et aux dates. Commencez avec `M` seul ; détachez une lettre la première fois qu'un domaine a assez de travail pour noyer le reste, ou quand il lui faut son propre rythme de revue. Deux ou trois voies est un régime permanent normal, et un projet peut tenir longtemps avec une seule.
 
 Sous-découper se corrige à peu de frais : ouvrez une nouvelle lettre et mettez-y le travail à venir. Sur-découper est définitif, car un identifiant garde son nom pour toute la vie du projet dès que son fichier existe. Dans le doute, laissez dans `M`.
@@ -348,12 +350,12 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-Quand `memory-bank-init` a créé le projet, il écrit aussi la requête proposée
+Quand `memory-bank-init` a créé ou approuvé un `GOAL.md` compatible, il écrit aussi la requête proposée
 complète dans `memory-bank/suggested.txt`, avec `STATUS_ORDER`,
-`STATUS_FILE_MAP` et `DOWNSTREAM_IMPACTS`. Ce fichier est une référence de
+`STATUS_FILE_MAP` et `DOWNSTREAM_IMPACTS`. Il ne couvre que l’horizon actif approuvé et exclut les directions candidates non numérotées. Ce fichier est une référence de
 lancement jetable, pas une seconde roadmap. Réconciliez-le avec `milestone.md`
 et les fichiers de statut actuels avant usage, puis supprimez-le après le
-lancement ou dès qu’il devient obsolète :
+lancement ou dès qu’il devient obsolète. Sans protocole compatible, init omet ce fichier et l’exécution ligne par ligne reste disponible :
 
 ```text
 Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
@@ -390,7 +392,7 @@ Collez le bloc comme une requête ordinaire. Le protocole a seulement besoin que
 
 `COMMIT_POLICY` compte, et une boucle de goal est une exception délibérée à la règle habituelle. Le temps de l’exécution, c’est toute la règle de commit : `AGENTS.md` a beau dire que chaque ligne de statut est une unité de commit, `COMMIT_POLICY: none`, la valeur par défaut du protocole, signifie aucun commit du tout. C’est le comportement correct, pas un conflit. Écrivez `task` pour retrouver les commits par ligne. L’ordre de priorité est la demande, puis `GOAL.md`, puis `AGENTS.md`, et cela ne vaut que pour les commits et que pendant l’exécution.
 
-Un `?` final marque un milestone conditionnel : il est ignoré, pas annulé, quand son déclencheur documenté est absent.
+Un `?` final marque un milestone conditionnel : il est ignoré, pas annulé, quand son déclencheur documenté est absent. Réservez-le au travail conditionnellement requis pour atteindre le résultat actif ; le travail ultérieur facultatif reste une direction candidate non numérotée.
 
 `GOAL.md` ne contient aucun chemin, aucune lettre de voie ni aucune commande propres à un projet. Il les lit depuis `AGENTS.md` et la memory bank, ce qui permet au même fichier de fonctionner tel quel dans tout projet qui le copie.
 
@@ -406,7 +408,7 @@ Rien ne vous oblige à l’utiliser. Apportez votre propre protocole, ou aucun :
 | `memory-bank-next` | Au quotidien. Traiter une ligne, vérifier, committer. |
 | `memory-bank-goal` | Quand vous voulez exécuter plusieurs milestones dans l’ordre. |
 
-`memory-bank-init` est celle qui change le plus l’expérience : elle pose une question à la fois, assortie d’une réponse recommandée, cherche elle-même tout ce qu’elle peut lire dans le dépôt au lieu de le demander, et n’écrit rien tant que vous n’avez pas approuvé le découpage. Vous ne voyez aucun placeholder entre crochets, car la memory bank arrive remplie. (Technique d’entretien adaptée du skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
+`memory-bank-init` est celle qui change le plus l’expérience : elle cartographie une frontière de livraison comme un arbre de décisions, pose chaque frontier prête sous forme de round numéroté avec recommandations et recherche elle-même les faits du dépôt. Elle n’écrit rien tant que vous n’avez pas approuvé l’horizon actif et chaque action sur les fichiers. Vous ne voyez aucun placeholder entre crochets, car la memory bank arrive remplie. (Technique d’entretien adaptée du skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
 
 Les deux agents lisent le même format `SKILL.md` **et le même manifeste**, il n’y a donc qu’une source par commande et une seule version à installer.
 
@@ -453,7 +455,7 @@ Le skill ne s’appelle délibérément pas `goal` : Claude Code possède un `/g
 
 Mais quand la session se ferme, la compréhension se ferme avec elle. Rien sur le disque, rien qu’un agent puisse reprendre demain, rien contre quoi exécuter.
 
-`memory-bank-init` reprend la même discipline d’entretien, tournée vers un artefact durable : une question à la fois, chacune assortie d’une réponse recommandée, et tout ce qui peut être cherché est cherché plutôt que demandé. Lancez-le **dans la même session, juste après le grill** :
+`memory-bank-init` reprend la même discipline d’entretien, tournée vers un artefact durable : les décisions indépendantes dont les prérequis sont réglés arrivent ensemble dans des rounds de frontier, chacune avec une recommandation, et les faits consultables sont recherchés. Vous pouvez demander un rythme question par question. Lancez-le **dans la même session, juste après le grill** :
 
 ```text
 /grill-me            # explore the design; no files written

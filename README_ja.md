@@ -18,9 +18,9 @@ your-project/
 │   ├── product.md         これが何で、何ではないか
 │   ├── architecture.md    レイアウト、データフロー、境界
 │   ├── tech-stack.md      コマンド、依存関係、検証方法
-│   ├── milestone.md       milestone と受け入れ基準
-│   ├── status-M01.md      milestone ごとの永続ファイル、タスクごとに 1 行
-│   └── suggested.txt      破棄可能な複数 milestone 起動リファレンス
+│   ├── milestone.md       アクティブな milestone と未採番の将来方向
+│   ├── status-M01.md      アクティブな milestone ごとの永続ファイル
+│   └── suggested.txt      任意で破棄可能なアクティブホライズン起動リファレンス
 └── evolution/             バージョン化された方向スナップショット
     ├── prompt-v1.md       初期方針
     └── result-v1.md       そこから生じた状態
@@ -231,7 +231,7 @@ the first actionable milestone rows.
 
 ## 既存プロジェクトをセットアップする
 
-`memory-bank-init` はこのケースにも対応し、しかも素のプロンプトより上手くこなします。リポジトリがすでに述べていること（README、テスト、ビルドや CI の設定）を読み、そこから分からない決定だけを尋ねます。多くの場合、非目標、境界、作業の順序です。
+`memory-bank-init` はこのケースにも対応し、しかも素のプロンプトより上手くこなします。README、テスト、ビルドと CI、interface、schema、ソース構成、インフラを読み、証拠で決められない判断だけを尋ねます。すべてのプロジェクトに同じ質問をするのではなく、実際に関係する枝を伸ばします。
 
 ### 手動
 
@@ -321,6 +321,8 @@ tackle next pending item in memory bank
 
 Status ファイルは `memory-bank/status-<LANE><NN>.md` という名前にします。レーン文字が作業の分類を表し、数字は 2 桁のゼロ埋めです。会計の milestone は `status-A01.md` や `status-A02.md`、買い物の milestone は `status-S01.md` になります。ドメインレーンに分類できない作業は既定の `M` を使います。1 つのレーンは最大 99 ファイルまでで、埋まったら 3 桁目を足さずに新しい文字を使います。`memory-bank/milestone.md` が各文字の意味を記録し、ID の再利用を防ぎます。
 
+milestone ファイルには、アクティブな実行ホライズン外の**候補方向**も置きます。候補は未採番で status ファイルを持ちません。昇格トリガーが満たされ、作業を再照合して昇格案を承認した後にだけ永続 ID を割り当てます。遠い将来の推測を早期に固定しないためです。
+
 **レーンの選び方。** レーンは長く続く作業の筋で、規模としては milestone やスプリントよりもプロダクトの一領域に近いものです。分類はドメイン、つまり変更がプロダクトのどの部分に属するかで行ってください。ドメインはチームや優先度や日付より長生きします。まずは `M` だけで始め、あるドメインの行が他を埋もれさせるほど増えたとき、あるいは独自のレビュー周期が必要になったときに初めて文字を分けます。2〜3 レーンが普通の定常状態で、1 本のまま長く進むプロジェクトもあります。
 
 分け足りないのは直すのが簡単です。新しい文字を開いて新しい作業をそこに置けば済みます。分けすぎはそうはいきません。status ファイルができた時点で ID は再利用も改名もされないため、後悔したレーンはツリーに残り続けます。迷ったら `M` に置いてください。
@@ -348,11 +350,11 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-`memory-bank-init` がプロジェクトを作成した場合、`STATUS_ORDER`、
+`memory-bank-init` が互換性のある `GOAL.md` を作成または承認した場合、`STATUS_ORDER`、
 `STATUS_FILE_MAP`、`DOWNSTREAM_IMPACTS` を含む完全な提案リクエストを
-`memory-bank/suggested.txt` にも書きます。これは第 2 の roadmap ではなく
+`memory-bank/suggested.txt` にも書きます。承認済みのアクティブホライズンだけを対象にし、未採番の候補方向は含めません。これは第 2 の roadmap ではなく
 起動用の一時的な参考です。`milestone.md` と現在の status ファイルに照合し、
-起動後または古くなった時点で削除してください。
+起動後または古くなった時点で削除してください。互換性のあるプロトコルがない場合、init はこのファイルを省略し、1 行ずつの実行は引き続き利用できます。
 
 ```text
 Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
@@ -389,7 +391,7 @@ skill ファイルを直接インストールした場合は `$memory-bank-goal 
 
 `COMMIT_POLICY` は重要で、ゴールループは通常の規則に対する意図的な例外です。その実行のあいだ、これが commit 規則のすべてになります。`AGENTS.md` が「1 行が 1 commit 単位」と書いていても、`COMMIT_POLICY: none` と書けば commit は一切作られません。これはこの protocol の既定値であり、矛盾ではなく正しい挙動です。通常どおり行ごとに commit したいときは `task` と書きます。優先順位はリクエスト、`GOAL.md`、`AGENTS.md` の順で、commit にだけ、その実行の中でだけ適用されます。
 
-末尾の `?` は条件付きを表し、トリガーがなければ cancel ではなく skip されます。
+末尾の `?` は条件付きを表し、トリガーがなければ cancel ではなく skip されます。アクティブな成果に到達するため条件付きで必須となる作業だけに使い、任意の後続作業は未採番の候補方向に残します。
 
 `GOAL.md` にはプロジェクト固有のパス、レーン文字、コマンドは含まれません。それらは `AGENTS.md` と memory bank から読み取るため、コピーしたどのプロジェクトでも同じファイルがそのまま使えます。
 
@@ -405,7 +407,7 @@ skill ファイルを直接インストールした場合は `$memory-bank-goal 
 | `memory-bank-next` | 毎日。1 行を実装し、検証し、コミットします。 |
 | `memory-bank-goal` | 複数の milestone を順番に実行したいとき。 |
 
-体験を最も変えるのは `memory-bank-init` です。推奨する回答を添えて 1 問ずつ尋ね、リポジトリから読み取れることは聞かずに自分で調べ、分割案をあなたが承認するまで何も書きません。角括弧のプレースホルダーを目にすることはなく、memory bank は記入済みで届きます。（インタビュー手法は [mattpocock/skills](https://github.com/mattpocock/skills) の `grilling` skill を参考にしています。MIT ライセンス。）
+体験を最も変えるのは `memory-bank-init` です。1 つの delivery boundary を design tree として整理し、依存関係が解決済みの frontier を番号付きの round で尋ね、各質問に推奨回答を添えます。リポジトリの事実は自分で調べ、アクティブホライズンと全ファイル操作をあなたが承認するまで何も書きません。角括弧のプレースホルダーを目にすることはなく、memory bank は記入済みで届きます。（インタビュー手法は [mattpocock/skills](https://github.com/mattpocock/skills) の `grilling` skill を参考にしています。MIT ライセンス。）
 
 どちらのエージェントも同じ `SKILL.md` 形式**と同じマニフェスト**を読むので、コマンドごとにソースは 1 つ、インストールするリリースも 1 つです。
 
@@ -452,7 +454,7 @@ skill ファイルを直接インストールした場合は名前空間なし�
 
 ですがセッションが終わると、その理解も一緒に終わります。ディスクには何も残らず、明日のエージェントは引き継げず、実行する対象もありません。
 
-`memory-bank-init` は同じインタビューの規律を、残る成果物へ向けたものです。1 問ずつ、推奨する回答を添えて尋ね、調べられる事実は聞かずに自分で調べます。**grill の直後、同じセッションで**実行してください:
+`memory-bank-init` は同じインタビューの規律を、残る成果物へ向けたものです。互いに独立し、前提が解決済みの判断を frontier round にまとめ、各質問に推奨回答を添えます。調べられる事実は自分で調べます。必要なら 1 問ずつの進行を頼めます。**grill の直後、同じセッションで**実行してください:
 
 ```text
 /grill-me            # explore the design; no files written

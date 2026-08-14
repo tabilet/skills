@@ -18,9 +18,9 @@ your-project/
 │   ├── product.md         qué es y qué no es
 │   ├── architecture.md    estructura, flujo de datos, fronteras
 │   ├── tech-stack.md      comandos, dependencias, verificación
-│   ├── milestone.md       milestones y criterios de aceptación
-│   ├── status-M01.md      un archivo permanente por milestone, una fila por tarea
-│   └── suggested.txt      referencia desechable para lanzar varios milestones
+│   ├── milestone.md       milestones activos y direcciones futuras sin numerar
+│   ├── status-M01.md      un archivo permanente por milestone activo
+│   └── suggested.txt      referencia opcional y desechable del horizonte activo
 └── evolution/             instantáneas de dirección versionadas
     ├── prompt-v1.md       la dirección inicial
     └── result-v1.md       el estado resultante
@@ -231,7 +231,7 @@ the first actionable milestone rows.
 
 ## Configurar un proyecto existente
 
-`memory-bank-init` también cubre este caso, y mejor que un prompt en frío: lee lo que el repositorio ya dice, es decir el README, las pruebas y los archivos de build y CI, y luego solo le pregunta por las decisiones que esos no revelan, normalmente los no-objetivos, los límites y el orden del trabajo.
+`memory-bank-init` también cubre este caso, y mejor que un prompt en frío: lee README, pruebas, build y CI, interfaces, schemas, estructura del código e infraestructura, y pregunta solo por decisiones que esa evidencia no resuelve. Desarrolla las ramas pertinentes en vez de imponer la misma entrevista a cada proyecto.
 
 ### Manual
 
@@ -321,6 +321,8 @@ Debajo de la superficie, el flujo normal del agente es:
 
 Los archivos de estado se llaman `memory-bank/status-<LANE><NN>.md`. La letra de carril clasifica el trabajo y el número lleva dos dígitos con cero a la izquierda: los milestones de contabilidad quedan como `status-A01.md` y `status-A02.md`, y los de compras como `status-S01.md`. `M` es el carril por defecto para el trabajo que no encaja en un carril de dominio. Un carril admite como máximo 99 archivos; cuando se llena, abra una letra nueva en vez de añadir un tercer dígito. `memory-bank/milestone.md` registra qué significa cada letra y evita reutilizar un identificador.
 
+El archivo de milestones también contiene **direcciones candidatas** fuera del horizonte de ejecución activo. Permanecen sin número ni archivo de estado. Solo reciben un identificador permanente cuando se cumple su condición de promoción, se reconcilia de nuevo el trabajo y se aprueba el desglose promovido. Así no se congela prematuramente trabajo futuro especulativo.
+
 **Cómo elegir carriles.** Un carril es una vía de trabajo de larga vida, a la escala de un área de producto más que de un milestone o un sprint. Clasifique por dominio, es decir la parte del producto a la que pertenece un cambio, porque los dominios sobreviven a los equipos, las prioridades y las fechas. Empiece solo con `M`; separe una letra la primera vez que un dominio tenga tanto trabajo que sus filas ahoguen al resto, o cuando necesite su propia cadencia de revisión. Dos o tres carriles es un estado estable normal, y un proyecto puede funcionar mucho tiempo con uno.
 
 Quedarse corto se arregla barato: abra una letra nueva y ponga allí el trabajo nuevo. Pasarse no, porque los identificadores no se reutilizan ni se renombran una vez que existe su archivo: un carril del que se arrepienta se queda en el árbol para siempre. Ante la duda, déjelo en `M`.
@@ -348,12 +350,12 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-Cuando `memory-bank-init` crea el proyecto, también escribe la petición
+Cuando `memory-bank-init` crea o aprueba un `GOAL.md` compatible, también escribe la petición
 propuesta completa en `memory-bank/suggested.txt`, con `STATUS_ORDER`,
-`STATUS_FILE_MAP` y `DOWNSTREAM_IMPACTS`. Es una referencia de lanzamiento
+`STATUS_FILE_MAP` y `DOWNSTREAM_IMPACTS`. Solo cubre el horizonte activo aprobado y excluye las direcciones candidatas sin numerar. Es una referencia de lanzamiento
 desechable, no una segunda roadmap. Antes de usarla, reconcíliala con
 `milestone.md` y los archivos de estado actuales; bórrala después del
-lanzamiento o cuando quede obsoleta:
+lanzamiento o cuando quede obsoleta. Si no hay un protocolo compatible, init omite este archivo y la ejecución fila por fila sigue disponible:
 
 ```text
 Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
@@ -390,7 +392,7 @@ Pega el bloque como una petición normal. Al protocolo solo le hace falta que se
 
 `COMMIT_POLICY` importa, y un bucle de goal es una excepción deliberada a la regla habitual. Durante esa ejecución es toda la regla de commits: `AGENTS.md` puede decir que cada fila de estado es una unidad de commit, pero `COMMIT_POLICY: none`, el valor por defecto del protocolo, significa ningún commit en absoluto. Eso es el comportamiento correcto, no un conflicto. Escriba `task` cuando quiera los commits por fila de siempre. La precedencia es la petición, luego `GOAL.md`, luego `AGENTS.md`, y solo para los commits, y solo dentro de la ejecución.
 
-Una `?` final marca un milestone como condicional: se omite, no se cancela, cuando falta su disparador documentado.
+Una `?` final marca un milestone como condicional: se omite, no se cancela, cuando falta su disparador documentado. Úsala solo para trabajo requerido condicionalmente para alcanzar el resultado activo; el trabajo posterior opcional permanece como dirección candidata sin numerar.
 
 `GOAL.md` no lleva rutas, letras de carril ni comandos propios de un proyecto. Los lee de `AGENTS.md` y del memory bank, así que el mismo archivo sirve sin cambios en cualquier proyecto que lo copie.
 
@@ -406,7 +408,7 @@ También opcional. Todo lo anterior funciona escribiendo frases normales; estos 
 | `memory-bank-next` | A diario. Resolver una fila, verificar, hacer commit. |
 | `memory-bank-goal` | Cuando quieres ejecutar varios milestones en orden. |
 
-`memory-bank-init` es el que más cambia la experiencia: pregunta de una en una, con una respuesta recomendada incluida, busca por su cuenta todo lo que puede leer del repositorio en vez de preguntarlo, y no escribe nada hasta que apruebas el desglose. No verás ni un marcador entre corchetes: la memory bank llega rellenada. (Técnica de entrevista adaptada del skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
+`memory-bank-init` es el que más cambia la experiencia: representa un límite de entrega como árbol de decisiones, pregunta cada frontier lista en una ronda numerada con recomendaciones y consulta por su cuenta los hechos del repositorio. No escribe nada hasta que apruebas el horizonte activo y cada acción sobre archivos. No verás ni un marcador entre corchetes: la memory bank llega rellenada. (Técnica de entrevista adaptada del skill `grilling` de [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)
 
 Ambos agentes leen el mismo formato `SKILL.md` **y el mismo manifiesto**, así que hay una sola fuente por comando y una sola versión que instalar.
 
@@ -453,7 +455,7 @@ El skill no se llama `goal` a propósito: Claude Code tiene un `/goal` integrado
 
 Pero cuando la sesión se cierra, el entendimiento se cierra con ella. Nada en disco, nada que un agente pueda retomar mañana y nada contra lo que ejecutar.
 
-`memory-bank-init` es la misma disciplina de entrevista, apuntada a un artefacto que permanece: una pregunta cada vez, cada una con una respuesta recomendada, y lo que se puede consultar se consulta en vez de preguntarse. Ejecútalo **en la misma sesión, justo después del grill**:
+`memory-bank-init` es la misma disciplina de entrevista, apuntada a un artefacto que permanece: las decisiones independientes con prerrequisitos resueltos llegan juntas en rondas de frontier, cada una con una recomendación, y los hechos consultables se investigan. Puedes pedir un ritmo de una pregunta cada vez. Ejecútalo **en la misma sesión, justo después del grill**:
 
 ```text
 /grill-me            # explore the design; no files written

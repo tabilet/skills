@@ -33,6 +33,8 @@ ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
 PROMPT_COPY = ROOT / "harness" / "prompts" / "tackle-next-memory-bank-todo.md"
 SKILLS_DIR = ROOT / "skills"
+INIT_SKILL = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
+INIT_WRITE_CONTRACT = SKILLS_DIR / "memory-bank-init" / "references" / "write-contract.md"
 PLUGIN_JSON = ROOT / ".claude-plugin" / "plugin.json"
 LANGS = ("cn", "ja", "de", "fr", "es")
 
@@ -108,6 +110,12 @@ def headings(text: str) -> list[str]:
 
 def anchors(path: pathlib.Path) -> set[str]:
     return {slug(h) for h in headings(path.read_text())}
+
+
+def init_skill_text() -> str:
+    """Return the init workflow and its progressively disclosed write rules."""
+
+    return "\n".join(path.read_text() for path in (INIT_SKILL, INIT_WRITE_CONTRACT) if path.exists())
 
 
 # --------------------------------------------------------------------------
@@ -252,13 +260,18 @@ def skills_manifest():
 # --------------------------------------------------------------------------
 @check("memory-bank-init writes what template/ ships")
 def init_covers_template():
-    skill = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
-    if not skill.exists():
+    if not INIT_SKILL.exists():
         return ["memory-bank-init/SKILL.md is missing"]
-    block = re.search(r"```text\n(.*?)```", skill.read_text(), re.S)
+    if not INIT_WRITE_CONTRACT.exists():
+        return ["memory-bank-init/references/write-contract.md is missing"]
+    blocks = re.findall(r"```text\n(.*?)```", init_skill_text(), re.S)
+    block = next(
+        (candidate for candidate in blocks if "AGENTS.md" in candidate and "memory-bank/product.md" in candidate),
+        None,
+    )
     if not block:
         return ["memory-bank-init/SKILL.md has no file-list block"]
-    listed = {l.split()[0] for l in block.group(1).strip().splitlines() if l.strip()}
+    listed = {line.split()[0] for line in block.strip().splitlines() if line.strip()}
     shipped = {
         str(p.relative_to(ROOT / "template"))
         for p in (ROOT / "template").rglob("*")
@@ -283,12 +296,11 @@ def init_covers_template():
 # --------------------------------------------------------------------------
 @check("init and goal share a disposable goal launch reference")
 def suggested_goal_reference():
-    init_path = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
     goal_path = SKILLS_DIR / "memory-bank-goal" / "SKILL.md"
-    if not init_path.exists() or not goal_path.exists():
+    if not INIT_SKILL.exists() or not INIT_WRITE_CONTRACT.exists() or not goal_path.exists():
         return ["memory-bank-init or memory-bank-goal skill is missing"]
 
-    init = init_path.read_text()
+    init = init_skill_text()
     goal = goal_path.read_text()
     problems = []
 
@@ -331,6 +343,90 @@ def suggested_goal_reference():
             problems.append(
                 f"{path.relative_to(ROOT)}: missing disposable goal launch reference"
             )
+
+    for path in (
+        ROOT / "README.md",
+        ROOT / "docs" / "TUTORIAL.md",
+        ROOT / "docs" / "medium.md",
+    ):
+        text = path.read_text().lower()
+        if "compatible" not in text or "omit" not in text:
+            problems.append(
+                f"{path.relative_to(ROOT)}: launch-reference guidance must cover "
+                "compatible and omitted goal protocols"
+            )
+    return problems
+
+
+@check("memory-bank-init preserves adaptive discovery and rolling horizons")
+def adaptive_init_contract():
+    if not INIT_SKILL.exists() or not INIT_WRITE_CONTRACT.exists():
+        return ["memory-bank-init workflow or write contract is missing"]
+
+    skill = INIT_SKILL.read_text()
+    write_contract = INIT_WRITE_CONTRACT.read_text()
+    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    agents = (ROOT / "AGENTS.md").read_text()
+    problems = []
+
+    for token in (
+        "design tree",
+        "evidence ledger",
+        "frontier",
+        "whole frontier",
+        "one coherent product, ownership, and verification",
+        "active horizon",
+        "candidate directions",
+        "references/write-contract.md",
+        "enough active work to drown",
+        "own review cadence",
+        "different acceptance method",
+    ):
+        if token not in skill:
+            problems.append(f"memory-bank-init/SKILL.md: missing adaptive contract {token!r}")
+
+    for stale in (
+        "### The tree",
+        "**One question at a time.**",
+        "from question 4",
+        "the first milestone's rows",
+    ):
+        if stale in skill:
+            problems.append(f"memory-bank-init/SKILL.md retains fixed interview wording {stale!r}")
+
+    for token in (
+        "Never silently overwrite an existing file",
+        "Candidate directions are not milestones",
+        "Never put a candidate direction",
+        "Create `memory-bank/suggested.txt` only when",
+        "Otherwise omit the launch reference",
+        "sibling `GOAL.md`",
+        "provider-specific plugin-root environment variables",
+        "A trailing `?` is allowed only",
+        "concrete project-state trigger",
+        "discretionary",
+    ):
+        if token not in write_contract:
+            problems.append(f"write-contract.md: missing {token!r}")
+
+    for stale in ("${CLAUDE_PLUGIN_ROOT}", "M01 -> S01 -> A01?"):
+        if stale in write_contract:
+            problems.append(f"write-contract.md retains unsafe example or path {stale!r}")
+
+    for token in (
+        "## Candidate Directions",
+        "have no lane, permanent status ID, status file",
+        "obtain approval before allocating its permanent ID",
+    ):
+        if token not in milestone:
+            problems.append(f"template/memory-bank/milestone.md: missing {token!r}")
+
+    for token in (
+        "approved compatible `GOAL.md`",
+        "documented conditionally required active work",
+    ):
+        if token not in agents:
+            problems.append(f"AGENTS.md: missing init hard rule {token!r}")
     return problems
 
 

@@ -225,6 +225,14 @@ English is `#exit-codes`. Check anchors, not just filenames, when adding links.
   in `template/`, add it to `AGENTS.md`'s required read order, or let
   `memory-bank-goal` use it without reconciling it against the current milestone
   and status files.
+- `memory-bank-init` discovers one delivery boundary with a dependency-aware
+  design tree and frontier rounds; its coverage roots are not a fixed question
+  sequence or ceiling. It assigns permanent status IDs only to the approved
+  active horizon. Later candidate directions stay unnumbered, have promotion
+  triggers, and never appear in `suggested.txt`. It creates `suggested.txt` only
+  when the project contains an approved compatible `GOAL.md`; a conditional
+  status suffix is for documented conditionally required active work, not a
+  candidate direction.
 - Propagate English content changes to all five translation siblings in the same
   change.
 - Status files are named `status-<LANE><NN>.md`. The pattern is defined in

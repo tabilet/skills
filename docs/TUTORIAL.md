@@ -105,22 +105,34 @@ than a form. The memory bank you end up with is a transcript of the decisions
 you reach here; decisions you never reach come out as vague prose, and vague
 prose is what makes an agent build the wrong thing confidently.
 
-The command works down a dependency-ordered tree, **one question at a time, each
-with a recommended answer attached** so agreeing costs one word. Anything it can
-read from the repository it reads instead of asking — so in an empty directory
-almost everything is a question, and in an existing repo it will already know
-your stack and test command and ask you only about decisions.
+The command maps one delivery boundary as a dependency-ordered design tree. It
+asks the whole **frontier** — every independent decision whose prerequisites are
+settled — as a numbered round, with a recommended answer attached to each. Your
+answers reshape the tree before the next round. Ask for one-at-a-time pacing if
+you prefer it.
+
+Anything it can read from the repository it reads instead of asking. In an
+existing project that includes instructions, docs, manifests, tests, CI, source
+layout, interfaces, schemas, and infrastructure. Only decisions come back to
+you.
 
 What it works through, and where each answer lands:
 
-| It asks | Why it matters | Lands in |
+| Coverage root | Why it matters | Lands in |
 |---|---|---|
-| What is this, who uses it? | Scope. | `product.md` |
-| **What is it *not*?** | The most valuable thing you will say. | `product.md` |
-| Stack and constraints | Rules the agent must not break. | `tech-stack.md` |
-| **How do you know it works?** | Everything downstream closes against this. | `tech-stack.md`, `AGENTS.md` |
-| Boundaries | What this owns, what it delegates. | `AGENTS.md` |
-| Feature areas, and their order | Becomes lanes and milestones. | `milestone.md` |
+| Delivery boundary, users, workflows, non-goals | Scope and ownership. | `product.md`, `AGENTS.md` |
+| Current and target state | Separates facts from intended change. | `product.md`, `evolution/` |
+| System shape and public contracts | Prevents boundary and compatibility drift. | `architecture.md` |
+| Stack, runtime, operations, hard rules | Rules the agent must not break. | `tech-stack.md`, `AGENTS.md` |
+| Runnable and manual evidence | Everything downstream closes against this. | `tech-stack.md`, milestone acceptance |
+| Work graph and delivery horizon | Becomes active lanes, milestones, and later directions. | `milestone.md` |
+
+Those are roots, not six canned questions. Relevant answers grow branches for
+data migrations, security and privacy, distributed failure, accessibility,
+model evals, deployment and rollback, or external-system authority. A broad
+repository is not permission to mix independent products into one bank: select
+one product, ownership, and verification boundary and treat the rest as
+dependencies or separate initializations.
 
 ### Already ran `/grill-me`?
 
@@ -131,7 +143,7 @@ them without a hundred repeated prompts. That is the gap this tutorial closes,
 and step 6 is where it lands — a blocker-aware ordered run:
 
 ```text
-/memory-bank:memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
+/memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04
 ```
 
 It works in dependency order, rewriting later milestones as earlier ones change
@@ -153,39 +165,37 @@ difference between the two skills. `/grill-me` deliberately stops at shared
 understanding; this turns that understanding into files that outlive the
 session.
 
-The exchange that produced this example ran roughly:
+An abridged exchange that produced this example ran roughly:
 
-> **`memory-bank-init`:** What are we building, and who is it for?
+> **`memory-bank-init`, round 1:** ❓ **Q1 — Delivery boundary:** What are we
+> building, who uses it, and what outcome matters? I recommend treating the
+> browser game itself as the boundary, with learning movement feel as the
+> primary outcome.
 >
 > **You:** A side-scrolling platformer like early Mario, in a browser. Mostly I
 > want to learn what makes movement feel good.
 >
-> **`memory-bank-init`:** Original art, or Nintendo's sprites? I recommend
-> original — shipping their assets is a licensing problem, and drawing in code
-> keeps the repo dependency-free.
+> **`memory-bank-init`, round 2:** ❓ **Q1 — Assets:** Original art, or
+> Nintendo's sprites? I recommend original because shipping their assets is a
+> licensing problem.
 >
-> **You:** Original. I don't want Nintendo's assets anywhere near it.
+> ❓ **Q2 — Runtime:** Framework or plain canvas? I recommend plain canvas with
+> ES modules and no build step: a framework would hide the physics you want to
+> learn.
 >
-> **`memory-bank-init`:** Framework or plain canvas? I recommend plain canvas
-> with ES modules and no build step — a framework like Phaser would save you
-> time but hide the physics, which is the part you said you want to learn.
+> **You:** 1 original; I don't want Nintendo assets anywhere near it. 2 plain
+> canvas; I want to open the file and have it run.
 >
-> **You:** Plain canvas. I want to open the file and have it run.
+> **`memory-bank-init`, round 3:** ❓ **Q1 — Verification:** Canvas rendering
+> and “feels good” are not headless assertions. I recommend keeping simulation
+> modules DOM-free so physics and collision run under `node --test`, with
+> rendering verified by playtest.
 >
-> **`memory-bank-init`:** Then how do we verify anything? Canvas rendering is
-> not testable headlessly and "feels good" is not either. I recommend keeping
-> physics, collision, and entity state in modules that import nothing from the
-> DOM, so they run under `node --test`; rendering and audio get verified by
-> playing. It costs one architectural rule and it is what makes the project
-> testable at all.
+> ❓ **Q2 — Delivery horizon:** I recommend ending the active horizon when the
+> world, player, enemies, and HUD form a playable loop. Keep audio as an
+> unnumbered candidate until you decide it matters.
 >
-> **You:** Do that.
->
-> **`memory-bank-init`:** Feature areas? From what you have described I would
-> suggest world and camera, player and collision, enemies, HUD, and audio — with
-> audio last and conditional, since the game is playable without it.
->
-> **You:** Right, and I might skip audio entirely.
+> **You:** 1 do that. 2 right; I might skip audio entirely.
 
 Notice what that produced: **a non-goal** (no Nintendo assets, no build step),
 **an architectural rule** (simulation imports nothing from the DOM), and **a
@@ -201,41 +211,48 @@ project.
 ## Step 4 — Approve The Breakdown
 
 Before writing anything, `memory-bank-init` proposes the shape as a numbered
-list: lane letters, milestones with acceptance criteria, the first milestone's
-rows, and the execution order. **Nothing is on disk yet.**
+list: the delivery boundary, lane letters, every active milestone with its
+acceptance and complete row set, the execution order, unnumbered candidate
+directions, and every create/merge/preserve file action. **Nothing is on disk
+yet.**
 
-For `stomper` it proposed five lanes, because the feature areas genuinely have
-different acceptance criteria — collision correctness is unit-testable, audio is
-a playtest:
+For `stomper` it proposed one active lane. Four feature areas are not, by
+themselves, a reason to create four permanent namespaces:
 
 ```markdown
 | Lane | Domain |
 |---|---|
-| `W` | World: tilemap, level data, camera. |
-| `P` | Player: input, movement, collision resolution. |
-| `E` | Entities: enemies, pickups, and their interactions with the player. |
-| `U` | UI: HUD, score, lives, title and game-over states. |
-| `A` | Audio: WebAudio cues. |
-| `M` | Default lane, for work that classifies as none of the above. |
+| `M` | Game delivery: world, player, entities, and UI. |
 ```
 
 and this order, because these are not independent:
 
 ```markdown
-W01 -> P01 -> E01 -> U01 -> A01?
+M01 -> M02 -> M03 -> M04
 ```
 
-`P01` needs tile queries from `W01`; `E01` reuses `P01`'s collision resolver.
-The trailing `?` marks `A01` **conditional** — skipped rather than cancelled
-when its trigger is absent.
+`M02` needs tile queries from `M01`; `M03` reuses `M02`'s collision resolver.
+That dependency-closed sequence reaches the next verifiable outcome: a complete
+playable loop.
 
-It will ask you three things. Answer them honestly, because this is the cheap
+Audio stays outside that horizon:
+
+| Candidate direction | Why deferred | Promotion trigger |
+|---|---|---|
+| WebAudio cues | The game is complete and testable without them. | The user decides sound is required for the next delivery outcome. |
+
+It has no lane or status ID yet. Promotion triggers reconsideration and
+approval; it does not allocate a permanent ID automatically.
+
+It will ask you five things. Answer them honestly, because this is the cheap
 moment to be wrong:
 
+- **Is the delivery boundary right?** One coherent product and owner?
 - **Is the granularity right?** Too coarse, too fine?
 - **Are the dependencies correct?** Does each milestone depend only on what
   genuinely gates it?
-- **Should anything be merged or split?**
+- **Does the active horizon end at the right verifiable outcome?**
+- **Are later candidates and every file action safe?**
 
 Two rules it applies, worth knowing so you can tell when it has them wrong:
 
@@ -246,7 +263,8 @@ Two rules it applies, worth knowing so you can tell when it has them wrong:
   fit in one fresh context window.
 
 **Start with one lane (`M`) unless you have a real reason.** Lane letters can
-never be renamed once their file exists. This project earned five; most do not.
+never be renamed once their file exists. This project stays on `M`; a later
+domain earns another letter only when its volume or review cycle justifies it.
 
 ## Step 5 — Read What It Wrote
 
@@ -260,9 +278,12 @@ stomper/
 │   ├── product.md         ← what it is, and the non-goals
 │   ├── architecture.md    ← module layout, the DOM-free rule
 │   ├── tech-stack.md      ← stack, and how it is verified
-│   ├── milestone.md       ← lanes, milestones, execution order
-│   ├── status-{W,P,E,U,A}01.md
-│   └── suggested.txt      ← disposable goal order, file map, and impacts
+│   ├── milestone.md       ← active milestones and unnumbered candidates
+│   ├── status-M01.md       ← world and camera
+│   ├── status-M02.md       ← player movement and collision
+│   ├── status-M03.md       ← enemies and pickups
+│   ├── status-M04.md       ← HUD and game states
+│   └── suggested.txt      ← disposable active-horizon order and impacts
 └── evolution/
     ├── prompt-v1.md
     └── result-v1.md
@@ -303,9 +324,9 @@ closes against nothing.
 A status file is a table of rows, each sized to be one commit:
 
 ```markdown
-# Status P01 - The Player Moves, Jumps, And Collides
+# Status M02 - The Player Moves, Jumps, And Collides
 
-**Depends on.** W01 (needs `tileAt`).
+**Depends on.** M01 (needs `tileAt`).
 
 **Acceptance.** `node --test` passes, including the tile-seam regression test.
 
@@ -364,14 +385,13 @@ The same harness shows what it found:
 ```text
 | Status file | Actionable rows | Blocked rows |
 |---|---|---|
-| memory-bank/status-A01.md | 3 | 0 |
-| memory-bank/status-E01.md | 6 | 0 |
-| memory-bank/status-P01.md | 7 | 0 |
-| memory-bank/status-U01.md | 5 | 0 |
-| memory-bank/status-W01.md | 5 | 0 |
+| memory-bank/status-M01.md | 5 | 0 |
+| memory-bank/status-M02.md | 7 | 0 |
+| memory-bank/status-M03.md | 6 | 0 |
+| memory-bank/status-M04.md | 5 | 0 |
 ```
 
-Twenty-six rows of work, parsed out of files written from a ten-minute
+Twenty-three rows of work, parsed out of files written from a ten-minute
 conversation. If a lane you expected shows `0`, its markers are wrong.
 
 ## Step 6 — Run The Work
@@ -394,8 +414,8 @@ the command just carries the full instruction instead of your paraphrase of it.
 **A whole ordered set**, for a release or a migration with real dependencies:
 
 ```text
-/memory-bank:memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
-$memory-bank:memory-bank-goal W01 -> P01 -> E01 -> U01 -> A01?
+/memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04
+$memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04
 ```
 
 That follows [GOAL.md](../GOAL.md): reconcile before each milestone, implement,
@@ -403,16 +423,18 @@ verify, deep-review, then reconcile the milestones downstream of the one that
 just closed. It sends `COMMIT_POLICY: task` for you — worth knowing, because
 `GOAL.md`'s own default is `none`, meaning no commits at all.
 
-The init skill also writes a complete proposed `STATUS_ORDER`,
-`STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS` to
-`memory-bank/suggested.txt`. It is disposable input, not project truth. Run the
-goal skill with no arguments to have it reconcile that file and show the
-resolved request before starting; delete the file after launch or when it
-becomes stale.
+Because this example carries the bundled compatible `GOAL.md`, init also writes
+a complete active-horizon `STATUS_ORDER`, `STATUS_FILE_MAP`, and
+`DOWNSTREAM_IMPACTS` to `memory-bank/suggested.txt`. It is disposable input, not
+project truth. Run the goal skill with no arguments to have it reconcile that
+file and show the resolved request before starting; delete the file after launch
+or when it becomes stale. Unnumbered candidate directions never appear in it.
+When a compatible goal protocol is unavailable, init omits both the launch
+reference and ordered-run handoff while preserving one-row execution.
 
-Reconciling downstream is what makes this better than a to-do list. When `W01`
-closes, the tilemap that actually got built is not the one `P01` was written
-against — so `P01` gets re-read and rewritten before it starts, rather than
+Reconciling downstream is what makes this better than a to-do list. When `M01`
+closes, the tilemap that actually got built is not the one `M02` was written
+against — so `M02` gets re-read and rewritten before it starts, rather than
 implemented as planned and wrong.
 
 **In Claude Code, the [built-in `/goal`](https://code.claude.com/docs/en/goal) is
@@ -438,7 +460,7 @@ Verified against real runs of the checkpoint above:
 |---|---|---|
 | `21` | Reached the network. **Everything else passed.** | Nothing. This is success. |
 | `0` | "No actionable memory-bank rows remain." | **Markers without backticks** — `[ ]` instead of `` `[ ]` ``. Your rows are invisible. |
-| `11` | No lane files found. | Filename is `status-P1.md`, not `status-P01.md`. Always **two digits**. |
+| `11` | No lane files found. | Filename is `status-M1.md`, not `status-M01.md`. Always **two digits**. |
 | `4` | Worktree was dirty before the run. | Commit or stash first. |
 | `3` | Only `` `[!]` `` blocked rows remain. | Not a failure. A human needs to unblock something. |
 | `10` | No `AGENTS.md`. | Wrong directory, or `memory-bank-init` never finished. |
@@ -468,5 +490,5 @@ Two things to know as you keep going:
   intended behavior, not drift.
 - **Status IDs and their files are permanent once created.** Pending rows are a
   planning baseline: add, split, rewrite, cancel, or remove them as reality
-  changes, but do not rename or reuse `P01`, and keep its status file as the
+  changes, but do not rename or reuse `M02`, and keep its status file as the
   durable milestone record.

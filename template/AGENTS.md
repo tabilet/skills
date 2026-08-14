@@ -83,6 +83,9 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
 - Keep one `memory-bank/status-<LANE><NN>.md` file for each milestone listed in
   [memory-bank/milestone.md](memory-bank/milestone.md), named by the status ID
   pattern defined there.
+- Keep later candidate directions unnumbered and outside the milestone index.
+  Promote one only after fresh reconciliation and approval; then assign the
+  next unused permanent ID and create its status file.
 - Treat each row in the matching `memory-bank/status-<LANE><NN>.md` file as a
   commit unit. See that file for status markers and commit rules.
 - Treat each section in [memory-bank/milestone.md](memory-bank/milestone.md) as a
