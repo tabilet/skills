@@ -302,7 +302,7 @@ Avec un agent comme Codex ou Claude Code, le workflow côté utilisateur peut ê
 tackle next pending item in memory bank
 ```
 
-L’agent doit trouver la prochaine ligne actionnable dans `memory-bank/status-<LANE><NN>.md`, terminer cette tâche, exécuter la vérification requise, mettre à jour la memory bank et créer un git commit au périmètre clair. Si cette ligne est le dernier élément ouvert d’un milestone, l’agent doit lancer la revue de milestone depuis `memory-bank/milestone.md` avant de continuer. Pendant cette revue, il doit aussi décider si `evolution/` a besoin d’une nouvelle version parce que la direction produit, la frontière d’architecture, la cible du milestone ou la direction du contrat public/privé a changé matériellement.
+L’agent doit trouver la prochaine ligne actionnable dans `memory-bank/status-<LANE><NN>.md`, terminer cette tâche, exécuter la vérification requise, mettre à jour la memory bank et créer un git commit au périmètre clair. Si cette ligne est le dernier élément ouvert d’un milestone, l’agent doit lancer la revue de milestone depuis `memory-bank/milestone.md` avant de continuer. Les changements issus de la revue sont committés ; aucun commit de milestone vide n’est créé si elle ne change rien. Pendant cette revue, il doit aussi décider si `evolution/` a besoin d’une nouvelle version parce que la direction produit, la frontière d’architecture, la cible du milestone ou la direction du contrat public/privé a changé matériellement.
 
 Avant de faire confiance à tout cela, donnez à l’agent quelque chose à vérifier. Remplissez le tableau **Execution harnesses** de `memory-bank/tech-stack.md` avec la commande qui prouve que votre projet fonctionne, par exemple `make test`, `npm test` ou un script que vous lancez déjà, et notez ce que sa réussite prouve. Une ligne ne devrait pas passer à `[+]` avant que cette commande soit passée. Sans cela, « ne marquer une ligne terminée qu’après vérification » n’a aucun référent et l’agent décide seul de ce que vérifier veut dire.
 
@@ -490,16 +490,20 @@ Les commandes ci-dessous appellent `tackle-memory-bank-api-loop` par son nom, ce
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+Une exécution actionnable confie les commandes produites par le modèle à un shell non sandboxé sur l’hôte. Le harness refuse donc de démarrer avant une confirmation explicite avec `ALLOW_UNSANDBOXED_SHELL=1` ou `--allow-unsandboxed-shell`. Cette confirmation n’est pas une isolation : les commandes peuvent lire les fichiers et les autres processus de l’hôte, ainsi qu’utiliser le réseau. Exécutez le harness dans une sandbox jetable et sur un dépôt restaurable.
+
+Les commandes shell ne reçoivent qu’un environnement minimal, sans copie des identifiants du provider. Autorisez explicitement les variables projet supplémentaires avec `TOOL_ENV_ALLOW=NAME,OTHER_NAME`. Cela réduit les fuites accidentelles sans sécuriser le shell hôte. `ALLOW_DANGEROUS_COMMANDS=1` ne fait que désactiver une courte liste de blocage contournable.
+
 Exécuter une ligne :
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
 Exécuter une boucle :
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```
 
 Utiliser un fournisseur compatible OpenAI :
@@ -508,6 +512,7 @@ Utiliser un fournisseur compatible OpenAI :
 LLM_API_BASE=https://openrouter.ai/api/v1 \
 LLM_API_KEY=... \
 LLM_MODEL=openai/gpt-5.6 \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -517,6 +522,7 @@ Utiliser un serveur local compatible OpenAI :
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -527,6 +533,7 @@ Utiliser Anthropic (Claude) au lieu de la voie compatible OpenAI :
 LLM_PROVIDER=anthropic \
 LLM_MODEL=claude-opus-5 \
 ANTHROPIC_API_KEY=... \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -553,7 +560,7 @@ Le harness s’arrête tôt volontairement, et son code de sortie en donne la ra
 
 ## Ce qu’est le harness
 
-Pour le travail projet normal, `tackle-memory-bank-api-loop` est un harness d’exécution : il lance de façon répétée un agent contre un dépôt, lui donne un accès shell via un protocole de commandes contrôlé et vérifie l’état git entre les exécutions.
+Pour le travail projet normal, `tackle-memory-bank-api-loop` est un harness d’exécution : il lance de façon répétée un agent contre un dépôt, lui donne un accès shell via un protocole de commandes JSON et vérifie l’état git entre les exécutions. La cible doit être exactement la racine du worktree git, l’historique doit avancer sans réécriture, et chaque exécution doit faire passer exactement une ligne actionnable existante à terminée ou bloquée. Des commits séparés de correction de revue de milestone restent permis dans la même exécution.
 
 Il découvre chaque fichier `memory-bank/status-<LANE><NN>.md`, indique combien de lignes actionnables et bloquées contient chaque voie, et laisse l’agent choisir la ligne suivante selon le sens des voies et la priorité des milestones. Une ligne bloquée dans une voie n’arrête pas le travail dans les autres ; la boucle ne s’arrête pour revue humaine que lorsqu’il ne reste que des lignes bloquées.
 

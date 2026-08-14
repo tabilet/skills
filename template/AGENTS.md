@@ -89,8 +89,9 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the
   milestone before closing it.
-- After the milestone review is complete and required verification passes, make
-  a git commit for the milestone changes.
+- After the milestone review is complete and required verification passes,
+  commit any review changes. Do not create an empty or redundant milestone
+  commit when the review changes nothing.
 - Check [evolution/](evolution/) after a major review, milestone, or boundary
   change. Add a new version only when product direction, architecture boundary,
   milestone target, or public/private contract direction materially changes.

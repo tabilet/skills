@@ -125,6 +125,24 @@ def harness_parses():
 
 
 # --------------------------------------------------------------------------
+# 1b. The harness is executable payload. Exercise its parser, shell boundary,
+#     providers, git gates, and one-row contract without external network calls.
+# --------------------------------------------------------------------------
+@check("harness behavioral tests pass")
+def harness_tests():
+    proc = subprocess.run(
+        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        return []
+    detail = (proc.stdout + proc.stderr).strip()
+    return ["behavioral suite failed:\n" + detail]
+
+
+# --------------------------------------------------------------------------
 # 2. GOAL.md is a portable protocol carried in two places. They must not drift.
 # --------------------------------------------------------------------------
 @check("GOAL.md and template/GOAL.md are byte-identical")
@@ -447,7 +465,7 @@ def exit_codes():
 # 7. The backtick footgun: a row written `| Item | [ ] | Notes |` parses as
 #    zero actionable work, silently. The shipped template must stay matchable.
 # --------------------------------------------------------------------------
-@check("status-marker regexes match the shipped template rows")
+@check("status parser matches the shipped template rows")
 def status_markers():
     mod = load_harness()
     template = (ROOT / "template" / "memory-bank" / "status-M01.md").read_text()
@@ -490,6 +508,7 @@ def payload_runs():
                 "PATH": "/usr/bin:/bin", "HOME": tmp,
                 "LLM_MODEL": "check", "LLM_API_KEY": "check",
                 "LLM_API_BASE": "http://127.0.0.1:1/v1", "MAX_RUNS": "1",
+                "LLM_MAX_RETRIES": "0", "ALLOW_UNSANDBOXED_SHELL": "1",
             },
         )
         # 21 = could not reach the API, i.e. every gate before the call passed.
@@ -511,7 +530,7 @@ def sampling_params():
     mod = load_harness()
     sampled = {}
 
-    def capture(url, headers, payload, label):
+    def capture(url, headers, payload, label, timeout=120, max_retries=2):
         sampled[label] = payload
         return {
             "content": [{"type": "text", "text": "{}"}],
@@ -634,7 +653,10 @@ def public_interfaces():
                     f"{path.relative_to(ROOT)}: installs the human-readable prompt copy"
                 )
 
-    expected_codes = ["0", "2", "3", "4", "5", "6", "7", "10", "11", "12", "13", "20", "21", "22", "30"]
+    expected_codes = [
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+        "11", "12", "13", "14", "20", "21", "22", "23", "30", "31", "130",
+    ]
     localized_zero = {
         "cn": "没有可执行状态行了，无事可做。",
         "ja": "実行可能な行が残っていません。作業なし。",
@@ -662,6 +684,47 @@ def public_interfaces():
             )
         seen_tables[table_identity] = path.relative_to(ROOT)
 
+    return problems
+
+
+@check("public harness guidance carries the host-shell safety contract")
+def harness_safety_contract():
+    problems = []
+    public = [ROOT / "README.md", *(ROOT / f"README_{lang}.md" for lang in LANGS)]
+    public += [
+        ROOT / "docs" / "EXECUTION.md",
+        *(ROOT / "docs" / f"EXECUTION_{lang}.md" for lang in LANGS),
+    ]
+    for path in public:
+        text = path.read_text()
+        for token in ("ALLOW_UNSANDBOXED_SHELL=1", "TOOL_ENV_ALLOW"):
+            if token not in text:
+                problems.append(f"{path.relative_to(ROOT)}: missing {token}")
+
+    source = HARNESS.read_text()
+    if '["bash", "-lc", cmd]' in source:
+        problems.append("harness launches a login shell and can load user profiles")
+    for token in ("ALLOW_UNSANDBOXED_SHELL", "tool_environment", "validate_row_transition"):
+        if token not in source:
+            problems.append(f"harness is missing safety mechanism {token}")
+    return problems
+
+
+@check("template examples preserve row and status-ID contracts")
+def template_row_contracts():
+    problems = []
+    result = (ROOT / "template" / "evolution" / "result-v1.md").read_text()
+    for stale in ("**M1**", "**M2**"):
+        if stale in result:
+            problems.append(f"template/evolution/result-v1.md uses unpadded {stale}")
+
+    status = (ROOT / "template" / "memory-bank" / "status-M01.md").read_text()
+    if "multiple rows are inseparable" in status:
+        problems.append("status-M01.md permits several rows in one commit")
+
+    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    if "Do not create an extra milestone commit" not in milestone:
+        problems.append("milestone.md does not forbid empty review commits")
     return problems
 
 

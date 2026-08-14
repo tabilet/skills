@@ -345,7 +345,8 @@ clean. Point it at a dead endpoint to reach those checks and stop:
 ```bash
 git add -A && git commit -m "Add memory bank"
 
-LLM_MODEL=check LLM_API_KEY=x LLM_API_BASE=http://127.0.0.1:1/v1 MAX_RUNS=1 \
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=check LLM_API_KEY=x \
+  LLM_API_BASE=http://127.0.0.1:1/v1 LLM_MAX_RETRIES=0 MAX_RUNS=1 \
   python3 /path/to/skills/harness/tackle-memory-bank-api-loop .
 echo $?
 ```
@@ -353,6 +354,10 @@ echo $?
 **Exit `21`** — "the API could not be reached" — is what you want. Every check
 on your side passed; the only failure was the network call you sabotaged on
 purpose. No API key, no cost, no model involved.
+
+The acknowledgment is required because a real run gives model commands an
+unsandboxed host shell. It does not make that shell safe; use a disposable
+sandbox and a repository you can restore.
 
 The same harness shows what it found:
 

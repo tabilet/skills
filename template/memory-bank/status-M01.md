@@ -20,8 +20,8 @@ Write markers with backticks, exactly as in the table above: `` `[ ]` ``, not
 
 Each table row is a commit unit: after flipping a row to `[+]`, verify the
 change, update the memory bank/docs, and make a scoped `git commit` before
-starting the next row. If multiple rows are inseparable, use one coherent commit
-and name every covered row in the handoff.
+starting the next row. If two rows are inseparable, redefine them as one row
+before starting rather than closing several rows in one commit.
 
 | Item | State | Notes |
 |---|---|---|

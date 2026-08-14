@@ -32,11 +32,19 @@ Hace lo siguiente:
 - descubre cada archivo de carril `memory-bank/status-<LANE><NN>.md` e informa al modelo cuántas filas accionables y bloqueadas tiene cada carril,
 - se detiene cuando ningún carril conserva filas accionables,
 - avisa de las filas blocked y solo se detiene para revisión humana cuando ya solo quedan filas blocked,
+- rechaza el trabajo accionable hasta que el usuario confirme el shell no aislado del host para los comandos del modelo,
+- pasa al shell solo un entorno mínimo y exige autorización explícita para variables adicionales del proyecto,
+- exige que la ruta objetivo sea exactamente la raíz del worktree de git,
 - comprueba que el git worktree esté limpio antes de cada ejecución,
-- exige que el modelo haga commit de su trabajo,
+- exige que el modelo confirme exactamente una fila accionable completada o bloqueada,
+- permite commits de revisión separados, pero rechaza reescrituras del historial,
 - se detiene si el modelo deja cambios sin commit,
 - se detiene si el modelo no crea ningún commit,
-- limita el número de iteraciones del bucle.
+- reintenta fallos temporales de API, informa del uso del proveedor y limita las iteraciones y el tamaño de la conversación.
+
+`ALLOW_UNSANDBOXED_SHELL=1` o `--allow-unsandboxed-shell` confirma el acceso al host, pero no crea aislamiento. Los comandos pueden leer archivos y procesos del host y usar la red. Ejecute el harness en un sandbox desechable contra un repositorio restaurable. Las credenciales del proveedor no se copian al entorno hijo y las variables adicionales requieren `TOOL_ENV_ALLOW`, pero ninguna medida constituye un límite de seguridad. La lista de comandos peligrosos es solo un guardrail eludible.
+
+Los límites operativos se configuran con `LLM_API_TIMEOUT` (`120` segundos por defecto), `LLM_MAX_RETRIES` (`2` reintentos después del primer intento por defecto) y `MAX_HISTORY_CHARS` (`500000` por defecto). `MAX_TOOL_OUTPUT` sigue siendo el presupuesto combinado de caracteres de stdout y stderr para cada comando.
 
 ### Códigos de salida
 
@@ -45,22 +53,29 @@ El harness señala cada resultado con su código de salida. Los códigos `3` a `
 | Código | Significado |
 |---|---|
 | `0` | No quedan filas accionables. Nada que hacer. |
+| `1` | Se produjo un fallo interno inesperado del harness. |
 | `2` | `LLM_MODEL` no está definido, o `LLM_PROVIDER` no es `openai` ni `anthropic`. |
 | `3` | Solo quedan filas bloqueadas. Una persona debe desbloquearlas. |
 | `4` | El worktree no estaba limpio antes de la ejecución. Haga commit o stash primero. |
 | `5` | El agente dejó cambios sin commit. |
 | `6` | El agente no creó ningún commit. Evita un bucle sin progreso. |
 | `7` | Se alcanzó `MAX_RUNS`. |
+| `8` | El resultado confirmado no contiene exactamente una transición de fila válida. |
+| `9` | El agente reescribió el historial o abandonó la rama original. |
 | `10` | No hay `AGENTS.md` en el repositorio de destino. |
 | `11` | No hay `memory-bank/`, o no contiene archivos `status-<LANE><NN>.md`. |
-| `12` | La ruta de destino no está dentro de un worktree de git. |
+| `12` | La ruta de destino no es la raíz de un worktree de git. |
 | `13` | No se pudo leer el `HEAD` de git. |
+| `14` | El trabajo accionable no recibió confirmación del shell no aislado. |
 | `20` | La API devolvió un error HTTP. |
 | `21` | No se pudo contactar con la API. |
 | `22` | La respuesta de la API no tenía la forma esperada. |
+| `23` | El modelo rechazó la solicitud o no devolvió texto utilizable. |
 | `30` | El modelo agotó `MAX_TURNS` sin terminar una fila. |
+| `31` | La conversación superó `MAX_HISTORY_CHARS`. |
+| `130` | La ejecución fue interrumpida desde el terminal. |
 
-Los códigos `10` a `13` significan que el repositorio de destino aún no está preparado. Los `20` a `22` son problemas del proveedor o de red, no del proyecto.
+Los códigos `10` a `14` son problemas de configuración del destino o de la autorización. Los `20` a `23` son problemas del proveedor o de red, no del proyecto.
 
 ## Servicios respaldados por Docker
 

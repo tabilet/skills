@@ -390,8 +390,9 @@ The agent should find the next actionable row in the current milestone's
 complete that task, run the required verification, update the memory bank, and
 make a scoped git commit. If that row is the last open item in a milestone, the
 agent should run a deep code review of the milestone, run the milestone review
-from `memory-bank/milestone.md`, complete required verification, and make a git
-commit for the milestone changes before moving on. During that review it should
+from `memory-bank/milestone.md`, complete required verification, and commit any
+review changes before moving on. Do not create an extra commit when review
+changes nothing. During that review it should
 also decide whether `evolution/` needs a new version because the product
 direction, architecture boundary, milestone target, or public/private contract
 direction materially changed.
@@ -415,8 +416,8 @@ Under the surface, the normal agent workflow is:
 7. Keep one `memory-bank/status-<LANE><NN>.md` file for each milestone.
 8. If a milestone becomes complete, run a deep code review and the milestone
    review procedure in `memory-bank/milestone.md`.
-9. After review and required verification pass, make a git commit for the
-   milestone changes.
+9. After review and required verification pass, commit any review changes; do
+   not create an empty or redundant milestone commit.
 10. Check `evolution/` and add a new version only when the review finds a real
    direction, boundary, milestone, or contract change.
 
@@ -698,16 +699,29 @@ prints nothing, add this line to your shell profile:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+An actionable run gives model-generated commands an unsandboxed shell on the
+host, so the harness refuses to start one until you explicitly set
+`ALLOW_UNSANDBOXED_SHELL=1` or pass `--allow-unsandboxed-shell`. This is an
+acknowledgment, not isolation: commands can still read host files, inspect other
+processes, and use the network. Run the harness inside a disposable sandbox and
+against a repository you can restore.
+
+Shell commands receive a minimal environment. Provider credential variables are
+not copied into it; use `TOOL_ENV_ALLOW=NAME,OTHER_NAME` to forward additional
+project variables deliberately. This reduces accidental disclosure but does not
+make the host shell safe. `ALLOW_DANGEROUS_COMMANDS=1` only disables a short
+command denylist, which is a guardrail and can be bypassed.
+
 Run one row:
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
 Run a loop:
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```
 
 Use an OpenAI-compatible provider:
@@ -716,6 +730,7 @@ Use an OpenAI-compatible provider:
 LLM_API_BASE=https://openrouter.ai/api/v1 \
 LLM_API_KEY=... \
 LLM_MODEL=openai/gpt-5.6 \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -725,6 +740,7 @@ Use a local OpenAI-compatible server:
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -735,6 +751,7 @@ Use Anthropic (Claude) instead of the OpenAI-compatible path:
 LLM_PROVIDER=anthropic \
 LLM_MODEL=claude-opus-5 \
 ANTHROPIC_API_KEY=... \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -778,7 +795,10 @@ means the memory bank has not been filled in yet. The full table is in
 
 For normal project work, `tackle-memory-bank-api-loop` is an execution harness:
 it repeatedly runs an agent against a repository, gives it shell access through a
-controlled command protocol, and checks git state between runs.
+JSON command protocol, and checks git state between runs. It requires the target
+to be the git worktree root, requires history to advance without a rewrite, and
+requires exactly one existing actionable row to become completed or blocked in
+each run. Separate milestone-review commits are allowed within that run.
 
 It discovers every `memory-bank/status-<LANE><NN>.md` file, reports how many
 actionable and blocked rows each lane holds, and asks the agent to pick a row

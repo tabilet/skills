@@ -7,8 +7,8 @@ named by the status ID pattern below.
 Each milestone section is a review unit: after all rows in its matching status
 file are `[+]`, run a deep code review and a milestone review against the
 milestone acceptance criteria before moving to the next milestone. Review-driven
-fixes should be verified, and the reviewed milestone changes should be committed
-before work starts on the next milestone.
+fixes should be verified and committed before work starts on the next milestone.
+Do not create an extra milestone commit when the review produces no changes.
 
 The review procedure below covers one milestone. To run several in order, with
 dependency and downstream reconciliation between them, [../GOAL.md](../GOAL.md)
@@ -74,9 +74,10 @@ the next milestone:
 4. Check `evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
    product direction, architecture boundary, milestone target, or public/private
    contract direction materially changes.
-5. Run required verification, then make a git commit for the milestone changes.
+5. Run required verification, then commit any review changes. Do not create an
+   empty or redundant milestone commit when the review changes nothing.
 6. Report a short review summary: what was verified, what memory-bank files
-   changed, the milestone commit, and whether an evolution bump was made.
+   changed, any review commit, and whether an evolution bump was made.
 
 ## M01 - [Milestone name]
 

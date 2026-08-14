@@ -24,9 +24,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import pathlib
 import re
+import signal
 import subprocess
 import sys
 import textwrap
@@ -92,8 +94,36 @@ Rules:
 
 
 STATUS_GLOB = "status-[A-Z][0-9][0-9].md"
-ACTIONABLE_RE = re.compile(r"^\|[^|]+\|\s*`\[(?: |~)\]`\s*\|", re.MULTILINE)
-BLOCKED_RE = re.compile(r"^\|[^|]+\|\s*`\[!\]`\s*\|", re.MULTILINE)
+STATE_MARKERS = {
+    "`[ ]`": "pending",
+    "`[+]`": "completed",
+    "`[~]`": "in_progress",
+    "`[!]`": "blocked",
+    "`[X]`": "cancelled",
+}
+ACTIONABLE_STATES = {"pending", "in_progress"}
+RUN_TERMINAL_STATES = {"completed", "blocked"}
+DEFAULT_TOOL_ENV = {
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "LANG",
+    "TERM",
+    "TMPDIR",
+    "TZ",
+    "COLORTERM",
+    "NO_COLOR",
+    "CI",
+}
+PROVIDER_SECRET_ENV = {
+    "LLM_API_KEY",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+}
+TRANSIENT_HTTP_CODES = {408, 409, 429, 500, 502, 503, 504}
+MAX_RESPONSE_BYTES = 10_000_000
 DANGEROUS_RE = re.compile(
     r"(?ix)"
     r"("
@@ -125,43 +155,136 @@ def run_local(cmd: list[str], cwd: pathlib.Path, timeout: int = 30) -> subproces
     )
 
 
-def shell_tool(repo: pathlib.Path, cmd: str, timeout: int, max_output: int, allow_dangerous: bool) -> dict:
+def tool_environment(extra_names: list[str]) -> dict[str, str]:
+    """Return a deliberately small environment for model-controlled commands.
+
+    This reduces accidental credential disclosure; it is not process isolation.
+    An acknowledged host shell can still read files and inspect the host by other
+    means, which is why actionable runs require an explicit opt-in.
+    """
+
+    allowed = set(DEFAULT_TOOL_ENV)
+    allowed.update(name for name in os.environ if name.startswith("LC_"))
+    allowed.update(extra_names)
+    allowed -= PROVIDER_SECRET_ENV
+    return {name: os.environ[name] for name in allowed if name in os.environ}
+
+
+def _as_text(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    return value
+
+
+def _truncate_text(value: str, budget: int, label: str) -> str:
+    if len(value) <= budget:
+        return value
+    marker = f"\n...[{label} truncated]...\n"
+    if budget <= len(marker):
+        return marker[:budget]
+    remaining = budget - len(marker)
+    head = (remaining + 1) // 2
+    tail = remaining // 2
+    return value[:head] + marker + (value[-tail:] if tail else "")
+
+
+def bounded_output(stdout: str, stderr: str, max_output: int) -> tuple[str, str, bool]:
+    """Bound the combined returned streams while preserving both when possible."""
+
+    combined = len(stdout) + len(stderr)
+    if combined <= max_output:
+        return stdout, stderr, False
+    if not stdout:
+        return "", _truncate_text(stderr, max_output, "stderr"), True
+    if not stderr:
+        return _truncate_text(stdout, max_output, "stdout"), "", True
+
+    stdout_budget = max(1, max_output * len(stdout) // combined)
+    stderr_budget = max_output - stdout_budget
+    if stderr_budget == 0:
+        stdout_budget -= 1
+        stderr_budget = 1
+    return (
+        _truncate_text(stdout, stdout_budget, "stdout"),
+        _truncate_text(stderr, stderr_budget, "stderr"),
+        True,
+    )
+
+
+def shell_tool(
+    repo: pathlib.Path,
+    cmd: str,
+    timeout: int,
+    max_output: int,
+    allow_dangerous: bool,
+    env: dict[str, str] | None = None,
+) -> dict:
     if not allow_dangerous and DANGEROUS_RE.search(cmd):
         return {
             "exit_code": 126,
             "stdout": "",
-            "stderr": "Command rejected by harness safety policy. Set ALLOW_DANGEROUS_COMMANDS=1 to override.",
+            "stderr": "Command rejected by harness guardrail. Set ALLOW_DANGEROUS_COMMANDS=1 to override.",
+            "truncated": False,
         }
 
     try:
-        proc = subprocess.run(
-            ["bash", "-lc", cmd],
+        proc = subprocess.Popen(
+            ["bash", "-c", cmd],
             cwd=str(repo),
+            stdin=subprocess.DEVNULL,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=timeout,
+            env=env if env is not None else tool_environment([]),
+            start_new_session=True,
         )
-        stdout = proc.stdout
-        stderr = proc.stderr
-        truncated = False
-        combined_len = len(stdout) + len(stderr)
-        if combined_len > max_output:
-            keep = max_output // 2
-            stdout = stdout[:keep] + "\n...[stdout truncated]...\n" + stdout[-keep:]
-            stderr = stderr[:keep] + "\n...[stderr truncated]...\n" + stderr[-keep:]
-            truncated = True
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+            exit_code = proc.returncode
+        except subprocess.TimeoutExpired as first_timeout:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            try:
+                stdout, stderr = proc.communicate(timeout=5)
+            except subprocess.TimeoutExpired as second_timeout:
+                # A descendant can escape the process group while retaining a
+                # pipe. Do not let that defeat the harness timeout.
+                stdout = second_timeout.output or first_timeout.output or ""
+                stderr = second_timeout.stderr or first_timeout.stderr or ""
+                for pipe in (proc.stdout, proc.stderr):
+                    if pipe is not None:
+                        pipe.close()
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                try:
+                    proc.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
+            exit_code = 124
+            stderr = _as_text(stderr) + f"\nCommand timed out after {timeout}s."
+        stdout, stderr, truncated = bounded_output(
+            _as_text(stdout), _as_text(stderr), max_output
+        )
         return {
-            "exit_code": proc.returncode,
+            "exit_code": exit_code,
             "stdout": stdout,
             "stderr": stderr,
             "truncated": truncated,
         }
-    except subprocess.TimeoutExpired as exc:
+    except OSError as exc:
         return {
-            "exit_code": 124,
-            "stdout": exc.stdout or "",
-            "stderr": f"Command timed out after {timeout}s.\n{exc.stderr or ''}",
+            "exit_code": 127,
+            "stdout": "",
+            "stderr": f"Unable to launch shell command: {exc}",
+            "truncated": False,
         }
 
 
@@ -169,18 +292,128 @@ def status_files(repo: pathlib.Path) -> list[pathlib.Path]:
     return sorted((repo / "memory-bank").glob(STATUS_GLOB))
 
 
-def actionable_rows(status: str) -> list[str]:
-    return ACTIONABLE_RE.findall(status)
+def _table_cells(line: str) -> list[str]:
+    """Split a Markdown table row, honoring escaped pipe characters."""
+
+    cells = []
+    current = []
+    index = 0
+    while index < len(line):
+        char = line[index]
+        if char == "\\" and index + 1 < len(line) and line[index + 1] == "|":
+            current.append("|")
+            index += 2
+            continue
+        if char == "|":
+            cells.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+        index += 1
+    cells.append("".join(current).strip())
+    if cells and not cells[0]:
+        cells.pop(0)
+    if cells and not cells[-1]:
+        cells.pop()
+    return cells
 
 
-def blocked_rows(status: str) -> list[str]:
-    return BLOCKED_RE.findall(status)
+def status_rows(status: str) -> list[dict]:
+    """Read state-bearing rows from Markdown tables outside fenced blocks."""
+
+    rows = []
+    fence_char = ""
+    fence_length = 0
+    for line_number, line in enumerate(status.splitlines(), 1):
+        stripped = line.lstrip(" ")
+        indent = len(line) - len(stripped)
+        fence = re.match(r"(`{3,}|~{3,})", stripped) if indent <= 3 else None
+        if fence:
+            token = fence.group(1)
+            if not fence_char:
+                fence_char = token[0]
+                fence_length = len(token)
+            elif token[0] == fence_char and len(token) >= fence_length:
+                fence_char = ""
+                fence_length = 0
+            continue
+        if fence_char or indent > 3 or not stripped.startswith("|"):
+            continue
+        cells = _table_cells(stripped)
+        if len(cells) < 2:
+            continue
+        state = STATE_MARKERS.get(cells[1])
+        if state:
+            rows.append(
+                {
+                    "item": cells[0],
+                    "state": state,
+                    "cells": cells,
+                    "line": line_number,
+                }
+            )
+    return rows
+
+
+def actionable_rows(status: str) -> list[dict]:
+    return [row for row in status_rows(status) if row["state"] in ACTIONABLE_STATES]
+
+
+def blocked_rows(status: str) -> list[dict]:
+    return [row for row in status_rows(status) if row["state"] == "blocked"]
+
+
+def row_snapshot(repo: pathlib.Path) -> dict:
+    states = {}
+    files = []
+    for path in status_files(repo):
+        files.append(path.name)
+        occurrences: dict[str, int] = {}
+        for row in status_rows(path.read_text(encoding="utf-8")):
+            item = row["item"]
+            occurrences[item] = occurrences.get(item, 0) + 1
+            key = (path.name, item, occurrences[item])
+            states[key] = row["state"]
+    return {"files": set(files), "states": states}
+
+
+def validate_row_transition(before: dict, after: dict) -> list[str]:
+    problems = []
+    missing_files = before["files"] - after["files"]
+    if missing_files:
+        problems.append("status files were removed: " + ", ".join(sorted(missing_files)))
+
+    transitions = []
+    for key, old_state in before["states"].items():
+        if key not in after["states"]:
+            problems.append(f"status row was removed or renamed: {key[0]} / {key[1]!r}")
+            continue
+        new_state = after["states"][key]
+        if new_state != old_state:
+            transitions.append((key, old_state, new_state))
+
+    for key, state in after["states"].items():
+        if key not in before["states"] and state != "pending":
+            problems.append(
+                f"new status row is not pending: {key[0]} / {key[1]!r} is {state}"
+            )
+
+    if len(transitions) != 1:
+        problems.append(f"expected exactly one existing row state transition, found {len(transitions)}")
+    else:
+        key, old_state, new_state = transitions[0]
+        if old_state not in ACTIONABLE_STATES or new_state not in RUN_TERMINAL_STATES:
+            problems.append(
+                f"invalid row transition in {key[0]} for {key[1]!r}: "
+                f"{old_state} -> {new_state}"
+            )
+    return problems
 
 
 def lane_summary(repo: pathlib.Path) -> list[dict]:
     summary = []
     for path in status_files(repo):
-        status = path.read_text()
+        status = path.read_text(encoding="utf-8")
         summary.append(
             {
                 "file": path.name,
@@ -214,36 +447,112 @@ def git_head(repo: pathlib.Path) -> str:
     return proc.stdout.strip()
 
 
+def git_branch(repo: pathlib.Path) -> str:
+    proc = run_local(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], repo)
+    return proc.stdout.strip() if proc.returncode == 0 else "(detached)"
+
+
+def git_is_ancestor(repo: pathlib.Path, before: str, after: str) -> bool:
+    return run_local(["git", "merge-base", "--is-ancestor", before, after], repo).returncode == 0
+
+
 def extract_json(text: str) -> dict:
     stripped = text.strip()
-    if stripped.startswith("```"):
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, re.DOTALL)
-        if match:
-            stripped = match.group(1)
-
+    fenced = re.fullmatch(r"```(?:json)?\s*\n?(.*?)\n?```", stripped, re.DOTALL)
+    if fenced:
+        stripped = fenced.group(1).strip()
+    decoder = json.JSONDecoder()
     try:
-        return json.loads(stripped)
-    except json.JSONDecodeError:
-        match = re.search(r"(\{.*\})", stripped, re.DOTALL)
-        if match:
-            return json.loads(match.group(1))
-        raise
+        value = json.loads(stripped)
+    except json.JSONDecodeError as original:
+        value = None
+        for index, char in enumerate(stripped):
+            if char != "{":
+                continue
+            try:
+                value, _ = decoder.raw_decode(stripped[index:])
+                break
+            except json.JSONDecodeError:
+                continue
+        if value is None:
+            raise original
+    if not isinstance(value, dict):
+        raise ValueError("response JSON must be an object")
+    return value
 
 
-def _post_json(url: str, headers: dict, payload: dict, label: str) -> dict:
+def _retry_delay(exc: urllib.error.HTTPError, attempt: int) -> float:
+    retry_after = exc.headers.get("Retry-After", "") if exc.headers else ""
+    try:
+        return min(30.0, max(0.0, float(retry_after)))
+    except ValueError:
+        return min(30.0, float(2**attempt))
+
+
+def _post_json(
+    url: str,
+    headers: dict,
+    payload: dict,
+    label: str,
+    timeout: int = 120,
+    max_retries: int = 2,
+) -> dict:
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", "replace")
-        fail(f"{label} HTTP {exc.code}: {detail}", 20)
-    except urllib.error.URLError as exc:
-        fail(f"{label} request failed: {exc}", 21)
+    for attempt in range(max_retries + 1):
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read(MAX_RESPONSE_BYTES + 1)
+                if len(raw) > MAX_RESPONSE_BYTES:
+                    fail(f"{label} response exceeded {MAX_RESPONSE_BYTES} bytes.", 22)
+                try:
+                    body = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    fail(f"{label} returned invalid JSON: {exc}", 22)
+                if not isinstance(body, dict):
+                    fail(f"{label} returned a JSON value that was not an object.", 22)
+                return body
+        except urllib.error.HTTPError as exc:
+            retry_delay = (
+                _retry_delay(exc, attempt)
+                if exc.code in TRANSIENT_HTTP_CODES and attempt < max_retries
+                else None
+            )
+            detail = exc.read(MAX_RESPONSE_BYTES).decode("utf-8", "replace")
+            exc.close()
+            if retry_delay is not None:
+                print(
+                    f"{label} HTTP {exc.code}; retrying in {retry_delay:g}s "
+                    f"({attempt + 1}/{max_retries}).",
+                    file=sys.stderr,
+                )
+                time.sleep(retry_delay)
+                continue
+            fail(f"{label} HTTP {exc.code}: {detail}", 20)
+        except (urllib.error.URLError, TimeoutError) as exc:
+            if attempt < max_retries:
+                delay = min(30.0, float(2**attempt))
+                print(
+                    f"{label} request failed; retrying in {delay:g}s "
+                    f"({attempt + 1}/{max_retries}): {exc}",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+                continue
+            fail(f"{label} request failed: {exc}", 21)
+    fail(f"{label} request exhausted retries.", 21)
 
 
-def call_openai(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float | None, max_tokens: int) -> str:
+def call_openai(
+    api_base: str,
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    temperature: float | None,
+    max_tokens: int,
+    timeout: int = 120,
+    max_retries: int = 2,
+) -> dict:
     url = api_base.rstrip("/") + "/chat/completions"
     payload = {
         "model": model,
@@ -256,14 +565,33 @@ def call_openai(api_base: str, api_key: str, model: str, messages: list[dict], t
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    body = _post_json(url, headers, payload, "OpenAI API")
+    body = _post_json(url, headers, payload, "OpenAI API", timeout, max_retries)
     try:
-        return body["choices"][0]["message"]["content"] or ""
-    except (KeyError, IndexError, TypeError):
+        choice = body["choices"][0]
+        message = choice["message"]
+        content = message.get("content") or ""
+        if not isinstance(content, str):
+            fail("Chat Completions response content was not text.", 22)
+        return {
+            "content": content,
+            "stop_reason": choice.get("finish_reason"),
+            "refusal": message.get("refusal"),
+            "usage": body.get("usage") or {},
+        }
+    except (AttributeError, KeyError, IndexError, TypeError):
         fail("LLM API response did not match Chat Completions shape:\n" + json.dumps(body, indent=2), 22)
 
 
-def call_anthropic(api_base: str, api_key: str, model: str, messages: list[dict], temperature: float | None, max_tokens: int) -> str:
+def call_anthropic(
+    api_base: str,
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    temperature: float | None,
+    max_tokens: int,
+    timeout: int = 120,
+    max_retries: int = 2,
+) -> dict:
     url = api_base.rstrip("/") + "/messages"
     system_parts = [m["content"] for m in messages if m["role"] == "system"]
     chat = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
@@ -287,20 +615,39 @@ def call_anthropic(api_base: str, api_key: str, model: str, messages: list[dict]
     if api_key:
         headers["x-api-key"] = api_key
 
-    body = _post_json(url, headers, payload, "Anthropic API")
+    body = _post_json(url, headers, payload, "Anthropic API", timeout, max_retries)
     try:
         blocks = body["content"]
         texts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
-        return "".join(texts)
-    except (KeyError, IndexError, TypeError):
+        return {
+            "content": "".join(texts),
+            "stop_reason": body.get("stop_reason"),
+            "refusal": body.get("stop_reason") == "refusal",
+            "usage": body.get("usage") or {},
+        }
+    except (AttributeError, KeyError, IndexError, TypeError):
         fail("Anthropic API response did not match Messages shape:\n" + json.dumps(body, indent=2), 22)
 
 
-def call_llm(provider: str, api_base: str, api_key: str, model: str, messages: list[dict], temperature: float | None, max_tokens: int) -> str:
+def call_llm(
+    provider: str,
+    api_base: str,
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    temperature: float | None,
+    max_tokens: int,
+    timeout: int = 120,
+    max_retries: int = 2,
+) -> dict:
     if provider == "anthropic":
-        return call_anthropic(api_base, api_key, model, messages, temperature, max_tokens)
+        return call_anthropic(
+            api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries
+        )
     if provider == "openai":
-        return call_openai(api_base, api_key, model, messages, temperature, max_tokens)
+        return call_openai(
+            api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries
+        )
     fail(f"Unknown LLM provider: {provider!r}. Use 'openai' or 'anthropic'.", 2)
 
 
@@ -323,6 +670,18 @@ def initial_user_message(repo: pathlib.Path, run: int, max_runs: int, summary: l
     )
 
 
+def message_chars(messages: list[dict]) -> int:
+    return sum(len(m.get("content", "")) for m in messages)
+
+
+def usage_line(usage: dict) -> str:
+    fields = []
+    for key, value in usage.items():
+        if isinstance(value, (int, float, str, bool)) or value is None:
+            fields.append(f"{key}={value}")
+    return ", ".join(fields)
+
+
 def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int, summary: list[dict]) -> None:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -330,8 +689,15 @@ def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int, summar
     ]
 
     for turn in range(1, args.max_turns + 1):
+        history_size = message_chars(messages)
+        if history_size > args.max_history_chars:
+            fail(
+                f"Conversation reached {history_size} characters, above "
+                f"MAX_HISTORY_CHARS={args.max_history_chars}.",
+                31,
+            )
         print(f"  LLM turn {turn}/{args.max_turns}")
-        content = call_llm(
+        response = call_llm(
             args.provider,
             args.api_base,
             args.api_key,
@@ -339,7 +705,18 @@ def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int, summar
             messages,
             args.temperature,
             args.max_tokens,
+            args.api_timeout,
+            args.max_retries,
         )
+        content = response["content"]
+        stop_reason = response.get("stop_reason")
+        usage = usage_line(response.get("usage") or {})
+        if usage:
+            print(f"  LLM usage: {usage}")
+        if response.get("refusal"):
+            fail(f"Model refused the request (stop reason: {stop_reason or 'unknown'}).", 23)
+        if not content.strip():
+            fail(f"Model returned no text (stop reason: {stop_reason or 'unknown'}).", 23)
 
         try:
             command = extract_json(content)
@@ -348,14 +725,21 @@ def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int, summar
             messages.append(
                 {
                     "role": "user",
-                    "content": f"Your response was not valid JSON: {exc}. Return exactly one JSON object.",
+                    "content": (
+                        f"Your response was not valid JSON: {exc}. Return exactly one JSON object."
+                        + (
+                            " Your previous response reached the provider token limit; keep the command shorter."
+                            if stop_reason in {"length", "max_tokens"}
+                            else ""
+                        )
+                    ),
                 }
             )
             continue
 
         messages.append({"role": "assistant", "content": json.dumps(command)})
 
-        if "final" in command:
+        if isinstance(command.get("final"), str):
             print(command["final"])
             return
 
@@ -371,7 +755,14 @@ def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int, summar
         cmd = command["cmd"]
         why = command.get("why", "")
         print(f"  shell: {cmd}" + (f"  # {why}" if why else ""))
-        result = shell_tool(repo, cmd, args.tool_timeout, args.max_tool_output, args.allow_dangerous)
+        result = shell_tool(
+            repo,
+            cmd,
+            args.tool_timeout,
+            args.max_tool_output,
+            args.allow_dangerous,
+            args.tool_env,
+        )
         messages.append(
             {
                 "role": "user",
@@ -382,9 +773,52 @@ def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int, summar
     fail(f"Model exceeded max turns ({args.max_turns}) without finishing.", 30)
 
 
+def positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected an integer, got {value!r}") from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError(f"expected a positive integer, got {parsed}")
+    return parsed
+
+
+def nonnegative_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected an integer, got {value!r}") from exc
+    if parsed < 0:
+        raise argparse.ArgumentTypeError(f"expected a non-negative integer, got {parsed}")
+    return parsed
+
+
+def temperature_value(value: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected a number, got {value!r}") from exc
+    if not math.isfinite(parsed):
+        raise argparse.ArgumentTypeError(f"expected a finite number, got {value!r}")
+    return parsed
+
+
+def environment_names(value: str) -> list[str]:
+    names = [name.strip() for name in value.split(",") if name.strip()]
+    invalid = [name for name in names if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name)]
+    if invalid:
+        raise argparse.ArgumentTypeError("invalid environment variable name(s): " + ", ".join(invalid))
+    forbidden = sorted(set(names) & PROVIDER_SECRET_ENV)
+    if forbidden:
+        raise argparse.ArgumentTypeError(
+            "provider credential variables cannot be forwarded: " + ", ".join(forbidden)
+        )
+    return names
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run memory-bank tasks through a generic OpenAI-compatible LLM API.",
+        description="Run memory-bank tasks through an OpenAI-compatible or Anthropic LLM API.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent(
             """\
@@ -392,23 +826,25 @@ def parse_args() -> argparse.Namespace:
 
               One-row run:
 
-                LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+                ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 
               Loop run:
 
-                LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+                ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 
               OpenRouter-style:
 
                 LLM_API_BASE=https://openrouter.ai/api/v1 \\
                 LLM_API_KEY=... \\
                 LLM_MODEL=openai/gpt-5.6 \\
+                ALLOW_UNSANDBOXED_SHELL=1 \\
                 MAX_RUNS=1 tackle-memory-bank-api-loop .
 
               Local OpenAI-compatible server:
 
                 LLM_API_BASE=http://localhost:1234/v1 \\
                 LLM_MODEL=local-model-name \\
+                ALLOW_UNSANDBOXED_SHELL=1 \\
                 MAX_RUNS=1 tackle-memory-bank-api-loop .
 
               Anthropic:
@@ -416,6 +852,7 @@ def parse_args() -> argparse.Namespace:
                 LLM_PROVIDER=anthropic \\
                 LLM_MODEL=claude-opus-5 \\
                 ANTHROPIC_API_KEY=... \\
+                ALLOW_UNSANDBOXED_SHELL=1 \\
                 MAX_RUNS=1 tackle-memory-bank-api-loop .
 
             Environment:
@@ -433,9 +870,14 @@ def parse_args() -> argparse.Namespace:
               TOOL_TIMEOUT                       Shell command timeout seconds. Default: 300.
               MAX_TOOL_OUTPUT                    Max shell output returned to model. Default: 24000.
               LLM_MAX_TOKENS                     Max response tokens. Default: 16000.
+              LLM_API_TIMEOUT                    API request timeout seconds. Default: 120.
+              LLM_MAX_RETRIES                    Retries after transient failures. Default: 2.
+              MAX_HISTORY_CHARS                  Conversation character limit. Default: 500000.
               LLM_TEMPERATURE                    Sampling temperature. Unset by default:
                                                  current Claude models reject it.
-              ALLOW_DANGEROUS_COMMANDS=1         Disable the harness command safety filter.
+              TOOL_ENV_ALLOW                     Comma-separated extra variables for shell tools.
+              ALLOW_UNSANDBOXED_SHELL=1          Acknowledge model-controlled host shell access.
+              ALLOW_DANGEROUS_COMMANDS=1         Disable the command guardrail.
             """
         ),
     )
@@ -444,15 +886,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL"))
     parser.add_argument("--api-base", default=os.environ.get("LLM_API_BASE") or os.environ.get("OPENAI_BASE_URL") or "")
     parser.add_argument("--api-key", default="")
-    parser.add_argument("--max-runs", type=int, default=int(os.environ.get("MAX_RUNS", "20")))
-    parser.add_argument("--max-turns", type=int, default=int(os.environ.get("MAX_TURNS", "60")))
-    parser.add_argument("--tool-timeout", type=int, default=int(os.environ.get("TOOL_TIMEOUT", "300")))
-    parser.add_argument("--max-tool-output", type=int, default=int(os.environ.get("MAX_TOOL_OUTPUT", "24000")))
-    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("LLM_MAX_TOKENS", "16000")))
+    parser.add_argument("--max-runs", type=positive_int, default=os.environ.get("MAX_RUNS", "20"))
+    parser.add_argument("--max-turns", type=positive_int, default=os.environ.get("MAX_TURNS", "60"))
+    parser.add_argument("--tool-timeout", type=positive_int, default=os.environ.get("TOOL_TIMEOUT", "300"))
+    parser.add_argument("--max-tool-output", type=positive_int, default=os.environ.get("MAX_TOOL_OUTPUT", "24000"))
+    parser.add_argument("--max-tokens", type=positive_int, default=os.environ.get("LLM_MAX_TOKENS", "16000"))
+    parser.add_argument("--api-timeout", type=positive_int, default=os.environ.get("LLM_API_TIMEOUT", "120"))
+    parser.add_argument("--max-retries", type=nonnegative_int, default=os.environ.get("LLM_MAX_RETRIES", "2"))
+    parser.add_argument("--max-history-chars", type=positive_int, default=os.environ.get("MAX_HISTORY_CHARS", "500000"))
     env_temp = os.environ.get("LLM_TEMPERATURE")
-    parser.add_argument("--temperature", type=float, default=float(env_temp) if env_temp else None)
+    parser.add_argument("--temperature", type=temperature_value, default=env_temp)
+    parser.add_argument("--tool-env-allow", type=environment_names, default=os.environ.get("TOOL_ENV_ALLOW", ""))
+    parser.add_argument(
+        "--allow-unsandboxed-shell",
+        action="store_true",
+        default=os.environ.get("ALLOW_UNSANDBOXED_SHELL") == "1",
+    )
     parser.add_argument("--allow-dangerous", action="store_true", default=os.environ.get("ALLOW_DANGEROUS_COMMANDS") == "1")
     args = parser.parse_args()
+
+    if args.provider not in {"openai", "anthropic"}:
+        parser.error("LLM_PROVIDER must be 'openai' or 'anthropic'")
 
     if not args.api_base:
         args.api_base = (
@@ -463,6 +917,7 @@ def parse_args() -> argparse.Namespace:
             args.api_key = os.environ.get("LLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY") or ""
         else:
             args.api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
+    args.tool_env = tool_environment(args.tool_env_allow)
 
     return args
 
@@ -485,8 +940,12 @@ def main() -> None:
             "status ID pattern.",
             11,
         )
-    if run_local(["git", "rev-parse", "--is-inside-work-tree"], repo).returncode != 0:
+    root_proc = run_local(["git", "rev-parse", "--show-toplevel"], repo)
+    if root_proc.returncode != 0:
         fail(f"{repo} is not inside a git worktree.", 12)
+    git_root = pathlib.Path(root_proc.stdout.strip()).resolve()
+    if git_root != repo:
+        fail(f"Target must be the git worktree root: got {repo}, expected {git_root}", 12)
 
     endpoint = "/messages" if args.provider == "anthropic" else "/chat/completions"
     print(f"Repo: {repo}")
@@ -512,12 +971,27 @@ def main() -> None:
             print(f"Warning: {blocked} blocked row(s) remain; continuing with actionable lanes.", file=sys.stderr)
             for lane in blocked_lanes:
                 print(f"  memory-bank/{lane['file']}: {lane['blocked']} blocked row(s)", file=sys.stderr)
+        if not args.allow_unsandboxed_shell:
+            fail(
+                "Actionable work requires model-controlled host shell access. "
+                "Re-run with --allow-unsandboxed-shell or "
+                "ALLOW_UNSANDBOXED_SHELL=1, preferably inside a disposable sandbox.",
+                14,
+            )
+        if run == 1:
+            print(
+                "WARNING: model commands are not sandboxed and can access host files "
+                "and the network. The command denylist is only a guardrail.",
+                file=sys.stderr,
+            )
         if not git_clean(repo):
             print("Worktree is dirty before run. Stopping.", file=sys.stderr)
             print(git_status_short(repo), file=sys.stderr)
             raise SystemExit(4)
 
         before = git_head(repo)
+        before_branch = git_branch(repo)
+        before_rows = row_snapshot(repo)
         print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
         started = time.time()
         one_agent_run(args, repo, run, summary)
@@ -532,10 +1006,26 @@ def main() -> None:
         if before == after:
             print("LLM made no commit. Stopping to avoid a spin loop.", file=sys.stderr)
             raise SystemExit(6)
+        if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
+            print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
+            raise SystemExit(9)
+        row_problems = validate_row_transition(before_rows, row_snapshot(repo))
+        if row_problems:
+            print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
+            for problem in row_problems:
+                print(f"  {problem}", file=sys.stderr)
+            raise SystemExit(8)
 
     print(f"Reached MAX_RUNS={args.max_runs}. Stopping.")
     raise SystemExit(7)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except KeyboardInterrupt:
+        raise SystemExit(130)
+    except Exception as exc:
+        fail(f"Unexpected harness failure: {type(exc).__name__}: {exc}", 1)

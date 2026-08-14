@@ -308,7 +308,7 @@ Do not invent product direction that is not supported by the existing project.
 tackle next pending item in memory bank
 ```
 
-智能体应在 `memory-bank/status-<LANE><NN>.md` 里找到下一条可执行状态行，完成任务，运行必要验证，更新项目记忆库，并创建一个范围清晰的 git commit。如果这条状态行是某个里程碑的最后一个未完成项，智能体应先执行 `memory-bank/milestone.md` 里的里程碑评审，再继续。评审时还要判断 `evolution/` 是否需要新版本：只有产品方向、架构边界、里程碑目标或公私契约发生实质变化，才新增版本。
+智能体应在 `memory-bank/status-<LANE><NN>.md` 里找到下一条可执行状态行，完成任务，运行必要验证，更新项目记忆库，并创建一个范围清晰的 git commit。如果这条状态行是某个里程碑的最后一个未完成项，智能体应先执行 `memory-bank/milestone.md` 里的里程碑评审，再继续。评审有改动时提交这些改动；没有改动时不要创建空的里程碑 commit。评审时还要判断 `evolution/` 是否需要新版本：只有产品方向、架构边界、里程碑目标或公私契约发生实质变化，才新增版本。
 
 在信任这一切之前，先给智能体一个可验证的对象。请在 `memory-bank/tech-stack.md` 的 **Execution harnesses** 表里填上能证明项目可用的命令，比如 `make test`、`npm test` 或某个你本来就在跑的脚本，并写明这条命令通过之后能说明什么。在它通过之前，状态行不应该变成 `[+]`。缺了这一步，「验证通过才标记完成」就没有指向，智能体只能自己决定什么算验证。
 
@@ -494,16 +494,20 @@ chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+可执行运行会把由模型生成的命令交给宿主机上的非沙箱 shell，因此 harness 在你明确设置 `ALLOW_UNSANDBOXED_SHELL=1` 或传入 `--allow-unsandboxed-shell` 前会拒绝启动。这只是确认风险，并不提供隔离：命令仍能读取宿主机文件、检查其他进程并访问网络。请在一次性沙箱中运行，并确保目标仓库可以恢复。
+
+shell 命令只收到一个精简环境，provider 凭据变量不会复制进去。需要项目变量时，用 `TOOL_ENV_ALLOW=NAME,OTHER_NAME` 明确传入。这样可以减少意外泄露，但不会让宿主 shell 变得安全。`ALLOW_DANGEROUS_COMMANDS=1` 只是关闭一份很短、可以绕过的命令阻止清单。
+
 只运行一条状态行：
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
 循环运行多条状态行：
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```
 
 使用兼容 OpenAI API 的服务商：
@@ -512,6 +516,7 @@ LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 LLM_API_BASE=https://openrouter.ai/api/v1 \
 LLM_API_KEY=... \
 LLM_MODEL=openai/gpt-5.6 \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -521,6 +526,7 @@ tackle-memory-bank-api-loop .
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -531,6 +537,7 @@ tackle-memory-bank-api-loop .
 LLM_PROVIDER=anthropic \
 LLM_MODEL=claude-opus-5 \
 ANTHROPIC_API_KEY=... \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -557,7 +564,7 @@ harness 会有意提前停止，退出码说明原因。`3` 到 `7` 是正常的
 
 ## 这个 Harness 的定位
 
-在普通项目工作中，`tackle-memory-bank-api-loop` 是一个执行 harness：反复让智能体在真实仓库上工作，通过受控命令协议提供 shell 能力，并在每次运行之间检查 git 状态。
+在普通项目工作中，`tackle-memory-bank-api-loop` 是一个执行 harness：反复让智能体在真实仓库上工作，通过 JSON 命令协议提供 shell 能力，并在每次运行之间检查 git 状态。目标路径必须正好是 git worktree 根目录；历史必须正常前进，不能被改写；每次运行必须恰好让一个已有的可执行状态行变成完成或阻塞。同一次运行中可以另建里程碑评审修复 commit。
 
 它会发现全部 `memory-bank/status-<LANE><NN>.md` 文件，报告每条状态线还剩多少可执行行和被阻塞行，让智能体按状态线含义和里程碑优先级挑下一行。某条状态线上的被阻塞行不影响其他状态线。只有当仅剩被阻塞行时，循环才停下来交给人工。
 

@@ -16,8 +16,8 @@ State achieved under [`prompt-v1`](prompt-v1.md).
 
 ## Known gaps carried into milestones
 
-- [Gap.] -> **M1**.
-- [Gap.] -> **M2**.
+- [Gap.] -> **M01**.
+- [Gap.] -> **M02**.
 
 ## Cross-project or public contract position
 

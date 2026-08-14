@@ -32,11 +32,19 @@ Er:
 - findet jede `memory-bank/status-<LANE><NN>.md`-Lane-Datei und meldet dem Modell die Anzahl ausführbarer und blockierter Zeilen je Lane,
 - stoppt, wenn in keiner Lane mehr ausführbare Zeilen übrig sind,
 - warnt vor blocked-Zeilen und stoppt für menschliche Prüfung erst, wenn nur noch blocked-Zeilen übrig sind,
+- verweigert ausführbare Arbeit, bis der Benutzer die nicht sandboxierte Host-Shell für Modellbefehle bestätigt,
+- übergibt der Shell nur eine minimale Umgebung und verlangt eine ausdrückliche Freigabe zusätzlicher Projektvariablen,
+- verlangt, dass der Zielpfad genau die git-worktree-root ist,
 - prüft vor jedem Lauf auf einen sauberen git worktree,
-- verlangt vom Modell, seine Arbeit zu committen,
+- verlangt vom Modell, genau eine ausführbare Zeile als abgeschlossen oder blockiert zu committen,
+- erlaubt separate Review-Commits, lehnt aber History-Rewrites ab,
 - stoppt, wenn das Modell uncommitted changes zurücklässt,
 - stoppt, wenn das Modell keinen commit erzeugt,
-- begrenzt die Anzahl der Schleifendurchläufe.
+- wiederholt vorübergehende API-Fehler, meldet Provider-Usage und begrenzt Schleifendurchläufe und Gesprächsgröße.
+
+`ALLOW_UNSANDBOXED_SHELL=1` oder `--allow-unsandboxed-shell` bestätigt den Host-Zugriff, schafft aber keine Isolation. Befehle können Host-Dateien und Prozesse lesen und das Netzwerk nutzen. Führen Sie den Harness in einer wegwerfbaren Sandbox gegen ein wiederherstellbares Repository aus. Provider-Zugangsdaten werden nicht in die Kindumgebung kopiert und zusätzliche Variablen brauchen `TOOL_ENV_ALLOW`; beides ist keine Sicherheitsgrenze. Auch die Sperrliste gefährlicher Befehle ist nur ein umgehbarer Guardrail.
+
+Betriebsgrenzen lassen sich mit `LLM_API_TIMEOUT` (standardmäßig `120` Sekunden), `LLM_MAX_RETRIES` (standardmäßig `2` Wiederholungen nach dem ersten Versuch) und `MAX_HISTORY_CHARS` (standardmäßig `500000`) konfigurieren. `MAX_TOOL_OUTPUT` bleibt das gemeinsame Zeichenbudget für stdout und stderr eines Befehls.
 
 ### Exit-Codes
 
@@ -45,22 +53,29 @@ Der Harness signalisiert jedes Ergebnis über seinen Exit-Code. Die Codes `3` bi
 | Code | Bedeutung |
 |---|---|
 | `0` | Keine ausführbaren Zeilen mehr übrig. Nichts zu tun. |
+| `1` | Im Harness trat ein unerwarteter interner Fehler auf. |
 | `2` | `LLM_MODEL` nicht gesetzt oder `LLM_PROVIDER` ist weder `openai` noch `anthropic`. |
 | `3` | Nur noch blockierte Zeilen übrig. Ein Mensch muss sie entsperren. |
 | `4` | Der Worktree war vor einem Lauf nicht sauber. Erst committen oder stashen. |
 | `5` | Der Agent hat uncommitted changes hinterlassen. |
 | `6` | Der Agent hat keinen Commit erzeugt. Verhindert eine Endlosschleife. |
 | `7` | `MAX_RUNS` wurde erreicht. |
+| `8` | Das commitete Ergebnis enthält nicht genau einen gültigen Zeilenübergang. |
+| `9` | Der Agent hat die Historie umgeschrieben oder den ursprünglichen Branch verlassen. |
 | `10` | Kein `AGENTS.md` im Ziel-Repository. |
 | `11` | Kein `memory-bank/` oder keine `status-<LANE><NN>.md`-Dateien darin. |
-| `12` | Der Zielpfad liegt nicht in einem git worktree. |
+| `12` | Der Zielpfad ist nicht die Root eines git worktree. |
 | `13` | Git `HEAD` konnte nicht gelesen werden. |
+| `14` | Für ausführbare Arbeit fehlt die Bestätigung der nicht sandboxierten Shell. |
 | `20` | Die API hat einen HTTP-Fehler zurückgegeben. |
 | `21` | Die API war nicht erreichbar. |
 | `22` | Die API-Antwort entsprach nicht der erwarteten Form. |
+| `23` | Das Modell verweigerte die Anfrage oder lieferte keinen brauchbaren Text. |
 | `30` | Das Modell hat `MAX_TURNS` verbraucht, ohne eine Zeile abzuschließen. |
+| `31` | Das Gespräch überschritt `MAX_HISTORY_CHARS`. |
+| `130` | Der Lauf wurde am Terminal unterbrochen. |
 
-Die Codes `10` bis `13` bedeuten, dass das Ziel-Repository noch nicht eingerichtet ist. `20` bis `22` sind Provider- oder Netzwerkprobleme, keine Projektprobleme.
+Die Codes `10` bis `14` betreffen die Einrichtung von Ziel oder Berechtigung. `20` bis `23` sind Provider- oder Netzwerkprobleme, keine Projektprobleme.
 
 ## Docker-gestützte Dienste
 

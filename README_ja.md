@@ -302,7 +302,7 @@ Codex や Claude Code のようなエージェントでは、ユーザー側の�
 tackle next pending item in memory bank
 ```
 
-エージェントは `memory-bank/status-<LANE><NN>.md` の次の実行可能な行を見つけ、そのタスクを完了し、必要な検証を実行し、memory bank を更新し、範囲の明確な git commit を作るべきです。その行が milestone の最後の未完了項目である場合、エージェントは先に `memory-bank/milestone.md` の milestone review を実行します。その review では、プロダクト方向、アーキテクチャ境界、milestone 目標、または public/private contract の方向が実質的に変わったため `evolution/` に新バージョンが必要かも判断します。
+エージェントは `memory-bank/status-<LANE><NN>.md` の次の実行可能な行を見つけ、そのタスクを完了し、必要な検証を実行し、memory bank を更新し、範囲の明確な git commit を作るべきです。その行が milestone の最後の未完了項目である場合、エージェントは先に `memory-bank/milestone.md` の milestone review を実行します。review に変更があれば commit し、変更がなければ空の milestone commit は作りません。その review では、プロダクト方向、アーキテクチャ境界、milestone 目標、または public/private contract の方向が実質的に変わったため `evolution/` に新バージョンが必要かも判断します。
 
 これらを信頼する前に、エージェントに検証対象を与えてください。`memory-bank/tech-stack.md` の **Execution harnesses** 表に、プロジェクトが動くことを証明するコマンドを書きます。`make test`、`npm test`、すでに実行しているスクリプトなどです。あわせて、それが通ると何を証明できるのかも書いてください。そのコマンドが通るまで、行を `[+]` にすべきではありません。これがないと「検証が通ってから完了にする」には指す先がなく、エージェントが自分で検証の意味を決めてしまいます。
 
@@ -489,16 +489,20 @@ chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+実行可能な作業では、モデルが生成したコマンドをホスト上の非サンドボックス shell に渡します。そのため harness は、`ALLOW_UNSANDBOXED_SHELL=1` または `--allow-unsandboxed-shell` で明示的に承認するまで開始しません。これはリスクの確認であって隔離ではありません。コマンドはホストのファイルや他プロセスを読み、ネットワークを利用できます。復元可能なリポジトリを使い、使い捨ての sandbox 内で実行してください。
+
+shell コマンドには最小限の環境だけを渡し、provider の認証情報はコピーしません。追加のプロジェクト変数は `TOOL_ENV_ALLOW=NAME,OTHER_NAME` で明示します。これは偶発的な漏えいを減らすだけで、ホスト shell を安全にはしません。`ALLOW_DANGEROUS_COMMANDS=1` は、回避可能な短いコマンド拒否リストを無効にするだけです。
+
 1 行だけ実行する:
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
 ループを実行する:
 
 ```bash
-LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
 ```
 
 OpenAI 互換プロバイダーを使う:
@@ -507,6 +511,7 @@ OpenAI 互換プロバイダーを使う:
 LLM_API_BASE=https://openrouter.ai/api/v1 \
 LLM_API_KEY=... \
 LLM_MODEL=openai/gpt-5.6 \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -516,6 +521,7 @@ tackle-memory-bank-api-loop .
 ```bash
 LLM_API_BASE=http://localhost:1234/v1 \
 LLM_MODEL=local-model-name \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -526,6 +532,7 @@ OpenAI 互換のパスではなく Anthropic（Claude）を使う場合:
 LLM_PROVIDER=anthropic \
 LLM_MODEL=claude-opus-5 \
 ANTHROPIC_API_KEY=... \
+ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
@@ -552,7 +559,7 @@ harness は意図的に早く停止し、その理由は終了コードが示し
 
 ## この Harness の意味
 
-通常のプロジェクト作業では、`tackle-memory-bank-api-loop` は実行 harness です。リポジトリに対してエージェントを繰り返し実行し、制御されたコマンドプロトコルで shell アクセスを与え、実行間の git 状態を確認します。
+通常のプロジェクト作業では、`tackle-memory-bank-api-loop` は実行 harness です。リポジトリに対してエージェントを繰り返し実行し、JSON コマンドプロトコルで shell アクセスを与え、実行間の git 状態を確認します。対象は git worktree の root そのものでなければならず、履歴は書き換えずに前進し、各実行では既存の実行可能行がちょうど 1 行だけ completed または blocked になる必要があります。同じ実行内の milestone-review 修正には別 commit を許します。
 
 すべての `memory-bank/status-<LANE><NN>.md` ファイルを検出し、各レーンの実行可能行と blocked 行の数を報告したうえで、レーンの意味と milestone の優先度に従って次の行をエージェントに選ばせます。あるレーンの blocked 行が他のレーンの作業を止めることはありません。blocked 行だけが残ったときにのみ、人間のレビューのためにループが停止します。
 

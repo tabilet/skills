@@ -87,15 +87,15 @@ is only worth anything if additions are argued against something:
 python3 check.py
 
 # Exercise the harness end-to-end against a real memory-bank project
-LLM_MODEL=... OPENAI_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
-LLM_PROVIDER=anthropic LLM_MODEL=... ANTHROPIC_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=... OPENAI_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
+ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=anthropic LLM_MODEL=... ANTHROPIC_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
 
 # Check what a new project actually receives
 cp -R template/. /tmp/scratch-project/
 ```
 
 `check.py` enforces the hard rules below so they are not left to memory. It runs
-the sixteen invariants this repository has actually broken at least once —
+the invariants this repository has actually broken at least once —
 identical `GOAL.md` copies, the `EMBEDDED_TASK` duplicate, the skill manifest
 and its `SKILL.md` twin, the generator agreeing with `template/`, the plugin
 version against the tags, explicit `COMMIT_POLICY` in every `GOAL.md`
@@ -168,14 +168,18 @@ the repo's "prefer native core libraries" rule. Structure:
   project's prompt bounded.
 - Guardrails, each with a dedicated exit code: only blocked rows left (3), dirty
   worktree before a run (4), uncommitted changes after (5), no new commit (6),
-  `MAX_RUNS` reached (7), missing `AGENTS.md` (10), no lane files (11). A
-  blocked row warns but does not halt while other lanes still have work.
-  `DANGEROUS_RE` blocks `git reset --hard`, `git clean -fd`, `sudo`, fork bombs,
-  etc. unless `ALLOW_DANGEROUS_COMMANDS=1`. The full table is in
+  `MAX_RUNS` reached (7), invalid row transition (8), history rewrite (9),
+  missing `AGENTS.md` (10), no lane files (11), and missing host-shell
+  acknowledgment (14). A blocked row warns but does not halt while other lanes
+  still have work. `DANGEROUS_RE` blocks a short list including `git reset
+  --hard`, `git clean -fd`, `sudo`, and fork bombs unless
+  `ALLOW_DANGEROUS_COMMANDS=1`. It is a bypassable guardrail, not a sandbox; an
+  actionable run requires `ALLOW_UNSANDBOXED_SHELL=1`, and should run inside a
+  disposable sandbox. The full table is in
   [docs/EXECUTION.md](docs/EXECUTION.md#exit-codes).
-- Row parsing: `ACTIONABLE_RE` matches `` `[ ]` ``/`` `[~]` ``, `BLOCKED_RE`
-  matches `` `[!]` ``. Changing the status-marker table format in the templates
-  breaks the harness.
+- Row parsing: `status_rows()` reads state markers from Markdown tables outside
+  fenced blocks, including indented rows and escaped pipes. Changing the state
+  column or marker vocabulary in the templates breaks the harness.
 
 Status markers: `[ ]` pending, `[+]` completed, `[~]` in progress, `[!]`
 blocked, `[X]` cancelled. One status row = one commit; one milestone = one
@@ -225,7 +229,8 @@ English is `#exit-codes`. Check anchors, not just filenames, when adding links.
   change.
 - Status files are named `status-<LANE><NN>.md`. The pattern is defined in
   [template/memory-bank/milestone.md](template/memory-bank/milestone.md); the
-  harness discovers lane files by that shape, so the two must agree.
+  harness discovers lane files by that shape, so the two must agree. Placeholder
+  references use the same zero-padded form (`M01`, never `M1`).
 - Ship no vendor-specific agent files in `template/`. `AGENTS.md` is an open
   cross-vendor standard; tools that read another filename get a documented
   one-line bridge in the README, not a file in the payload.
