@@ -41,7 +41,7 @@ Create or merge the approved project-specific content for:
 ```text
 AGENTS.md                        what an agent reads first
 GOAL.md                          optional protocol for multi-milestone runs
-memory-bank/product.md           product, users, workflows, concepts, non-goals
+memory-bank/product.md           product, users, workflows, domain model, non-goals
 memory-bank/architecture.md      layout, data flow, ownership, public contracts
 memory-bank/tech-stack.md        stack, dependencies, harnesses, commands
 memory-bank/milestone.md         active index, acceptance, candidate directions
@@ -58,6 +58,13 @@ placeholders.
 Keep `AGENTS.md` short: what to read and in what order, essential commands,
 boundaries, hard rules, and work cadence. Point at the memory bank rather than
 restating it.
+
+In `memory-bank/product.md`, write the canonical product and business
+terminology as a domain model. For each material concept, capture its meaning
+and the relationships or invariants that constrain it, including ownership,
+parent/child structure, cardinality, lifecycle, and state transitions when they
+matter. Keep technical storage and implementation details in `architecture.md`.
+Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
 In `memory-bank/milestone.md`:
 
@@ -176,6 +183,9 @@ Before reporting completion, verify all of the following:
    overwritten.
 7. No bracketed placeholder or unexplained `N/A` remains.
 8. Every repository fact in the memory bank agrees with its current source.
+9. Domain terminology is consistent across the generated files, and every
+   material concept relationship or business invariant discovered during the
+   interview appears in `product.md`.
 
 For an existing project, run the documented verification command when it is
 safe and available to prove the command is real. If no such command exists yet,

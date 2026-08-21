@@ -28,7 +28,7 @@ Project-level files you drop into a repo:
 - **`AGENTS.md`** — the bootstrap pointer. Short. Tells the agent what to read and in what order.
 - **`GOAL.md`** — an optional portable protocol for ordered multi-milestone runs.
 - **`memory-bank/`** — the current source of truth.
-  - `product.md` — what this is, who uses it, what it isn't.
+  - `product.md` — product scope, users, domain model, and non-goals.
   - `architecture.md` — layout, data flow, ownership boundaries.
   - `tech-stack.md` — commands, dependencies, harnesses.
   - `milestone.md` — milestone scope and acceptance criteria.
@@ -54,7 +54,7 @@ Setting up the harness once is a small upfront step, and you don't have to do it
 
 **For an existing project**, ask the agent to read the current README, docs, package comments, tests, and build files, then populate the harness from what the project already says. The README ships with ready-made prompts for both cases — you can copy them as-is.
 
-Think of this first pass as a kind of constitution for the project: it establishes what the project is, what it owns, what it isn't, and what comes next. **It does not need to be perfect.** A rough draft is enough to start working. The memory bank is *mutable* — as the project changes, `product.md`, `architecture.md`, and `tech-stack.md` are updated in the same commit as the code that changed them. The `evolution/` folder is reserved for the rare moments when direction actually shifts. The harness and the project it describes evolve together; you're not committing to a fixed snapshot, and you're not stuck living with the first draft's mistakes.
+Think of this first pass as a kind of constitution for the project: it establishes what the project is, what it owns, the canonical domain terminology and relationships, what it isn't, and what comes next. **It does not need to be perfect.** A rough draft is enough to start working. The memory bank is *mutable* — as the project changes, `product.md`, `architecture.md`, and `tech-stack.md` are updated in the same commit as the code that changed them. That includes updating `product.md` when a concept, relationship, or business invariant changes. The `evolution/` folder is reserved for the rare moments when direction actually shifts. The harness and the project it describes evolve together; you're not committing to a fixed snapshot, and you're not stuck living with the first draft's mistakes.
 
 ## No mandatory command surface. On purpose.
 

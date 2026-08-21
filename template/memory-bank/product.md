@@ -10,11 +10,16 @@
 - [Secondary user type.]
 - [Downstream consumer or operator.]
 
-## Core concepts
+## Domain model
 
-- **[Concept 1]** - [Definition.]
-- **[Concept 2]** - [Definition.]
-- **[Concept 3]** - [Definition.]
+Use this as the canonical product and business vocabulary. Record relationships
+and invariants that must remain true as the implementation changes.
+
+| Concept | Meaning | Relationships and invariants |
+|---|---|---|
+| [Concept 1] | [Definition.] | [How it relates to other concepts and any rule that must hold.] |
+| [Concept 2] | [Definition.] | [Parent, child, ownership, cardinality, lifecycle, or other constraint.] |
+| [Concept 3] | [Definition.] | [Relationship or business invariant.] |
 
 ## Primary workflows
 

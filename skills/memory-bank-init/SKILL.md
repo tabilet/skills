@@ -62,8 +62,10 @@ Use these as coverage roots, not a fixed sequence or ceiling:
 
 - **Delivery boundary:** what this is, who owns and uses it, the outcome it
   produces, primary workflows, and real non-goals.
-- **Current and target state:** existing capabilities, domain concepts, known
-  gaps, and what the next delivery outcome changes.
+- **Domain model:** canonical domain and business terminology, plus the
+  relationships, cardinality, lifecycles, and invariants between concepts.
+- **Current and target state:** existing capabilities, known gaps, and what the
+  next delivery outcome changes.
 - **System shape:** layout, data flow, ownership boundaries, integrations,
   public contracts, and compatibility obligations.
 - **Constraints:** chosen stack rules, runtime and operational assumptions,
@@ -97,10 +99,11 @@ owner or source, missing input, impact, and unblock condition.
 
 The grill is complete when the frontier is empty and the evidence ledger can
 populate every applicable output section without guessing. Present a structured
-confirmation covering the delivery boundary, users and workflows, non-goals,
-current and target state, architecture and contracts, constraints, verification,
-active delivery outcome, later directions, and any blockers. Do not proceed
-until the user confirms the shared understanding.
+confirmation covering the delivery boundary, users and workflows, domain model
+and business invariants, non-goals, current and target state, architecture and
+contracts, constraints, verification, active delivery outcome, later
+directions, and any blockers. Do not proceed until the user confirms the shared
+understanding.
 
 *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*

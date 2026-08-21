@@ -70,7 +70,7 @@ def markdown_files() -> list[pathlib.Path]:
         return sorted(
             ROOT / line
             for line in tracked_or_unignored.stdout.splitlines()
-            if line
+            if line and (ROOT / line).is_file()
         )
     return sorted(
         p for p in ROOT.rglob("*.md") if ".git" not in p.parts and "node_modules" not in p.parts
@@ -334,7 +334,6 @@ def suggested_goal_reference():
 
     public = [
         ROOT / "README.md",
-        *(ROOT / f"README_{lang}.md" for lang in LANGS),
         ROOT / "docs" / "TUTORIAL.md",
         ROOT / "docs" / "medium.md",
     ]
@@ -427,6 +426,54 @@ def adaptive_init_contract():
     ):
         if token not in agents:
             problems.append(f"AGENTS.md: missing init hard rule {token!r}")
+    return problems
+
+
+@check("product.md owns the maintained domain model")
+def domain_model_contract():
+    product = (ROOT / "template" / "memory-bank" / "product.md").read_text()
+    template_agents = (ROOT / "template" / "AGENTS.md").read_text()
+    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    skill = INIT_SKILL.read_text()
+    write_contract = INIT_WRITE_CONTRACT.read_text()
+    agents = (ROOT / "AGENTS.md").read_text()
+    skill_words = " ".join(skill.split())
+    milestone_words = " ".join(milestone.split())
+    problems = []
+
+    for token in (
+        "## Domain model",
+        "| Concept | Meaning | Relationships and invariants |",
+        "canonical product and business vocabulary",
+    ):
+        if token not in product:
+            problems.append(f"template/memory-bank/product.md: missing {token!r}")
+
+    for token in (
+        "canonical domain and",
+        "relationships, cardinality, lifecycles, and invariants",
+        "domain model and business invariants",
+    ):
+        if token not in skill_words:
+            problems.append(f"memory-bank-init/SKILL.md: missing {token!r}")
+
+    for token in (
+        "canonical product and business",
+        "technical storage and implementation details",
+        "Do not create a parallel `context.md`",
+    ):
+        if token not in write_contract:
+            problems.append(f"write-contract.md: missing {token!r}")
+
+    if "domain terminology/concept relationships/business invariants" not in template_agents:
+        problems.append("template/AGENTS.md does not route domain-model changes to product.md")
+    for token in ("domain terminology", "concept relationships", "business invariants"):
+        if token not in milestone_words:
+            problems.append(f"template/memory-bank/milestone.md: missing {token!r}")
+    if "`memory-bank/context.md`" not in agents:
+        problems.append("AGENTS.md does not forbid a parallel memory-bank/context.md")
+    if (ROOT / "template" / "memory-bank" / "context.md").exists():
+        problems.append("template ships context.md alongside the product-owned domain model")
     return problems
 
 
@@ -652,12 +699,19 @@ def sampling_params():
 
 
 # --------------------------------------------------------------------------
-# 10. English is the source; five translations must not silently fall behind.
+# 10. English is the source for translated long-form references. Their five
+#     translations must not silently fall behind. README.md is English-only.
 # --------------------------------------------------------------------------
-@check("translations stay in parity with English")
+@check("translated docs stay in parity with English")
 def translations():
     problems = []
-    for stem in ("README", "docs/EXECUTION", "docs/MODEL_EVAL"):
+    for lang in LANGS:
+        localized_readme = ROOT / f"README_{lang}.md"
+        if localized_readme.exists():
+            problems.append(
+                f"{localized_readme.name} exists, but README.md is English-only"
+            )
+    for stem in ("docs/EXECUTION", "docs/MODEL_EVAL"):
         base = ROOT / f"{stem}.md"
         n_en = len([h for h in headings(base.read_text())])
         for lang in LANGS:
@@ -670,15 +724,14 @@ def translations():
                 problems.append(
                     f"{sib.relative_to(ROOT)}: {n} headings vs {n_en} in English"
                 )
-    # Markers that must appear in every README, English included.
+    # Markers that must remain in the English-only README.
     for marker, label in (
         ("LLM_PROVIDER=anthropic", "Anthropic provider example"),
         ("COMMIT_POLICY: task", "goal-loop invocation"),
         ("git clone https", "clone step"),
     ):
-        for name in ["README.md"] + [f"README_{l}.md" for l in LANGS]:
-            if marker not in (ROOT / name).read_text():
-                problems.append(f"{name}: missing {label}")
+        if marker not in (ROOT / "README.md").read_text():
+            problems.append(f"README.md: missing {label}")
     return problems
 
 
@@ -690,7 +743,7 @@ def translations():
 @check("public invocation, installation, model, and locale guidance is current")
 def public_interfaces():
     problems = []
-    readmes = [ROOT / "README.md"] + [ROOT / f"README_{lang}.md" for lang in LANGS]
+    readmes = [ROOT / "README.md"]
     public = readmes + [
         ROOT / "docs" / "TUTORIAL.md",
         ROOT / "docs" / "medium.md",
@@ -786,7 +839,7 @@ def public_interfaces():
 @check("public harness guidance carries the host-shell safety contract")
 def harness_safety_contract():
     problems = []
-    public = [ROOT / "README.md", *(ROOT / f"README_{lang}.md" for lang in LANGS)]
+    public = [ROOT / "README.md"]
     public += [
         ROOT / "docs" / "EXECUTION.md",
         *(ROOT / "docs" / f"EXECUTION_{lang}.md" for lang in LANGS),

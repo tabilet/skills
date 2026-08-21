@@ -121,6 +121,7 @@ What it works through, and where each answer lands:
 | Coverage root | Why it matters | Lands in |
 |---|---|---|
 | Delivery boundary, users, workflows, non-goals | Scope and ownership. | `product.md`, `AGENTS.md` |
+| Domain terminology, relationships, invariants | Keeps the product and business model consistent. | `product.md` |
 | Current and target state | Separates facts from intended change. | `product.md`, `evolution/` |
 | System shape and public contracts | Prevents boundary and compatibility drift. | `architecture.md` |
 | Stack, runtime, operations, hard rules | Rules the agent must not break. | `tech-stack.md`, `AGENTS.md` |
@@ -275,7 +276,7 @@ stomper/
 ├── AGENTS.md              ← commands, boundaries, hard rules
 ├── GOAL.md                ← copied, not written — a portable protocol
 ├── memory-bank/
-│   ├── product.md         ← what it is, and the non-goals
+│   ├── product.md         ← scope, domain model, and non-goals
 │   ├── architecture.md    ← module layout, the DOM-free rule
 │   ├── tech-stack.md      ← stack, and how it is verified
 │   ├── milestone.md       ← active milestones and unnumbered candidates
@@ -480,8 +481,9 @@ edit, with no dependency on the plugin that generated them.
 
 The memory bank is mutable and expected to change: `product.md`,
 `architecture.md`, and `tech-stack.md` get rewritten in the same commit as the
-code that makes them true. `evolution/` gets a new version only when direction
-genuinely shifts — rarely.
+code that makes them true. That includes updating `product.md` when domain
+terminology, concept relationships, or business invariants change. `evolution/`
+gets a new version only when direction genuinely shifts — rarely.
 
 Two things to know as you keep going:
 

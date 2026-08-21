@@ -34,7 +34,7 @@ the file:
 | `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
 | `skills/` | The three optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
-| `docs/`, `README*.md`, `AGENTS.md` | This repository's own documentation. |
+| `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. |
 
 Two consequences that matter constantly:
 
@@ -187,10 +187,10 @@ review unit.
 
 ## Translations
 
-English is the source. Each of `README.md`, `docs/EXECUTION.md`, and
-`docs/MODEL_EVAL.md` has `_cn`, `_ja`, `_de`, `_fr`, `_es` siblings. A change to
-an English file should be propagated to its five siblings in the same change;
-commands, code blocks, and example prompts stay in English.
+English is the source. Each of `docs/EXECUTION.md` and `docs/MODEL_EVAL.md` has
+`_cn`, `_ja`, `_de`, `_fr`, `_es` siblings. A change to either English file
+should be propagated to its five siblings in the same change; commands, code
+blocks, and example prompts stay in English. `README.md` is English-only.
 
 Section links differ per language: heading anchors are slugified from the
 translated heading, so `docs/EXECUTION_cn.md#退出码` is correct where the
@@ -233,8 +233,12 @@ English is `#exit-codes`. Check anchors, not just filenames, when adding links.
   when the project contains an approved compatible `GOAL.md`; a conditional
   status suffix is for documented conditionally required active work, not a
   candidate direction.
-- Propagate English content changes to all five translation siblings in the same
-  change.
+- `memory-bank/product.md` owns the maintained domain model: canonical product
+  and business terminology, concept relationships, and invariants. Keep
+  implementation details in `architecture.md`; do not create an overlapping
+  `memory-bank/context.md`.
+- Propagate changes to English `docs/EXECUTION.md` and `docs/MODEL_EVAL.md` to
+  all five translation siblings in the same change.
 - Status files are named `status-<LANE><NN>.md`. The pattern is defined in
   [template/memory-bank/milestone.md](template/memory-bank/milestone.md); the
   harness discovers lane files by that shape, so the two must agree. Placeholder

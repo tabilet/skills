@@ -27,7 +27,7 @@ your-project/
 ├── AGENTS.md              what an agent should read first
 ├── GOAL.md                optional multi-milestone protocol
 ├── memory-bank/           what is true now
-│   ├── product.md         what this is, and is not
+│   ├── product.md         product scope, domain model, and non-goals
 │   ├── architecture.md    layout, data flow, boundaries
 │   ├── tech-stack.md      commands, dependencies, how you verify
 │   ├── milestone.md       active milestones plus unnumbered later directions
@@ -45,10 +45,6 @@ Throughout, **harness** means a repeatable command that proves something works,
 such as your test suite, a CI job, or a script. Your project defines its own in
 `tech-stack.md`. This repository also ships one optional harness of its own, an
 API loop that drives an agent through the memory bank unattended.
-
-Language versions: [🇨🇳 中文](README_cn.md) · [🇯🇵 日本語](README_ja.md) ·
-[🇩🇪 Deutsch](README_de.md) · [🇫🇷 Français](README_fr.md) ·
-[🇪🇸 Español](README_es.md).
 
 ## Getting Started
 
@@ -154,6 +150,14 @@ describing the project]` and becomes:
 ```markdown
 `cartsvc` is the shopping cart and checkout service behind the storefront.
 It owns cart state, pricing, and the handoff to payments.
+
+## Domain model
+
+| Concept | Meaning | Relationships and invariants |
+|---|---|---|
+| Cart | A shopper's pending purchase. | Belongs to one shopper and contains line items. |
+| Line item | A product and requested quantity in a cart. | Belongs to exactly one cart. |
+| Checkout | The transition from an active cart to payment. | Starts only from a non-empty cart with current pricing. |
 ```
 
 `memory-bank/milestone.md` is the file that decides how everything else is
@@ -230,7 +234,8 @@ mkdir -p docs
 
 Then edit the copied files in this order:
 
-1. `memory-bank/product.md`: define what the project is and is not.
+1. `memory-bank/product.md`: define product scope, canonical domain terminology,
+   concept relationships and business invariants, and non-goals.
 2. `memory-bank/architecture.md`: define layout, data flow, and boundaries.
 3. `memory-bank/tech-stack.md`: define commands, dependencies, and harnesses.
 4. `memory-bank/milestone.md`: define the status ID lanes (see

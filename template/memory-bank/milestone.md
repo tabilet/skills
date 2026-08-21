@@ -80,9 +80,10 @@ the next milestone:
 2. Run a deep code review of the milestone. Read the `git log` range covering
    the milestone work, then targeted diffs and changed files. Look for
    regressions, boundary drift, stale docs, and missing tests.
-3. Reconcile the memory bank. Update `architecture.md`, `tech-stack.md`, or
-   `product.md` if the milestone changed boundaries, dependencies, commands,
-   data flow, or product scope.
+3. Reconcile the memory bank. Update `product.md` if the milestone changed
+   product scope, domain terminology, concept relationships, or business
+   invariants. Update `architecture.md` or `tech-stack.md` if it changed
+   boundaries, dependencies, commands, data flow, or runtime assumptions.
 4. Check `evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
    product direction, architecture boundary, milestone target, or public/private
    contract direction materially changes.

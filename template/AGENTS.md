@@ -76,10 +76,10 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
 ## Work Cadence
 
 - Update memory-bank files in the same change as the code they describe:
-  product scope -> `product.md`; architecture/data flow/contracts ->
-  `architecture.md`; tools/dependencies/commands -> `tech-stack.md`; milestone
-  scope/acceptance -> `milestone.md`; completion state -> the matching
-  `status-<LANE><NN>.md` file.
+  product scope/domain terminology/concept relationships/business invariants ->
+  `product.md`; architecture/data flow/contracts -> `architecture.md`;
+  tools/dependencies/commands -> `tech-stack.md`; milestone scope/acceptance ->
+  `milestone.md`; completion state -> the matching `status-<LANE><NN>.md` file.
 - Keep one `memory-bank/status-<LANE><NN>.md` file for each milestone listed in
   [memory-bank/milestone.md](memory-bank/milestone.md), named by the status ID
   pattern defined there.
