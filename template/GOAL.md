@@ -1,7 +1,7 @@
 # Universal Multi-Milestone Goal Loop
 
 This file defines a reusable protocol for executing an ordered set of project
-milestones or status files from a slash-goal request. It is an execution
+milestones or status files from a goal request. It is an execution
 protocol, not a project roadmap, product specification, or status source.
 
 Copying this file to another repository does not transfer project-specific
@@ -17,7 +17,7 @@ instructions. Then discover project truth in this order:
    instructions.
 2. Product, architecture, technical, roadmap, decision/evolution, and status
    sources named by those instructions.
-3. The status or milestone files supplied by the slash-goal request.
+3. The status or milestone files supplied by the goal request.
 4. Current code, schemas, configuration examples, tests, documentation, and
    worktree state.
 
@@ -29,14 +29,13 @@ If required sources cannot be discovered, complete safe read-only exploration
 first. Ask the user only when a missing choice or authority would materially
 change the result.
 
-## Slash-Goal Input
+## Goal Input
 
 A multi-milestone request should name this file and provide a linear execution
 order. It may also provide project-context paths, a status-file map, downstream
 impacts, and execution policies:
 
 ```text
-/goal
 Using GOAL.md, execute this loop.
 
 PROJECT_CONTEXT:
@@ -57,6 +56,12 @@ S01 -> P01, X01
 COMMIT_POLICY: none
 EXTERNAL_MUTATIONS: none
 ```
+
+The block above is the portable protocol input. Submit it as an ordinary
+request, through a compatible goal skill, or as the objective of an agent's
+built-in `/goal` command. The built-in command keeps the objective active; it
+does not replace this protocol or make `GOAL.md` ambient. In every form, the
+request must explicitly name this file.
 
 The identifiers above are examples only. They carry no meaning outside the
 project that defines them.
@@ -214,7 +219,7 @@ factual correction, explicit ownership transfer, or lineage clarification.
 Continue while all of these remain true:
 
 - the next milestone's dependencies and required inputs are available;
-- remaining work stays within the slash-goal scope and mutation authority;
+- remaining work stays within the goal scope and mutation authority;
 - no conflicting user-owned worktree change prevents safe implementation; and
 - verification can establish the milestone acceptance criteria.
 
@@ -239,7 +244,7 @@ conditional. A required pending milestone prevents overall goal completion.
 - `milestone`: create one focused commit after each milestone closes.
 
 Never commit unrelated user changes. Do not amend, rewrite history, push, merge,
-tag, publish, or open a change request unless the slash-goal request explicitly
+tag, publish, or open a change request unless the goal request explicitly
 authorizes that action.
 
 `EXTERNAL_MUTATIONS` defaults to `none`. Code implementation does not authorize
@@ -260,5 +265,5 @@ At the end of each milestone, record:
 - conditional statuses skipped; and
 - remaining blockers or external actions.
 
-Mark the overall slash goal complete only when every required status in the
+Mark the overall goal complete only when every required status in the
 reconciled order is complete and no required work remains.

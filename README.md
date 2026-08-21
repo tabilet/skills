@@ -519,33 +519,32 @@ resolved request for confirmation, and falls back to deriving the order from
 Plain-file installations use `/memory-bank-goal` in Claude Code and
 `$memory-bank-goal` in Codex. Plain English remains valid everywhere.
 
-#### If you use Claude Code
+#### Keep a long run active
 
-[Claude Code's built-in `/goal`](https://code.claude.com/docs/en/goal) is an
-optional alternative launcher for a long run. Give it the complete protocol
-request and a measurable completion condition together:
+Both [Claude Code](https://code.claude.com/docs/en/goal) and
+[Codex](https://learn.chatgpt.com/use-cases/follow-goals) provide a built-in
+`/goal` for keeping a durable objective active. It is an optional persistence
+layer, not the memory-bank protocol: `/goal` keeps the run alive, while
+`GOAL.md` defines how milestones are reconciled, implemented, reviewed, and
+closed. Give the built-in command the complete protocol request and a measurable
+completion condition together:
 
 ```text
 /goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
-Run `/goal` with no arguments to show its status, and `/goal clear` to stop it.
-The namespaced `memory-bank-goal` skill remains the portable launcher shared
-with Codex; the built-in `/goal` is optional.
+In either agent, run `/goal` with no arguments to show its status and
+`/goal clear` to stop it. Codex additionally supports `/goal pause` and
+`/goal resume`.
+If `/goal` is not listed in Codex, enable it with `codex features enable goals`.
 
-#### If you use Codex
-
-Use the plugin skill directly:
-
-```text
-$memory-bank:memory-bank-goal M01 -> S01 -> A01?
-```
-
-If you installed the skill files directly instead, use
-`$memory-bank-goal M01 -> S01 -> A01?`. [Codex custom
+Built-in `/goal` does not discover this repository's protocol automatically;
+the objective must name `GOAL.md`, as in the example above. You can instead
+invoke `memory-bank-goal` directly using the Claude Code or Codex forms shown
+above; that is the portable non-persistent launcher. [Codex custom
 prompts](https://learn.chatgpt.com/docs/custom-prompts) are deprecated in favor
-of skills, so this repository does not install or recommend a separate `goal.md`
-prompt.
+of skills, so this repository does not install or recommend a separate
+`goal.md` prompt.
 
 #### Any other agent
 
@@ -653,9 +652,10 @@ To pin a version, swap `refs/heads/main` for `refs/tags/<version>` and change
 The plugin installs the *generator*, not the output. What it writes into your
 project is yours, is never updated from here, and survives uninstalling it.
 
-The skill is deliberately not named `goal`: Claude Code has a built-in `/goal`
-that sets a stop condition, which is a different thing. The two work together;
-see [Run an ordered set of
+The skill is deliberately not named `goal`: Claude Code and Codex reserve
+built-in `/goal` for keeping a durable objective active, while
+`memory-bank-goal` supplies this repository's multi-milestone protocol. The two
+work together; see [Run an ordered set of
 milestones](#run-an-ordered-set-of-milestones).
 
 ### If you already use `/grill-me`

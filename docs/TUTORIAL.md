@@ -442,15 +442,20 @@ closes, the tilemap that actually got built is not the one `M02` was written
 against — so `M02` gets re-read and rewritten before it starts, rather than
 implemented as planned and wrong.
 
-**In Claude Code, the [built-in `/goal`](https://code.claude.com/docs/en/goal) is
-an optional alternative launcher** for a long run. Include the complete protocol
+**In [Claude Code](https://code.claude.com/docs/en/goal) and
+[Codex](https://learn.chatgpt.com/use-cases/follow-goals), built-in `/goal` is
+an optional persistence layer** for a long run. It keeps the objective active;
+`GOAL.md` still defines the execution protocol. Include the complete protocol
 request, commit policy, and measurable completion condition in the invocation:
 
 ```text
 /goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and node --test passes.
 ```
 
-Use `/goal` with no arguments to see its status and `/goal clear` to stop it.
+Use `/goal` with no arguments to see its status and `/goal clear` to stop it in
+either agent. Codex also supports `/goal pause` and `/goal resume`; if the
+command is not listed, run `codex features enable goals`. Built-in `/goal` does
+not discover `GOAL.md` automatically, so keep the file name in the objective.
 
 Then watch the first milestone. `git log` should show one commit per row, code
 and status-row flip together. If the agent closed three rows in one commit, say

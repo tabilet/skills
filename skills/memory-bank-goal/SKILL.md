@@ -13,8 +13,8 @@ Execute several milestones in a defined order, rather than one row at a time.
 `/memory-bank:memory-bank-goal` in Claude Code and
 `$memory-bank:memory-bank-goal` in Codex. Plain-file installs use
 `/memory-bank-goal` and `$memory-bank-goal`, respectively. **The name avoids
-`goal` on purpose.** Claude Code has a built-in `/goal` for long-running goals;
-see *Keeping the session going* below.
+`goal` on purpose.** Claude Code and Codex have a built-in `/goal` for keeping a
+durable objective active; see *Keeping the session going* below.
 
 ## What to do
 
@@ -84,23 +84,28 @@ completing.
 
 ## Keeping the session going
 
-In **Claude Code**, the built-in `/goal` is an optional alternative launcher for
-a long run. Include the complete protocol request, order, commit policy, and a
-measurable completion condition. When the disposable reference exists, let the
-goal reconcile it first:
+In **Claude Code and Codex**, built-in `/goal` is an optional persistence layer
+for a long run. It keeps the objective active; `GOAL.md` still defines the
+multi-milestone execution protocol. Include the complete protocol request,
+commit policy, and a measurable completion condition. When the disposable
+reference exists, let the goal reconcile it first:
 
 ```text
 /goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
-Run `/goal` with no arguments to show its status and `/goal clear` to stop it.
-If `suggested.txt` is absent, put the resolved order, file map, and downstream
-impacts directly in the request instead. The `memory-bank-goal` skill remains
-the portable launcher shared with Codex.
+In either agent, run `/goal` with no arguments to show status and `/goal clear`
+to stop. Codex also supports `/goal pause` and `/goal resume`; if `/goal` is not
+listed, run `codex features enable goals`. See the official [Claude Code goal
+documentation](https://code.claude.com/docs/en/goal) and [OpenAI Codex goal
+guide](https://learn.chatgpt.com/use-cases/follow-goals).
 
-In **Codex**, use `$memory-bank:memory-bank-goal` for a plugin install or
-`$memory-bank-goal` for a plain-file install, then review the completion report.
-For other agents, paste the complete request block from *What to do*.
+If `suggested.txt` is absent, put the resolved order, file map, and downstream
+impacts directly in the request instead. Invoking `memory-bank-goal` directly
+remains the portable non-persistent launcher: use
+`/memory-bank:memory-bank-goal` or `/memory-bank-goal` in Claude Code, and
+`$memory-bank:memory-bank-goal` or `$memory-bank-goal` in Codex. For other
+agents, paste the complete request block from *What to do*.
 
 ## Report
 

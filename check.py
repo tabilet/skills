@@ -151,7 +151,8 @@ def harness_tests():
 
 
 # --------------------------------------------------------------------------
-# 2. GOAL.md is a portable protocol carried in two places. They must not drift.
+# 2. GOAL.md is a portable protocol carried in three places. They must not
+#    drift or become coupled to one agent's launcher.
 # --------------------------------------------------------------------------
 @check("GOAL.md and template/GOAL.md are byte-identical")
 def goal_copies():
@@ -166,11 +167,21 @@ def goal_copies():
     if problems:
         return problems
     first = copies[0].read_bytes()
-    return [
+    problems.extend(
         f"{p.relative_to(ROOT)} differs; change all copies together"
         for p in copies[1:]
         if p.read_bytes() != first
-    ]
+    )
+    goal = first.decode()
+    if "slash-goal" in goal:
+        problems.append("GOAL.md: protocol must not be limited to a slash-command launcher")
+    if "\n/goal\nUsing GOAL.md" in goal:
+        problems.append("GOAL.md: portable input must not embed an empty /goal command")
+    flat_goal = " ".join(goal.split())
+    for token in ("ordinary request", "built-in `/goal`", "does not replace this protocol"):
+        if token not in flat_goal:
+            problems.append(f"GOAL.md: missing launcher boundary {token!r}")
+    return problems
 
 
 @check("milestone review-fix gate is bounded and aligned")
@@ -326,9 +337,10 @@ def skills_manifest():
     )
     if listed != on_disk:
         problems.append(f"plugin.json lists {listed}, disk has {on_disk}")
-    # Claude Code owns /goal; a skill by that name would collide.
+    # Both agents reserve /goal for durable objectives; keep the protocol skill
+    # distinctly named (and avoid shadowing Claude Code's plain /goal command).
     if "goal" in on_disk:
-        problems.append("a skill named 'goal' collides with Claude Code's built-in")
+        problems.append("a skill named 'goal' collides with the agents' built-in goal feature")
     return problems
 
 
@@ -619,10 +631,11 @@ def skill_matches_prompt():
 # --------------------------------------------------------------------------
 @check("every GOAL.md invocation sets an explicit COMMIT_POLICY")
 def goal_examples():
-    # Keyed on naming GOAL.md, not on `/goal`. Claude Code has a built-in
-    # `/goal <condition>` that sets a stop condition and has nothing to do with
-    # this protocol; requiring COMMIT_POLICY there would be wrong. The protocol
-    # itself requires a request to name the file, so this is the honest anchor.
+    # Keyed on naming GOAL.md, not on `/goal`. Claude Code and Codex have a
+    # built-in `/goal <objective>` persistence layer that is distinct from this
+    # protocol; requiring COMMIT_POLICY for unrelated built-in goals would be
+    # wrong. The protocol requires its request to name the file, so that is the
+    # honest anchor.
     problems = []
     for md in markdown_files():
         if md.name == "GOAL.md":  # the protocol itself documents the default
@@ -848,6 +861,25 @@ def public_interfaces():
         if "~/.agents/skills" not in path.read_text():
             problems.append(f"{path.relative_to(ROOT)}: missing Codex personal skill path")
 
+    goal_guides = [
+        ROOT / "README.md",
+        ROOT / "docs" / "TUTORIAL.md",
+        SKILLS_DIR / "memory-bank-goal" / "SKILL.md",
+    ]
+    codex_goal_tokens = (
+        "https://learn.chatgpt.com/use-cases/follow-goals",
+        "/goal pause",
+        "/goal resume",
+        "codex features enable goals",
+    )
+    for path in goal_guides:
+        text = path.read_text()
+        for token in codex_goal_tokens:
+            if token not in text:
+                problems.append(
+                    f"{path.relative_to(ROOT)}: missing current Codex goal guidance {token!r}"
+                )
+
     model_catalogs = (
         "https://developers.openai.com/api/docs/models",
         "https://platform.claude.com/docs/en/about-claude/models/overview",
@@ -868,6 +900,7 @@ def public_interfaces():
         "drop the " + "slash": "obsolete Codex invocation advice",
         "gpt-5" + ".5": "obsolete OpenAI model example",
         "/goal " + "active": "obsolete Claude Code goal-status syntax",
+        "In Codex, use the namespaced plugin skill": "obsolete Claude-only built-in goal guidance",
     }
     for path in public + [HARNESS, ROOT / "AGENTS.md"]:
         text = path.read_text()

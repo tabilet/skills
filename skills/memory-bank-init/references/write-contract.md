@@ -221,8 +221,9 @@ Plugin installs use `/memory-bank:memory-bank-goal` in Claude Code and
 
 When `memory-bank/suggested.txt` exists, explain that running the goal skill with
 no arguments reconciles it and shows the complete resolved request for
-confirmation. For Claude Code's built-in `/goal`, show the complete
-reference-based command from the goal skill rather than asking the user to
-reconstruct maps by hand. When the launch reference was omitted, explain how to
-run one row and why ordered execution is unavailable until a compatible
-protocol is installed or approved.
+confirmation. For built-in `/goal` in Claude Code or Codex, show the complete
+reference-based objective from the goal skill rather than asking the user to
+reconstruct maps by hand. Explain that built-in `/goal` keeps the objective
+active while `GOAL.md` supplies the execution protocol. When the launch
+reference was omitted, explain how to run one row and why ordered execution is
+unavailable until a compatible protocol is installed or approved.

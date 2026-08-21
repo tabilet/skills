@@ -94,6 +94,8 @@ One row at a time is the default granularity, and for most work it's the right o
 
 It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. `GOAL.md` itself is one portable markdown file, invoked rather than always-on. Paste a complete `Using GOAL.md` request, use the optional `memory-bank-goal` skill, or reference the disposable `suggested.txt` that init derived from the approved breakdown. The protocol carries no project-specific paths or lane names — those stay in the memory bank and its temporary launch reference — which is why the same `GOAL.md` works unchanged across projects.
 
+Both [Claude Code](https://code.claude.com/docs/en/goal) and [Codex](https://learn.chatgpt.com/use-cases/follow-goals) also have a built-in `/goal` for long-running work. That command is the persistence layer, not this execution protocol: give it a complete `Using GOAL.md` objective with an explicit `COMMIT_POLICY` and measurable completion condition. Invoking `memory-bank-goal` directly remains the portable non-persistent path.
+
 So: four ways to execute, none of them required. Type a request and stay in the loop. Invoke the optional one-row skill. Run the script unattended. Or hand over an ordered set of milestones. The memory bank underneath doesn't know or care which you chose — that's the property worth protecting.
 
 ## Under control
