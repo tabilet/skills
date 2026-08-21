@@ -403,8 +403,9 @@ agent should run a deep code review of the milestone, run the milestone review
 from `memory-bank/milestone.md`, complete required verification, and commit any
 review changes before moving on. Do not create an extra commit when review
 changes nothing. The review-fix gate reviews the whole milestone again after
-every P1/P2-or-higher fix and requires a clean pass within 10 iterations; if the
-tenth review still finds a blocking issue, the milestone stays incomplete.
+every [P1/P2-or-higher](template/memory-bank/milestone.md#review-finding-severity)
+fix and requires a clean pass within 10 iterations; if the tenth review still
+finds a blocking issue, the milestone stays incomplete.
 During that review it should also decide whether `evolution/` needs a new version
 because the product direction, architecture boundary, milestone target, or
 public/private contract direction materially changed.

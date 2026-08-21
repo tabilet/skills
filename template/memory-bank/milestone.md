@@ -69,6 +69,26 @@ candidate is promoted.
 |---|---|---|
 | [Later direction.] | [Why detailed planning would be premature.] | [Decision, evidence, or completed milestone that makes it ready.] |
 
+## Review finding severity
+
+P1 and P2 are engineering review priorities. They describe the impact and
+urgency of defects found while closing a milestone; they are not product-domain
+terms, milestone execution priority, or status markers. Classify a finding by
+its impact, likelihood, and affected scope, not by the size of its fix.
+
+Project-specific definitions in `AGENTS.md` or a linked review policy override
+these defaults:
+
+| Priority | Context | Typical examples | Gate effect |
+|---|---|---|---|
+| P1 | The milestone is unsafe or invalid to close because a severe defect threatens acceptance, correctness, security/privacy, data integrity, or a public compatibility contract. | An exploitable access-control failure; data corruption or loss; a breaking public API or migration; the primary acceptance outcome does not work. | Blocking. Fix and review again. |
+| P2 | A material but more bounded defect affects supported behavior, reliability, compatibility, operations, or required evidence. | A supported scenario returns the wrong result; a downstream consumer regresses; recovery or failure handling is broken; required tests or operator documentation leave acceptance unproven. | Blocking. Fix and review again. |
+| Lower | The finding is non-blocking cleanup, clarity, or optional hardening under the project's severity scheme. | Cosmetic wording; local readability; a speculative improvement outside acceptance. | May be carried only with a named owner and explicit rationale. |
+
+Any project-defined severity more urgent than P1 also blocks. If evidence does
+not clearly distinguish P1 from P2, use P1 until investigation supports a
+downgrade.
+
 ## Milestone review procedure
 
 When the last open row in a milestone's status file is flipped to `[+]` during
@@ -80,11 +100,8 @@ the next milestone:
 2. Run the required verification before review, including proportionate checks
    for affected consumers and any applicable compatibility, migration,
    rollback, security, concurrency, or failure paths.
-3. Run a bounded deep-review and fix gate. Use the project's severity meanings
-   when defined. Otherwise P1 means a severe acceptance, correctness,
-   security/privacy, data-integrity, or public-contract defect; P2 means a
-   material supported-behavior, reliability, compatibility, operations, or
-   required-evidence defect. Higher severities also block.
+3. Run a bounded deep-review and fix gate using the review finding severity
+   context above.
    - The initial deep-review pass is iteration 1. Read the `git log` range and
      review the full milestone diff for correctness, regressions, failure
      semantics, boundary drift, stale docs, and missing tests.

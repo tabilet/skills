@@ -211,7 +211,8 @@ English is `#exit-codes`. Check anchors, not just filenames, when adding links.
   higher-severity fix, verify and review the whole milestone again. A clean pass
   is required within 10 iterations, and the counter does not reset across
   sessions or reviewers; persist the iteration count in the active status or
-  equivalent goal state.
+  equivalent goal state. `milestone.md` owns the review-severity context and
+  project override rules; P1/P2 are not product-domain concepts.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.

@@ -74,6 +74,13 @@ In `memory-bank/milestone.md`:
 - place later work in an explicitly unnumbered `Candidate Directions` section
   with columns for direction, why it is deferred, and its promotion trigger.
 
+Include a `Review finding severity` section in `milestone.md`. Explain that P1
+and P2 are engineering review priorities rather than product-domain terms,
+milestone execution priority, or status markers. Define their default context,
+typical examples, and gate effect; let project-specific definitions in
+`AGENTS.md` or a linked review policy override those defaults. Classification
+must follow impact, likelihood, and affected scope rather than fix size.
+
 Include a milestone review procedure with a bounded review-fix gate. The
 initial deep-review pass is iteration 1. After every P1, P2, or higher-severity
 fix, rerun affected verification and review the whole milestone again. The gate

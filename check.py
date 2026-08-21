@@ -201,6 +201,14 @@ def review_fix_gate():
             problems.append(f"GOAL.md: missing review gate contract {token!r}")
 
     for token in (
+        "## Review finding severity",
+        "engineering review priorities",
+        "not product-domain terms, milestone execution priority, or status markers",
+        "impact, likelihood, and affected scope",
+        "| P1 |",
+        "| P2 |",
+        "Project-specific definitions",
+        "using the review finding severity context above",
         "The initial deep-review pass is iteration 1",
         "review the whole milestone again",
         "Record the iteration number and findings",
@@ -215,6 +223,9 @@ def review_fix_gate():
             )
 
     for token in (
+        "`Review finding severity` section",
+        "engineering review priorities rather than product-domain terms",
+        "impact, likelihood, and affected scope",
         "initial deep-review pass is iteration 1",
         "Limit it to 10 iterations",
         "persist each iteration number",
@@ -234,6 +245,7 @@ def review_fix_gate():
         "within 10 iterations",
         "does not reset",
         "persist the iteration count",
+        "`milestone.md` owns the review-severity context",
     ):
         if token not in agents:
             problems.append(f"AGENTS.md: missing review gate hard rule {token!r}")
@@ -541,6 +553,8 @@ def domain_model_contract():
         problems.append("AGENTS.md does not forbid a parallel memory-bank/context.md")
     if (ROOT / "template" / "memory-bank" / "context.md").exists():
         problems.append("template ships context.md alongside the product-owned domain model")
+    if "Review finding severity" in product:
+        problems.append("product.md contains engineering review severity terminology")
     return problems
 
 
