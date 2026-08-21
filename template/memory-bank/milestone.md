@@ -77,23 +77,46 @@ the next milestone:
 
 1. Re-read the milestone scope and acceptance criteria here. Confirm the code or
    docs meet the acceptance line; do not rely on the status file alone.
-2. Run a deep code review of the milestone. Read the `git log` range covering
-   the milestone work, then targeted diffs and changed files. Look for
-   regressions, boundary drift, stale docs, and missing tests.
-3. Reconcile the memory bank. Update `product.md` if the milestone changed
+2. Run the required verification before review, including proportionate checks
+   for affected consumers and any applicable compatibility, migration,
+   rollback, security, concurrency, or failure paths.
+3. Run a bounded deep-review and fix gate. Use the project's severity meanings
+   when defined. Otherwise P1 means a severe acceptance, correctness,
+   security/privacy, data-integrity, or public-contract defect; P2 means a
+   material supported-behavior, reliability, compatibility, operations, or
+   required-evidence defect. Higher severities also block.
+   - The initial deep-review pass is iteration 1. Read the `git log` range and
+     review the full milestone diff for correctness, regressions, failure
+     semantics, boundary drift, stale docs, and missing tests.
+   - Record the iteration number and findings in the current status notes so a
+     continuation cannot reset the counter. If the pass finds no P1, P2, or
+     higher-severity issue, the gate passes. Otherwise, when the current
+     iteration is below 10, fix every such finding in the current milestone,
+     rerun affected verification, and review the whole milestone again,
+     including the fixes.
+   - Run at most 10 iterations; a session or reviewer change does not reset the
+     counter. If iteration 10 still finds a blocking issue, add `[!]` review
+     rows recording the remaining findings and iteration-limit blocker. Do not
+     start another automatic fix-review cycle or move downstream; stop and ask
+     for user direction.
+   - Carry a lower-severity finding forward only with a named pending owner and
+     explicit rationale.
+4. Reconcile the memory bank. Update `product.md` if the milestone changed
    product scope, domain terminology, concept relationships, or business
    invariants. Update `architecture.md` or `tech-stack.md` if it changed
    boundaries, dependencies, commands, data flow, or runtime assumptions.
-4. Check `evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
+5. Check `evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
    product direction, architecture boundary, milestone target, or public/private
    contract direction materially changes.
-5. Revisit candidate directions affected by the milestone. Update their reason
+6. Revisit candidate directions affected by the milestone. Update their reason
    or trigger; when a trigger is now true, propose a reconciled milestone and
    obtain approval before allocating its permanent ID and status file.
-6. Run required verification, then commit any review changes. Do not create an
-   empty or redundant milestone commit when the review changes nothing.
-7. Report a short review summary: what was verified, what memory-bank files
-   changed, any review commit, and whether an evolution bump was made.
+7. After the gate passes, run required verification again, then commit any
+   review changes. Do not create an extra milestone commit when the review
+   changes nothing.
+8. Report a short review summary: what was verified, the review-fix iteration
+   count, what memory-bank files changed, any review commit, and whether an
+   evolution bump was made.
 
 ## M01 - [Milestone name]
 

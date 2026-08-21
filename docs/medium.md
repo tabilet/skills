@@ -90,7 +90,7 @@ You can use it for one row, for an unattended loop, for evaluations across model
 
 ## The goal loop — also optional
 
-One row at a time is the default granularity, and for most work it's the right one. When you do want to run several milestones in a defined order — a release, a migration, a sequence with real dependencies between its parts — `GOAL.md` describes that loop: reconcile before each milestone, implement its task units, verify and deep-review, reconcile the milestones downstream of the one that just closed, then continue or stop.
+One row at a time is the default granularity, and for most work it's the right one. When you do want to run several milestones in a defined order — a release, a migration, a sequence with real dependencies between its parts — `GOAL.md` describes that loop: reconcile before each milestone, implement its task units, verify and deep-review, reconcile the milestones downstream of the one that just closed, then continue or stop. Its [bounded review-fix gate](../GOAL.md#bounded-review-fix-gate) requires a clean pass within ten iterations.
 
 It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. `GOAL.md` itself is one portable markdown file, invoked rather than always-on. Paste a complete `Using GOAL.md` request, use the optional `memory-bank-goal` skill, or reference the disposable `suggested.txt` that init derived from the approved breakdown. The protocol carries no project-specific paths or lane names — those stay in the memory bank and its temporary launch reference — which is why the same `GOAL.md` works unchanged across projects.
 

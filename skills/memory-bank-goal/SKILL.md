@@ -23,6 +23,12 @@ reconcile before each milestone, implement its task units, verify and
 deep-review, reconcile the milestones downstream of the one that just closed,
 then continue or stop.
 
+Its deep-review phase includes a bounded review-fix gate: the initial review is
+iteration 1, every P1/P2-or-higher fix is verified and followed by another full
+milestone review, and the milestone advances only after a clean pass. The gate
+stops after iteration 10 and leaves the milestone incomplete if a blocking
+finding remains.
+
 If `memory-bank/suggested.txt` exists, read it as a disposable launch
 suggestion. It is not a source of truth. Reconcile every ID, path, dependency,
 conditional trigger, and downstream impact against `memory-bank/milestone.md`,

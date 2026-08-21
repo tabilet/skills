@@ -74,6 +74,15 @@ In `memory-bank/milestone.md`:
 - place later work in an explicitly unnumbered `Candidate Directions` section
   with columns for direction, why it is deferred, and its promotion trigger.
 
+Include a milestone review procedure with a bounded review-fix gate. The
+initial deep-review pass is iteration 1. After every P1, P2, or higher-severity
+fix, rerun affected verification and review the whole milestone again. The gate
+passes only when a review finds no such issue. Limit it to 10 iterations without
+resetting across sessions or reviewers, and persist each iteration number in the
+current status notes or equivalent active goal state. If iteration 10 still
+finds a blocking issue, leave the milestone incomplete and record the findings
+with the project's blocked-status mechanism.
+
 Candidate directions are not milestones. Do not assign them lane letters or
 status IDs, create status files for them, or include them in an execution order.
 When a trigger becomes true, reconsider the candidate and obtain approval

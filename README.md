@@ -402,10 +402,12 @@ make a scoped git commit. If that row is the last open item in a milestone, the
 agent should run a deep code review of the milestone, run the milestone review
 from `memory-bank/milestone.md`, complete required verification, and commit any
 review changes before moving on. Do not create an extra commit when review
-changes nothing. During that review it should
-also decide whether `evolution/` needs a new version because the product
-direction, architecture boundary, milestone target, or public/private contract
-direction materially changed.
+changes nothing. The review-fix gate reviews the whole milestone again after
+every P1/P2-or-higher fix and requires a clean pass within 10 iterations; if the
+tenth review still finds a blocking issue, the milestone stays incomplete.
+During that review it should also decide whether `evolution/` needs a new version
+because the product direction, architecture boundary, milestone target, or
+public/private contract direction materially changed.
 
 Before you trust any of this, give the agent something to verify against. Fill
 the **Execution harnesses** table in `memory-bank/tech-stack.md` with the command

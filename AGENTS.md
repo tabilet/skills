@@ -206,6 +206,12 @@ English is `#exit-codes`. Check anchors, not just filenames, when adding links.
   copy any other project carries — it is a portable protocol, not a per-project
   file. Change both together, and do not add project-specific paths, lane names,
   or commands to either.
+- `GOAL.md` and the template milestone review use the same bounded review-fix
+  gate. The initial deep-review pass is iteration 1; after every P1, P2, or
+  higher-severity fix, verify and review the whole milestone again. A clean pass
+  is required within 10 iterations, and the counter does not reset across
+  sessions or reviewers; persist the iteration count in the active status or
+  equivalent goal state.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.

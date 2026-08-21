@@ -173,6 +173,73 @@ def goal_copies():
     ]
 
 
+@check("milestone review-fix gate is bounded and aligned")
+def review_fix_gate():
+    goal = " ".join((ROOT / "GOAL.md").read_text().split())
+    milestone = " ".join(
+        (ROOT / "template" / "memory-bank" / "milestone.md").read_text().split()
+    )
+    write_contract = " ".join(INIT_WRITE_CONTRACT.read_text().split())
+    goal_skill = " ".join(
+        (SKILLS_DIR / "memory-bank-goal" / "SKILL.md").read_text().split()
+    )
+    agents = " ".join((ROOT / "AGENTS.md").read_text().split())
+    problems = []
+
+    for token in (
+        "#### Bounded Review-Fix Gate",
+        "The initial deep-review pass is iteration 1",
+        "reviews the whole milestone again",
+        "Persist the iteration number and findings",
+        "Run at most 10 iterations",
+        "a session or reviewer change does not reset the counter",
+        "do not start another automatic fix-review cycle",
+        "Do not begin downstream reconciliation",
+        "review-fix iteration count",
+    ):
+        if token not in goal:
+            problems.append(f"GOAL.md: missing review gate contract {token!r}")
+
+    for token in (
+        "The initial deep-review pass is iteration 1",
+        "review the whole milestone again",
+        "Record the iteration number and findings",
+        "Run at most 10 iterations",
+        "a session or reviewer change does not reset the counter",
+        "start another automatic fix-review cycle",
+        "`[!]` review rows",
+    ):
+        if token not in milestone:
+            problems.append(
+                f"template/memory-bank/milestone.md: missing review gate contract {token!r}"
+            )
+
+    for token in (
+        "initial deep-review pass is iteration 1",
+        "Limit it to 10 iterations",
+        "persist each iteration number",
+        "resetting across sessions or reviewers",
+    ):
+        if token not in write_contract:
+            problems.append(f"write-contract.md: missing review gate contract {token!r}")
+
+    for token in ("another full milestone review", "stops after iteration 10"):
+        if token not in goal_skill:
+            problems.append(
+                f"memory-bank-goal/SKILL.md: missing review gate contract {token!r}"
+            )
+
+    for token in (
+        "clean pass",
+        "within 10 iterations",
+        "does not reset",
+        "persist the iteration count",
+    ):
+        if token not in agents:
+            problems.append(f"AGENTS.md: missing review gate hard rule {token!r}")
+    return problems
+
+
 # --------------------------------------------------------------------------
 # 3. The task instruction lives in the script and in a human-readable copy.
 # --------------------------------------------------------------------------

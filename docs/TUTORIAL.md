@@ -424,6 +424,10 @@ verify, deep-review, then reconcile the milestones downstream of the one that
 just closed. It sends `COMMIT_POLICY: task` for you — worth knowing, because
 `GOAL.md`'s own default is `none`, meaning no commits at all.
 
+The [bounded review-fix gate](../GOAL.md#bounded-review-fix-gate) is not a single
+pass. It advances only after a clean review and stops with the milestone
+incomplete if iteration 10 still finds a blocking issue.
+
 Because this example carries the bundled compatible `GOAL.md`, init also writes
 a complete active-horizon `STATUS_ORDER`, `STATUS_FILE_MAP`, and
 `DOWNSTREAM_IMPACTS` to `memory-bank/suggested.txt`. It is disposable input, not
