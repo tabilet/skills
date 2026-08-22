@@ -36,7 +36,7 @@ SKILLS_DIR = ROOT / "skills"
 INIT_SKILL = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
 INIT_WRITE_CONTRACT = SKILLS_DIR / "memory-bank-init" / "references" / "write-contract.md"
 PLUGIN_JSON = ROOT / ".claude-plugin" / "plugin.json"
-LANGS = ("cn", "ja", "de", "fr", "es")
+NON_ENGLISH_SUFFIXES = ("cn", "ja", "de", "fr", "es")
 
 CHECKS: list[tuple[str, object]] = []
 
@@ -653,8 +653,7 @@ def goal_examples():
 
 
 # --------------------------------------------------------------------------
-# 5. Links and heading anchors. Anchors are slugified from translated
-#    headings, so #exit-codes is right in English and wrong in Chinese.
+# 5. Links and heading anchors.
 # --------------------------------------------------------------------------
 @check("markdown links and heading anchors resolve")
 def links():
@@ -793,31 +792,20 @@ def sampling_params():
 
 
 # --------------------------------------------------------------------------
-# 10. English is the source for translated long-form references. Their five
-#     translations must not silently fall behind. README.md is English-only.
+# 10. Repository documentation is English-only. Language-suffixed copies used
+#     to drift behind the canonical files, so reject them rather than merely
+#     comparing their heading counts.
 # --------------------------------------------------------------------------
-@check("translated docs stay in parity with English")
-def translations():
+@check("repository documentation stays English-only")
+def english_only_docs():
     problems = []
-    for lang in LANGS:
-        localized_readme = ROOT / f"README_{lang}.md"
-        if localized_readme.exists():
-            problems.append(
-                f"{localized_readme.name} exists, but README.md is English-only"
-            )
-    for stem in ("docs/EXECUTION", "docs/MODEL_EVAL"):
-        base = ROOT / f"{stem}.md"
-        n_en = len([h for h in headings(base.read_text())])
-        for lang in LANGS:
-            sib = ROOT / f"{stem}_{lang}.md"
-            if not sib.exists():
-                problems.append(f"{stem}_{lang}.md is missing")
-                continue
-            n = len([h for h in headings(sib.read_text())])
-            if abs(n - n_en) > 1:
-                problems.append(
-                    f"{sib.relative_to(ROOT)}: {n} headings vs {n_en} in English"
-                )
+    suffixes = tuple(f"_{lang}.md" for lang in NON_ENGLISH_SUFFIXES)
+    for path in sorted((ROOT / "docs").glob("*.md")):
+        if path.name.endswith(suffixes):
+            problems.append(f"{path.relative_to(ROOT)}: translated docs are not shipped")
+    for path in sorted(ROOT.glob("README_*.md")):
+        if path.name.endswith(suffixes):
+            problems.append(f"{path.name}: README.md is English-only")
     # Markers that must remain in the English-only README.
     for marker, label in (
         ("LLM_PROVIDER=anthropic", "Anthropic provider example"),
@@ -831,8 +819,8 @@ def translations():
 
 # --------------------------------------------------------------------------
 # 11. Public setup and invocation examples are an interface. Keep plugin
-#     namespaces, personal skill paths, model examples, and localized exit
-#     tables from drifting back to obsolete product behavior.
+#     namespaces, personal skill paths, and model examples from drifting back
+#     to obsolete product behavior.
 # --------------------------------------------------------------------------
 @check("public invocation, installation, model, and locale guidance is current")
 def public_interfaces():
@@ -916,48 +904,13 @@ def public_interfaces():
                     f"{path.relative_to(ROOT)}: installs the human-readable prompt copy"
                 )
 
-    expected_codes = [
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
-        "11", "12", "13", "14", "20", "21", "22", "23", "30", "31", "130",
-    ]
-    localized_zero = {
-        "cn": "没有可执行状态行了，无事可做。",
-        "ja": "実行可能な行が残っていません。作業なし。",
-        "de": "Keine ausführbaren Zeilen mehr übrig. Nichts zu tun.",
-        "fr": "Il ne reste aucune ligne actionnable. Rien à faire.",
-        "es": "No quedan filas accionables. Nada que hacer.",
-    }
-    seen_tables = {}
-    for lang in LANGS:
-        path = ROOT / "docs" / f"EXECUTION_{lang}.md"
-        section = path.read_text().split("### ", 1)[1].split("\n## ", 1)[0]
-        rows = re.findall(r"^\| `(\d+)` \| (.*?) \|$", section, re.M)
-        codes = [code for code, _ in rows]
-        if codes != expected_codes:
-            problems.append(f"{path.relative_to(ROOT)}: localized exit-code rows differ")
-            continue
-        meanings = dict(rows)
-        if meanings["0"] != localized_zero[lang]:
-            problems.append(f"{path.relative_to(ROOT)}: exit table is not in {lang}")
-        table_identity = tuple(meaning for _, meaning in rows)
-        if table_identity in seen_tables:
-            problems.append(
-                f"{path.relative_to(ROOT)}: exit table duplicates "
-                f"{seen_tables[table_identity]}"
-            )
-        seen_tables[table_identity] = path.relative_to(ROOT)
-
     return problems
 
 
 @check("public harness guidance carries the host-shell safety contract")
 def harness_safety_contract():
     problems = []
-    public = [ROOT / "README.md"]
-    public += [
-        ROOT / "docs" / "EXECUTION.md",
-        *(ROOT / "docs" / f"EXECUTION_{lang}.md" for lang in LANGS),
-    ]
+    public = [ROOT / "README.md", ROOT / "docs" / "EXECUTION.md"]
     for path in public:
         text = path.read_text()
         for token in ("ALLOW_UNSANDBOXED_SHELL=1", "TOOL_ENV_ALLOW"):

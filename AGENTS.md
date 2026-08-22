@@ -101,7 +101,8 @@ and its `SKILL.md` twin, the generator agreeing with `template/`, the plugin
 version against the tags, explicit `COMMIT_POLICY` in every `GOAL.md`
 invocation, links *and* heading anchors, the documented exit codes, the
 status-marker regexes, the shipped payload, the disposable goal-reference
-contract, and translation parity. Standard library only, like the harness.
+contract, and the English-only documentation policy. Standard library only,
+like the harness.
 When you add a rule to this file, add the check that enforces it.
 
 The plugin-version check needs tags, which `actions/checkout` does not fetch by
@@ -185,16 +186,11 @@ Status markers: `[ ]` pending, `[+]` completed, `[~]` in progress, `[!]`
 blocked, `[X]` cancelled. One status row = one commit; one milestone = one
 review unit.
 
-## Translations
+## Documentation Language
 
-English is the source. Each of `docs/EXECUTION.md` and `docs/MODEL_EVAL.md` has
-`_cn`, `_ja`, `_de`, `_fr`, `_es` siblings. A change to either English file
-should be propagated to its five siblings in the same change; commands, code
-blocks, and example prompts stay in English. `README.md` is English-only.
-
-Section links differ per language: heading anchors are slugified from the
-translated heading, so `docs/EXECUTION_cn.md#退出码` is correct where the
-English is `#exit-codes`. Check anchors, not just filenames, when adding links.
+Repository documentation is English-only. `docs/EXECUTION.md` and
+`docs/MODEL_EVAL.md` are the canonical long-form references; do not add
+language-suffixed copies. `README.md` is English-only too.
 
 ## Hard Rules
 
@@ -244,8 +240,8 @@ English is `#exit-codes`. Check anchors, not just filenames, when adding links.
   and business terminology, concept relationships, and invariants. Keep
   implementation details in `architecture.md`; do not create an overlapping
   `memory-bank/context.md`.
-- Propagate changes to English `docs/EXECUTION.md` and `docs/MODEL_EVAL.md` to
-  all five translation siblings in the same change.
+- Keep repository documentation English-only; do not add translated siblings
+  of `README.md` or files in `docs/`.
 - Status files are named `status-<LANE><NN>.md`. The pattern is defined in
   [template/memory-bank/milestone.md](template/memory-bank/milestone.md); the
   harness discovers lane files by that shape, so the two must agree. Placeholder

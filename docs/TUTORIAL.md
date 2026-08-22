@@ -82,6 +82,58 @@ You now have three commands, and they are the whole interface:
 [README](../README.md#set-up-a-new-project). The commands are a convenience,
 not a requirement.)*
 
+## Updating Or Removing The Plugin
+
+Updating is a two-part operation: refresh the marketplace, then update the
+installed plugin. Removing the plugin does not remove the memory-bank files it
+created in your projects; those files belong to you.
+
+### Claude Code
+
+Refresh `tabilet`, update the installed plugin, and load the new version into
+the current session:
+
+```bash
+/plugin marketplace update tabilet
+/plugin update memory-bank@tabilet
+/reload-plugins
+```
+
+To uninstall the plugin:
+
+```bash
+/plugin uninstall memory-bank@tabilet
+```
+
+If you no longer want the marketplace either, remove it too. Removing a Claude
+Code marketplace also uninstalls any remaining plugins installed from it.
+
+```bash
+/plugin marketplace remove tabilet
+```
+
+### Codex
+
+Codex installs from its local marketplace snapshot, so refresh that snapshot
+before adding the plugin again:
+
+```bash
+codex plugin marketplace upgrade tabilet
+codex plugin add memory-bank@tabilet
+```
+
+Start a new Codex session to load the updated skills. To uninstall the plugin:
+
+```bash
+codex plugin remove memory-bank@tabilet
+```
+
+Optionally remove the marketplace once you no longer need anything from it:
+
+```bash
+codex plugin marketplace remove tabilet
+```
+
 ## Step 2 — An Empty Directory
 
 ```bash
