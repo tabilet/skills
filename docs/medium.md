@@ -33,6 +33,9 @@ Project-level files you drop into a repo:
   - `tech-stack.md` — commands, dependencies, harnesses.
   - `milestone.md` — milestone scope and acceptance criteria.
   - `status-<LANE><NN>.md` — one file per milestone, with rows marked `[ ]`, `[+]`, `[~]`, `[!]`, `[X]`. The lane letter classifies the work (`A01` for accounting, `S01` for shopping, `M01` for anything that doesn't classify); the number is zero-padded to two digits.
+- **`docs/archive-<LANE><NN>.md`** — optional frozen, commit-anchored context
+  baselines for a large existing package. Archive lanes classify stable product
+  or ownership contexts independently from status lanes.
 - **`evolution/`** — versioned direction snapshots. `prompt-vN.md` describes the intent; `result-vN.md` the state it produced. A new version is added only when direction, an architecture boundary, a milestone target, or a public contract materially changes — which should be rare.
 
 Account-level files, optional:
@@ -40,9 +43,9 @@ Account-level files, optional:
 - `harness/tackle-memory-bank-api-loop` — a Python runner that drives any OpenAI- or Anthropic-compatible model. Installs to `~/.local/bin/`.
 - `harness/prompts/tackle-next-memory-bank-todo.md` — the same instruction the runner embeds, retained in the repository as its human-readable duplicate rather than installed as a custom prompt.
 
-The repository also packages three optional skills — `memory-bank-init`, `memory-bank-next`, and `memory-bank-goal` — as one plugin for Claude Code and Codex. Plugin invocations are namespaced: `/memory-bank:memory-bank-next` in Claude Code and `$memory-bank:memory-bank-next` in Codex. Plain-file installs remain unnamespaced.
+The repository also packages five optional skills — `memory-bank-archive`, `memory-bank-init`, `memory-bank-reconcile`, `memory-bank-next`, and `memory-bank-goal` — as one plugin for Claude Code and Codex. Plugin invocations are namespaced: `/memory-bank:memory-bank-reconcile` and `/memory-bank:memory-bank-next` in Claude Code, `$memory-bank:memory-bank-reconcile` and `$memory-bank:memory-bank-next` in Codex. Plain-file installs remain unnamespaced.
 
-When `memory-bank-init` derives a multi-milestone plan and the project contains an approved compatible `GOAL.md`, it also writes `memory-bank/suggested.txt`: a disposable launch request containing the proposed status order, file map, and downstream impacts. It omits the launch reference when no compatible protocol exists. The file is deliberately excluded from the required read order and meant to be deleted after launch or when stale; the milestone and status files remain the source of truth.
+When `memory-bank-init` derives a multi-milestone plan, or `memory-bank-reconcile` changes it after a new review, either skill writes `memory-bank/suggested.txt` when the project contains an approved compatible `GOAL.md`. It is a disposable launch request containing the proposed status order, file map, and downstream impacts. They omit the launch reference when no compatible protocol exists. The file is deliberately excluded from the required read order and meant to be deleted after launch or when stale; the milestone and status files remain the source of truth.
 
 Initialization maps one delivery boundary broadly, but assigns permanent IDs only to the smallest dependency-closed horizon that reaches the next verifiable outcome. Later directions remain unnumbered with promotion triggers until fresher evidence makes detailed planning worthwhile.
 
@@ -52,7 +55,28 @@ Setting up the harness once is a small upfront step, and you don't have to do it
 
 **For a new project**, jot your ideas into a scratch file — what the product is, who uses it, what the first milestone looks like — and ask your AI agent to read the sample `AGENTS.md`, `memory-bank/`, and `evolution/` files and fill the placeholders from your notes. A few minutes of conversation is usually enough to get a first draft you can refine.
 
-**For an existing project**, ask the agent to read the current README, docs, package comments, tests, and build files, then populate the harness from what the project already says. The README ships with ready-made prompts for both cases — you can copy them as-is.
+**For an existing project**, `memory-bank-init` reads the current README, docs,
+package comments, tests, build files, interfaces, and infrastructure before it
+asks questions. A small coherent package initializes directly. When a large
+boundary spans several stable product or ownership contexts and cannot be
+evidenced reliably in one pass, init first requires `memory-bank-archive`.
+
+The archive skill starts from a clean Git commit, maps the whole selected
+boundary breadth-first, and writes one verified context dossier per archive
+lane. It also creates or refreshes the current `product.md` and
+`architecture.md` summaries. The archive contains facts rather than plans: it
+never creates milestones or status rows, and every context must be verified
+before init proceeds. A verified archive stays frozen; only a material
+high-level change earns a successor file.
+
+After initialization, `memory-bank-reconcile` handles a different event: a new
+code, architecture, security, or engineering review. It treats the review as
+untrusted evidence, checks every finding against current code, and proposes the
+disposition and owner before changing the plan. Open or pending work absorbs a
+finding when it fits; completed history stays closed and receives a separate
+remediation milestone. Optional lower-severity hardening remains an unnumbered
+later direction. The skill updates the plan and downstream assumptions, not the
+implementation; `next` or `goal` performs the approved fixes afterward.
 
 Think of this first pass as a kind of constitution for the project: it establishes what the project is, what it owns, the canonical domain terminology and relationships, what it isn't, and what comes next. **It does not need to be perfect.** A rough draft is enough to start working. The memory bank is *mutable* — as the project changes, `product.md`, `architecture.md`, and `tech-stack.md` are updated in the same commit as the code that changed them. That includes updating `product.md` when a concept, relationship, or business invariant changes. The `evolution/` folder is reserved for the rare moments when direction actually shifts. The harness and the project it describes evolve together; you're not committing to a fixed snapshot, and you're not stuck living with the first draft's mistakes.
 
@@ -92,7 +116,7 @@ You can use it for one row, for an unattended loop, for evaluations across model
 
 One row at a time is the default granularity, and for most work it's the right one. When you do want to run several milestones in a defined order — a release, a migration, a sequence with real dependencies between its parts — `GOAL.md` describes that loop: reconcile before each milestone, implement its task units, verify and deep-review, reconcile the milestones downstream of the one that just closed, then continue or stop. Its [bounded review-fix gate](../GOAL.md#bounded-review-fix-gate) requires a clean pass within ten iterations.
 
-It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. `GOAL.md` itself is one portable markdown file, invoked rather than always-on. Paste a complete `Using GOAL.md` request, use the optional `memory-bank-goal` skill, or reference the disposable `suggested.txt` that init derived from the approved breakdown. The protocol carries no project-specific paths or lane names — those stay in the memory bank and its temporary launch reference — which is why the same `GOAL.md` works unchanged across projects.
+It's worth being precise about what this is, because it's the closest thing here to the methodology this essay argues against. `GOAL.md` itself is one portable markdown file, invoked rather than always-on. Paste a complete `Using GOAL.md` request, use the optional `memory-bank-goal` skill, or reference the disposable `suggested.txt` that init or review reconciliation derived from the approved active graph. The protocol carries no project-specific paths or lane names — those stay in the memory bank and its temporary launch reference — which is why the same `GOAL.md` works unchanged across projects.
 
 Both [Claude Code](https://code.claude.com/docs/en/goal) and [Codex](https://learn.chatgpt.com/use-cases/follow-goals) also have a built-in `/goal` for long-running work. That command is the persistence layer, not this execution protocol: give it a complete `Using GOAL.md` objective with an explicit `COMMIT_POLICY` and measurable completion condition. Invoking `memory-bank-goal` directly remains the portable non-persistent path.
 
@@ -102,12 +126,18 @@ So: four ways to execute, none of them required. Type a request and stay in the 
 
 The unifying property across every part of this system is that *you* own the files. The harness doesn't gate access to them, doesn't accumulate hidden artifacts on your behalf, doesn't lock you into a vocabulary you'll have to migrate away from later.
 
-- `memory-bank/architecture.md` is rewritten as reality changes. There's no history of stale architecture docs to maintain.
+- `memory-bank/architecture.md` is rewritten as reality changes. Optional
+  archive files are deliberately historical, identify their baseline commit,
+  and are never presented as current architecture.
 - `evolution/` versions are rare by design. You add one when direction really shifted — not on every feature.
 - Status rows are simple checkboxes that can evolve while pending. Once a status ID and file exist, they remain as the durable milestone record and are never renamed or reused.
 - There are no per-feature spec folders, so the repo doesn't grow a graveyard of historical artifacts that no longer match the code.
 
-The AI's job is to help you advance the project — bootstrap the harness from your notes, pick the next row, do the work, update the memory bank, commit. Your job is to know what the project is and to course-correct when the agent drifts. The harness sits in between, light enough that you can throw it out whenever you want.
+The AI's job is to help you advance the project — archive a broad existing
+package when needed, bootstrap the harness, reconcile a new review, pick the
+next row, do the work, update the memory bank, commit. Your job is to know what
+the project is and to course-correct when the agent drifts. The harness sits in
+between, light enough that you can throw it out whenever you want.
 
 ## When this fits — and when it doesn't
 

@@ -5,7 +5,7 @@ You have an idea and an empty directory. No code yet.
 This walkthrough goes from that to an agent implementing your project against a
 memory bank it wrote from interviewing you:
 
-1. Install the three skills, once.
+1. Install the five skills, once.
 2. Make an empty directory.
 3. Run `memory-bank-init` and answer its questions.
 4. Approve the breakdown it proposes.
@@ -26,7 +26,7 @@ shown below was really generated.
 
 The example project uses Node and Python 3; yours needs whatever it needs.
 
-## Step 1 — Install The Three Skills
+## Step 1 — Install The Five Skills
 
 In Claude Code:
 
@@ -48,9 +48,11 @@ across your marketplaces, so `memory-bank@tabilet` is the form to learn.
 **Plugin invocation is namespaced.** Following current [Claude Code skill
 namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex skill
 invocation](https://developers.openai.com/plugins/build/skills), Claude Code uses
-`/memory-bank:memory-bank-init`, `/memory-bank:memory-bank-next`, and
+`/memory-bank:memory-bank-archive`, `/memory-bank:memory-bank-init`,
+`/memory-bank:memory-bank-reconcile`, `/memory-bank:memory-bank-next`, and
 `/memory-bank:memory-bank-goal`. Codex uses
-`$memory-bank:memory-bank-init`, `$memory-bank:memory-bank-next`, and
+`$memory-bank:memory-bank-archive`, `$memory-bank:memory-bank-init`,
+`$memory-bank:memory-bank-reconcile`, `$memory-bank:memory-bank-next`, and
 `$memory-bank:memory-bank-goal`. Plain English also works in both.
 
 Either agent can also take them as plain files you own instead of a managed
@@ -68,13 +70,15 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 ```
 
 Plain-file installs are unnamespaced: `/memory-bank-init` in Claude Code and
-`$memory-bank-init` in Codex, with the same pattern for the other two skills.
+`$memory-bank-init` in Codex, with the same pattern for the other four skills.
 
-You now have three commands, and they are the whole interface:
+You now have five commands, and they are the whole interface:
 
 | Skill | When |
 |---|---|
+| `memory-bank-archive` | Before init when a large existing package needs a frozen, commit-anchored context map. New projects skip it. |
 | `memory-bank-init` | Once per project, on the way in. |
+| `memory-bank-reconcile` | Whenever a new review arrives after initialization. Validate it and update the plan without implementing it. |
 | `memory-bank-next` | Every day. One row, verified, committed. |
 | `memory-bank-goal` | Several milestones in a defined order. |
 
@@ -145,6 +149,11 @@ claude   # or: codex
 Do not scaffold anything. The project's shape comes out of the conversation, not
 out of a template you picked before thinking.
 
+This is a new project, so there is nothing to archive. On a large existing
+package, `memory-bank-init` may instead require `memory-bank-archive` first; the
+archive skill maps every stable context at a clean commit and seeds current
+`product.md` and `architecture.md` before init builds executable milestones.
+
 ## Step 3 — Run `memory-bank-init`
 
 ```text
@@ -163,10 +172,11 @@ settled — as a numbered round, with a recommended answer attached to each. You
 answers reshape the tree before the next round. Ask for one-at-a-time pacing if
 you prefer it.
 
-Anything it can read from the repository it reads instead of asking. In an
+Anything it can read from the repository it reads instead of asking. In a small
 existing project that includes instructions, docs, manifests, tests, CI, source
-layout, interfaces, schemas, and infrastructure. Only decisions come back to
-you.
+layout, interfaces, schemas, and infrastructure. A large existing boundary that
+cannot be evidenced reliably in one pass is routed through the archive preflight
+described above. Only decisions come back to you.
 
 What it works through, and where each answer lands:
 
@@ -488,6 +498,21 @@ file and show the resolved request before starting; delete the file after launch
 or when it becomes stale. Unnumbered candidate directions never appear in it.
 When a compatible goal protocol is unavailable, init omits both the launch
 reference and ordered-run handoff while preserving one-row execution.
+
+When a separate code or architecture review arrives later, do not paste its
+findings straight into the next implementation run. Reconcile it first:
+
+```text
+/memory-bank:memory-bank-reconcile <review source>
+$memory-bank:memory-bank-reconcile <review source>
+```
+
+The skill checks every finding against current code, proposes whether it belongs
+in open work, a new remediation milestone, or an unnumbered Candidate Direction,
+and waits for approval before changing the plan. It never reopens completed
+history or implements a fix. When the active graph changes and `GOAL.md` remains
+compatible, it refreshes `memory-bank/suggested.txt` for the whole horizon; then
+`memory-bank-next` or `memory-bank-goal` performs the approved work.
 
 Reconciling downstream is what makes this better than a to-do list. When `M01`
 closes, the tilemap that actually got built is not the one `M02` was written

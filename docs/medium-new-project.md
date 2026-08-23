@@ -4,7 +4,7 @@
 
 If you are a frequent user of skills like `/grill-me`, you have probably had this thought: the interview is great, but why stop at one skill? Why not build the whole engineering harness directly — the thing that knows what your project is, what is done, what is next, and can work through it?
 
-That is what this package is: a file-owned engineering harness with three optional skills around it. The skills generate and operate the files, but the files do not depend on the plugin. It works standalone, and it works alongside `/grill-me` rather than against it.
+That is what this package is: a file-owned engineering harness with five optional skills around it. The skills generate and operate the files, but the files do not depend on the plugin. It works standalone, and it works alongside `/grill-me` rather than against it.
 
 The difference in one line: **`/grill-me` ends in understanding; this ends in files.**
 
@@ -38,16 +38,18 @@ your-project/
 
 The term *memory bank* was popularised by [Cline](https://docs.cline.bot/best-practices/memory-bank); this is a different implementation of the same idea, in plain files with no runtime.
 
-No project CLI to adopt, no `.something/` scaffold that grows over time, no vocabulary you will have to migrate away from. The commands that generate these files never touch them again, and uninstalling them leaves your project exactly as it is.
+No project CLI to adopt, no `.something/` scaffold that grows over time, no vocabulary you will have to migrate away from. The plugin never updates anything autonomously: a skill changes your files only when you invoke it and approve its proposal, and uninstalling it leaves your project exactly as it is.
 
 `product.md` also carries the maintained domain model: canonical terminology,
 relationships between concepts, and business invariants. `suggested.txt` is
 created only when the project has an approved compatible `GOAL.md`; it is launch
 input rather than project truth.
 
-Three optional skills provide a repeatable interface:
+Five optional skills provide a repeatable interface:
 
+- **`memory-bank-archive`** — before init when a large existing package needs frozen, commit-anchored context evidence. A new project like this one skips it.
 - **`memory-bank-init`** — once per project, on the way in. It interviews you, proposes a breakdown, and writes the files after you approve.
+- **`memory-bank-reconcile`** — whenever a new review arrives. It validates findings against current code and updates the approved plan without implementing fixes.
 - **`memory-bank-next`** — every day. One task: implement, verify, commit.
 - **`memory-bank-goal`** — several milestones, in a defined order.
 
@@ -64,7 +66,7 @@ Both agents install from the same repository and read the same manifest, but the
 /plugin install memory-bank
 ```
 
-The plugin is namespaced under current [Claude Code skill namespacing](https://code.claude.com/docs/en/slash-commands). Invoke the skills as `/memory-bank:memory-bank-init`, `/memory-bank:memory-bank-next`, and `/memory-bank:memory-bank-goal`.
+The plugin is namespaced under current [Claude Code skill namespacing](https://code.claude.com/docs/en/slash-commands). Invoke the skills as `/memory-bank:memory-bank-archive`, `/memory-bank:memory-bank-init`, `/memory-bank:memory-bank-reconcile`, `/memory-bank:memory-bank-next`, and `/memory-bank:memory-bank-goal`.
 
 ### Codex
 
@@ -82,6 +84,9 @@ Second, plugin skills are namespaced in Codex too, using its [`$` skill invocati
 ```
 $memory-bank:memory-bank-init
 ```
+
+The archive and review commands follow the same form:
+`$memory-bank:memory-bank-archive` and `$memory-bank:memory-bank-reconcile`.
 
 Plain English works in both agents, which is what this whole approach is built around anyway. If you install the skill directories as plain files rather than the plugin, they are unnamespaced: `/memory-bank-init` in Claude Code and `$memory-bank-init` in Codex. If you prefer never to think about it, `"tackle next pending item in memory bank"` does the everyday job in either one.
 
@@ -327,6 +332,13 @@ patch. The counter persists across sessions. A clean pass must happen within 10
 iterations; if the tenth review still finds a blocking issue, the milestone
 stays incomplete and the run stops for user direction.
 
+When a separate review arrives after initialization, run
+`memory-bank-reconcile` before implementing it. The skill revalidates every
+finding against current code, proposes whether it belongs in open work, a new
+remediation milestone, or an unnumbered later direction, and waits for approval.
+It preserves completed history and does not fix anything itself; `next` or
+`goal` executes the reconciled work afterward.
+
 **Or the whole ordered set**, which is the part that answers the question this article opened with:
 
 ```
@@ -348,6 +360,10 @@ resolved request before execution. It is not another roadmap; delete it after
 launch or whenever the milestone and status files make it stale. If a project
 has no compatible goal protocol, init omits both this file and the ordered-run
 handoff while leaving one-row execution available.
+
+If `memory-bank-reconcile` later changes that active horizon, it refreshes the
+same disposable suggestion from the complete approved graph; it does not create
+a second review-specific launch file.
 
 That last behavior is what makes this more than an agent running a to-do list.
 When `M01` closes, the tilemap that actually got built is not quite the one

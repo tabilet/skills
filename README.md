@@ -16,8 +16,8 @@ if you want the API runner. Once the files are in place they belong to your
 project, and your project stays independent of this repository. Six months from
 now, the only files you are maintaining are still your own.
 
-Three optional skills can do the copying and the filling for you; see
-[Install The Three Skills](#install-the-three-skills). The files they write are
+Five optional skills can do the mapping, copying, and filling for you; see
+[Install The Five Skills](#install-the-five-skills). The files they write are
 yours from the moment they appear, and they stay exactly as you leave them.
 
 Your project ends up looking like this:
@@ -33,6 +33,8 @@ your-project/
 │   ├── milestone.md       active milestones plus unnumbered later directions
 │   ├── status-M01.md      one permanent file per active milestone
 │   └── suggested.txt      optional active-horizon launch reference
+├── docs/                  long-form reference
+│   └── archive-A01.md     optional frozen existing-package context baseline
 └── evolution/             versioned direction snapshots
     ├── prompt-v1.md       the initial direction
     └── result-v1.md       the state it produced
@@ -75,10 +77,11 @@ memory bank for you:
 /memory-bank:memory-bank-init
 ```
 
-Run those commands in Claude Code from your project, whether it is empty or
-already has code, and
-answer the questions. The Codex equivalent and plain-file installation are in
-[Install The Three Skills](#install-the-three-skills).
+Run those commands in Claude Code from a new or small existing project and
+answer the questions. A large existing package may first be routed through
+`memory-bank-archive`; see [Set Up An Existing Project](#set-up-an-existing-project).
+The Codex equivalent and plain-file installation are in
+[Install The Five Skills](#install-the-five-skills).
 
 To work from the files by hand instead, clone this repository once. Every `cp`
 command below refers to your clone as `/path/to/skills`:
@@ -112,22 +115,27 @@ The optional API runner and its human-readable instruction copy live in
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-The three skills are in [skills/](skills/). Claude Code and Codex read the same
+The five skills are in [skills/](skills/). Claude Code and Codex read the same
 `SKILL.md` format, so there is one source per skill:
 
+- [memory-bank-archive](skills/memory-bank-archive/SKILL.md) — snapshot a large
+  existing package into frozen, evidence-backed context archives
 - [memory-bank-init](skills/memory-bank-init/SKILL.md) — interview a
   project into existence, then write its memory bank
+- [memory-bank-reconcile](skills/memory-bank-reconcile/SKILL.md) — validate a
+  new review against current code and reconcile the approved work plan
 - [memory-bank-next](skills/memory-bank-next/SKILL.md) — tackle one row,
   verify it, commit it
 - [memory-bank-goal](skills/memory-bank-goal/SKILL.md) — run an ordered
   set of milestones
 
 Unlike the copyable template, `memory-bank-init` can derive project-specific
-goal input. When the project contains an approved compatible `GOAL.md`, init
-writes `memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
+goal input and `memory-bank-reconcile` can refresh it after a new review changes
+the active graph. When the project contains an approved compatible `GOAL.md`,
+they write `memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
 `STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is advisory and disposable,
 covers only the approved active horizon, and excludes unnumbered candidate
-directions; the milestone and status files remain authoritative. Init omits the
+directions; the milestone and status files remain authoritative. They omit the
 launch reference when no compatible protocol exists instead of naming a missing
 or incompatible file.
 
@@ -218,7 +226,7 @@ successfully, as though the work were finished.
 
 ## Set Up A New Project
 
-If you installed [the three skills](#install-the-three-skills),
+If you installed [the five skills](#install-the-five-skills),
 `memory-bank-init` does everything in this section: it interviews you, proposes
 lanes and milestones, waits for your approval, and then writes the files already
 filled in. The two routes below are the same work done by hand.
@@ -309,11 +317,48 @@ contain the first actionable milestone rows.
 
 ## Set Up An Existing Project
 
-`memory-bank-init` handles this case too, and handles it better than a cold
-prompt. It reads what the repository already states in the README, the tests,
-build and CI files, interfaces, schemas, source layout, and infrastructure. It
-then asks only about decisions the evidence cannot settle, growing relevant
-branches instead of assuming every project needs the same interview.
+`memory-bank-init` handles a small existing package directly. It reads what the
+repository already states in the README, tests, build and CI files, interfaces,
+schemas, source layout, and infrastructure, then asks only about decisions the
+evidence cannot settle.
+
+For a large existing package, init first performs a cheap topology pass. When
+the selected boundary spans several stable product-domain or ownership
+contexts, or cannot be evidenced reliably in one initialization pass, it stops
+before writing and requires `memory-bank-archive` as a preflight. This is an
+adaptive evidence boundary, not a file-count or line-count threshold.
+
+### Archive A Large Existing Package
+
+Start from a clean Git commit and run:
+
+```text
+/memory-bank:memory-bank-archive   # Claude Code plugin
+$memory-bank:memory-bank-archive   # Codex plugin
+```
+
+The skill maps the whole selected product boundary breadth-first and proposes
+stable domain or ownership contexts before writing. After approval it creates
+frozen context dossiers such as `docs/archive-C01.md`, records the full baseline
+commit, and creates or refreshes the current `memory-bank/product.md` and
+`memory-bank/architecture.md` summaries.
+
+Archive lanes classify contexts independently from status lanes. Their numbers
+are snapshot chronology, not work priority. Every context must be `verified`
+before the required preflight is complete; partial or blocked coverage prevents
+init from proceeding. Archives contain evidence-backed facts, never milestones,
+status rows, candidate directions, or goal input.
+
+Verified archives never change. A later archive run creates the next successor
+ID only when a context's high-level domain, ownership, component, flow,
+contract, dependency, operational, or verification facts materially changed.
+Normal code work keeps `product.md` and `architecture.md` current and records
+implementation in status history; it does not rewrite the baseline archive.
+
+After the archive index shows every selected context as verified, run
+`memory-bank-init`. It consumes the archive evidence, safely merges the seeded
+summaries, interviews the remaining decisions, and creates the milestone/status
+harness.
 
 ### Manual
 
@@ -376,6 +421,32 @@ The agent should:
 6. Leave unresolved gaps as pending or blocked rows in the matching
    `memory-bank/status-<LANE><NN>.md` file.
 
+## Reconcile A New Review
+
+After a project has its milestone/status harness, a new code, architecture,
+security, or engineering review should change the plan only after its findings
+are checked against current code. Run:
+
+```text
+/memory-bank:memory-bank-reconcile <review source>   # Claude Code plugin
+$memory-bank:memory-bank-reconcile <review source>   # Codex plugin
+```
+
+The skill treats the review as untrusted evidence, revalidates each finding,
+preserves the source priority while applying the project's P1/P2 definitions,
+and proposes every disposition and file action before writing. Confirmed work
+fits an open or pending milestone when it belongs there; findings against
+completed history get a new remediation milestone. Acceptance-relevant work
+enters the active graph, while optional lower-severity hardening remains an
+unnumbered Candidate Direction.
+
+The review is not copied into the project. Portable finding IDs, both severity
+classifications, current evidence, and lineage live with the planned rows. The
+skill updates downstream specifications and refreshes `suggested.txt` from the
+whole active horizon when a compatible `GOAL.md` exists. It does not implement,
+commit, or launch the fixes; use `memory-bank-next` or `memory-bank-goal` after
+approving the reconciled plan.
+
 ## Use The Memory Bank
 
 There are four ways to execute against the memory bank, and all of them are
@@ -384,7 +455,7 @@ optional, because the memory bank is plain markdown and works on its own:
 | Way to execute | Scope | Needs |
 |---|---|---|
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
-| [`memory-bank-next`](#install-the-three-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
+| [`memory-bank-next`](#install-the-five-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
 | [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3 |
 | [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `GOAL.md` and an agent request or optional skill |
 
@@ -492,12 +563,13 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-When `memory-bank-init` created or approved a compatible `GOAL.md`, it also wrote
-the complete proposed request to `memory-bank/suggested.txt`. Treat that file as
-a launch suggestion, not a second roadmap: reconcile it against `milestone.md`
-and the current status files, then delete it after launch or whenever it becomes
-stale. If the protocol was unavailable or incompatible, init omits this file and
-leaves one-row execution available. To reference an existing suggestion directly:
+When `memory-bank-init` creates the active horizon, or `memory-bank-reconcile`
+changes it after a new review, either skill writes the complete proposed request
+to `memory-bank/suggested.txt` when the project has a compatible `GOAL.md`.
+Treat that file as a launch suggestion, not a second roadmap: reconcile it
+against `milestone.md` and the current status files, then delete it after launch
+or whenever it becomes stale. Without a compatible protocol they omit this file
+and leave one-row execution available. To reference an existing suggestion directly:
 
 ```text
 Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
@@ -575,15 +647,17 @@ not because anything here depends on it. If you have your own, point the two
 `GOAL.md` mentions at it instead, or delete them. They are in `AGENTS.md` and
 `memory-bank/milestone.md`.
 
-## Install The Three Skills
+## Install The Five Skills
 
 Also optional. Everything above works by typing plain sentences; these just make
-the three moments repeatable, and carry the full instruction rather than your
+the five moments repeatable, and carry the full instruction rather than your
 paraphrase of it.
 
 | Skill | When |
 |---|---|
-| `memory-bank-init` | Once, on a project that has no `memory-bank/` yet. It interviews you, proposes a breakdown, then writes the files. |
+| `memory-bank-archive` | Before init when a large existing package needs a commit-anchored context map; later only when a material context change needs a successor snapshot. |
+| `memory-bank-init` | Once, on a project with no initialized milestone/status harness. It interviews you, proposes a breakdown, then writes the files. |
+| `memory-bank-reconcile` | Whenever a new review arrives after initialization. It validates findings and updates the approved plan without implementing them. |
 | `memory-bank-next` | Every day. Tackle one row, verify, commit. |
 | `memory-bank-goal` | When you want several milestones run in order. |
 
@@ -622,10 +696,10 @@ version ships.
 skill namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex
 skill invocation](https://developers.openai.com/plugins/build/skills):
 
-| Agent | Init | Next row | Ordered milestones |
-|---|---|---|---|
-| Claude Code plugin | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
-| Codex plugin | `$memory-bank:memory-bank-init` | `$memory-bank:memory-bank-next` | `$memory-bank:memory-bank-goal` |
+| Agent | Archive | Init | Reconcile review | Next row | Ordered milestones |
+|---|---|---|---|---|---|
+| Claude Code plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
+| Codex plugin | `$memory-bank:memory-bank-archive` | `$memory-bank:memory-bank-init` | `$memory-bank:memory-bank-reconcile` | `$memory-bank:memory-bank-next` | `$memory-bank:memory-bank-goal` |
 
 Plain English also works in both agents.
 
@@ -643,8 +717,10 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.claude/skills 'skills-main/skills'
 ```
 
-Plain-file skills are unnamespaced: `/memory-bank-init` in Claude Code and
-`$memory-bank-init` in Codex (and likewise for `next` and `goal`).
+Plain-file skills are unnamespaced: `/memory-bank-archive` and
+`/memory-bank-init` in Claude Code, `$memory-bank-archive` and
+`$memory-bank-init` in Codex, with the same pattern for `reconcile`, `next`, and
+`goal`.
 
 To pin a version, swap `refs/heads/main` for `refs/tags/<version>` and change
 `skills-main` to `skills-<version>` to match the directory inside that tarball.
