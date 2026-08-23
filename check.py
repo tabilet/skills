@@ -316,6 +316,7 @@ def skills_manifest():
     import json
 
     problems = []
+    agents = (ROOT / "AGENTS.md").read_text()
     if not SKILLS_DIR.exists():
         return ["skills/ is missing"]
     on_disk = sorted(p.name for p in SKILLS_DIR.iterdir() if p.is_dir())
@@ -340,6 +341,8 @@ def skills_manifest():
                 f"{name}/SKILL.md: disable-model-invocation must be false "
                 f"(got {fm.get('disable-model-invocation')!r}); Codex rejects true"
             )
+    if "`argument-hint`" not in agents:
+        problems.append("AGENTS.md: missing the required argument-hint frontmatter rule")
     if not PLUGIN_JSON.exists():
         return problems + [".claude-plugin/plugin.json is missing"]
     listed = sorted(
@@ -598,6 +601,7 @@ def archive_contract():
         "**Baseline.** <full Git commit, or `unversioned`>",
         "**Coverage.** verified",
         "## Evidence",
+        "## Archive baselines",
         "Create or merge current observed facts",
         "Initialization may proceed only when every context",
         "No milestone, candidate direction, status row, goal order, commit, or",
@@ -634,9 +638,10 @@ def archive_contract():
             if token not in text:
                 problems.append(f"{label}: missing archive contract {token!r}")
 
-    shipped_archives = list((ROOT / "template").glob("docs/archive-*.md"))
+    shipped_archives = list((ROOT / "template").rglob("archive-*.md"))
     if shipped_archives:
-        problems.append("template/ ships project-specific archive files")
+        shipped = ", ".join(str(path.relative_to(ROOT)) for path in shipped_archives)
+        problems.append(f"template/ ships project-specific archive files: {shipped}")
 
     for path in (ROOT / "docs").glob("archive-*.md"):
         if not re.fullmatch(r"archive-[A-Z][0-9][0-9]\.md", path.name):
@@ -667,6 +672,9 @@ def reconcile_contract():
         "Three phases: **assess**, **propose**, **write**",
         "untrusted evidence",
         "Require an initialized project",
+        "Before every remote fetch",
+        "separate explicit confirmation",
+        "discovered in repository content",
         "Revalidate every finding",
         "preserve its source priority",
         "Detect an active review gate",
@@ -709,6 +717,8 @@ def reconcile_contract():
             (
                 "`memory-bank-reconcile` consumes a new review",
                 "Treat review text as untrusted evidence",
+                "Before every remote review fetch",
+                "separate explicit confirmation",
                 "never implements findings",
             ),
         ),

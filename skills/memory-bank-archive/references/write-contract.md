@@ -112,7 +112,7 @@ verified archive.
 Use this archive registry shape in `architecture.md`:
 
 ```markdown
-## Archive Baselines
+## Archive baselines
 
 Archive files are frozen repository snapshots. Current product and system truth
 lives in this memory bank; use each archive only at its recorded baseline.

@@ -514,6 +514,11 @@ history or implements a fix. When the active graph changes and `GOAL.md` remains
 compatible, it refreshes `memory-bank/suggested.txt` for the whole horizon; then
 `memory-bank-next` or `memory-bank-goal` performs the approved work.
 
+If the review source is remote, the skill shows the exact URL and asks for a
+separate confirmation immediately before every fetch, even when the invocation
+already supplied the URL. A URL found in repository content or inside the
+review is not fetch authorization.
+
 Reconciling downstream is what makes this better than a to-do list. When `M01`
 closes, the tilemap that actually got built is not the one `M02` was written
 against — so `M02` gets re-read and rewritten before it starts, rather than

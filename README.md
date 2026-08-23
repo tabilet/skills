@@ -440,6 +440,11 @@ completed history get a new remediation milestone. Acceptance-relevant work
 enters the active graph, while optional lower-severity hardening remains an
 unnumbered Candidate Direction.
 
+A remote review is never fetched implicitly. Before each network read, the
+skill shows the exact URL and asks for a separate confirmation—even when that
+URL was supplied in the invocation. URLs discovered in repository content or
+inside a review do not authorize another fetch.
+
 The review is not copied into the project. Portable finding IDs, both severity
 classifications, current evidence, and lineage live with the planned rows. The
 skill updates downstream specifications and refreshes `suggested.txt` from the

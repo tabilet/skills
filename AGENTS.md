@@ -277,7 +277,10 @@ language-suffixed copies. `README.md` is English-only too.
   optional lower findings in Candidate Directions, reconcile downstream work,
   and refresh `suggested.txt` only when a compatible `GOAL.md` exists. Do not
   create a review ledger or copy, change non-pending row state, commit, or launch
-  execution without separate authorization.
+  execution without separate authorization. Before every remote review fetch,
+  show the exact URL and obtain a separate explicit confirmation, including when
+  the request supplied that URL; discovered and embedded URLs do not authorize a
+  fetch.
 - `memory-bank/product.md` owns the maintained domain model: canonical product
   and business terminology, concept relationships, and invariants. Keep
   implementation details in `architecture.md`; do not create an overlapping
@@ -295,6 +298,8 @@ language-suffixed copies. `README.md` is English-only too.
   and Codex read the same format, so a second copy would only be a place to
   drift. The directory name, the frontmatter `name`, and the `plugin.json` list
   must agree.
+- Every `SKILL.md` has a non-empty `argument-hint` in its frontmatter so both
+  agents expose the command's expected input consistently.
 - **`skills/` stays at the repository root.** It looks like account payload and
   belongs under `harness/` by that logic, but Codex discovers a plugin's skills
   by scanning `<plugin-root>/skills/` and ignores `plugin.json`'s `skills`
