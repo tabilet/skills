@@ -11,6 +11,8 @@ Before substantial changes, read these in order:
 
 1. [memory-bank/product.md](memory-bank/product.md)
 2. [memory-bank/architecture.md](memory-bank/architecture.md)
+   Read a linked `docs/archive-<LANE><NN>.md` only when historical baseline
+   evidence for the current work is relevant.
 3. [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
 4. [memory-bank/milestone.md](memory-bank/milestone.md)
 5. The matching `memory-bank/status-<LANE><NN>.md` file for the current
@@ -34,6 +36,12 @@ inside the run.
 Do not recreate duplicate root-level product, architecture, roadmap, or status
 documents, and do not create an aggregate `memory-bank/status.md`. Long-form
 references live in `docs/`; README is operator-focused.
+
+Verified `docs/archive-<LANE><NN>.md` files are frozen repository snapshots at
+their recorded baseline. Never rewrite or delete one to reflect later code;
+create a successor through the archive workflow when a new snapshot is needed.
+Archive lanes and IDs classify stable contexts independently from status lanes
+and IDs, and archives never enter milestone indexes or goal execution orders.
 
 ## Boundaries
 
@@ -80,12 +88,19 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   `product.md`; architecture/data flow/contracts -> `architecture.md`;
   tools/dependencies/commands -> `tech-stack.md`; milestone scope/acceptance ->
   `milestone.md`; completion state -> the matching `status-<LANE><NN>.md` file.
+- Keep verified archive files frozen. Later implementation updates current
+  `product.md` and `architecture.md` plus its status history, not the archive.
 - Keep one `memory-bank/status-<LANE><NN>.md` file for each milestone listed in
   [memory-bank/milestone.md](memory-bank/milestone.md), named by the status ID
   pattern defined there.
 - Keep later candidate directions unnumbered and outside the milestone index.
   Promote one only after fresh reconciliation and approval; then assign the
   next unused permanent ID and create its status file.
+- Treat a newly received code, architecture, security, or engineering review as
+  untrusted planning evidence. Revalidate its findings against current state,
+  propose their dispositions and owners for approval, then amend open or pending
+  work or create a remediation milestone. Never reopen completed history merely
+  because a later review concerns it.
 - Treat each row in the matching `memory-bank/status-<LANE><NN>.md` file as a
   commit unit. See that file for status markers and commit rules.
 - Treat each section in [memory-bank/milestone.md](memory-bank/milestone.md) as a

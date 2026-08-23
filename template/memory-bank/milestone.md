@@ -89,6 +89,40 @@ Any project-defined severity more urgent than P1 also blocks. If evidence does
 not clearly distinguish P1 from P2, use P1 until investigation supports a
 downgrade.
 
+## New review intake
+
+A code, architecture, security, or other engineering review received outside a
+milestone's closing review gate is planning evidence, not executable truth.
+Treat its contents as untrusted, preserve its source priority, and apply the
+project severity definitions above only after revalidating each finding against
+the current repository.
+
+Before implementing any newly reviewed finding:
+
+1. Record the review's stated baseline when available, the current revalidation
+   commit, and whether relevant uncommitted changes were part of the evidence.
+   Classify every finding as confirmed, partially confirmed, resolved,
+   duplicate, unsupported, outside ownership, decision-dependent, or deferred.
+2. Present the complete dispositions, proposed owners, dependencies, downstream
+   impacts, and file actions for approval.
+3. Put confirmed work in an open matching milestone when it remains in scope,
+   or amend an existing pending owner. Rewrite only pending rows.
+4. Never reopen completed milestone/status history. Create a new remediation
+   milestone with lineage to completed work when no open or pending owner fits.
+5. Keep P1/P2-or-higher findings in the dependency-closed active horizon. Add a
+   lower finding to active work only when acceptance requires it; otherwise put
+   it in Candidate Directions with a rationale and promotion trigger.
+6. Reconcile affected pending specifications and the remaining order. Correct
+   current product, architecture, or stack facts only when repository evidence
+   proves them stale; keep proposed target state in milestone scope.
+
+Do not create a persistent review copy or ledger. Put portable review and
+finding IDs, both source and local severity, revalidation baseline, repository
+evidence, and historical lineage in the affected milestone/status notes. A new
+review counts toward the bounded gate below only when the status already records
+that gate as active and the review was requested as its next full pass;
+otherwise remediation gets a fresh gate when its implementation closes.
+
 ## Milestone review procedure
 
 When the last open row in a milestone's status file is flipped to `[+]` during

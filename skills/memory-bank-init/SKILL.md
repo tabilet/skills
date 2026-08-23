@@ -1,6 +1,6 @@
 ---
 name: memory-bank-init
-description: Map one delivery boundary through an adaptive, repository-grounded interview, propose a dependency-closed active milestone horizon, then generate its memory bank and, when a compatible goal protocol is available, a disposable launch reference. Use when a new or existing project has no memory-bank/ yet.
+description: Map one delivery boundary through an adaptive, repository-grounded interview, propose a dependency-closed active milestone horizon, then generate its memory bank and, when a compatible goal protocol is available, a disposable launch reference. Use for a new project or an existing project with no initialized milestone/status harness; a large existing package may first contain an approved archive preflight with product and architecture seeds.
 disable-model-invocation: false
 argument-hint: (no arguments)
 ---
@@ -24,8 +24,37 @@ For an existing project, read applicable agent instructions, the README and
 docs, manifests, tests, build and CI configuration, source layout, public
 interfaces and schemas, and deployment or infrastructure files. Reuse facts and
 decisions already present in the conversation. Inventory existing destination
-files such as `AGENTS.md`, `GOAL.md`, and `evolution/` so the proposal can say
-which will be created, merged, preserved, or omitted.
+files such as `AGENTS.md`, `GOAL.md`, `evolution/`,
+`memory-bank/product.md`, `memory-bank/architecture.md`, and
+`docs/archive-<LANE><NN>.md` so the proposal can say which will be created,
+merged, preserved, or omitted.
+
+### Gate broad existing packages
+
+Run a cheap topology pass before the full grill. New projects and existing
+packages whose selected boundary can be evidenced reliably in one initialization
+pass proceed normally.
+
+For a large existing package, require `memory-bank-archive` first when the
+selected boundary spans several stable product-domain or ownership contexts, or
+when compressing its independent contracts, flows, and evidence into one pass
+would omit a material context. Explain the observed topology that triggered the
+gate and stop before interviewing or writing. Do not invent a numeric file or
+line-count threshold, invoke the other skill automatically, or make archive
+preflight mandatory for a small coherent package.
+
+A completed archive preflight may already have created
+`memory-bank/product.md` and `memory-bank/architecture.md`; their presence alone
+does not mean initialization is complete. Read the archive registry and every
+linked `docs/archive-<LANE><NN>.md` as commit-anchored evidence. Continue only
+when every context in the selected boundary is `verified`. Any proposed,
+partial, blocked, missing, or unresolved context stops initialization until the
+archive is completed. Preserve verified archives: they are frozen baselines,
+not current truth or executable work.
+
+If a project already has an initialized `memory-bank/milestone.md` and status
+files, do not reinitialize it. Reconcile and evolve the existing memory bank
+instead.
 
 Keep a working **evidence ledger** in the conversation:
 
@@ -129,6 +158,11 @@ Show:
 5. Later **candidate directions**, each unnumbered and carrying its reason for
    deferral and promotion trigger.
 6. Every destination file action: create, merge, preserve, or omit.
+
+When an archive preflight exists, include the seeded product and architecture
+merge plus preservation of every verified archive in the file actions. Archive
+IDs and lanes are independent from status IDs and lanes; never place an archive
+in the active horizon or disposable goal input.
 
 Rules:
 

@@ -32,6 +32,11 @@ destination. Never silently overwrite an existing file.
   incompatible protocol.
 - When `evolution/` already contains numbered direction history, preserve it and
   use the next unused version for the approved initial memory-bank snapshot.
+- When an approved archive preflight exists, merge its current observed facts
+  from `memory-bank/product.md` and `memory-bank/architecture.md`. Preserve every
+  verified `docs/archive-<LANE><NN>.md` byte-for-byte. Treat archive lanes and
+  IDs as an independent namespace that never enters milestone indexes, status
+  files, or goal launch input.
 - Stop and ask before any collision whose safe merge was not approved.
 
 ## Write the project files
@@ -59,6 +64,12 @@ Keep `AGENTS.md` short: what to read and in what order, essential commands,
 boundaries, hard rules, and work cadence. Point at the memory bank rather than
 restating it.
 
+When verified archives exist, keep their registry in `architecture.md` and add
+the archive lifecycle rule to `AGENTS.md`: archives are frozen evidence at their
+recorded baseline, while current product and system truth stays in `product.md`
+and `architecture.md`. Agents read a linked archive only when historical
+baseline evidence is relevant and never update it with later code changes.
+
 In `memory-bank/product.md`, write the canonical product and business
 terminology as a domain model. For each material concept, capture its meaning
 and the relationships or invariants that constrain it, including ownership,
@@ -80,6 +91,17 @@ milestone execution priority, or status markers. Define their default context,
 typical examples, and gate effect; let project-specific definitions in
 `AGENTS.md` or a linked review policy override those defaults. Classification
 must follow impact, likelihood, and affected scope rather than fix size.
+
+Include a separate `New review intake` procedure for reviews received after the
+harness exists. It must require current-state revalidation, preserve both source
+and local severity, and obtain approval for dispositions and file actions before
+writing. Confirmed work fits an open or pending owner when in scope; completed
+history is never reopened, so later defects get a remediation milestone with
+lineage. P1/P2-or-higher findings enter the dependency-closed active horizon;
+optional lower findings stay in Candidate Directions. Record portable review
+provenance in affected milestone/status notes without adding a review copy or
+ledger. An intake review counts as a bounded-gate iteration only when it was
+explicitly requested as the next pass of an already active persisted gate.
 
 Include a milestone review procedure with a bounded review-fix gate. The
 initial deep-review pass is iteration 1. After every P1, P2, or higher-severity
@@ -202,6 +224,9 @@ Before reporting completion, verify all of the following:
 9. Domain terminology is consistent across the generated files, and every
    material concept relationship or business invariant discovered during the
    interview appears in `product.md`.
+10. When an archive preflight exists, every selected context is `verified`, its
+    link resolves, verified archives are unchanged, and no archive ID appears in
+    the milestone index, a status file, or `suggested.txt`.
 
 For an existing project, run the documented verification command when it is
 safe and available to prove the command is real. If no such command exists yet,

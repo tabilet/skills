@@ -47,6 +47,13 @@
 - Model eval harnesses: [Where datasets, prompts, graders, baselines, reports,
   or eval runners live.]
 
+## Archive baselines
+
+No archive baseline is registered. Large existing packages may use frozen
+`docs/archive-<LANE><NN>.md` context snapshots before initialization. When they
+exist, replace this paragraph with the archive lane registry and index; current
+system truth remains in this file.
+
 ## Risky change workflow
 
 For changes to [risky area]:

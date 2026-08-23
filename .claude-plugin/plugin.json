@@ -1,7 +1,7 @@
 {
   "name": "memory-bank",
-  "version": "1.0.1",
-  "description": "Three commands for the memory-bank workflow: interview a project into existence, tackle the next row, or run an ordered set of milestones. The files it generates are yours and never update themselves.",
+  "version": "1.1.0",
+  "description": "Five commands for the memory-bank workflow: archive a large existing package, initialize its harness, reconcile a new review, tackle the next row, or run ordered milestones. The files they generate are yours.",
   "author": {
     "name": "Peter Bi"
   },
@@ -16,7 +16,9 @@
     "planning"
   ],
   "skills": [
+    "./skills/memory-bank-archive",
     "./skills/memory-bank-init",
+    "./skills/memory-bank-reconcile",
     "./skills/memory-bank-next",
     "./skills/memory-bank-goal"
   ]

@@ -4,12 +4,12 @@
     "name": "Peter Bi",
     "url": "https://github.com/tabilet"
   },
-  "description": "A minimal engineering harness: a memory bank your project owns, and three commands that drive it.",
+  "description": "A minimal engineering harness: a memory bank your project owns, and five commands that drive it.",
   "plugins": [
     {
       "name": "memory-bank",
       "source": "./",
-      "description": "Interview a project into existence, tackle the next row, or run an ordered set of milestones.",
+      "description": "Archive a large existing package, initialize its harness, reconcile a new review, tackle the next row, or run ordered milestones.",
       "category": "engineering",
       "keywords": [
         "memory-bank",
