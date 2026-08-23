@@ -85,6 +85,12 @@ def markdown_files() -> list[pathlib.Path]:
     )
 
 
+def medium_articles() -> list[pathlib.Path]:
+    """Return every Medium article that is part of the public interface."""
+
+    return sorted((ROOT / "docs").glob("medium*.md"))
+
+
 def load_harness():
     """Import the harness by path so regexes and exit codes are read from source."""
     loader = importlib.machinery.SourceFileLoader("harness_mod", str(HARNESS))
@@ -461,22 +467,14 @@ def suggested_goal_reference():
             "derives it from the approved project graph"
         )
 
-    public = [
-        ROOT / "README.md",
-        ROOT / "docs" / "TUTORIAL.md",
-        ROOT / "docs" / "medium.md",
-    ]
+    public = [ROOT / "README.md", ROOT / "docs" / "TUTORIAL.md", *medium_articles()]
     for path in public:
         if "memory-bank/suggested.txt" not in path.read_text():
             problems.append(
                 f"{path.relative_to(ROOT)}: missing disposable goal launch reference"
             )
 
-    for path in (
-        ROOT / "README.md",
-        ROOT / "docs" / "TUTORIAL.md",
-        ROOT / "docs" / "medium.md",
-    ):
+    for path in public:
         text = path.read_text().lower()
         if "compatible" not in text or "omit" not in text:
             problems.append(
@@ -1068,10 +1066,11 @@ def english_only_docs():
 def public_interfaces():
     problems = []
     readmes = [ROOT / "README.md"]
-    public = readmes + [
-        ROOT / "docs" / "TUTORIAL.md",
-        ROOT / "docs" / "medium.md",
-    ] + sorted(SKILLS_DIR.glob("*/SKILL.md"))
+    public = (
+        readmes
+        + [ROOT / "docs" / "TUTORIAL.md", *medium_articles()]
+        + sorted(SKILLS_DIR.glob("*/SKILL.md"))
+    )
 
     plugin_tokens = (
         "/memory-bank:memory-bank-archive",
@@ -1150,6 +1149,28 @@ def public_interfaces():
                     f"{path.relative_to(ROOT)}: installs the human-readable prompt copy"
                 )
 
+    return problems
+
+
+@check("Medium publishing assets have article owners")
+def medium_publishing_assets():
+    problems = []
+    agents = (ROOT / "AGENTS.md").read_text()
+    if "`docs/medium*-infographic.png`" not in agents:
+        problems.append("AGENTS.md: missing the Medium publishing-asset ownership rule")
+
+    for image in sorted((ROOT / "docs").glob("medium*-infographic.png")):
+        article_name = image.name.removesuffix("-infographic.png") + ".md"
+        article = image.with_name(article_name)
+        if not article.exists():
+            problems.append(
+                f"{image.relative_to(ROOT)}: no corresponding docs/{article_name}"
+            )
+        elif image.name not in article.read_text():
+            problems.append(
+                f"{image.relative_to(ROOT)}: publishing role is not documented in "
+                f"{article.relative_to(ROOT)}"
+            )
     return problems
 
 

@@ -287,6 +287,10 @@ language-suffixed copies. `README.md` is English-only too.
   `memory-bank/context.md`.
 - Keep repository documentation English-only; do not add translated siblings
   of `README.md` or files in `docs/`.
+- Treat every `docs/medium*.md` file as public guidance. A
+  `docs/medium*-infographic.png` is a manual Medium-upload asset and must be
+  named by its corresponding article; do not accumulate orphaned publishing
+  images.
 - Status files are named `status-<LANE><NN>.md`. The pattern is defined in
   [template/memory-bank/milestone.md](template/memory-bank/milestone.md); the
   harness discovers lane files by that shape, so the two must agree. Placeholder

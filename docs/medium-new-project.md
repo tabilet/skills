@@ -1,5 +1,8 @@
 # You've Been Grilled. Now Build the Whole Harness.
 
+<!-- Medium publishing asset: medium-new-project-infographic.png. Upload it
+immediately below the article title; it is intentionally not embedded here. -->
+
 *Turning a ten-minute conversation into a memory bank, a set of milestones, and a blocker-aware ordered run.*
 
 If you are a frequent user of skills like `/grill-me`, you have probably had this thought: the interview is great, but why stop at one skill? Why not build the whole engineering harness directly — the thing that knows what your project is, what is done, what is next, and can work through it?
