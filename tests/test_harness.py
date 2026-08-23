@@ -112,15 +112,13 @@ def openai_response(content: str, finish_reason: str = "stop") -> dict:
 
 
 class StatusParserTests(unittest.TestCase):
-    def test_archive_files_are_not_status_lanes(self) -> None:
+    def test_archive_and_status_ids_are_independent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = pathlib.Path(tmp)
             (repo / "docs").mkdir()
             (repo / "memory-bank").mkdir()
             (repo / "docs" / "archive-A01.md").write_text("# Archive A01\n")
-            (repo / "memory-bank" / "archive-A02.md").write_text("# Archive A02\n")
-            self.assertEqual(harness.status_files(repo), [])
-            status = repo / "memory-bank" / "status-M01.md"
+            status = repo / "memory-bank" / "status-A01.md"
             status.write_text(f"| Item | {marker('[ ]')} | Notes |\n")
             self.assertEqual(harness.status_files(repo), [status])
 

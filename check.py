@@ -44,7 +44,7 @@ RECONCILE_WRITE_CONTRACT = (
     SKILLS_DIR / "memory-bank-reconcile" / "references" / "write-contract.md"
 )
 PLUGIN_JSON = ROOT / ".claude-plugin" / "plugin.json"
-NON_ENGLISH_SUFFIXES = ("cn", "ja", "de", "fr", "es")
+ARCHIVE_EXECUTION_RE = re.compile(r"archive-(?:<LANE><NN>|[A-Z][0-9]{2})(?:\.md)?")
 
 CHECKS: list[tuple[str, object]] = []
 
@@ -85,10 +85,72 @@ def markdown_files() -> list[pathlib.Path]:
     )
 
 
-def medium_articles() -> list[pathlib.Path]:
+def medium_articles(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
     """Return every Medium article that is part of the public interface."""
 
-    return sorted((ROOT / "docs").glob("medium*.md"))
+    return sorted((root / "docs").glob("medium*.md"))
+
+
+def fenced_blocks(text: str) -> list[str]:
+    """Return bodies of complete Markdown backtick or tilde fences."""
+
+    blocks = []
+    opening: tuple[str, int] | None = None
+    body: list[str] = []
+    for line in text.splitlines(keepends=True):
+        if opening is None:
+            match = re.match(r"^[ \t]{0,3}(`{3,}|~{3,})[^\r\n]*(?:\r?\n)?$", line)
+            if match:
+                marker = match.group(1)
+                opening = (marker[0], len(marker))
+                body = []
+            continue
+
+        marker, minimum = opening
+        if re.match(rf"^[ \t]{{0,3}}{re.escape(marker)}{{{minimum},}}[ \t]*(?:\r?\n)?$", line):
+            blocks.append("".join(body))
+            opening = None
+            body = []
+        else:
+            body.append(line)
+    return blocks
+
+
+def goal_invocation_lacks_commit_policy(block: str) -> bool:
+    """Return whether a fenced GOAL.md invocation omits its commit contract."""
+
+    invokes = "STATUS_ORDER" in block or "Using GOAL.md" in block
+    return invokes and "COMMIT_POLICY" not in block
+
+
+def has_slash_goal_label(text: str) -> bool:
+    """Detect the obsolete slash-goal coupling regardless of capitalization."""
+
+    return "slash-goal" in text.casefold()
+
+
+def suffixed_doc_sibling(path: pathlib.Path) -> pathlib.Path | None:
+    """Find a canonical sibling for a suffixed Markdown copy."""
+
+    for separator in ("_", "-", "."):
+        base, found, suffix = path.stem.rpartition(separator)
+        if found and base and suffix:
+            canonical = path.with_name(base + path.suffix)
+            if canonical.exists():
+                return canonical
+    return None
+
+
+def shipped_archive_files(template_root: pathlib.Path) -> list[pathlib.Path]:
+    """Return project-specific archive artifacts anywhere in a template tree."""
+
+    return sorted(template_root.rglob("archive-*.md"))
+
+
+def archive_execution_refs(text: str) -> list[str]:
+    """Return archive IDs that leaked into milestone execution state."""
+
+    return ARCHIVE_EXECUTION_RE.findall(text)
 
 
 def load_harness():
@@ -187,7 +249,7 @@ def goal_copies():
         if p.read_bytes() != first
     )
     goal = first.decode()
-    if "slash-goal" in goal:
+    if has_slash_goal_label(goal):
         problems.append("GOAL.md: protocol must not be limited to a slash-command launcher")
     if "\n/goal\nUsing GOAL.md" in goal:
         problems.append("GOAL.md: portable input must not embed an empty /goal command")
@@ -493,6 +555,8 @@ def adaptive_init_contract():
     write_contract = INIT_WRITE_CONTRACT.read_text()
     milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
     agents = (ROOT / "AGENTS.md").read_text()
+    write_contract_words = " ".join(write_contract.split())
+    agents_words = " ".join(agents.split())
     problems = []
 
     for token in (
@@ -537,10 +601,10 @@ def adaptive_init_contract():
         "A trailing `?` is allowed only",
         "concrete project-state trigger",
         "discretionary",
-        "Preserve every\n  verified `docs/archive-<LANE><NN>.md` byte-for-byte",
+        "Preserve every verified `docs/archive-<LANE><NN>.md` byte-for-byte",
         "independent namespace",
     ):
-        if token not in write_contract:
+        if token not in write_contract_words:
             problems.append(f"write-contract.md: missing {token!r}")
 
     for stale in ("${CLAUDE_PLUGIN_ROOT}", "M01 -> S01 -> A01?"):
@@ -559,9 +623,9 @@ def adaptive_init_contract():
         "approved compatible `GOAL.md`",
         "documented conditionally required active work",
         "adaptive topology gate",
-        "must first use\n  `memory-bank-archive`",
+        "must first use `memory-bank-archive`",
     ):
-        if token not in agents:
+        if token not in agents_words:
             problems.append(f"AGENTS.md: missing init hard rule {token!r}")
     return problems
 
@@ -636,7 +700,7 @@ def archive_contract():
             if token not in text:
                 problems.append(f"{label}: missing archive contract {token!r}")
 
-    shipped_archives = list((ROOT / "template").rglob("archive-*.md"))
+    shipped_archives = shipped_archive_files(ROOT / "template")
     if shipped_archives:
         shipped = ", ".join(str(path.relative_to(ROOT)) for path in shipped_archives)
         problems.append(f"template/ ships project-specific archive files: {shipped}")
@@ -645,9 +709,20 @@ def archive_contract():
         if not re.fullmatch(r"archive-[A-Z][0-9][0-9]\.md", path.name):
             problems.append(f"{path.relative_to(ROOT)}: invalid archive filename")
 
-    for path in (ROOT / "GOAL.md", ROOT / "template" / "memory-bank" / "milestone.md"):
-        if "archive-<LANE><NN>" in path.read_text():
-            problems.append(f"{path.relative_to(ROOT)}: archive IDs entered execution protocol")
+    execution_paths = [
+        ROOT / "GOAL.md",
+        ROOT / "template" / "GOAL.md",
+        SKILLS_DIR / "memory-bank-init" / "GOAL.md",
+        ROOT / "template" / "memory-bank" / "milestone.md",
+        *sorted((ROOT / "template" / "memory-bank").glob("status-*.md")),
+    ]
+    for path in execution_paths:
+        leaked = archive_execution_refs(path.read_text())
+        if leaked:
+            problems.append(
+                f"{path.relative_to(ROOT)}: archive IDs entered execution protocol: "
+                + ", ".join(leaked)
+            )
     return problems
 
 
@@ -880,12 +955,11 @@ def goal_examples():
     for md in markdown_files():
         if md.name == "GOAL.md":  # the protocol itself documents the default
             continue
-        for block in re.findall(r"```(?:text|markdown)\n(.*?)```", md.read_text(), re.S):
+        for block in fenced_blocks(md.read_text()):
             # "GOAL.md" alone is too loose: a file tree that merely lists the
             # file is not an invocation. Key on the two things only a real
             # invocation carries.
-            invokes = "STATUS_ORDER" in block or "Using GOAL.md" in block
-            if invokes and "COMMIT_POLICY" not in block:
+            if goal_invocation_lacks_commit_policy(block):
                 problems.append(
                     f"{md.relative_to(ROOT)}: GOAL.md invocation without COMMIT_POLICY"
                 )
@@ -1039,13 +1113,15 @@ def sampling_params():
 @check("repository documentation stays English-only")
 def english_only_docs():
     problems = []
-    suffixes = tuple(f"_{lang}.md" for lang in NON_ENGLISH_SUFFIXES)
     for path in sorted((ROOT / "docs").glob("*.md")):
-        if path.name.endswith(suffixes):
-            problems.append(f"{path.relative_to(ROOT)}: translated docs are not shipped")
+        canonical = suffixed_doc_sibling(path)
+        if canonical is not None:
+            problems.append(
+                f"{path.relative_to(ROOT)}: suffixed copy of "
+                f"{canonical.relative_to(ROOT)} is not shipped"
+            )
     for path in sorted(ROOT.glob("README_*.md")):
-        if path.name.endswith(suffixes):
-            problems.append(f"{path.name}: README.md is English-only")
+        problems.append(f"{path.name}: README.md is the only shipped README")
     # Markers that must remain in the English-only README.
     for marker, label in (
         ("LLM_PROVIDER=anthropic", "Anthropic provider example"),
