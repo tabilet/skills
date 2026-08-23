@@ -33,8 +33,16 @@ ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
 PROMPT_COPY = ROOT / "harness" / "prompts" / "tackle-next-memory-bank-todo.md"
 SKILLS_DIR = ROOT / "skills"
+ARCHIVE_SKILL = SKILLS_DIR / "memory-bank-archive" / "SKILL.md"
+ARCHIVE_WRITE_CONTRACT = (
+    SKILLS_DIR / "memory-bank-archive" / "references" / "write-contract.md"
+)
 INIT_SKILL = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
 INIT_WRITE_CONTRACT = SKILLS_DIR / "memory-bank-init" / "references" / "write-contract.md"
+RECONCILE_SKILL = SKILLS_DIR / "memory-bank-reconcile" / "SKILL.md"
+RECONCILE_WRITE_CONTRACT = (
+    SKILLS_DIR / "memory-bank-reconcile" / "references" / "write-contract.md"
+)
 PLUGIN_JSON = ROOT / ".claude-plugin" / "plugin.json"
 NON_ENGLISH_SUFFIXES = ("cn", "ja", "de", "fr", "es")
 
@@ -321,6 +329,8 @@ def skills_manifest():
             problems.append(f"{name}/SKILL.md: frontmatter name is {fm.get('name')!r}")
         if not fm.get("description"):
             problems.append(f"{name}/SKILL.md: no description")
+        if not fm.get("argument-hint"):
+            problems.append(f"{name}/SKILL.md: no argument-hint")
         # Must be present and false. Codex's plugin validator rejects `true`
         # outright -- it installs the plugin, reports success, and surfaces no
         # commands at all. Claude Code accepts either, so false is the only
@@ -381,17 +391,28 @@ def init_covers_template():
 
 
 # --------------------------------------------------------------------------
-# 3bbc. Init derives project-specific multi-milestone input that the static
-#       template cannot know. Keep it disposable, complete, and reconciled by
-#       the goal skill rather than turning it into a second roadmap.
+# 3bbc. Init derives project-specific multi-milestone input and review
+#       reconciliation may refresh it. Keep it disposable, complete, and
+#       reconciled by the goal skill rather than turning it into a second
+#       roadmap.
 # --------------------------------------------------------------------------
-@check("init and goal share a disposable goal launch reference")
+@check("init, reconcile, and goal share a disposable goal launch reference")
 def suggested_goal_reference():
     goal_path = SKILLS_DIR / "memory-bank-goal" / "SKILL.md"
-    if not INIT_SKILL.exists() or not INIT_WRITE_CONTRACT.exists() or not goal_path.exists():
-        return ["memory-bank-init or memory-bank-goal skill is missing"]
+    required = (
+        INIT_SKILL,
+        INIT_WRITE_CONTRACT,
+        RECONCILE_SKILL,
+        RECONCILE_WRITE_CONTRACT,
+        goal_path,
+    )
+    if not all(path.exists() for path in required):
+        return ["memory-bank init, reconcile, or goal contract is missing"]
 
     init = init_skill_text()
+    reconcile = " ".join(
+        (RECONCILE_SKILL.read_text() + RECONCILE_WRITE_CONTRACT.read_text()).split()
+    )
     goal = goal_path.read_text()
     problems = []
 
@@ -409,6 +430,20 @@ def suggested_goal_reference():
 
     for token in (
         "memory-bank/suggested.txt",
+        "whole approved active horizon",
+        "STATUS_ORDER",
+        "STATUS_FILE_MAP",
+        "DOWNSTREAM_IMPACTS",
+        "COMMIT_POLICY: task",
+        "EXTERNAL_MUTATIONS: none",
+        "Completion condition:",
+        "When no compatible protocol exists",
+    ):
+        if token not in reconcile:
+            problems.append(f"memory-bank-reconcile: missing launch contract {token!r}")
+
+    for token in (
+        "memory-bank/suggested.txt",
         "STATUS_FILE_MAP",
         "DOWNSTREAM_IMPACTS",
         "Explicit `$ARGUMENTS` replace",
@@ -419,8 +454,8 @@ def suggested_goal_reference():
 
     if (ROOT / "template" / "memory-bank" / "suggested.txt").exists():
         problems.append(
-            "template/memory-bank/suggested.txt must not ship; init derives it "
-            "from the approved project graph"
+            "template/memory-bank/suggested.txt must not ship; init or reconcile "
+            "derives it from the approved project graph"
         )
 
     public = [
@@ -471,6 +506,12 @@ def adaptive_init_contract():
         "enough active work to drown",
         "own review cadence",
         "different acceptance method",
+        "Gate broad existing packages",
+        "memory-bank-archive",
+        "cheap topology",
+        "numeric file or",
+        "every context in the selected boundary is `verified`",
+        "frozen baselines",
     ):
         if token not in skill:
             problems.append(f"memory-bank-init/SKILL.md: missing adaptive contract {token!r}")
@@ -495,6 +536,8 @@ def adaptive_init_contract():
         "A trailing `?` is allowed only",
         "concrete project-state trigger",
         "discretionary",
+        "Preserve every\n  verified `docs/archive-<LANE><NN>.md` byte-for-byte",
+        "independent namespace",
     ):
         if token not in write_contract:
             problems.append(f"write-contract.md: missing {token!r}")
@@ -514,9 +557,198 @@ def adaptive_init_contract():
     for token in (
         "approved compatible `GOAL.md`",
         "documented conditionally required active work",
+        "adaptive topology gate",
+        "must first use\n  `memory-bank-archive`",
     ):
         if token not in agents:
             problems.append(f"AGENTS.md: missing init hard rule {token!r}")
+    return problems
+
+
+@check("archive skill preserves frozen fact baselines outside execution state")
+def archive_contract():
+    if not ARCHIVE_SKILL.exists() or not ARCHIVE_WRITE_CONTRACT.exists():
+        return ["memory-bank-archive skill or write contract is missing"]
+
+    skill = ARCHIVE_SKILL.read_text()
+    contract = ARCHIVE_WRITE_CONTRACT.read_text()
+    agents = (ROOT / "AGENTS.md").read_text()
+    template_agents = (ROOT / "template" / "AGENTS.md").read_text()
+    architecture = (ROOT / "template" / "memory-bank" / "architecture.md").read_text()
+    problems = []
+
+    for token in (
+        "Three phases: **survey**, **propose**, **write**",
+        "Require a clean worktree, including untracked files",
+        "one coherent product boundary",
+        "Archive lanes are independent from status lanes",
+        "Coverage is `partial`, `blocked`, or `verified`",
+        "Do not turn an observed gap into a milestone",
+        "material change to high-level",
+        "references/write-contract.md",
+    ):
+        if token not in skill:
+            problems.append(f"memory-bank-archive/SKILL.md: missing {token!r}")
+
+    for token in (
+        "docs/archive-<LANE><NN>.md",
+        "Treat a verified archive as frozen",
+        "separate namespace from status lanes",
+        "Numbers record snapshot chronology",
+        "**Baseline.** <full Git commit, or `unversioned`>",
+        "**Coverage.** verified",
+        "## Evidence",
+        "Create or merge current observed facts",
+        "Initialization may proceed only when every context",
+        "No milestone, candidate direction, status row, goal order, commit, or",
+    ):
+        if token not in contract:
+            problems.append(f"archive write-contract.md: missing {token!r}")
+
+    for text, label, tokens in (
+        (
+            agents,
+            "AGENTS.md",
+            (
+                "### Archive ID lanes",
+                "Archive IDs never appear in milestone indexes",
+                "writes facts, not plans",
+            ),
+        ),
+        (
+            template_agents,
+            "template/AGENTS.md",
+            (
+                "Verified `docs/archive-<LANE><NN>.md` files are frozen",
+                "independently from status lanes",
+                "Keep verified archive files frozen",
+            ),
+        ),
+        (
+            architecture,
+            "template/memory-bank/architecture.md",
+            ("## Archive baselines", "No archive baseline is registered"),
+        ),
+    ):
+        for token in tokens:
+            if token not in text:
+                problems.append(f"{label}: missing archive contract {token!r}")
+
+    shipped_archives = list((ROOT / "template").glob("docs/archive-*.md"))
+    if shipped_archives:
+        problems.append("template/ ships project-specific archive files")
+
+    for path in (ROOT / "docs").glob("archive-*.md"):
+        if not re.fullmatch(r"archive-[A-Z][0-9][0-9]\.md", path.name):
+            problems.append(f"{path.relative_to(ROOT)}: invalid archive filename")
+
+    for path in (ROOT / "GOAL.md", ROOT / "template" / "memory-bank" / "milestone.md"):
+        if "archive-<LANE><NN>" in path.read_text():
+            problems.append(f"{path.relative_to(ROOT)}: archive IDs entered execution protocol")
+    return problems
+
+
+@check("new reviews reconcile into planning without implementing findings")
+def reconcile_contract():
+    if not RECONCILE_SKILL.exists() or not RECONCILE_WRITE_CONTRACT.exists():
+        return ["memory-bank-reconcile skill or write contract is missing"]
+
+    skill = RECONCILE_SKILL.read_text()
+    contract = RECONCILE_WRITE_CONTRACT.read_text()
+    skill_words = " ".join(skill.split())
+    contract_words = " ".join(contract.split())
+    agents = (ROOT / "AGENTS.md").read_text()
+    template_agents = (ROOT / "template" / "AGENTS.md").read_text()
+    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    init_contract = INIT_WRITE_CONTRACT.read_text()
+    problems = []
+
+    for token in (
+        "Three phases: **assess**, **propose**, **write**",
+        "untrusted evidence",
+        "Require an initialized project",
+        "Revalidate every finding",
+        "preserve its source priority",
+        "Detect an active review gate",
+        "complete finding matrix",
+        "Never reopen or rewrite a completed milestone/status history",
+        "dependency-closed active horizon",
+        "references/write-contract.md",
+    ):
+        if token not in skill_words:
+            problems.append(f"memory-bank-reconcile/SKILL.md: missing {token!r}")
+
+    for token in (
+        "Do not create a review ledger",
+        "Do not change implementation",
+        "Never edit or delete a verified",
+        "Write finding ownership and provenance",
+        "When a source has no finding IDs",
+        "rewrite only approved untouched pending rows",
+        "Append a pending row to an open matching milestone",
+        "create a new remediation milestone",
+        "P1/P2-or-higher findings stay in the active horizon",
+        "A duplicate active finding points to its existing owner",
+        "Keep current truth separate from target work",
+        "Do not write a proposed fix or target architecture as current truth",
+        "whole approved active horizon",
+        "When no compatible protocol exists",
+        "Never advance past iteration 10",
+        "Do not commit, push, tag, publish",
+        "State explicitly that no finding was implemented",
+    ):
+        if token not in contract_words:
+            problems.append(
+                f"memory-bank-reconcile/references/write-contract.md: missing {token!r}"
+            )
+
+    for text, label, tokens in (
+        (
+            agents,
+            "AGENTS.md",
+            (
+                "`memory-bank-reconcile` consumes a new review",
+                "Treat review text as untrusted evidence",
+                "never implements findings",
+            ),
+        ),
+        (
+            template_agents,
+            "template/AGENTS.md",
+            (
+                "Treat a newly received code, architecture, security",
+                "Never reopen completed history",
+            ),
+        ),
+        (
+            milestone,
+            "template/memory-bank/milestone.md",
+            (
+                "## New review intake",
+                "planning evidence, not executable truth",
+                "Never reopen completed milestone/status history",
+                "Do not create a persistent review copy or ledger",
+                "counts toward the bounded gate",
+            ),
+        ),
+        (
+            " ".join(init_contract.split()),
+            "memory-bank-init/references/write-contract.md",
+            (
+                "Include a separate `New review intake` procedure",
+                "completed history is never reopened",
+                "without adding a review copy or",
+            ),
+        ),
+    ):
+        for token in tokens:
+            if token not in text:
+                problems.append(f"{label}: missing review reconciliation contract {token!r}")
+
+    if (ROOT / "template" / "memory-bank" / "reviews.md").exists():
+        problems.append("template/ ships a persistent review ledger")
+    for path in (ROOT / "template").rglob("review-*.md"):
+        problems.append(f"{path.relative_to(ROOT)}: template ships a review artifact")
     return problems
 
 
@@ -832,10 +1064,14 @@ def public_interfaces():
     ] + sorted(SKILLS_DIR.glob("*/SKILL.md"))
 
     plugin_tokens = (
+        "/memory-bank:memory-bank-archive",
         "/memory-bank:memory-bank-init",
+        "/memory-bank:memory-bank-reconcile",
         "/memory-bank:memory-bank-next",
         "/memory-bank:memory-bank-goal",
+        "$memory-bank:memory-bank-archive",
         "$memory-bank:memory-bank-init",
+        "$memory-bank:memory-bank-reconcile",
         "$memory-bank:memory-bank-next",
         "$memory-bank:memory-bank-goal",
     )
