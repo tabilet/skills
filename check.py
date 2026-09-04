@@ -765,7 +765,8 @@ def reconcile_contract():
         "Never edit or delete a verified",
         "Write finding ownership and provenance",
         "When a source has no finding IDs",
-        "rewrite only approved untouched pending rows",
+        "Rewrite only approved untouched pending rows",
+        "approved superseded pending row may become `[-]`",
         "Append a pending row to an open matching milestone",
         "create a new remediation milestone",
         "P1/P2-or-higher findings stay in the active horizon",
@@ -1019,7 +1020,59 @@ def exit_codes():
 def status_markers():
     mod = load_harness()
     template = (ROOT / "template" / "memory-bank" / "status-M01.md").read_text()
+    agents = (ROOT / "AGENTS.md").read_text()
     problems = []
+    expected = {
+        "`[ ]`": "pending",
+        "`[+]`": "completed",
+        "`[~]`": "in_progress",
+        "`[!]`": "blocked",
+        "`[X]`": "cancelled",
+        "`[-]`": "historical",
+    }
+    if mod.STATE_MARKERS != expected:
+        problems.append(f"harness state markers are {mod.STATE_MARKERS}, want {expected}")
+    if mod.ACTIONABLE_STATES != {"pending", "in_progress"}:
+        problems.append("only pending and in-progress rows may be actionable")
+    if mod.RUN_TERMINAL_STATES != {"completed", "blocked", "historical"}:
+        problems.append("runner terminal states must include completed, blocked, and historical")
+
+    parsed = mod.status_rows(
+        "\n".join(f"| {state} | {marker} | Notes. |" for marker, state in expected.items())
+    )
+    if [row["state"] for row in parsed] != list(expected.values()):
+        problems.append("the parser does not recognize the complete status-marker vocabulary")
+    if any(row["state"] == "historical" for row in mod.actionable_rows(template)):
+        problems.append("closed-historical rows are actionable")
+
+    for text, label, tokens in (
+        (
+            template,
+            "template/memory-bank/status-M01.md",
+            (
+                "`[-]` | Closed Historical",
+                "consumed failed attempt or superseded row retained for audit",
+                "never retried and does not block its accepted successor",
+                "zero or one general row may be `[~]`",
+                "exact authorized operation row to be `[~]`",
+            ),
+        ),
+        (
+            agents,
+            "AGENTS.md",
+            (
+                "`[-]` closed historical evidence",
+                "never retried",
+                "does not block its accepted successor",
+                "zero or one general row may be `[~]`",
+            ),
+        ),
+    ):
+        normalized = " ".join(text.split())
+        for token in tokens:
+            if token not in normalized:
+                problems.append(f"{label}: missing status contract {token!r}")
+
     if not mod.actionable_rows(template):
         problems.append("template/memory-bank/status-M01.md has no rows the harness sees as actionable")
     # And the footgun itself must still be a footgun worth warning about.
@@ -1280,10 +1333,40 @@ def template_row_contracts():
     status = (ROOT / "template" / "memory-bank" / "status-M01.md").read_text()
     if "multiple rows are inseparable" in status:
         problems.append("status-M01.md permits several rows in one commit")
+    normalized_status = " ".join(status.split())
+    for token in (
+        "`[-]` | Closed Historical",
+        "zero or one general row may be `[~]`",
+        "exact authorized operation row to be `[~]`",
+    ):
+        if token not in normalized_status:
+            problems.append(f"status-M01.md is missing row-state contract {token!r}")
 
     milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
     if "Do not create an extra milestone commit" not in milestone:
         problems.append("milestone.md does not forbid empty review commits")
+    normalized_milestone = " ".join(milestone.split())
+    for token in (
+        "Completed `[+]`, cancelled `[X]`, and closed-historical `[-]` rows are non-actionable",
+        "every `[-]` row must name its accepted successor",
+    ):
+        if token not in normalized_milestone:
+            problems.append(f"milestone.md is missing historical-row contract {token!r}")
+
+    init_contract = (
+        ROOT / "skills" / "memory-bank-init" / "references" / "write-contract.md"
+    ).read_text()
+    reconcile_contract = (
+        ROOT / "skills" / "memory-bank-reconcile" / "references" / "write-contract.md"
+    ).read_text()
+    for text, label in (
+        (init_contract, "memory-bank-init write contract"),
+        (reconcile_contract, "memory-bank-reconcile write contract"),
+    ):
+        normalized = " ".join(text.split())
+        for token in ("`[-]`", "zero or one"):
+            if token not in normalized:
+                problems.append(f"{label} is missing row-state contract {token!r}")
     return problems
 
 

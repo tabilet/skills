@@ -12,8 +12,10 @@ silently overwrite user content or expand the reviewed project boundary.
 - Do not change implementation, tests, schemas, deployment configuration, or
   other code while reconciling the plan.
 - Do not mark an implementation row completed or claim that a planned fix was
-  delivered. Preserve existing in-progress, completed, blocked, and cancelled
-  rows; rewrite only approved untouched pending rows.
+  delivered. Preserve existing in-progress, completed, blocked, cancelled, and
+  closed-historical rows. Rewrite only approved untouched pending rows, except
+  that an approved superseded pending row may become `[-]` when its notes name
+  the accepted successor.
 - Never edit or delete a verified `docs/archive-<LANE><NN>.md`. If review
   evidence suggests the historical baseline is wrong or materially obsolete,
   report that `memory-bank-archive` must decide whether a successor is needed.
@@ -58,8 +60,16 @@ Maintain the status conventions already defined by the project:
 - one `memory-bank/status-<LANE><NN>.md` per indexed milestone;
 - a zero-padded permanent ID that is never reused or renamed;
 - one task-sized row per commit unit; and
-- backticked markers: `` `[ ]` ``, `` `[+]` ``, `` `[~]` ``, `` `[!]` ``, and
-  `` `[X]` ``.
+- backticked markers: `` `[ ]` `` pending, `` `[+]` `` completed, `` `[~]` ``
+  in progress, `` `[!]` `` blocked, `` `[X]` `` cancelled, and `` `[-]` ``
+  closed historical evidence.
+
+Across the active ledger, zero or one general row may be `[~]`. A `[-]` row is
+a consumed failed attempt or superseded row retained for audit; it is never
+retried, does not block its accepted successor, and names that successor in its
+notes. Before an operational launcher is invoked, its exact authorized
+operation row must be `[~]`; status records selection but never supplies
+external-mutation authority.
 
 After approval, recheck the milestone index and filesystem, then allocate each
 approved new milestone the proposed next unused ID. Stop on an ID collision
@@ -163,7 +173,9 @@ Before reporting completion, verify:
    revalidation baseline and relevant worktree state, current evidence, and
    historical lineage when needed.
 3. Completed milestones and non-pending row states are unchanged; every new row
-   is pending or is an approved evidence-complete external blocker.
+   is pending or is an approved evidence-complete external blocker. The only
+   approved pending-to-terminal planning transition is a superseded row becoming
+   `[-]` with its accepted successor recorded.
 4. Every new status ID is valid, unique, linked once from `milestone.md`, and
    absent from completed history and archive namespaces.
 5. The active graph is dependency-closed and every affected pending downstream

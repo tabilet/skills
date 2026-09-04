@@ -202,29 +202,39 @@ The backticks around every marker are required by the API harness parser:
 ```
 
 Markers: `` `[ ]` `` pending, `` `[+]` `` completed, `` `[~]` `` in progress,
-`` `[!]` `` blocked, `` `[X]` `` cancelled.
+`` `[!]` `` blocked, `` `[X]` `` cancelled, and `` `[-]` `` closed historical
+evidence. A `[-]` row is a consumed failed attempt or superseded row retained
+for audit; it is never retried and does not block its accepted successor. Its
+notes record the outcome and name that successor.
+
+Across the active ledger, zero or one general row may be `[~]`. An operational
+launcher additionally requires its exact authorized operation row to be `[~]`
+before invocation; the marker records selection and does not grant missing
+external-mutation authority.
 
 ## Check the output
 
 Before reporting completion, verify all of the following:
 
 1. Every marker is wrapped in backticks.
-2. Every status filename is `status-<LANE><NN>.md` with a two-digit number.
-3. The milestone index lists exactly the active status files that exist, and
+2. At most one general row is `[~]`; every `[-]` row names its accepted
+   successor and is non-actionable.
+3. Every status filename is `status-<LANE><NN>.md` with a two-digit number.
+4. The milestone index lists exactly the active status files that exist, and
    every link resolves.
-4. Candidate directions have no lane letters, IDs, status files, or launch
+5. Candidate directions have no lane letters, IDs, status files, or launch
    entries, and each has a reason and promotion trigger.
-5. When `suggested.txt` exists, it maps every active ordered ID to exactly one
+6. When `suggested.txt` exists, it maps every active ordered ID to exactly one
    existing status file; its order and impact map match the approved active
    graph. When it is omitted, no generated pointer tells the user to read it.
-6. The approved file actions were honored and no existing content was silently
+7. The approved file actions were honored and no existing content was silently
    overwritten.
-7. No bracketed placeholder or unexplained `N/A` remains.
-8. Every repository fact in the memory bank agrees with its current source.
-9. Domain terminology is consistent across the generated files, and every
+8. No bracketed placeholder or unexplained `N/A` remains.
+9. Every repository fact in the memory bank agrees with its current source.
+10. Domain terminology is consistent across the generated files, and every
    material concept relationship or business invariant discovered during the
    interview appears in `product.md`.
-10. When an archive preflight exists, every selected context is `verified`, its
+11. When an archive preflight exists, every selected context is `verified`, its
     link resolves, verified archives are unchanged, and no archive ID appears in
     the milestone index, a status file, or `suggested.txt`.
 

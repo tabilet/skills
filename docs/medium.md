@@ -32,7 +32,7 @@ Project-level files you drop into a repo:
   - `architecture.md` — layout, data flow, ownership boundaries.
   - `tech-stack.md` — commands, dependencies, harnesses.
   - `milestone.md` — milestone scope and acceptance criteria.
-  - `status-<LANE><NN>.md` — one file per milestone, with rows marked `[ ]`, `[+]`, `[~]`, `[!]`, `[X]`. The lane letter classifies the work (`A01` for accounting, `S01` for shopping, `M01` for anything that doesn't classify); the number is zero-padded to two digits.
+  - `status-<LANE><NN>.md` — one file per milestone, with rows marked `[ ]`, `[+]`, `[~]`, `[!]`, `[X]`, or `[-]`. The lane letter classifies the work (`A01` for accounting, `S01` for shopping, `M01` for anything that doesn't classify); the number is zero-padded to two digits.
 - **`docs/archive-<LANE><NN>.md`** — optional frozen, commit-anchored context
   baselines for a large existing package. Archive lanes classify stable product
   or ownership contexts independently from status lanes.
@@ -98,7 +98,7 @@ Under the surface, the loop is:
 4. Implement, verify, update the relevant memory-bank files, commit.
 5. If that was the last row in a milestone, run the milestone review and decide whether `evolution/` needs a new version.
 
-Status markers carry meaning: `[ ]` pending, `[+]` complete, `[~]` in progress, `[!]` blocked, `[X]` cancelled. A blocked row is skipped in favor of actionable work elsewhere; when blocked rows are all that's left, the loop stops — not because the agent failed, but because a human should look.
+Status markers carry meaning: `[ ]` pending, `[+]` complete, `[~]` in progress, `[!]` blocked, `[X]` cancelled, and `[-]` closed historical evidence. The new marker preserves a consumed failed attempt or superseded row for audit, is never retried, and does not block its named accepted successor. A blocked row is skipped in favor of actionable work elsewhere; when blocked rows are all that's left, the loop stops — not because the agent failed, but because a human should look.
 
 Each row is a commit unit. That's the only commit discipline this asks for, and it makes work auditable in `git log` without extra tooling.
 
@@ -106,7 +106,7 @@ Each row is a commit unit. That's the only commit discipline this asks for, and 
 
 `tackle-memory-bank-api-loop` is a dependency-free Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
 
-It checks the worktree is clean before each run, blocks a short list of catastrophic commands (`git reset --hard`, `git clean -fd`, `rm -rf /`, `sudo`), requires explicit `ALLOW_UNSANDBOXED_SHELL=1` acknowledgment, gives shell commands a minimal environment, requires exactly one actionable row to become complete or blocked, and stops on the first sign that something needs human attention.
+It checks the worktree is clean before each run, blocks a short list of catastrophic commands (`git reset --hard`, `git clean -fd`, `rm -rf /`, `sudo`), requires explicit `ALLOW_UNSANDBOXED_SHELL=1` acknowledgment, gives shell commands a minimal environment, requires exactly one actionable row to become complete, blocked, or closed historical, and stops on the first sign that something needs human attention.
 
 That list and the reduced environment are guardrails, not a sandbox. They will not stop `rm -rf .`, access to host files or processes, or anything deliberately obfuscated. Run the harness inside a disposable sandbox on a repository you can restore, against work you have already pushed.
 

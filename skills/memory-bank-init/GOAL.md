@@ -100,8 +100,8 @@ Before the first milestone:
    naming and indexing against project conventions and reject ambiguous IDs.
 4. Build a dependency graph from status dependencies, the supplied order,
    downstream impacts, and concrete code/configuration consumers.
-5. Classify statuses as required, conditional, already completed, cancelled, or
-   currently unavailable because of an external input.
+5. Classify statuses as required, conditional, already completed, cancelled,
+   closed historical, or currently unavailable because of an external input.
 6. Record the reconciled remaining order. Skip completed historical milestones
    rather than reimplementing them.
 7. Determine required verification, commit policy, related repositories, and
@@ -121,7 +121,9 @@ instructions explicitly define safe parallel ownership.
 - Inspect current implementation and tests before assuming a task is missing.
 - Rewrite obsolete pending tasks before implementation. Do not redo existing
   work merely because an older plan described it differently.
-- Set only the current milestone/task to the project's in-progress state.
+- If one general row is already in progress, resume exactly that row. Otherwise
+  set only the current dependency-ready task to the project's in-progress state.
+  Never leave more than one general row in progress across the active ledger.
 
 ### 2. Implement Task Units
 
@@ -138,6 +140,12 @@ instructions explicitly define safe parallel ownership.
   Never commit production secrets, customer/private data, captured traffic,
   generated local credentials, or environment-specific runtime state.
 - Mark a task complete only after its acceptance and focused verification pass.
+- When a failed attempt is consumed or a row is superseded, retain it as closed
+  historical evidence, record the outcome and accepted successor, and never
+  retry it.
+- Before invoking an operational launcher, require its exact authorized
+  operation row to be in progress. The status marker records selection and does
+  not grant external-mutation authority.
 
 ### 3. Verify And Deep-Review
 
@@ -210,9 +218,11 @@ Before advancing:
 7. Recompute the dependency graph and remaining order. Continue automatically
    when the revised work remains within the goal's product scope and authority.
 
-Pending status files are planning baselines until their implementation starts
-and are expected to evolve. Completed historical files should change only for
-factual correction, explicit ownership transfer, or lineage clarification.
+Pending status rows are planning baselines until their implementation starts
+and are expected to evolve. Completed, cancelled, and closed-historical rows
+should change only for factual correction, explicit ownership transfer, or
+lineage clarification. Closed-historical rows are never retried and do not
+block their accepted successors.
 
 ### 5. Continue Or Stop
 

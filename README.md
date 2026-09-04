@@ -213,9 +213,10 @@ Then `memory-bank/status-S01.md` carries the rows for that milestone:
 | Item | State | Notes |
 |---|---|---|
 | Add POST /cart endpoint | `[+]` | Verified by tests/cart_test.py. |
-| Cart total calculation | `[~]` | Rounding rules still open. |
+| Cart total calculation | `[~]` | Rounding rules are being resolved. |
 | Wire cart to checkout | `[ ]` | Blocked on the A02 payment contract. |
 | Guest checkout | `[X]` | Cancelled; accounts required at launch. |
+| Legacy rounding attempt | `[-]` | Consumed failed attempt; successor: Cart total calculation. |
 ```
 
 **The backticks around each marker are required by the included API harness.**
@@ -544,11 +545,18 @@ Status rows use these markers:
 
 | Symbol | Meaning |
 |---|---|
-| `[ ]` | Pending |
+| `[ ]` | Pending; actionable when its dependencies pass |
 | `[+]` | Completed |
-| `[~]` | In progress |
-| `[!]` | Blocked |
+| `[~]` | In progress; zero or one general row across the active ledger |
+| `[!]` | A current unresolved blocker |
 | `[X]` | Cancelled |
+| `[-]` | Closed historical evidence; never retried and non-blocking for its accepted successor |
+
+The new `[-]` marker is additive: the five earlier markers keep their existing
+meanings. Use it only for a consumed failed attempt or superseded row retained
+for audit, and name the accepted successor in the row notes. Before invoking an
+operational launcher, its exact authorized operation row must be `[~]`; that
+marker records the selection but does not grant external-mutation authority.
 
 ### Run an ordered set of milestones
 
@@ -903,12 +911,15 @@ For normal project work, `tackle-memory-bank-api-loop` is an execution harness:
 it repeatedly runs an agent against a repository, gives it shell access through a
 JSON command protocol, and checks git state between runs. It requires the target
 to be the git worktree root, requires history to advance without a rewrite, and
-requires exactly one existing actionable row to become completed or blocked in
-each run. Separate milestone-review commits are allowed within that run.
+requires exactly one existing actionable row to become completed, blocked, or
+closed historical in each run. Separate milestone-review commits are allowed
+within that run. If one `[~]` row already exists, the harness requires the agent
+to resume exactly it; more than one in-progress row stops before the API call.
 
 It discovers every `memory-bank/status-<LANE><NN>.md` file, reports how many
-actionable and blocked rows each lane holds, and asks the agent to pick a row
-using the lane meanings and milestone priority. A blocked row in one lane does
+actionable, in-progress, blocked, and closed-historical rows each lane holds,
+and asks the agent to pick a row using the lane meanings and milestone priority.
+A blocked row in one lane does
 not stop work in the others; the loop stops for human review only when blocked
 rows are all that remain.
 

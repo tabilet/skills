@@ -177,17 +177,19 @@ the repo's "prefer native core libraries" rule. Structure:
   `harness/prompts/` file is a human-readable duplicate, not a runtime input.
   **Edit both when the instruction changes.**
 - Lane discovery: `status_files()` globs `STATUS_GLOB`, `lane_summary()` counts
-  actionable/blocked rows per file, and `lane_table()` renders that into the
-  prompt. Python owns the deterministic gate; the *choice* of row belongs to
-  the model, guided by `milestone.md` priority. Lane file bodies are never
-  inlined into the prompt — only the counts — which is what keeps a 120-lane
+  actionable, in-progress, blocked, and closed-historical rows per file, and
+  `lane_table()` renders that into the prompt. Python owns the deterministic
+  gate; the *choice* of row belongs to the model, guided by `milestone.md`
+  priority. Lane file bodies are never inlined into the prompt — only the counts
+  and the location of a sole in-progress row — which is what keeps a 120-lane
   project's prompt bounded.
 - Guardrails, each with a dedicated exit code: only blocked rows left (3), dirty
   worktree before a run (4), uncommitted changes after (5), no new commit (6),
   `MAX_RUNS` reached (7), invalid row transition (8), history rewrite (9),
   missing `AGENTS.md` (10), no lane files (11), and missing host-shell
-  acknowledgment (14). A blocked row warns but does not halt while other lanes
-  still have work. `DANGEROUS_RE` blocks a short list including `git reset
+  acknowledgment (14). More than one in-progress row stops before the network
+  call (15). A blocked row warns but does not halt while other lanes still have
+  work. `DANGEROUS_RE` blocks a short list including `git reset
   --hard`, `git clean -fd`, `sudo`, and fork bombs unless
   `ALLOW_DANGEROUS_COMMANDS=1`. It is a bypassable guardrail, not a sandbox; an
   actionable run requires `ALLOW_UNSANDBOXED_SHELL=1`, and should run inside a
@@ -198,8 +200,10 @@ the repo's "prefer native core libraries" rule. Structure:
   column or marker vocabulary in the templates breaks the harness.
 
 Status markers: `[ ]` pending, `[+]` completed, `[~]` in progress, `[!]`
-blocked, `[X]` cancelled. One status row = one commit; one milestone = one
-review unit.
+blocked, `[X]` cancelled, and `[-]` closed historical evidence. A `[-]` row is
+a consumed failed attempt or superseded row retained for audit; it is never
+retried and does not block its accepted successor. One status row = one commit;
+one milestone = one review unit.
 
 ## Documentation Language
 
@@ -295,6 +299,12 @@ language-suffixed copies. `README.md` is English-only too.
   [template/memory-bank/milestone.md](template/memory-bank/milestone.md); the
   harness discovers lane files by that shape, so the two must agree. Placeholder
   references use the same zero-padded form (`M01`, never `M1`).
+- Across the active status ledger, zero or one general row may be `[~]`. Resume
+  it before selecting another row. Before invoking an operational launcher, its
+  exact authorized operation row must already be `[~]`; the marker records the
+  selection but never grants external-mutation authority. `[-]` is terminal and
+  non-actionable, and its notes name the consumed attempt or supersession and
+  accepted successor.
 - Ship no vendor-specific agent files in `template/`. `AGENTS.md` is an open
   cross-vendor standard; tools that read another filename get a documented
   one-line bridge in the README, not a file in the payload.

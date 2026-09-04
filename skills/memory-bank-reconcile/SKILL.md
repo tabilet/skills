@@ -88,7 +88,9 @@ Use these ownership rules:
 
 - Add confirmed work to an open matching milestone when it remains inside that
   milestone's scope and acceptance. Rewrite only untouched pending rows; add a
-  separate pending row instead of rewriting any other state.
+  separate pending row instead of rewriting any other state. When retaining a
+  superseded pending row for audit, propose marking it `[-]` and naming its
+  accepted successor instead of rewriting or deleting it.
 - Amend an existing pending future milestone when it already owns the work.
 - Never reopen or rewrite a completed milestone/status history. Create a new
   remediation milestone and record lineage to the affected completed work.

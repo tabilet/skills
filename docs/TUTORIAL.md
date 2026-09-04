@@ -410,8 +410,14 @@ a specific failure mode worth testing for.
 harness parser.** A bare `[ ]` is invisible to that parser — see [When It Goes
 Wrong](#when-it-goes-wrong). Other agents may still understand the prose, but
 the shipped automation deliberately requires this exact table syntax. Markers
-are `` `[ ]` `` pending, `` `[+]` `` done,
-`` `[~]` `` in progress, `` `[!]` `` blocked, `` `[X]` `` cancelled.
+are `` `[ ]` `` pending, `` `[+]` `` done, `` `[~]` `` in progress,
+`` `[!]` `` blocked, `` `[X]` `` cancelled, and `` `[-]` `` closed historical
+evidence. The new marker is additive: all five earlier meanings stay unchanged.
+A `[-]` row records a consumed failed attempt or superseded row, names its
+accepted successor, is never retried, and does not block that successor. Across
+the active ledger, zero or one general row may be `[~]`. An operational launcher
+requires its exact authorized operation row to be `[~]` before invocation; the
+marker does not grant external-mutation authority.
 
 If something is wrong, tell the agent rather than hand-editing. Faster, and it
 keeps the memory bank consistent with what the agent believes.
@@ -555,6 +561,7 @@ Verified against real runs of the checkpoint above:
 | `11` | No lane files found. | Filename is `status-M1.md`, not `status-M01.md`. Always **two digits**. |
 | `4` | Worktree was dirty before the run. | Commit or stash first. |
 | `3` | Only `` `[!]` `` blocked rows remain. | Not a failure. A human needs to unblock something. |
+| `15` | More than one `` `[~]` `` row is in progress. | Reconcile the active ledger to one current row before relaunching. |
 | `10` | No `AGENTS.md`. | Wrong directory, or `memory-bank-init` never finished. |
 
 Exit `0` is the one that costs an afternoon, because nothing looks broken: the

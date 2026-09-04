@@ -307,7 +307,9 @@ Here is what a status file looks like:
 
 Note what those rows are *not*. They are not "build the player." Each names something either done or not, and two of them exist only because the interview surfaced a specific failure mode worth testing for.
 
-**One gotcha that will cost you an afternoon if you hand-edit these files: the backticks around every marker are load-bearing for the included API harness parser.** `` `[ ]` `` is a pending task. A bare `[ ]` is invisible to that parser — an API-harness run reports "no actionable rows remain" and exits successfully, as though the work were finished. Nothing looks broken. If a run ends instantly with nothing to do, check the backticks first.
+**One gotcha that will cost you an afternoon if you hand-edit these files: the backticks around every marker are load-bearing for the included API harness parser.** The full set is `[ ]` pending, `[+]` complete, `[~]` in progress, `[!]` blocked, `[X]` cancelled, and `[-]` closed historical evidence. A `[-]` row retains a consumed failed attempt or superseded row for audit, names its accepted successor, is never retried, and does not block that successor. The new marker is additive; the earlier five keep their meanings.
+
+A bare `[ ]` is invisible to the parser — an API-harness run reports "no actionable rows remain" and exits successfully, as though the work were finished. Nothing looks broken. If a run ends instantly with nothing to do, check the backticks first.
 
 ## Step 5: run the work
 

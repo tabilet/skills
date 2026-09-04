@@ -130,11 +130,16 @@ class StatusParserTests(unittest.TestCase):
             f"| Fake | {marker('[ ]')} | ignored |\n"
             f"{fence}\n"
             f"| Complete | {marker('[+]')} | visible |\n"
+            f"| Historical | {marker('[-]')} | visible |\n"
         )
         rows = harness.status_rows(text)
         self.assertEqual(
             [(row["item"], row["state"]) for row in rows],
-            [("A | B", "pending"), ("Complete", "completed")],
+            [
+                ("A | B", "pending"),
+                ("Complete", "completed"),
+                ("Historical", "historical"),
+            ],
         )
 
     def test_transition_requires_one_actionable_row_to_finish_or_block(self) -> None:
@@ -156,6 +161,43 @@ class StatusParserTests(unittest.TestCase):
         self.assertEqual(harness.validate_row_transition(before, after), [])
         after["states"][("status-M01.md", "B", 1)] = "blocked"
         self.assertTrue(harness.validate_row_transition(before, after))
+
+    def test_transition_accepts_historical_closure(self) -> None:
+        key = ("status-M01.md", "Consumed attempt", 1)
+        before = {"files": {"status-M01.md"}, "states": {key: "in_progress"}}
+        after = {"files": {"status-M01.md"}, "states": {key: "historical"}}
+        self.assertEqual(harness.validate_row_transition(before, after, key), [])
+
+    def test_transition_must_close_the_preexisting_in_progress_row(self) -> None:
+        active = ("status-M01.md", "Active", 1)
+        other = ("status-M01.md", "Other", 1)
+        before = {
+            "files": {"status-M01.md"},
+            "states": {active: "in_progress", other: "pending"},
+        }
+        after = {
+            "files": {"status-M01.md"},
+            "states": {active: "in_progress", other: "completed"},
+        }
+        problems = harness.validate_row_transition(before, after, active)
+        self.assertTrue(any("pre-existing in-progress row" in problem for problem in problems))
+
+    def test_lane_summary_counts_historical_rows_as_nonactionable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[-]"))
+            summary = harness.lane_summary(repo)
+        self.assertEqual(
+            summary,
+            [
+                {
+                    "file": "status-M01.md",
+                    "actionable": 0,
+                    "in_progress": 0,
+                    "blocked": 0,
+                    "historical": 1,
+                }
+            ],
+        )
 
     def test_transition_rejects_removed_and_nonpending_new_rows(self) -> None:
         before = {
@@ -270,12 +312,12 @@ class ProviderTests(unittest.TestCase):
         }
         with mock.patch.object(harness, "call_llm", return_value=refusal):
             with self.assertRaises(SystemExit) as stopped:
-                harness.one_agent_run(args, ROOT, 1, [])
+                harness.one_agent_run(args, ROOT, 1, [], None)
         self.assertEqual(stopped.exception.code, 23)
 
         args.max_history_chars = 1
         with self.assertRaises(SystemExit) as stopped:
-            harness.one_agent_run(args, ROOT, 1, [])
+            harness.one_agent_run(args, ROOT, 1, [], None)
         self.assertEqual(stopped.exception.code, 31)
 
 
@@ -295,12 +337,52 @@ class HarnessIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             done = make_repo(pathlib.Path(tmp) / "done", marker("[+]"))
             blocked = make_repo(pathlib.Path(tmp) / "blocked", marker("[!]"))
+            historical = make_repo(pathlib.Path(tmp) / "historical", marker("[-]"))
             done_proc = run(sys.executable, str(HARNESS), str(done), cwd=ROOT, env=self.harness_env(tmp))
             blocked_proc = run(
                 sys.executable, str(HARNESS), str(blocked), cwd=ROOT, env=self.harness_env(tmp)
             )
+            historical_proc = run(
+                sys.executable,
+                str(HARNESS),
+                str(historical),
+                cwd=ROOT,
+                env=self.harness_env(tmp),
+            )
         self.assertEqual(done_proc.returncode, 0)
         self.assertEqual(blocked_proc.returncode, 3)
+        self.assertEqual(historical_proc.returncode, 0)
+
+    def test_multiple_in_progress_rows_stop_before_shell_or_api(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+            status = repo / "memory-bank" / "status-M01.md"
+            status.write_text(
+                status.read_text(encoding="utf-8")
+                + f"| Second active row | {marker('[~]')} | Conflict. |\n",
+                encoding="utf-8",
+            )
+            run("git", "add", str(status), cwd=repo)
+            run(
+                "git",
+                "-c",
+                "user.name=Harness Test",
+                "-c",
+                "user.email=harness@example.test",
+                "commit",
+                "-qm",
+                "add conflicting row",
+                cwd=repo,
+            )
+            proc = run(
+                sys.executable,
+                str(HARNESS),
+                str(repo),
+                cwd=ROOT,
+                env=self.harness_env(tmp),
+            )
+        self.assertEqual(proc.returncode, 15)
+        self.assertIn("More than one", proc.stderr)
 
     def test_actionable_run_requires_acknowledgment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -4,9 +4,11 @@ Milestones are listed in priority order. Each item lists scope and acceptance
 criteria. Per-item completion state lives in one status file per milestone,
 named by the status ID pattern below.
 
-Each milestone section is a review unit: after all rows in its matching status
-file are `[+]`, run a deep code review and a milestone review against the
-milestone acceptance criteria before moving to the next milestone. Review-driven
+Each milestone section is a review unit: after no `[ ]`, `[~]`, or `[!]` rows
+remain in its matching status file, run a deep code review and a milestone
+review against the milestone acceptance criteria before moving to the next
+milestone. Completed `[+]`, cancelled `[X]`, and closed-historical `[-]` rows are
+non-actionable; every `[-]` row must name its accepted successor. Review-driven
 fixes should be verified and committed before work starts on the next milestone.
 Do not create an extra milestone commit when the review produces no changes.
 
@@ -41,6 +43,8 @@ Rules:
   stop that lane and open a new letter instead of adding a third digit.
 - Do not reuse an ID after its status file exists. Cancelled work keeps its file
   and is marked `[X]`.
+- Retain a consumed failed attempt or superseded row as `[-]` closed historical
+  evidence, record its accepted successor, and never retry it.
 - Do not rename completed status IDs to make later sequencing look tidy. Rename
   only when an explicit lane-collision decision records the old and new IDs.
 - Do not create an aggregate `memory-bank/status.md`. Task rows live in lane
@@ -106,7 +110,9 @@ Before implementing any newly reviewed finding:
 2. Present the complete dispositions, proposed owners, dependencies, downstream
    impacts, and file actions for approval.
 3. Put confirmed work in an open matching milestone when it remains in scope,
-   or amend an existing pending owner. Rewrite only pending rows.
+   or amend an existing pending owner. Rewrite only pending rows. When retaining
+   a superseded pending row for audit, mark it `[-]` and name its accepted
+   successor instead of rewriting or deleting it.
 4. Never reopen completed milestone/status history. Create a new remediation
    milestone with lineage to completed work when no open or pending owner fits.
 5. Keep P1/P2-or-higher findings in the dependency-closed active horizon. Add a
@@ -125,9 +131,10 @@ otherwise remediation gets a fresh gate when its implementation closes.
 
 ## Milestone review procedure
 
-When the last open row in a milestone's status file is flipped to `[+]` during
-an agent session, perform the review before ending the turn and before moving to
-the next milestone:
+When the last open row in a milestone's status file closes as `[+]`, `[X]`, or
+`[-]` during an agent session, perform the review before ending the turn and
+before moving to the next milestone. A `[-]` row counts as closed only when its
+notes identify the consumed attempt or supersession and its accepted successor:
 
 1. Re-read the milestone scope and acceptance criteria here. Confirm the code or
    docs meet the acceptance line; do not rely on the status file alone.

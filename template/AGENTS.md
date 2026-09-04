@@ -103,6 +103,10 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   because a later review concerns it.
 - Treat each row in the matching `memory-bank/status-<LANE><NN>.md` file as a
   commit unit. See that file for status markers and commit rules.
+- Across the active ledger, keep zero or one general row in progress. Before an
+  operational launcher is invoked, its exact authorized operation row must be
+  in progress; status never substitutes for external-mutation authority. Never
+  retry a row retained as closed historical evidence.
 - Treat each section in [memory-bank/milestone.md](memory-bank/milestone.md) as a
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the

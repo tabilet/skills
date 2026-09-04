@@ -317,7 +317,8 @@ Once approved, the placement rules are simple.
 If a confirmed finding still fits an open milestone's scope and acceptance, it
 becomes a new pending row there. An untouched pending row may be rewritten when
 the review makes its old assumption obsolete. In-progress, completed, blocked,
-and cancelled rows are preserved.
+cancelled, and closed-historical rows are preserved. When a superseded pending
+row is retained for audit, it becomes `[-]` and names its accepted successor.
 
 If an existing pending future milestone already owns the outcome, that
 specification is updated rather than duplicated.
@@ -471,7 +472,7 @@ that agents often blur together:
 | What the product and system are now | `product.md` and `architecture.md` |
 | What should be delivered next | `milestone.md` and pending status rows |
 | What a new review actually proves today | Review reconciliation proposal |
-| What has been implemented and verified | Completed status rows and Git history |
+| What has been implemented, superseded, or verified | Completed and closed-historical status rows, plus Git history |
 
 That separation is the whole harness.
 

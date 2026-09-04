@@ -44,24 +44,33 @@ Read `AGENTS.md`, then read the memory bank in the order required by
 `AGENTS.md`.
 
 Read `memory-bank/milestone.md` for the status ID pattern, the lane meanings,
-and milestone priority. Then find the next actionable pending row in the
-matching `memory-bank/status-<LANE><NN>.md` file.
+milestone priority, and dependencies. Inspect every active status file for an
+existing `[~]` row. If more than one general row is in progress, stop and report
+the conflict. If one exists, resume exactly it. Otherwise select the next
+dependency-ready `[ ]` row and mark it `[~]` before implementation.
 
 Tackle exactly one row:
 
 - Implement the change.
 - Update relevant memory-bank or docs files.
-- Mark the row complete only when verified.
+- Mark the row `[+]` only when verified.
+- If a failed attempt is consumed or the row is superseded, mark it `[-]`,
+  record the outcome and accepted successor in its notes, and never retry it.
 - Run the required verification.
 - Commit the change with a scoped commit message.
+
+Before invoking an operational launcher, require its exact authorized operation
+row to be `[~]`. The marker records the selected operation; it does not grant
+missing external-mutation authority.
 
 If completing this row completes a milestone, run the milestone review procedure
 from `memory-bank/milestone.md` before final handoff. Commit review fixes
 separately.
 
-Skip blocked rows and pick another actionable row instead. Stop if no actionable
-pending row remains in any lane, or if the task is ambiguous enough to require
-human input.
+Skip `[!]` blocked, `[X]` cancelled, and `[-]` closed-historical rows and pick
+another actionable row instead. Stop if no actionable pending or in-progress
+row remains in any lane, or if the task is ambiguous enough to require human
+input.
 """
 
 
@@ -88,6 +97,8 @@ Rules:
   `git clean -fd`, or broad `rm -rf`.
 - Work on exactly one actionable row in one memory-bank/status-<LANE><NN>.md
   lane file.
+- Resume the sole `[~]` in-progress row when one exists. Never retry a `[-]`
+  closed-historical row.
 - Commit before returning `final` if you changed files.
 - If you cannot proceed safely, return `final` explaining the blocker.
 """
@@ -100,9 +111,10 @@ STATE_MARKERS = {
     "`[~]`": "in_progress",
     "`[!]`": "blocked",
     "`[X]`": "cancelled",
+    "`[-]`": "historical",
 }
 ACTIONABLE_STATES = {"pending", "in_progress"}
-RUN_TERMINAL_STATES = {"completed", "blocked"}
+RUN_TERMINAL_STATES = {"completed", "blocked", "historical"}
 DEFAULT_TOOL_ENV = {
     "PATH",
     "HOME",
@@ -377,7 +389,28 @@ def row_snapshot(repo: pathlib.Path) -> dict:
     return {"files": set(files), "states": states}
 
 
-def validate_row_transition(before: dict, after: dict) -> list[str]:
+def rows_in_state(repo: pathlib.Path, state: str) -> list[dict]:
+    matches = []
+    for path in status_files(repo):
+        occurrences: dict[str, int] = {}
+        for row in status_rows(path.read_text(encoding="utf-8")):
+            item = row["item"]
+            occurrences[item] = occurrences.get(item, 0) + 1
+            if row["state"] == state:
+                matches.append(
+                    {
+                        "file": path.name,
+                        "item": item,
+                        "line": row["line"],
+                        "key": (path.name, item, occurrences[item]),
+                    }
+                )
+    return matches
+
+
+def validate_row_transition(
+    before: dict, after: dict, required_key: tuple[str, str, int] | None = None
+) -> list[str]:
     problems = []
     missing_files = before["files"] - after["files"]
     if missing_files:
@@ -407,27 +440,40 @@ def validate_row_transition(before: dict, after: dict) -> list[str]:
                 f"invalid row transition in {key[0]} for {key[1]!r}: "
                 f"{old_state} -> {new_state}"
             )
+        if required_key is not None and key != required_key:
+            problems.append(
+                "the pre-existing in-progress row was not closed: "
+                f"expected {required_key[0]} / {required_key[1]!r}"
+            )
     return problems
 
 
 def lane_summary(repo: pathlib.Path) -> list[dict]:
     summary = []
     for path in status_files(repo):
-        status = path.read_text(encoding="utf-8")
+        rows = status_rows(path.read_text(encoding="utf-8"))
         summary.append(
             {
                 "file": path.name,
-                "actionable": len(actionable_rows(status)),
-                "blocked": len(blocked_rows(status)),
+                "actionable": sum(row["state"] in ACTIONABLE_STATES for row in rows),
+                "in_progress": sum(row["state"] == "in_progress" for row in rows),
+                "blocked": sum(row["state"] == "blocked" for row in rows),
+                "historical": sum(row["state"] == "historical" for row in rows),
             }
         )
     return summary
 
 
 def lane_table(summary: list[dict]) -> str:
-    rows = ["| Status file | Actionable rows | Blocked rows |", "|---|---|---|"]
+    rows = [
+        "| Status file | Actionable rows | In progress | Blocked | Historical |",
+        "|---|---|---|---|---|",
+    ]
     for lane in summary:
-        rows.append(f"| memory-bank/{lane['file']} | {lane['actionable']} | {lane['blocked']} |")
+        rows.append(
+            f"| memory-bank/{lane['file']} | {lane['actionable']} | "
+            f"{lane['in_progress']} | {lane['blocked']} | {lane['historical']} |"
+        )
     return "\n".join(rows)
 
 
@@ -651,7 +697,23 @@ def call_llm(
     fail(f"Unknown LLM provider: {provider!r}. Use 'openai' or 'anthropic'.", 2)
 
 
-def initial_user_message(repo: pathlib.Path, run: int, max_runs: int, summary: list[dict]) -> str:
+def initial_user_message(
+    repo: pathlib.Path,
+    run: int,
+    max_runs: int,
+    summary: list[dict],
+    in_progress: dict | None,
+) -> str:
+    if in_progress:
+        selection = (
+            "Resume exactly the existing in-progress row at "
+            f"memory-bank/{in_progress['file']}:{in_progress['line']}.\n"
+        )
+    else:
+        selection = (
+            "No row is currently in progress. Select one dependency-ready "
+            "pending row and mark it `[~]` before implementation.\n"
+        )
     return (
         f"Repository: {repo}\n"
         f"Run: {run}/{max_runs}\n"
@@ -665,7 +727,9 @@ def initial_user_message(repo: pathlib.Path, run: int, max_runs: int, summary: l
         "\n"
         "Start by reading AGENTS.md and the memory bank. Read\n"
         "memory-bank/milestone.md for the lane meanings and milestone priority\n"
-        "before choosing a row. Use the JSON command protocol. Work on exactly\n"
+        "before choosing a row. "
+        f"{selection}"
+        "Use the JSON command protocol. Work on exactly\n"
         "one actionable row in one status lane file.\n"
     )
 
@@ -682,10 +746,21 @@ def usage_line(usage: dict) -> str:
     return ", ".join(fields)
 
 
-def one_agent_run(args: argparse.Namespace, repo: pathlib.Path, run: int, summary: list[dict]) -> None:
+def one_agent_run(
+    args: argparse.Namespace,
+    repo: pathlib.Path,
+    run: int,
+    summary: list[dict],
+    in_progress: dict | None,
+) -> None:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": initial_user_message(repo, run, args.max_runs, summary)},
+        {
+            "role": "user",
+            "content": initial_user_message(
+                repo, run, args.max_runs, summary, in_progress
+            ),
+        },
     ]
 
     for turn in range(1, args.max_turns + 1):
@@ -955,6 +1030,17 @@ def main() -> None:
 
     for run in range(1, args.max_runs + 1):
         summary = lane_summary(repo)
+        in_progress_rows = rows_in_state(repo, "in_progress")
+        if len(in_progress_rows) > 1:
+            detail = ", ".join(
+                f"memory-bank/{row['file']}:{row['line']}" for row in in_progress_rows
+            )
+            fail(
+                "More than one general memory-bank row is in progress. Retain exactly "
+                f"one `[~]` row before launching: {detail}",
+                15,
+            )
+        in_progress = in_progress_rows[0] if in_progress_rows else None
         actionable = sum(lane["actionable"] for lane in summary)
         blocked = sum(lane["blocked"] for lane in summary)
         blocked_lanes = [lane for lane in summary if lane["blocked"]]
@@ -994,7 +1080,7 @@ def main() -> None:
         before_rows = row_snapshot(repo)
         print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
         started = time.time()
-        one_agent_run(args, repo, run, summary)
+        one_agent_run(args, repo, run, summary, in_progress)
         print(f"Run duration: {time.time() - started:.1f}s")
 
         if not git_clean(repo):
@@ -1009,7 +1095,11 @@ def main() -> None:
         if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
             print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
             raise SystemExit(9)
-        row_problems = validate_row_transition(before_rows, row_snapshot(repo))
+        row_problems = validate_row_transition(
+            before_rows,
+            row_snapshot(repo),
+            in_progress["key"] if in_progress else None,
+        )
         if row_problems:
             print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
             for problem in row_problems:

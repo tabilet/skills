@@ -26,7 +26,8 @@ are known or expected.
 - `docs/` holds long-form setup, teardown, and troubleshooting notes.
 - `memory-bank/milestone.md` can make a harness pass part of acceptance.
 - The matching `memory-bank/status-<LANE><NN>.md` file records whether
-  harness-related rows are pending, complete, blocked, or cancelled.
+  harness-related rows are pending, in progress, complete, blocked, cancelled,
+  or closed historical evidence.
 
 ## Agent Execution Harness
 
@@ -40,7 +41,10 @@ It:
 - embeds the memory-bank task instruction directly in the API call,
 - gives the model a shell command protocol,
 - discovers every `memory-bank/status-<LANE><NN>.md` lane file and reports each
-  lane's actionable and blocked row counts to the model,
+  lane's actionable, in-progress, blocked, and closed-historical row counts to
+  the model,
+- resumes the sole `[~]` in-progress row when one exists and stops before the
+  API call if the active ledger contains more than one,
 - stops when no actionable rows remain in any lane,
 - warns about blocked rows, and stops for human review when only blocked rows
   remain,
@@ -50,7 +54,8 @@ It:
   for additional project variables,
 - requires the target path to be the git worktree root,
 - checks for a clean git worktree before each run,
-- requires the model to commit exactly one completed or blocked actionable row,
+- requires the model to commit exactly one completed, blocked, or
+  closed-historical actionable row,
 - permits separate review commits but rejects history rewrites,
 - stops if the model leaves uncommitted changes,
 - stops if the model makes no commit,
@@ -93,6 +98,7 @@ control back to a human.
 | `12` | The target is not a git worktree root. |
 | `13` | Git `HEAD` could not be read. |
 | `14` | Actionable work was not given unsandboxed-shell acknowledgment. |
+| `15` | More than one general `[~]` row is in progress across the active ledger. |
 | `20` | The API returned an HTTP error. |
 | `21` | The API could not be reached. |
 | `22` | The API response did not match the expected shape. |
@@ -101,7 +107,7 @@ control back to a human.
 | `31` | The conversation exceeded `MAX_HISTORY_CHARS`. |
 | `130` | The run was interrupted from the terminal. |
 
-Codes `10` through `14` are target or authorization setup problems. Codes `20`
+Codes `10` through `15` are target or authorization setup problems. Codes `20`
 through `23` are provider or network problems, not project problems.
 
 ## Docker-Backed Services

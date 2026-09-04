@@ -2,21 +2,30 @@ Read `AGENTS.md`, then read the memory bank in the order required by
 `AGENTS.md`.
 
 Read `memory-bank/milestone.md` for the status ID pattern, the lane meanings,
-and milestone priority. Then find the next actionable pending row in the
-matching `memory-bank/status-<LANE><NN>.md` file.
+milestone priority, and dependencies. Inspect every active status file for an
+existing `[~]` row. If more than one general row is in progress, stop and report
+the conflict. If one exists, resume exactly it. Otherwise select the next
+dependency-ready `[ ]` row and mark it `[~]` before implementation.
 
 Tackle exactly one row:
 
 - Implement the change.
 - Update relevant memory-bank or docs files.
-- Mark the row complete only when verified.
+- Mark the row `[+]` only when verified.
+- If a failed attempt is consumed or the row is superseded, mark it `[-]`,
+  record the outcome and accepted successor in its notes, and never retry it.
 - Run the required verification.
 - Commit the change with a scoped commit message.
+
+Before invoking an operational launcher, require its exact authorized operation
+row to be `[~]`. The marker records the selected operation; it does not grant
+missing external-mutation authority.
 
 If completing this row completes a milestone, run the milestone review procedure
 from `memory-bank/milestone.md` before final handoff. Commit review fixes
 separately.
 
-Skip blocked rows and pick another actionable row instead. Stop if no actionable
-pending row remains in any lane, or if the task is ambiguous enough to require
-human input.
+Skip `[!]` blocked, `[X]` cancelled, and `[-]` closed-historical rows and pick
+another actionable row instead. Stop if no actionable pending or in-progress
+row remains in any lane, or if the task is ambiguous enough to require human
+input.
