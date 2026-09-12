@@ -156,6 +156,30 @@ control back to a human.
 Codes `10` through `15` are target or authorization setup problems. Codes `20`
 through `23` are provider or network problems, not project problems.
 
+## DSH runtime integration
+
+[DSH](DSH.md) is a separately installed runtime for the same six skill bundles.
+`memory-bank-upgrade` adopts new project workflow rules through an approved
+merge; it does not update the separately installed API executable or execute
+tasks. See [project upgrades](../README.md#upgrade-an-existing-project).
+Its Web and headless profiles use DSH tools and permissions; the Python API
+runner's provider loop, commit requirement, and exit-code table do not govern
+those sessions. Do not run both launchers against the same active ledger.
+
+Run `npm ci --prefix tests/dsh --ignore-scripts --no-audit --no-fund` and
+`npm test --prefix tests/dsh` for the pinned, credential-free loader and
+installation checks. `python3 check.py` remains dependency-free. These tests
+prove runtime integration surfaces, not the model's workflow acceptance.
+Required live evidence, cost controls, and observed results are in the
+[DSH acceptance guide](DSH.md#acceptance-evidence). Paid tests are explicitly
+invoked, never automatic on pull requests.
+
+A DSH question or incomplete milestone can remain after a successful process
+exit. Inspect project state, actual verification, and the persisted review
+counter. Runtime round limits, native todos, and goal completion are separate
+from milestone acceptance. Missing approval, files, commands, or permission
+stops affected work without granting broader authority.
+
 ## Docker-Backed Services
 
 For tests that need services such as MySQL or PostgreSQL, prefer disposable

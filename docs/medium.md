@@ -1,5 +1,16 @@
 # Small Operating Manuals Beat Big Pipelines
 
+
+Current installation reference: [the maintained six-skill guide](../README.md#install-the-six-skills)
+includes DSH filesystem installation alongside Claude Code and Codex. DSH uses
+the same complete bundles, with `/memory-bank-*` or ordinary-language requests;
+its [integration guide](DSH.md) records memory-bank v1.3.0's tested scope,
+Web approval flow, headless limits, and preserving update/removal commands.
+Installing updated skills does not migrate project instructions or history.
+The v1.3.0 `memory-bank-upgrade` skill proposes and applies approved project-rule
+merges while preserving plans and history; see the
+[upgrade guide](../README.md#upgrade-an-existing-project).
+
 *An engineering harness that helps your AI agent evolve the project — without taking it over.*
 
 Look around the AI coding ecosystem and you'll see the same pattern in dozens of places: every team is building a *harness* — scaffolding alongside the code that tells an agent what the project is, how to work on it, and what state things are in. CLIs that scaffold directories. Slash-command suites you learn one by one. Methodologies with phased pipelines. Per-feature artifact folders that pile up over time.
@@ -31,11 +42,14 @@ Project-level files you drop into a repo:
   - `product.md` — product scope, users, domain model, and non-goals.
   - `architecture.md` — layout, data flow, ownership boundaries.
   - `tech-stack.md` — commands, dependencies, harnesses.
-  - `milestone.md` — milestone scope and acceptance criteria.
-  - `status-<LANE><NN>.md` — one file per milestone, with rows marked `[ ]`, `[+]`, `[~]`, `[!]`, `[X]`, or `[-]`. The lane letter classifies the work (`A01` for accounting, `S01` for shopping, `M01` for anything that doesn't classify); the number is zero-padded to two digits.
+  - `lessons.md` — curated applicable lessons, rationale, and evidence.
+  - `milestone.md` — active milestone scope and acceptance criteria, plus unnumbered later directions.
+  - `status-<LANE><NN>.md` — one file per active milestone, with rows marked `[ ]`, `[+]`, `[~]`, `[!]`, `[X]`, or `[-]`. The lane letter classifies the work (`A01` for accounting, `S01` for shopping, `M01` for anything that doesn't classify); the number is zero-padded to two digits and remains reserved after retirement.
 - **`docs/archive-<LANE><NN>.md`** — optional frozen, commit-anchored context
   baselines for a large existing package. Archive lanes classify stable product
   or ownership contexts independently from status lanes.
+- **`docs/history/`** — created on demand for an index, complete retired
+  milestone records, and an append-only superseded-knowledge journal.
 - **`evolution/`** — versioned direction snapshots. `prompt-vN.md` describes the intent; `result-vN.md` the state it produced. A new version is added only when direction, an architecture boundary, a milestone target, or a public contract materially changes — which should be rare.
 
 Account-level files, optional:
@@ -43,7 +57,7 @@ Account-level files, optional:
 - `harness/tackle-memory-bank-api-loop` — a Python runner that drives any OpenAI- or Anthropic-compatible model. Installs to `~/.local/bin/`.
 - `harness/prompts/tackle-next-memory-bank-todo.md` — the same instruction the runner embeds, retained in the repository as its human-readable duplicate rather than installed as a custom prompt.
 
-The repository also packages five optional skills — `memory-bank-archive`, `memory-bank-init`, `memory-bank-reconcile`, `memory-bank-next`, and `memory-bank-goal` — as one plugin for Claude Code and Codex. Plugin invocations are namespaced: `/memory-bank:memory-bank-reconcile` and `/memory-bank:memory-bank-next` in Claude Code, `$memory-bank:memory-bank-reconcile` and `$memory-bank:memory-bank-next` in Codex. Plain-file installs remain unnamespaced.
+The repository also packages six optional skills — `memory-bank-archive`, `memory-bank-init`, `memory-bank-upgrade`, `memory-bank-reconcile`, `memory-bank-next`, and `memory-bank-goal` — as one plugin for Claude Code and Codex. Plugin invocations are namespaced: `/memory-bank:memory-bank-reconcile` and `/memory-bank:memory-bank-next` in Claude Code, `$memory-bank:memory-bank-reconcile` and `$memory-bank:memory-bank-next` in Codex. Plain-file installs remain unnamespaced.
 
 When `memory-bank-init` derives a multi-milestone plan, or `memory-bank-reconcile` changes it after a new review, either skill writes `memory-bank/suggested.txt` when the project contains an approved compatible `GOAL.md`. It is a disposable launch request containing the proposed status order, file map, and downstream impacts. They omit the launch reference when no compatible protocol exists. The file is deliberately excluded from the required read order and meant to be deleted after launch or when stale; the milestone and status files remain the source of truth.
 
@@ -102,6 +116,35 @@ Status markers carry meaning: `[ ]` pending, `[+]` complete, `[~]` in progress, 
 
 Each row is a commit unit. That's the only commit discipline this asks for, and it makes work auditable in `git log` without extra tooling.
 
+`memory-bank-init` establishes the retirement contract; `memory-bank-next` and
+`memory-bank-goal` perform it during milestone closure, after review,
+verification, knowledge consolidation, and downstream reconciliation pass.
+There is no background cleanup job. Completed task rows remain active until
+their whole milestone qualifies; unresolved work or missing evidence keeps it
+active. Existing projects adopt the instructions explicitly, with a compatible
+API runner if used; plugin updates do not migrate them or clean up old work.
+
+Full specifications and status documents move to
+`docs/history/status-<LANE><NN>.md`, indexed in `docs/history/index.md` by their
+permanent IDs. Their specifications and index rows leave `milestone.md`, which
+keeps active work, later directions, and one history-index link. Current facts
+stay in the memory bank. `lessons.md` retains applicable learning and evidence,
+not a chronological entry for every completed task or milestone.
+
+Before materially replacing obsolete facts or lessons, preserve their wording,
+source, reason, evidence, and replacement in `docs/history/knowledge.md`.
+This also happens outside milestone closure; routine wording edits need no
+journal entry. Search current memory first, then retrieve relevant history by
+ID or topic. Retired records stay frozen, and historical rows are never retried.
+The Markdown remains readable without Git; Git adds intermediate revisions.
+
+Retirement removes accumulated history from active context, not a fixed number
+of tokens: genuinely active work and useful knowledge can still grow. It
+respects the commit policy and needs no separate `memory-bank-archive` run.
+That skill produces optional context baselines, while `memory-bank-reconcile`
+plans review work rather than retiring milestones. See
+[the lifecycle](../README.md#keep-long-term-memory-without-growing-the-active-plan).
+
 ## The bundled runner — optional, multi-provider
 
 `tackle-memory-bank-api-loop` is a dependency-free Python script that drives an LLM through a JSON shell-command protocol. It works with OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, llama.cpp, LM Studio, Ollama's OAI shim) and natively with Anthropic via `LLM_PROVIDER=anthropic`.
@@ -130,8 +173,11 @@ The unifying property across every part of this system is that *you* own the fil
   archive files are deliberately historical, identify their baseline commit,
   and are never presented as current architecture.
 - `evolution/` versions are rare by design. You add one when direction really shifted — not on every feature.
-- Status rows are simple checkboxes that can evolve while pending. Once a status ID and file exist, they remain as the durable milestone record and are never renamed or reused.
-- There are no per-feature spec folders, so the repo doesn't grow a graveyard of historical artifacts that no longer match the code.
+- Status rows can evolve while pending. Their IDs remain permanent; after
+  closure, their full records remain traceable in history rather than occupying
+  the active plan.
+- There are no generated per-feature spec folders. Historical evidence has an
+  explicit home and is never presented as current instructions.
 
 The AI's job is to help you advance the project — archive a broad existing
 package when needed, bootstrap the harness, reconcile a new review, pick the

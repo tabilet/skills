@@ -1,1 +1,4 @@
 medium-legacy.md
+
+# Repository-only locked DSH compatibility dependencies.
+tests/dsh/node_modules/

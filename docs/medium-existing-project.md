@@ -1,5 +1,16 @@
 # Your Existing Codebase Is Already the Spec. Make the Agent Read It.
 
+
+Current installation reference: [the maintained six-skill guide](../README.md#install-the-six-skills)
+includes DSH filesystem installation alongside Claude Code and Codex. DSH uses
+the same complete bundles, with `/memory-bank-*` or ordinary-language requests;
+its [integration guide](DSH.md) records memory-bank v1.3.0's tested scope,
+Web approval flow, headless limits, and preserving update/removal commands.
+Installing updated skills does not migrate project instructions or history.
+The v1.3.0 `memory-bank-upgrade` skill proposes and applies approved project-rule
+merges while preserving plans and history; see the
+[upgrade guide](../README.md#upgrade-an-existing-project).
+
 <!-- Medium publishing asset: medium-existing-project-infographic.png. Upload it
 immediately below the article title; it is intentionally not embedded here. -->
 
@@ -34,13 +45,14 @@ evidence rather than imagination.
 
 ---
 
-## Five skills, three that matter here
+## Six skills, three that matter here
 
-The plugin contains five optional skills:
+The plugin contains six optional skills:
 
 - `memory-bank-archive` maps a broad existing package into frozen factual
   baselines.
 - `memory-bank-init` creates the first executable milestone/status harness.
+- `memory-bank-upgrade` adopts newer workflow rules through approved merges.
 - `memory-bank-reconcile` validates a newly received review and updates that
   existing plan.
 - `memory-bank-next` implements exactly one approved task row.
@@ -463,16 +475,54 @@ new session.
 
 ## The useful separation
 
-For an existing package, the file-owned five-skill workflow separates concerns
+The same separation extends to retirement. `memory-bank-init` establishes the
+convention in newly initialized projects. A project with an earlier harness
+adopts the updated instructions explicitly, together with a compatible API
+runner if used; updating installed skills alone does not migrate its files.
+Cleanup of older closed milestones needs a separate request and closure
+evidence. It is not part of review reconciliation.
+
+Once adopted, `memory-bank-next` and `memory-bank-goal` perform retirement during
+milestone closure, after review, verification, knowledge consolidation, and
+downstream reconciliation pass. This is agent work, not a background timer.
+Completed rows stay active until their whole milestone qualifies; unresolved
+work or missing closure evidence prevents retirement. The governing commit
+policy still applies. No `memory-bank-archive` invocation is needed: that skill
+creates frozen context baselines, not retired task records.
+
+The complete specification, status rows, notes, and closure evidence move to
+`docs/history/status-<LANE><NN>.md`, indexed in `docs/history/index.md`. Their
+specification and index row leave active `milestone.md`; one history-index link
+remains alongside active work and later directions. An old review can still
+refer to the same permanent ID. A project with only retired milestones is still
+initialized; new findings get fresh remediation IDs, not reopened history.
+
+Current facts stay in product, architecture, and stack documents.
+`memory-bank/lessons.md` retains applicable lessons and rationale with evidence,
+merging duplicates rather than collecting one entry per milestone. Before
+materially replacing obsolete knowledge, preserve its wording, source, reason,
+evidence, and replacement in `docs/history/knowledge.md`. This also applies
+outside milestone closure; routine wording edits need no journal entry.
+
+Search active memory first, then the history index or knowledge journal by ID
+or topic, and open only the relevant records. The frozen Markdown preserves
+evidence without Git, which adds intermediate revisions when available. This
+prevents accumulated history from bloating routine context; it does not cap
+genuinely active work or still-useful knowledge. See
+[the complete lifecycle](../README.md#keep-long-term-memory-without-growing-the-active-plan).
+
+For an existing package, the file-owned six-skill workflow separates concerns
 that agents often blur together:
 
 | Concern | Owner |
 |---|---|
 | What existed at a known historical baseline | Frozen archive files |
-| What the product and system are now | `product.md` and `architecture.md` |
-| What should be delivered next | `milestone.md` and pending status rows |
+| What the product and system are now | `product.md`, `architecture.md`, and `tech-stack.md` |
+| What learning still informs decisions | Curated `lessons.md` with evidence links |
+| What should be delivered next | Active `milestone.md` specifications and pending status rows |
 | What a new review actually proves today | Review reconciliation proposal |
-| What has been implemented, superseded, or verified | Completed and closed-historical status rows, plus Git history |
+| What has been implemented, superseded, or verified | Active status evidence, then full retired milestone records in `docs/history/` |
+| What knowledge used to be true and why it changed | `docs/history/knowledge.md`; Git adds intermediate revisions |
 
 That separation is the whole harness.
 

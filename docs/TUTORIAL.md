@@ -5,7 +5,7 @@ You have an idea and an empty directory. No code yet.
 This walkthrough goes from that to an agent implementing your project against a
 memory bank it wrote from interviewing you:
 
-1. Install the five skills, once.
+1. Install the six skills, once.
 2. Make an empty directory.
 3. Run `memory-bank-init` and answer its questions.
 4. Approve the breakdown it proposes.
@@ -15,18 +15,19 @@ memory bank it wrote from interviewing you:
 Twenty minutes, and most of it is step 3 — which is a conversation, not typing.
 
 The example is a Mario-style platformer called `stomper`, because a game
-decomposes into feature areas cleanly enough to show why lanes exist. Every file
-shown below was really generated.
+decomposes into feature areas cleanly enough to show why lanes exist. The initial
+setup examples come from generated files; the later retirement walkthrough is
+illustrative.
 
 ## What You Need
 
-- **`git`**, and an agent — Claude Code or Codex.
+- **`git`**, and an agent — Claude Code, Codex, or DSH Web.
 - **An idea you can talk about for ten minutes.** That is the actual
   prerequisite. Everything else is mechanical.
 
 The example project uses Node and Python 3; yours needs whatever it needs.
 
-## Step 1 — Install The Five Skills
+## Step 1 — Install The Six Skills
 
 In Claude Code:
 
@@ -70,17 +71,25 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 ```
 
 Plain-file installs are unnamespaced: `/memory-bank-init` in Claude Code and
-`$memory-bank-init` in Codex, with the same pattern for the other four skills.
+`$memory-bank-init` in Codex, with the same pattern for the other five skills.
 
-You now have five commands, and they are the whole interface:
+For DSH, follow the [DSH route](#dsh-route) below.
+
+You now have six commands, and they are the whole interface:
 
 | Skill | When |
 |---|---|
 | `memory-bank-archive` | Before init when a large existing package needs a frozen, commit-anchored context map. New projects skip it. |
 | `memory-bank-init` | Once per project, on the way in. |
+| `memory-bank-upgrade` | After a skill update, to review and adopt new rules in an existing project. |
 | `memory-bank-reconcile` | Whenever a new review arrives after initialization. Validate it and update the plan without implementing it. |
-| `memory-bank-next` | Every day. One row, verified, committed. |
+| `memory-bank-next` | Execute or resume one row, then verify and commit under the governing policy. |
 | `memory-bank-goal` | Several milestones in a defined order. |
+
+For existing packages, incoming reviews, and combined workflows, see
+[Skill Use Cases](USE_CASES.md). It also contrasts
+[automatic retirement](USE_CASES.md#6-automatic-retirement-during-normal-work)
+with [explicit archive snapshots](USE_CASES.md#7-explicitly-snapshot-a-materially-changed-system).
 
 *(Prefer to do it by hand? Every step below has a manual equivalent in the
 [README](../README.md#set-up-a-new-project). The commands are a convenience,
@@ -91,6 +100,21 @@ not a requirement.)*
 Updating is a two-part operation: refresh the marketplace, then update the
 installed plugin. Removing the plugin does not remove the memory-bank files it
 created in your projects; those files belong to you.
+
+Updating the plugin does not merge new rules into those project-owned files
+either. Existing projects explicitly adopt the retirement instructions and, if
+used, a compatible API runner before the workflow described in
+[What You Own At The End](#what-you-own-at-the-end) applies. Cleanup of older
+closed milestones is a separate request, not an installation side effect.
+Follow [Upgrade an existing project](../README.md#upgrade-an-existing-project)
+for that review. Invoke `/memory-bank:memory-bank-upgrade` in Claude Code,
+`$memory-bank:memory-bank-upgrade` in Codex, or `/memory-bank-upgrade` in DSH Web.
+Inspect its focused section diffs and approve the complete merge proposal.
+Preserved content is summarized; unchanged manuals need not be repeated. Task tables,
+IDs, custom instructions, review counters, and frozen history stay intact;
+retiring old milestones requires a separate request. If the project is already
+compatible, the skill reports a no-op. A headless write phase needs the exact
+previously approved proposal; installing the skill never supplies that approval.
 
 ### Claude Code
 
@@ -137,6 +161,51 @@ Optionally remove the marketplace once you no longer need anything from it:
 ```bash
 codex plugin marketplace remove tabilet
 ```
+
+## DSH route
+
+Use the same `stomper` example with DSH 0.1.5-rc.1 on Linux and Node 24. The
+[DSH guide](DSH.md#acceptance-evidence) distinguishes tested runtime integration
+from live workflow acceptance. Install the six complete bundles from a
+memory-bank v1.3.0-or-newer checkout into `$DSH_HOME/skills` (default
+`~/.dsh/skills`), following its [installation](DSH.md#install-the-six-bundles)
+and [backup/update/removal](DSH.md#update-or-remove) procedures. A shared agents
+root is an alternative; inspect duplicate-name precedence. Existing Claude Code
+and Codex commands above keep their existing forms.
+Before v1.3.0 is published, use the reviewed release working tree.
+
+After creating `stomper` in Step 2, run `dsh web` from that directory and confirm
+Web's selected workspace. In a fresh session check that all six skills are
+discoverable, then use `/memory-bank-init` for Step 3. Answer the same design-tree
+questions and approve the complete milestone and file-action proposal in Step 4.
+Read the generated files in Step 5. Preserve existing project instructions when
+using this route in a small existing package. A broad package first needs an
+explicitly requested, approved `/memory-bank-archive` preflight.
+
+For Step 6 use `/memory-bank-next`, or an ordinary request to use that skill.
+Keep one ledger owner. Later, run `/memory-bank-reconcile review.md` in Web to
+validate and approve a new review before separately requesting implementation;
+remote review URLs still need separate exact-URL confirmation before each fetch.
+Installing new bundles never adopts new project instructions or retires old
+milestones by itself.
+
+After approving the project plan in Web, stop that session's execution before a
+headless run. From the same `stomper` directory, for example:
+
+```bash
+dsh --profile headless 'Use memory-bank-next. The existing stomper plan is approved for one dependency-ready task. Resume the sole in-progress row first. Verify using AGENTS.md and node --test, then commit that task. No external mutations. Stop and report any missing answer, approval, permission, or verification capability.'
+```
+
+Substitute the actual verification commands if the interview chose a different
+stack. Headless starts a fresh session; supply the actual authorized request,
+not a reference to approvals available only in a different conversation. Use
+Web for any unresolved interview or proposal. A question or incomplete milestone
+can remain after exit 0. Inspect files, test output, review evidence, and commits.
+
+For several milestones, use `/memory-bank-goal` with the approved explicit order
+and commit policy. DSH's [native goal continuation](DSH.md#goals-and-execution-ownership)
+is optional; its runtime round limit is independent of the persisted milestone
+review count. Neither native todos nor goal completion replaces acceptance.
 
 ## Step 2 — An Empty Directory
 
@@ -341,6 +410,7 @@ stomper/
 │   ├── product.md         ← scope, domain model, and non-goals
 │   ├── architecture.md    ← module layout, the DOM-free rule
 │   ├── tech-stack.md      ← stack, and how it is verified
+│   ├── lessons.md         ← reusable learning and evidence, initially empty
 │   ├── milestone.md       ← active milestones and unnumbered candidates
 │   ├── status-M01.md       ← world and camera
 │   ├── status-M02.md       ← player movement and collision
@@ -352,8 +422,10 @@ stomper/
     └── result-v1.md
 ```
 
-**These files are yours.** Nothing links back to the plugin, nothing updates
-them, and uninstalling the commands leaves them exactly as they are.
+**These files are yours.** They have no update subscription to the plugin.
+Agents maintain them during authorized work, and uninstalling the commands
+leaves them exactly as they are. `docs/history/` is created only when a milestone
+or knowledge first needs retirement, not as an empty initialization artifact.
 
 You will not see a bracketed placeholder — the memory bank arrives filled in.
 Read it anyway; it takes five minutes and it is your last cheap correction.
@@ -407,7 +479,7 @@ something either done or not, and two exist only because the interview surfaced
 a specific failure mode worth testing for.
 
 **The backticks around `` `[ ]` `` are load-bearing for the included API
-harness parser.** A bare `[ ]` is invisible to that parser — see [When It Goes
+harness parser.** A bare `[ ]` is rejected by the current runner — see [When It Goes
 Wrong](#when-it-goes-wrong). Other agents may still understand the prose, but
 the shipped automation deliberately requires this exact table syntax. Markers
 are `` `[ ]` `` pending, `` `[+]` `` done, `` `[~]` `` in progress,
@@ -452,12 +524,12 @@ sandbox and a repository you can restore.
 The same harness shows what it found:
 
 ```text
-| Status file | Actionable rows | Blocked rows |
-|---|---|---|
-| memory-bank/status-M01.md | 5 | 0 |
-| memory-bank/status-M02.md | 7 | 0 |
-| memory-bank/status-M03.md | 6 | 0 |
-| memory-bank/status-M04.md | 5 | 0 |
+| Status file | Actionable rows | In progress | Blocked | Historical |
+|---|---|---|---|---|
+| memory-bank/status-M01.md | 5 | 0 | 0 | 0 |
+| memory-bank/status-M02.md | 7 | 0 | 0 | 0 |
+| memory-bank/status-M03.md | 6 | 0 | 0 | 0 |
+| memory-bank/status-M04.md | 5 | 0 | 0 | 0 |
 ```
 
 Twenty-three rows of work, parsed out of files written from a ten-minute
@@ -552,21 +624,22 @@ corrections stick.
 
 ## When It Goes Wrong
 
-Verified against real runs of the checkpoint above:
+The checkpoint exercises the API runner's structural gates, not DSH acceptance:
 
 | Exit | Meaning | Usual cause |
 |---|---|---|
-| `21` | Reached the network. **Everything else passed.** | Nothing. This is success. |
-| `0` | "No actionable memory-bank rows remain." | **Markers without backticks** — `[ ]` instead of `` `[ ]` ``. Your rows are invisible. |
-| `11` | No lane files found. | Filename is `status-M1.md`, not `status-M01.md`. Always **two digits**. |
+| `21` | API request failed after local gates. | The deliberate unreachable endpoint confirms startup gating only, not task acceptance. |
+| `0` | "No actionable memory-bank rows remain." | All recognized work is terminal, including a valid all-retired project; inspect milestone acceptance separately. |
+| `11` | Missing or invalid status/history state. | Check marker backticks, nonempty status files, IDs, and retirement records/index. |
 | `4` | Worktree was dirty before the run. | Commit or stash first. |
 | `3` | Only `` `[!]` `` blocked rows remain. | Not a failure. A human needs to unblock something. |
 | `15` | More than one `` `[~]` `` row is in progress. | Reconcile the active ledger to one current row before relaunching. |
 | `10` | No `AGENTS.md`. | Wrong directory, or `memory-bank-init` never finished. |
 
-Exit `0` is the one that costs an afternoon, because nothing looks broken: the
-agent reads the file, finds no rows it recognizes, and reports there is nothing
-to do. If a run ends instantly with nothing to do, check the backticks first.
+At this new-project checkpoint, pending work is expected. If an older runner
+exits instantly, check the backticks: older versions could silently ignore bare
+markers. Updating installed skills does not upgrade a separately installed API
+runner. Current validation stops on malformed task markers and empty files.
 
 `memory-bank-init` checks all three of these before it reports done, so they
 mostly bite when you hand-edit afterwards. Full table in
@@ -583,12 +656,75 @@ code that makes them true. That includes updating `product.md` when domain
 terminology, concept relationships, or business invariants change. `evolution/`
 gets a new version only when direction genuinely shifts — rarely.
 
+`memory-bank-init` establishes the retirement convention. During execution,
+`memory-bank-next` and `memory-bank-goal` carry it out through the project's
+milestone-closing procedure, after review, verification, knowledge
+consolidation, and downstream reconciliation pass. This is automatic within
+the agent workflow, not a background cleanup job. No separate
+`memory-bank-archive` invocation is needed: that skill creates optional frozen
+context baselines, not retired task records. `memory-bank-reconcile` plans new
+review work; it does not perform retirement.
+
+Completed rows stay in the active status file until their whole milestone
+qualifies. Open work, blockers, or missing closure evidence prevent retirement.
+Existing projects adopt these conventions explicitly; updating a skill does
+not migrate their files, and cleanup of older closed work needs a separate
+request. All retirement writes follow the governing commit policy.
+
+### Example: a milestone closes and a lesson survives
+
+Suppose `stomper` has active milestones `M01` through `M04`. `M01` implements the
+world and camera; `M02` consumes its tile queries. Finishing one `M01` task does
+not move that task anywhere. It remains in `memory-bank/status-M01.md`, with its
+verified completion marker and notes, while other `M01` work is still open.
+
+When all `M01` work is terminal, its acceptance is verified, its review gate
+passes, and its downstream impacts are reconciled, the closing agent:
+
+1. Keeps the delivered tile-query contract in `architecture.md` and applicable
+   camera-test learning in `lessons.md`, with links to the supporting evidence.
+2. Preserves the full `M01` specification and final status document, including
+   task notes and closure evidence, in `docs/history/status-M01.md`.
+3. Adds `M01` to `docs/history/index.md`, removes its active status file,
+   specification, and index row, and leaves one history-index link in
+   `milestone.md`. It repairs maintained links, including the evidence behind
+   the lesson and `M02`'s dependency on `M01`.
+
+Now the active plan contains `M02`–`M04` and any unnumbered candidate directions.
+Product, architecture, and stack facts remain current. The lesson survives
+because it still informs camera changes; lessons are not discarded merely
+because their source milestone closed. An existing disposable launch reference
+also drops `M01`, or is removed if no active work remains.
+
+For example, a lesson might say: “For the fixed-size viewport, exercise camera
+bounds with both narrower and wider maps.” Suppose a later milestone introduces
+resizing and replaces that guidance with a resize-aware test matrix. Before
+replacing it, the agent appends the old wording, its source heading and evidence,
+the reason it is obsolete, and its replacement reference to
+`docs/history/knowledge.md`. The history index links that journal. The revised
+lesson stays in `lessons.md`; unrelated useful lessons stay there too. This
+preservation happens whenever knowledge is materially superseded, even outside
+milestone closure. A typo correction needs no journal entry.
+
+To answer “why did we choose those camera fixtures?”, search current lessons,
+then the journal by topic or the history index for `M01`, and open its retired
+record. The full Markdown evidence is readable without Git; Git supplies
+intermediate revisions. Do not retry historical rows, reuse `M01`, or rewrite
+its frozen record. Cancelled or superseded milestones would need their recorded
+disposition checked, not be assumed to satisfy a completed dependency.
+
+This keeps accumulated history out of routine startup reads. It is not a hard
+size cap: active work and genuinely applicable learning can still grow. See the
+[full lifecycle](../README.md#keep-long-term-memory-without-growing-the-active-plan).
+
+### Keeping the active plan useful
+
 Two things to know as you keep going:
 
 - **A pending status file is a planning baseline, not a contract.** It was
   written before the code existed. Rewriting it when reality disagrees is the
   intended behavior, not drift.
-- **Status IDs and their files are permanent once created.** Pending rows are a
+- **Status IDs and their records are permanent once created.** Pending rows are a
   planning baseline: add, split, rewrite, cancel, or remove them as reality
   changes, but do not rename or reuse `M02`, and keep its status file as the
-  durable milestone record.
+  durable milestone record, moving it into history only after documented closure.

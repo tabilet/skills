@@ -33,6 +33,32 @@ same on representative tasks?
 - `evolution/` records major prompt, model, architecture, or benchmark direction
   changes.
 
+## DSH integration versus workflow acceptance
+
+The [DSH compatibility job](../.github/workflows/dsh.yml) uses a locked
+0.1.5-rc.1 runtime on Linux/Node 24 to check the actual skill loader, invocation
+policy, complete bundles, resource paths, and preservation during installation,
+update, and removal. These credential-free checks are runtime integration
+proof, not evidence that a model respects workflow gates.
+
+The [live DSH scenarios](DSH.md#live-acceptance-procedure) separately grade
+initialization, archive preflight, review intake, one-row resumption, ordered
+commit policies, review-count persistence, lessons, retirement, retrieval, and
+headless stopping. Upgrade acceptance additionally checks proposal-only behavior,
+approved merges, preserved custom rules and history, review-count continuity,
+repeat no-ops, and safe stopping without approval. Score repository diffs and observed commands against the
+approved scope. Never count a completion message, native todo/goal state, or
+exit status as semantic acceptance. Test absent capabilities and unanswered
+approval explicitly. Keep one ledger writer across all runtimes.
+
+Record component versions, model, usage, conservative cost, scenario outcomes,
+and residual failures in [acceptance evidence](DSH.md#acceptance-evidence).
+The live suite has a US$10 total ceiling and must be explicitly invoked with
+enforceable budget controls. It never runs automatically on pull requests.
+Missing credentials, controls, or budget leave it incomplete, even when all
+loader checks pass. Keep raw transcripts and generated projects outside shipped
+payload.
+
 ## Turning The API Loop Into An Eval
 
 The included API loop is not automatically a model eval harness. It becomes part
@@ -111,3 +137,29 @@ An eval report should list:
 
 Store reports near the eval harness or in a documented artifact location, and
 link important direction changes from `evolution/`.
+
+## Comparing skill instructions
+
+The instruction revision draws on the portable guidance in OpenAI's
+[Rethinking skills and prompts](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra):
+keep selection descriptions specific, load supporting instructions when needed,
+and state completion and permission boundaries precisely. That article does not
+establish how these shared skills perform on other models; the comparisons below
+must supply that evidence.
+
+Compare the current candidate with a preserved pre-edit baseline using the same
+model, catalog, requests, fixtures, and limits. A catalog-selection probe measures
+which skill the model chooses from names and descriptions; it does not prove
+runtime invocation or workflow acceptance. Include one positive request per
+command and nearby explanation, status, or implementation requests that should
+not activate those workflows.
+
+For archive, reconcile, and upgrade, compare complete proposal actions, absence
+of writes before approval, and preservation after approval. Record clarification
+turns, resources read, proposal size, truncation, tokens, and conservative cost.
+Run the eight DSH workflow groups on the final candidate. Keep correctness as the
+promotion gate; fewer words or a faster answer cannot compensate for a missing
+approval, changed history, or unverified acceptance. Report improvements only for
+comparable observed metrics, and keep raw fixtures and transcripts outside the
+shipped payload. Paid comparisons remain explicitly invoked and share the
+existing cumulative budget ceiling.

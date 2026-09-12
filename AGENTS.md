@@ -86,6 +86,10 @@ is only worth anything if additions are argued against something:
 # Verify this repository. Run before claiming a change is done; CI runs it too.
 python3 check.py
 
+# Separate credential-free DSH compatibility suite (Linux, Node 24).
+npm ci --prefix tests/dsh --ignore-scripts --no-audit --no-fund
+npm test --prefix tests/dsh
+
 # Exercise the harness end-to-end against a real memory-bank project
 ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=... OPENAI_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
 ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=anthropic LLM_MODEL=... ANTHROPIC_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
@@ -104,6 +108,14 @@ status-marker regexes, the shipped payload, the disposable goal-reference
 contract, and the English-only documentation policy. Standard library only,
 like the harness.
 When you add a rule to this file, add the check that enforces it.
+
+The DSH suite is repository-only: `tests/dsh/` locks the runtime and its
+dependencies, and a separate CI job tests the six shared bundles through DSH's
+filesystem loader. Keep Node out of the default Python checks and shipped
+payload. Paid acceptance is explicitly invoked, never automatic on pull
+requests; [docs/DSH.md](docs/DSH.md) records the supported target, cost ceiling,
+observed evidence, and incomplete gates. Keep raw sessions and generated
+projects outside shipped payload.
 
 The plugin-version check needs tags, which `actions/checkout` does not fetch by
 default; the workflow passes `fetch-tags`. Without them the check fails rather

@@ -1,5 +1,16 @@
 # You've Been Grilled. Now Build the Whole Harness.
 
+
+Current installation reference: [the maintained six-skill guide](../README.md#install-the-six-skills)
+includes DSH filesystem installation alongside Claude Code and Codex. DSH uses
+the same complete bundles, with `/memory-bank-*` or ordinary-language requests;
+its [integration guide](DSH.md) records memory-bank v1.3.0's tested scope,
+Web approval flow, headless limits, and preserving update/removal commands.
+Installing updated skills does not migrate project instructions or history.
+The v1.3.0 `memory-bank-upgrade` skill proposes and applies approved project-rule
+merges while preserving plans and history; see the
+[upgrade guide](../README.md#upgrade-an-existing-project).
+
 <!-- Medium publishing asset: medium-new-project-infographic.png. Upload it
 immediately below the article title; it is intentionally not embedded here. -->
 
@@ -7,7 +18,7 @@ immediately below the article title; it is intentionally not embedded here. -->
 
 If you are a frequent user of skills like `/grill-me`, you have probably had this thought: the interview is great, but why stop at one skill? Why not build the whole engineering harness directly — the thing that knows what your project is, what is done, what is next, and can work through it?
 
-That is what this package is: a file-owned engineering harness with five optional skills around it. The skills generate and operate the files, but the files do not depend on the plugin. It works standalone, and it works alongside `/grill-me` rather than against it.
+That is what this package is: a file-owned engineering harness with six optional skills around it. The skills generate and operate the files, but the files do not depend on the plugin. It works standalone, and it works alongside `/grill-me` rather than against it.
 
 The difference in one line: **`/grill-me` ends in understanding; this ends in files.**
 
@@ -31,9 +42,11 @@ your-project/
 │   ├── product.md         scope, domain model, and non-goals
 │   ├── architecture.md    layout, data flow, the boundaries that matter
 │   ├── tech-stack.md      stack, dependencies, how you verify
+│   ├── lessons.md         applicable lessons and evidence
 │   ├── milestone.md       active milestones, later directions, review rules
-│   ├── status-M01.md      one permanent file per milestone, one row per task
+│   ├── status-M01.md      one file per active milestone, permanent ID
 │   └── suggested.txt      disposable goal order, file map, and impacts
+├── docs/history/          created when retiring a milestone or knowledge
 └── evolution/             versioned direction snapshots
     ├── prompt-v1.md       the initial direction
     └── result-v1.md       the state it produced
@@ -41,26 +54,30 @@ your-project/
 
 The term *memory bank* was popularised by [Cline](https://docs.cline.bot/best-practices/memory-bank); this is a different implementation of the same idea, in plain files with no runtime.
 
-No project CLI to adopt, no `.something/` scaffold that grows over time, no vocabulary you will have to migrate away from. The plugin never updates anything autonomously: a skill changes your files only when you invoke it and approve its proposal, and uninstalling it leaves your project exactly as it is.
+No project CLI to adopt, no `.something/` scaffold that grows over time. There
+is no background updater: agents maintain your files during authorized
+workflows, including the retirement rules you adopt. Installing or updating the
+plugin does not migrate those files, and uninstalling it leaves them in place.
 
 `product.md` also carries the maintained domain model: canonical terminology,
 relationships between concepts, and business invariants. `suggested.txt` is
 created only when the project has an approved compatible `GOAL.md`; it is launch
 input rather than project truth.
 
-Five optional skills provide a repeatable interface:
+Six optional skills provide a repeatable interface:
 
 - **`memory-bank-archive`** — before init when a large existing package needs frozen, commit-anchored context evidence. A new project like this one skips it.
 - **`memory-bank-init`** — once per project, on the way in. It interviews you, proposes a breakdown, and writes the files after you approve.
+- **`memory-bank-upgrade`** — after a skill update, review and approve rule merges into an existing project while preserving its plans and history.
 - **`memory-bank-reconcile`** — whenever a new review arrives. It validates findings against current code and updates the approved plan without implementing fixes.
 - **`memory-bank-next`** — every day. One task: implement, verify, commit.
 - **`memory-bank-goal`** — several milestones, in a defined order.
 
 ---
 
-## Installing: the two agents differ
+## Installing in Claude Code and Codex
 
-Both agents install from the same repository and read the same manifest, but they surface the commands differently. This trips people up, so it is worth being explicit.
+Claude Code and Codex install from the same repository and read the same manifest, but they surface the commands differently. This trips people up, so it is worth being explicit.
 
 ### Claude Code
 
@@ -309,7 +326,38 @@ Note what those rows are *not*. They are not "build the player." Each names some
 
 **One gotcha that will cost you an afternoon if you hand-edit these files: the backticks around every marker are load-bearing for the included API harness parser.** The full set is `[ ]` pending, `[+]` complete, `[~]` in progress, `[!]` blocked, `[X]` cancelled, and `[-]` closed historical evidence. A `[-]` row retains a consumed failed attempt or superseded row for audit, names its accepted successor, is never retried, and does not block that successor. The new marker is additive; the earlier five keep their meanings.
 
-A bare `[ ]` is invisible to the parser — an API-harness run reports "no actionable rows remain" and exits successfully, as though the work were finished. Nothing looks broken. If a run ends instantly with nothing to do, check the backticks first.
+Older API runners could silently ignore a bare `[ ]` and report no actionable work. The current runner stops with exit `11` for malformed task markers or empty status files. Check the separately installed runner version as well as the marker syntax; a skill update does not upgrade that runner.
+
+The active plan does not need to grow with every completed milestone.
+`memory-bank-init` establishes the convention; `memory-bank-next` and
+`memory-bank-goal` perform retirement during milestone closure, after review,
+verification, consolidation, and downstream reconciliation pass. There is no
+background process or separate archive invocation. Completed rows stay active
+until their whole milestone qualifies; unresolved work or missing closure
+evidence prevents retirement.
+
+The full specification and status move to `docs/history/status-<LANE><NN>.md`,
+indexed by the same permanent ID in `docs/history/index.md`. `milestone.md`
+loses the retired specification and index row, keeping active work, later
+directions, and one history-index link. Current facts stay in their usual
+memory-bank files, and `lessons.md` keeps useful learning with evidence even
+after its source milestone retires. It is curated, not one entry per milestone.
+
+Before materially replacing obsolete facts or lessons, retain their old
+wording, source, reason, evidence, and replacement in
+`docs/history/knowledge.md`. This applies during ordinary maintenance too, not
+just at closure; routine wording edits need no journal entry. Search current
+memory first, then the history index or knowledge journal when an old ID or
+decision matters. Frozen Markdown preserves the evidence without Git; Git adds
+intermediate revisions. Historical tasks are not retried.
+
+This prevents history-driven growth, not all growth: current complexity and
+applicable learning can still increase. `memory-bank-archive` is a separate,
+optional context-snapshot workflow, and `memory-bank-reconcile` plans review
+work without retiring it. Existing projects must explicitly adopt these rules
+and a compatible runner if used; older-milestone cleanup is a separate request.
+Retirement always follows the governing commit policy. See
+[long-term memory](../README.md#keep-long-term-memory-without-growing-the-active-plan).
 
 ## Step 5: run the work
 

@@ -1216,18 +1216,20 @@ def public_interfaces():
     readmes = [ROOT / "README.md"]
     public = (
         readmes
-        + [ROOT / "docs" / "TUTORIAL.md", *medium_articles()]
+        + [ROOT / "docs" / "TUTORIAL.md", ROOT / "docs" / "USE_CASES.md", *medium_articles()]
         + sorted(SKILLS_DIR.glob("*/SKILL.md"))
     )
 
     plugin_tokens = (
         "/memory-bank:memory-bank-archive",
         "/memory-bank:memory-bank-init",
+        "/memory-bank:memory-bank-upgrade",
         "/memory-bank:memory-bank-reconcile",
         "/memory-bank:memory-bank-next",
         "/memory-bank:memory-bank-goal",
         "$memory-bank:memory-bank-archive",
         "$memory-bank:memory-bank-init",
+        "$memory-bank:memory-bank-upgrade",
         "$memory-bank:memory-bank-reconcile",
         "$memory-bank:memory-bank-next",
         "$memory-bank:memory-bank-goal",
@@ -1497,6 +1499,43 @@ def skill_resource_contract():
     return problems
 
 
+@check("DSH tests pin runtime components outside the portable payload")
+def dsh_contract():
+    import json
+
+    problems = []
+    directory = ROOT / "tests/dsh"
+    manifest = json.loads((directory / "package.json").read_text())
+    lock = json.loads((directory / "package-lock.json").read_text())
+    if manifest.get("private") is not True:
+        problems.append("DSH compatibility package must remain private")
+    if manifest["dependencies"] != lock["packages"][""]["dependencies"]:
+        problems.append("DSH manifest dependencies differ from lockfile")
+    if manifest["scripts"] != {"test": "node --test compatibility.test.mjs"}:
+        problems.append("DSH automatic test command must remain credential-free")
+    for path, package in lock["packages"].items():
+        name = path.rsplit("node_modules/", 1)[-1]
+        if re.fullmatch(r"@deepseek-ai/dsh(?:-[a-z0-9-]+)?", name):
+            if package["version"] != "0.1.5-rc.1" or manifest["overrides"].get(name) != "0.1.5-rc.1":
+                problems.append(f"DSH component is not pinned to the tested version: {name}")
+        if path and (not package.get("integrity") or not package.get("resolved", "").startswith("https://registry.npmjs.org/")):
+            problems.append(f"DSH dependency lacks a registry integrity lock: {path}")
+    for path in (ROOT / "template", ROOT / "skills", ROOT / "harness"):
+        if list(path.rglob("node_modules")) or list(path.rglob("package-lock.json")):
+            problems.append(f"Node compatibility dependencies leaked into payload: {path.name}")
+    workflow = (ROOT / ".github/workflows/dsh.yml").read_text()
+    for command in ("node-version: 24.14.1", "npm ci --prefix tests/dsh --ignore-scripts",
+                    "npm test --prefix tests/dsh"):
+        if command not in workflow:
+            problems.append(f"DSH CI missing {command}")
+    if "secrets." in workflow:
+        problems.append("DSH compatibility CI must not receive paid-provider secrets")
+    public = [ROOT / "README.md", ROOT / "docs/TUTORIAL.md", ROOT / "docs/USE_CASES.md",
+              ROOT / "docs/EXECUTION.md", ROOT / "docs/MODEL_EVAL.md", *medium_articles()]
+    for path in public:
+        if "DSH.md" not in path.read_text():
+            problems.append(f"{path.relative_to(ROOT)}: missing maintained DSH guide link")
+    return problems
 
 
 def main() -> int:

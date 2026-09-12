@@ -1,0 +1,23 @@
+name: DSH compatibility
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: tests/dsh/package-lock.json
+      - run: npm ci --prefix tests/dsh --ignore-scripts --no-audit --no-fund
+      # Credential-free only. Paid acceptance is a separate, explicit operation.
+      - run: npm test --prefix tests/dsh

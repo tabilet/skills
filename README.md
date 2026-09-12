@@ -7,7 +7,7 @@ own them from that moment on.
 
 Everything here is plain text, so `git` is the only tool you need. You can read
 the files, edit them by hand, rename them, or delete them, and any agent that
-reads markdown can work with them. An optional plugin will generate the files for
+reads markdown can work with them. Optional skills will generate the files for
 you, and an optional API runner will work through them unattended; both stay
 outside your project.
 
@@ -18,7 +18,8 @@ now, the only files you are maintaining are still your own.
 
 Six optional skills can do the mapping, copying, and filling for you; see
 [Install The Six Skills](#install-the-six-skills). The files they write are
-yours from the moment they appear, and they stay exactly as you leave them.
+yours from the moment they appear. You and your agent maintain them during
+authorized work; installing or updating the plugin does not migrate them.
 
 Your project ends up looking like this:
 
@@ -30,11 +31,13 @@ your-project/
 │   ├── product.md         product scope, domain model, and non-goals
 │   ├── architecture.md    layout, data flow, boundaries
 │   ├── tech-stack.md      commands, dependencies, how you verify
+│   ├── lessons.md         applicable lessons and their evidence
 │   ├── milestone.md       active milestones plus unnumbered later directions
-│   ├── status-M01.md      one active file per milestone; ID is permanent
+│   ├── status-M01.md      one status file per active milestone; ID is permanent
 │   └── suggested.txt      optional active-horizon launch reference
 ├── docs/                  long-form reference
-│   └── archive-A01.md     optional frozen existing-package context baseline
+│   ├── archive-A01.md     optional frozen existing-package context baseline
+│   └── history/          created when a milestone or knowledge first retires
 └── evolution/             versioned direction snapshots
     ├── prompt-v1.md       the initial direction
     └── result-v1.md       the state it produced
@@ -55,9 +58,14 @@ an empty directory to a first committed task in twenty minutes, using
 the `memory-bank-init` skill to do the setup. The rest of this README is
 reference material, and the tutorial is a guided path through it.
 
-The memory bank needs `git` and nothing else. It is plain markdown, so the
-everyday workflow needs no runtime: you tell an agent such as Codex or Claude
-Code to tackle the next pending item, and it edits the files directly.
+Already have a project or a new review? [Skill use cases](docs/USE_CASES.md)
+shows individual and combined workflows, including automatic retirement versus
+explicit context snapshots.
+
+The memory bank is plain Markdown and needs no runtime to read or maintain.
+Git is required by the usual per-task commit workflow and the optional API
+harness. A permitted no-commit workflow can maintain the same files without
+Git, including their retired records.
 
 **Python 3 is only for the optional API harness**, the unattended loop described
 in [Install The API Harness](#install-the-api-harness). It uses nothing but the
@@ -80,7 +88,7 @@ memory bank for you:
 Run those commands in Claude Code from a new or small existing project and
 answer the questions. A large existing package may first be routed through
 `memory-bank-archive`; see [Set Up An Existing Project](#set-up-an-existing-project).
-The Codex equivalent and plain-file installation are in
+The Codex equivalent, DSH route, and plain-file installation are in
 [Install The Six Skills](#install-the-six-skills).
 
 To work from the files by hand instead, clone this repository once. Every `cp`
@@ -104,6 +112,7 @@ root:
 - [template/memory-bank/product.md](template/memory-bank/product.md)
 - [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
 - [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
+- [template/memory-bank/lessons.md](template/memory-bank/lessons.md)
 - [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
 - [template/memory-bank/status-M01.md](template/memory-bank/status-M01.md)
 - [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
@@ -115,8 +124,8 @@ The optional API runner and its human-readable instruction copy live in
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-The six skills are in [skills/](skills/). Claude Code and Codex read the same
-`SKILL.md` format, so there is one source per skill:
+The six skills are in [skills/](skills/). Claude Code, Codex, and DSH read the
+same `SKILL.md` bundles, so there is one source per skill:
 
 - [memory-bank-archive](skills/memory-bank-archive/SKILL.md) — snapshot a large
   existing package into frozen, evidence-backed context archives
@@ -130,6 +139,12 @@ The six skills are in [skills/](skills/). Claude Code and Codex read the same
   verify it, commit it
 - [memory-bank-goal](skills/memory-bank-goal/SKILL.md) — run an ordered
   set of milestones
+
+Init, archive, and reconcile inspect their write contracts before presenting a
+complete proposal. They write only after its approval, then continue through
+verification within that scope. Upgrade presents focused rule diffs while
+preserving project content. Goal loads optional runtime help only when needed;
+keep its supporting reference when copying the bundle.
 
 Unlike the copyable template, `memory-bank-init` can derive project-specific
 goal input and `memory-bank-reconcile` can refresh it after a new review changes
@@ -626,7 +641,12 @@ cleanup of older closed milestones; missing closure evidence keeps them active.
 Installing newer skills alone never merges project instructions or moves files.
 
 See the complete
-[retirement contract](template/memory-bank/milestone.md#long-term-memory-and-retirement).
+[retirement contract](template/memory-bank/milestone.md#long-term-memory-and-retirement)
+and the tutorial's
+[worked example](docs/TUTORIAL.md#example-a-milestone-closes-and-a-lesson-survives).
+For when to invoke each skill, see [skill use cases](docs/USE_CASES.md), especially
+[automatic retirement](docs/USE_CASES.md#6-automatic-retirement-during-normal-work)
+and [explicit successor snapshots](docs/USE_CASES.md#7-explicitly-snapshot-a-materially-changed-system).
 
 ### Upgrade an existing project
 
@@ -784,7 +804,7 @@ paraphrase of it.
 | `memory-bank-init` | Once, on a project with no initialized milestone/status harness. It interviews you, proposes a breakdown, then writes the files. |
 | `memory-bank-upgrade` | After updating skills, review and approve merges of new workflow rules into an existing project. |
 | `memory-bank-reconcile` | Whenever a new review arrives after initialization. It validates findings and updates the approved plan without implementing them. |
-| `memory-bank-next` | Every day. Tackle one row, verify, commit. |
+| `memory-bank-next` | Execute or resume one row, verify, and commit under the governing policy. |
 | `memory-bank-goal` | When you want several milestones run in order. |
 
 `memory-bank-init` is the one that changes the experience most: it maps one
@@ -795,8 +815,9 @@ horizon and every file action. You never see a bracketed placeholder, because
 the memory bank arrives filled in. *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
-Both agents read the same `SKILL.md` format **and the same manifest**, so there
-is one source per command and one release to install.
+Claude Code and Codex read the same `SKILL.md` format **and the same manifest**.
+DSH loads the same complete directories through its filesystem skill loader;
+see [DSH installation](#dsh-installation).
 
 **Claude Code:**
 
@@ -822,10 +843,11 @@ version ships.
 skill namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex
 skill invocation](https://developers.openai.com/plugins/build/skills):
 
-| Agent | Archive | Init | Reconcile review | Next row | Ordered milestones |
-|---|---|---|---|---|---|
-| Claude Code plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
-| Codex plugin | `$memory-bank:memory-bank-archive` | `$memory-bank:memory-bank-init` | `$memory-bank:memory-bank-reconcile` | `$memory-bank:memory-bank-next` | `$memory-bank:memory-bank-goal` |
+| Agent | Archive | Init | Upgrade rules | Reconcile review | Next row | Ordered milestones |
+|---|---|---|---|---|---|---|
+| Claude Code plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
+| Codex plugin | `$memory-bank:memory-bank-archive` | `$memory-bank:memory-bank-init` | `$memory-bank:memory-bank-upgrade` | `$memory-bank:memory-bank-reconcile` | `$memory-bank:memory-bank-next` | `$memory-bank:memory-bank-goal` |
+| DSH filesystem | `/memory-bank-archive` | `/memory-bank-init` | `/memory-bank-upgrade` | `/memory-bank-reconcile` | `/memory-bank-next` | `/memory-bank-goal` |
 
 Plain English also works in both agents.
 
@@ -845,11 +867,13 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 
 Plain-file skills are unnamespaced: `/memory-bank-archive` and
 `/memory-bank-init` in Claude Code, `$memory-bank-archive` and
-`$memory-bank-init` in Codex, with the same pattern for `reconcile`, `next`, and
+`$memory-bank-init` in Codex, with the same pattern for `upgrade`, `reconcile`, `next`, and
 `goal`.
 
-To pin a version, swap `refs/heads/main` for `refs/tags/<version>` and change
-`skills-main` to `skills-<version>` to match the directory inside that tarball.
+To pin a published version, replace `refs/heads/main` with its tag path and
+match the archive's directory name. For tag `v1.3.0`, those are
+`refs/tags/v1.3.0` and `skills-1.3.0` respectively: the extracted directory omits
+the tag's leading `v`. A tag download is available only after publication.
 
 The plugin installs the *generator*, not the output. What it writes into your
 project is yours, is never updated from here, and survives uninstalling it.
@@ -859,6 +883,44 @@ built-in `/goal` for keeping a durable objective active, while
 `memory-bank-goal` supplies this repository's multi-milestone protocol. The two
 work together; see [Run an ordered set of
 milestones](#run-an-ordered-set-of-milestones).
+
+### DSH installation
+
+DSH provides tools, permissions, and persistent sessions; memory-bank defines
+approved engineering work, verification, review, and project history. The
+tested configuration is **DSH 0.1.5-rc.1 on Linux with Node 24**, in **Web** and
+the **headless** one-shot profile. Credential-free integration checks and the
+eight bounded live workflow scenario groups reached accepted final states after
+the documented corrections. The
+[observed test results](docs/DSH.md#acceptance-evidence) record the exact scope,
+corrections, cost, and limitations; loader tests alone do not prove acceptance.
+
+Copy the six **complete directories** from a v1.3.0-or-newer checkout's `skills/`
+into `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`, using the
+[preserving installation commands](docs/DSH.md#install-the-six-bundles). They
+keep supporting references and init's bundled protocol, allow identical repeat
+installation, and stop on differing existing content. `~/.agents/skills` is an
+alternative; higher-priority duplicates can shadow an update. DSH uses its
+existing filesystem loader, without a new plugin or installer CLI.
+
+Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
+only the identified memory-bank bundles. Removal retains those bundles in a
+backup and leaves project memory, credentials, and unrelated skills alone.
+Installing updated skills never migrates project instructions or history.
+During release preparation, use the reviewed working tree. A marketplace
+install or `main` download includes only changes already published there.
+
+Start `dsh web` from your project, confirm the workspace, and invoke
+`/memory-bank-init`, `/memory-bank-archive`, `/memory-bank-upgrade`, or `/memory-bank-reconcile` for
+interviews and explicit approvals. Use `/memory-bank-next`, `/memory-bank-goal`,
+or an ordinary-language request for execution. For pre-approved work, use
+`dsh --profile headless 'complete authorized request'`; the
+[headless examples](docs/DSH.md#headless-workflow) include scope and stop rules.
+A process can exit with a question or unfinished milestone: exit status, native
+todos, and native goal state never prove acceptance. Keep one execution owner
+for the active ledger. See [the DSH tutorial route](docs/TUTORIAL.md#dsh-route)
+and [detailed integration guide](docs/DSH.md) for prerequisites, permissions,
+resource loading, goal continuation, and verification.
 
 ### If you already use `/grill-me`
 
