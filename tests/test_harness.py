@@ -46,7 +46,9 @@ def make_repo(root: pathlib.Path, state: str | None = None) -> pathlib.Path:
     state = state or marker("[ ]")
     (root / "memory-bank").mkdir(parents=True)
     (root / "AGENTS.md").write_text("# Agent guide\n", encoding="utf-8")
-    (root / "memory-bank" / "milestone.md").write_text("# Milestone\n", encoding="utf-8")
+    (root / "memory-bank" / "milestone.md").write_text(
+        "# Milestone\n\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n", encoding="utf-8"
+    )
     (root / "memory-bank" / "status-M01.md").write_text(
         "# Status\n\n| Item | State | Notes |\n|---|---|---|\n"
         f"| Implement feature | {state} | Keep this note. |\n",
@@ -109,6 +111,208 @@ def openai_response(content: str, finish_reason: str = "stop") -> dict:
         "choices": [{"message": {"content": content}, "finish_reason": finish_reason}],
         "usage": {"prompt_tokens": 10, "completion_tokens": 4},
     }
+
+
+def retirement_text(status: str, milestone_id: str = "M01", **fields: str) -> str:
+    metadata = {
+        "Milestone": milestone_id,
+        "Outcome": "completed",
+        "Retired": "2026-09-12",
+        "Source status": f"memory-bank/status-{milestone_id}.md",
+        "Source specification": f"memory-bank/milestone.md#{milestone_id.lower()}-delivery",
+        "Evidence": "unversioned",
+        "Worktree": "unversioned",
+        "Review": "passed",
+        "Review iterations": "2",
+        "Verification": "tests passed; review found no blocking issues",
+        "Consolidated into": "no current-truth change",
+    }
+    metadata.update(fields)
+    specification = (
+        f"## {milestone_id} - Delivery\n\n**Acceptance.** Feature works.\n\n"
+        # A task-looking row in a spec is not executable state.
+        f"Example only:\n| Not a task | {marker('[ ]')} | Example |\n"
+        "```text\n## Status record\n```\n"
+    )
+    fence = BACKTICK * 5
+    return (
+        f"# Retired milestone {milestone_id}\n\n"
+        + "\n".join(f"**{key}.** {value}" for key, value in metadata.items())
+        + f"\n\n## Milestone specification\n\n{fence}markdown\n"
+        + specification
+        + f"{fence}\n\n## Status record\n\n{fence}markdown\n"
+        + status
+        + f"{fence}\n"
+    )
+
+
+def retire_fixture(repo: pathlib.Path, milestone_id: str = "M01", **fields: str) -> pathlib.Path:
+    source = repo / "memory-bank" / f"status-{milestone_id}.md"
+    history = repo / "docs" / "history"
+    history.mkdir(parents=True, exist_ok=True)
+    destination = history / source.name
+    destination.write_text(retirement_text(source.read_text(), milestone_id, **fields))
+    source.unlink()
+    index = history / "index.md"
+    previous = index.read_text() if index.exists() else (
+        "# History\n\n| Milestone | Outcome | Retired | Record | Summary |\n"
+        "|---|---|---|---|---|\n"
+    )
+    index.write_text(
+        previous + f"| {milestone_id} | {fields.get('Outcome', 'completed')} | 2026-09-12 | "
+        f"[{milestone_id}](status-{milestone_id}.md) | Delivery |\n"
+    )
+    (repo / "memory-bank" / "milestone.md").write_text(
+        "# Milestones\n\n[History](../docs/history/index.md)\n"
+    )
+    return destination
+
+
+class RetirementTests(unittest.TestCase):
+    def test_retired_specification_identity_cannot_be_substituted(self) -> None:
+        text = retirement_text(f"| Task | {marker('[+]')} | Verified |\n")
+        with self.assertRaisesRegex(ValueError, "specification does not match"):
+            harness.retired_record(text.replace("## M01 - Delivery", "## M02 - Other"), "status-M01.md")
+        with self.assertRaisesRegex(ValueError, "01 through 99"):
+            harness.retired_record(text.replace("M01", "M00"), "status-M00.md")
+
+    def test_fence_with_info_string_does_not_end_literal_example(self) -> None:
+        text = (
+            "```markdown\n```text\n"
+            f"| Hidden | {marker('[ ]')} | example |\n"
+            "```\n"
+            f"| Real | {marker('[+]')} | evidence |\n"
+        )
+        self.assertEqual([row["item"] for row in harness.status_rows(text)], ["Real"])
+
+    def test_literal_documents_and_unversioned_provenance_round_trip(self) -> None:
+        status = f"# Status\n\n| Task | {marker('[+]')} | Preserve this. |\n"
+        record = harness.retired_record(retirement_text(status), "status-M01.md")
+        self.assertEqual(record["status"], status)
+        self.assertIn("Not a task", record["specification"])
+        self.assertEqual(len(harness.status_rows(record["status"])), 1)
+        self.assertEqual(record["metadata"]["Evidence"], "unversioned")
+
+    def test_invalid_closure_and_provenance_are_rejected(self) -> None:
+        status = f"| Task | {marker('[+]')} | Verified |\n"
+        for fields in (
+            {"Review": "failed"}, {"Review iterations": "11"},
+            {"Evidence": "abc123"}, {"Evidence": "a" * 40},
+            {"Retired": "yesterday"}, {"Outcome": "cancelled"},
+            {"Outcome": "superseded", "Disposition": "User authorized replacement"},
+            {"Milestone": "M02"}, {"Verification": ""},
+        ):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                harness.retired_record(retirement_text(status, **fields), "status-M01.md")
+
+    def test_open_rows_and_unnamed_successors_prevent_retirement(self) -> None:
+        for state in ("[ ]", "[~]", "[!]", "[-]"):
+            with self.subTest(state=state), self.assertRaises(ValueError):
+                harness.retired_record(
+                    retirement_text(f"| Task | {marker(state)} | No outcome |\n"), "status-M01.md"
+                )
+        record = harness.retired_record(
+            retirement_text(f"| Old attempt | {marker('[-]')} | successor: M02 / Retry |\n"),
+            "status-M01.md",
+        )
+        self.assertIn("successor: M02", record["status"])
+
+    def test_malformed_marker_cannot_hide_an_open_retired_task(self) -> None:
+        for state in ("[ ]", "`[?]`", "`[x]`", "**[ ]**"):
+            with self.subTest(state=state), self.assertRaises(ValueError):
+                harness.retired_record(retirement_text(
+                    f"| Finished | {marker('[+]')} | Verified |\n"
+                    f"| Hidden task | {state} | Invalid marker |\n"
+                ), "status-M01.md")
+
+    def test_cancelled_and_superseded_records_keep_distinct_outcomes(self) -> None:
+        status = f"| Old work | {marker('[X]')} | User cancelled it. |\n"
+        for outcome in ("cancelled", "superseded"):
+            with self.subTest(outcome=outcome):
+                record = harness.retired_record(retirement_text(
+                    status, Outcome=outcome, Disposition="User approved; consumers now depend on M02",
+                    Successor="M02",
+                ), "status-M01.md")
+                self.assertEqual(record["metadata"]["Outcome"], outcome)
+
+    def test_retirement_preserves_row_identity_and_earlier_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+            source = repo / "memory-bank" / "status-M01.md"
+            source.write_text(source.read_text() + f"| Earlier | {marker('[+]')} | Evidence. |\n")
+            before = harness.row_snapshot(repo)
+            source.write_text(source.read_text().replace(marker("[~]"), marker("[+]")))
+            retired = retire_fixture(repo)
+            after = harness.row_snapshot(repo)
+            self.assertEqual(harness.status_files(repo), [])
+            self.assertEqual(harness.validate_row_transition(
+                before, after, ("status-M01.md", "Implement feature", 1)
+            ), [])
+            retired.write_text(retired.read_text().replace("| Evidence. |", "| Changed old evidence. |"))
+            problems = harness.validate_row_transition(before, harness.row_snapshot(repo))
+            self.assertTrue(any("earlier row" in problem for problem in problems))
+
+    def test_retirement_cannot_drop_original_status_prose(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo")
+            source = repo / "memory-bank" / "status-M01.md"
+            source.write_text(source.read_text() + "\nImportant historical context.\n")
+            before = harness.row_snapshot(repo)
+            source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
+            retired = retire_fixture(repo)
+            retired.write_text(retired.read_text().replace("Important historical context.\n", ""))
+            problems = harness.validate_row_transition(before, harness.row_snapshot(repo))
+        self.assertTrue(any("discarded original status content" in problem for problem in problems))
+
+    def test_retirement_cannot_summarize_away_the_original_specification(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo")
+            before = harness.row_snapshot(repo)
+            source = repo / "memory-bank" / "status-M01.md"
+            source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
+            retired = retire_fixture(repo)
+            retired.write_text(retired.read_text().replace("**Acceptance.** Feature works.", "A short summary."))
+            problems = harness.validate_row_transition(before, harness.row_snapshot(repo))
+        self.assertTrue(any("discarded original milestone specification" in p for p in problems))
+
+    def test_history_index_and_active_location_must_agree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retired = retire_fixture(repo)
+            self.assertEqual(harness.history_snapshot(repo)["problems"], [])
+            source = repo / "memory-bank" / "status-M01.md"
+            source.write_text(f"| Duplicate | {marker('[ ]')} | New work |\n")
+            self.assertTrue(any("duplicate active/retired" in p for p in harness.history_snapshot(repo)["problems"]))
+            source.unlink()
+            retired.unlink()
+            self.assertTrue(any("missing or invalid" in p for p in harness.history_snapshot(repo)["problems"]))
+
+    def test_retired_specification_must_leave_active_milestones(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retire_fixture(repo)
+            milestone = repo / "memory-bank" / "milestone.md"
+            milestone.write_text(milestone.read_text() + "\n## M01 - Delivery\n\nStill here.\n")
+            problems = harness.history_snapshot(repo)["problems"]
+        self.assertTrue(any("specification remains active" in p for p in problems))
+
+    def test_existing_retired_records_and_knowledge_are_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retired = retire_fixture(repo)
+            journal = repo / "docs" / "history" / "knowledge.md"
+            journal.write_text("# Retired knowledge\n\nOld lesson with source and replacement.\n")
+            active = repo / "memory-bank" / "status-M02.md"
+            active.write_text(f"| New task | {marker('[ ]')} | Work |\n")
+            before = harness.row_snapshot(repo)
+            active.write_text(active.read_text().replace(marker("[ ]"), marker("[+]")))
+            journal.write_text(journal.read_text() + "\nAnother retired lesson.\n")
+            self.assertEqual(harness.validate_row_transition(before, harness.row_snapshot(repo)), [])
+            retired.write_text(retired.read_text().replace("# Retired milestone", "# Rewritten milestone"))
+            journal.write_text("# Erased knowledge\n")
+            problems = harness.validate_row_transition(before, harness.row_snapshot(repo))
+        self.assertTrue(any("previously retired record" in p for p in problems))
+        self.assertTrue(any("knowledge history was rewritten" in p for p in problems))
 
 
 class StatusParserTests(unittest.TestCase):
@@ -322,6 +526,43 @@ class ProviderTests(unittest.TestCase):
 
 
 class HarnessIntegrationTests(unittest.TestCase):
+    def test_invalid_active_state_stops_before_api_or_completion(self) -> None:
+        for hidden in ("[ ]", "`[?]`", "`[x]`", "**[ ]**", "pending", ""):
+            with self.subTest(marker=hidden), tempfile.TemporaryDirectory() as tmp:
+                repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+                path = repo / "memory-bank/status-M01.md"
+                path.write_text(path.read_text() + f"| Hidden work | {hidden} | still pending |\n")
+                proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+                self.assertEqual(proc.returncode, 11, proc.stderr)
+                self.assertIn("non-backticked state marker", proc.stderr)
+                self.assertNotIn("No actionable", proc.stdout)
+
+    def test_missing_or_unreadable_task_rows_are_not_completion(self) -> None:
+        for content in (b"# Status\n", b"\xff"):
+            with self.subTest(content=content), tempfile.TemporaryDirectory() as tmp:
+                repo = make_repo(pathlib.Path(tmp) / "repo")
+                (repo / "memory-bank/status-M01.md").write_bytes(content)
+                proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+                self.assertEqual(proc.returncode, 11, proc.stderr)
+
+    def test_missing_project_instructions_cannot_look_like_completion(self) -> None:
+        for relative, expected in (("AGENTS.md", 10), ("memory-bank/milestone.md", 11)):
+            with self.subTest(path=relative), tempfile.TemporaryDirectory() as tmp:
+                repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+                (repo / relative).unlink()
+                (repo / relative).mkdir()
+                proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+                self.assertEqual(proc.returncode, expected, proc.stderr)
+
+    def test_invalid_active_id_is_not_hidden_by_retired_history(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retire_fixture(repo)
+            (repo / "memory-bank/status-M00.md").write_text(f"| Work | {marker('[ ]')} | pending |\n")
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+            self.assertEqual(proc.returncode, 11, proc.stderr)
+            self.assertIn("invalid active status filename", proc.stderr)
+
     def harness_env(self, tmp: str, **extra: str) -> dict[str, str]:
         env = {
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
@@ -390,6 +631,126 @@ class HarnessIntegrationTests(unittest.TestCase):
             proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
         self.assertEqual(proc.returncode, 14)
         self.assertIn("ALLOW_UNSANDBOXED_SHELL", proc.stderr)
+
+    def test_all_retired_project_exits_without_api_or_shell_acknowledgment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retire_fixture(repo)
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("LLM turn", proc.stdout)
+
+    def test_empty_or_broken_history_does_not_claim_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retired = retire_fixture(repo)
+            retired.unlink()
+            broken = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+            (repo / "docs" / "history" / "index.md").write_text("# Empty history\n")
+            empty = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(broken.returncode, 11, broken.stderr)
+        self.assertEqual(empty.returncode, 11, empty.stderr)
+
+    def test_history_does_not_hide_a_missing_active_dependency(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retire_fixture(repo)
+            milestone = repo / "memory-bank" / "milestone.md"
+            milestone.write_text(milestone.read_text() + "\n## M02 - Still required\n\nMust be implemented.\n")
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(proc.returncode, 11, proc.stderr)
+        self.assertIn("active milestone has no status record", proc.stderr)
+
+    def test_missing_active_dependency_stops_before_first_retirement(self) -> None:
+        for entry in (
+            "## M02 - Still required\n\nMust be implemented.\n",
+            "| [M02](status-M02.md) | Still required |\n",
+        ):
+            with self.subTest(entry=entry), tempfile.TemporaryDirectory() as tmp:
+                repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+                milestone = repo / "memory-bank/milestone.md"
+                milestone.write_text(milestone.read_text() + "\n" + entry)
+                proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+                self.assertEqual(proc.returncode, 11, proc.stderr)
+                self.assertIn("active milestone has no status record", proc.stderr)
+                self.assertNotIn("No actionable", proc.stdout)
+
+    def test_task_cannot_remove_required_project_instructions(self) -> None:
+        for relative in ("AGENTS.md", "memory-bank/milestone.md"):
+            with self.subTest(path=relative), tempfile.TemporaryDirectory() as tmp:
+                repo = make_repo(pathlib.Path(tmp) / "repo")
+
+                def damage_instructions(args, target, number, summary, current):
+                    source = target / "memory-bank/status-M01.md"
+                    source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
+                    (target / relative).unlink()
+                    run("git", "add", "-A", cwd=target)
+                    committed = run(
+                        "git", "-c", "user.name=Harness Test", "-c", "user.email=harness@example.test",
+                        "commit", "-qm", "complete task but delete required instructions", cwd=target,
+                    )
+                    self.assertEqual(committed.returncode, 0, committed.stderr)
+
+                with mock.patch.object(sys, "argv", [str(HARNESS), str(repo)]), mock.patch.dict(
+                    os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True
+                ), mock.patch.object(harness, "one_agent_run", side_effect=damage_instructions), \
+                        self.assertRaises(SystemExit) as stopped:
+                    harness.main()
+                self.assertEqual(stopped.exception.code, 8)
+
+    def test_retired_files_are_readable_without_git_but_api_still_requires_git(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp) / "repo"
+            (repo / "memory-bank").mkdir(parents=True)
+            (repo / "AGENTS.md").write_text("# Agent guide\n")
+            (repo / "memory-bank" / "status-M01.md").write_text(
+                f"# Status\n\n| Task | {marker('[+]')} | Verified manually |\n"
+            )
+            retire_fixture(repo)
+            snapshot = harness.history_snapshot(repo)
+            self.assertEqual(snapshot["problems"], [])
+            self.assertIn("Verified manually", snapshot["records"]["status-M01.md"]["status"])
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(proc.returncode, 12, proc.stderr)
+
+    def test_closing_run_commits_and_retires_exactly_one_milestone(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+            evidence = run("git", "rev-parse", "HEAD", cwd=repo).stdout.strip()
+
+            def close_and_retire(args, target, number, summary, current):
+                self.assertEqual(current["key"], ("status-M01.md", "Implement feature", 1))
+                source = target / "memory-bank" / "status-M01.md"
+                source.write_text(source.read_text().replace(marker("[~]"), marker("[+]")))
+                retire_fixture(target, Evidence=evidence, Worktree="includes uncommitted changes")
+                run("git", "add", "-A", cwd=target)
+                committed = run(
+                    "git", "-c", "user.name=Harness Test", "-c", "user.email=harness@example.test",
+                    "commit", "-qm", "complete and retire M01", cwd=target,
+                )
+                self.assertEqual(committed.returncode, 0, committed.stderr)
+
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo)]), mock.patch.dict(
+                os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True
+            ), mock.patch.object(harness, "one_agent_run", side_effect=close_and_retire) as agent:
+                harness.main()
+            agent.assert_called_once()
+            self.assertTrue(harness.git_clean(repo))
+            self.assertEqual(harness.status_files(repo), [])
+            self.assertEqual(harness.history_snapshot(repo)["problems"], [])
+
+    def test_active_work_counts_ignore_retired_specification_examples(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retire_fixture(repo)
+            (repo / "memory-bank" / "status-M02.md").write_text(
+                f"| Waiting | {marker('[!]')} | External input missing |\n"
+            )
+            summary = harness.lane_summary(repo)
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(len(summary), 1)
+        self.assertEqual(summary[0]["actionable"], 0)
+        self.assertEqual(proc.returncode, 3, proc.stderr)
 
     def test_dirty_worktree_stops_before_api(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

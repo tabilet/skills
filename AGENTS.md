@@ -118,7 +118,7 @@ compile).
 
 To test harness gating without an API key, point it at a scratch git repo — the
 row gates run before the first network call, so blocked-only exits 3, all-done
-exits 0, and no lane files exits 11 without any request being made.
+exits 0, and missing active and retired status state exits 11 without a request.
 
 ## Architecture
 
@@ -128,9 +128,9 @@ the whole point of the design:
 | Layer | Role |
 |---|---|
 | `AGENTS.md` | Short bootstrap pointer; read first by agents. Names commands, boundaries, hard rules. |
-| `memory-bank/` | Active truth: `product.md`, `architecture.md`, `tech-stack.md`, `milestone.md`, one `status-<LANE><NN>.md` per milestone. |
+| `memory-bank/` | Active truth: product, architecture, stack, curated `lessons.md`, active milestone specifications and status files. |
 | `evolution/` | Versioned direction snapshots (`prompt-vN.md` / `result-vN.md`). New version only on a real direction, boundary, milestone, or contract change. |
-| `docs/` | Long-form reference and optional frozen `archive-<LANE><NN>.md` repository baselines. `README.md` stays short and user-facing. |
+| `docs/` | Long-form reference, optional frozen context baselines, and on-demand retired milestone/knowledge history. `README.md` stays short and user-facing. |
 
 ### Archive ID lanes
 
@@ -161,6 +161,22 @@ This shape is load-bearing for the harness, not just convention: lane files are
 found by glob and rows are parsed out of markdown tables. Real deployments run
 ~120 lane files across ~17 lanes.
 
+### Long-term memory
+
+`lessons.md` holds curated applicable learning with evidence, alongside current
+product, architecture, and stack facts. Superseded knowledge is preserved in
+the append-only `docs/history/knowledge.md` journal. After review, consolidation,
+and downstream reconciliation, the closing workflow retires a milestone's full
+specification and status into `docs/history/status-<LANE><NN>.md`. The history
+index owns retired IDs; active `milestone.md` retains only active specifications
+and index rows, with one history-index link. Retired records are frozen, IDs
+remain reserved across both locations, and history is consulted on demand.
+
+Retirement is a storage lifecycle, not a seventh marker or a context archive.
+The record envelope preserves original documents as literal fenced Markdown;
+the parser reads task rows only from its Status record section. Legacy projects
+adopt this explicitly. Context snapshots remain optional and separate.
+
 ### The agent loop (`harness/tackle-memory-bank-api-loop`)
 
 Python 3, standard library only (`urllib`, no `requests`/SDKs) — deliberate, per
@@ -186,7 +202,7 @@ the repo's "prefer native core libraries" rule. Structure:
 - Guardrails, each with a dedicated exit code: only blocked rows left (3), dirty
   worktree before a run (4), uncommitted changes after (5), no new commit (6),
   `MAX_RUNS` reached (7), invalid row transition (8), history rewrite (9),
-  missing `AGENTS.md` (10), no lane files (11), and missing host-shell
+  missing `AGENTS.md` (10), invalid/missing status or history (11), and missing host-shell
   acknowledgment (14). More than one in-progress row stops before the network
   call (15). A blocked row warns but does not halt while other lanes still have
   work. `DANGEROUS_RE` blocks a short list including `git reset
@@ -198,6 +214,11 @@ the repo's "prefer native core libraries" rule. Structure:
 - Row parsing: `status_rows()` reads state markers from Markdown tables outside
   fenced blocks, including indented rows and escaped pipes. Changing the state
   column or marker vocabulary in the templates breaks the harness.
+- Retirement validation resolves original row identities across active/history
+  locations, preserves earlier rows and frozen records, and rejects incomplete
+  relocation. A valid all-retired project exits 0 without an API call; missing
+  or invalid status/history state exits 11. History never contributes actionable
+  row counts. The API runner still requires Git.
 
 Status markers: `[ ]` pending, `[+]` completed, `[~]` in progress, `[!]`
 blocked, `[X]` cancelled, and `[-]` closed historical evidence. A `[-]` row is
@@ -231,6 +252,9 @@ language-suffixed copies. `README.md` is English-only too.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.
+- Init, archive, and reconcile load their write contracts before proposing file
+  actions; approval gates writes, not inspection. Goal invocation and optional
+  runtime help remain available inside its complete skill bundle.
 - Every documented invocation of `GOAL.md` carries an explicit `COMMIT_POLICY`.
   The protocol's default is `none`, so an example that omits it quietly promises
   no commits at all. Write `task` unless the example is specifically about
@@ -289,6 +313,17 @@ language-suffixed copies. `README.md` is English-only too.
   and business terminology, concept relationships, and invariants. Keep
   implementation details in `architecture.md`; do not create an overlapping
   `memory-bank/context.md`.
+- Keep `memory-bank/lessons.md` curated and evidence-linked. Before materially
+  superseding knowledge, preserve its old wording, source, reason, and
+  replacement in `docs/history/knowledge.md`; do not journal every edit.
+- After adoption, retire milestones only after the bounded review gate,
+  verification, consolidation, and downstream reconciliation pass. Preserve
+  complete specification and status documents in frozen retired records,
+  reserve IDs across active and historical storage, and keep retired index
+  rows/specifications out of active `milestone.md`. Reconcile stale goal paths
+  by permanent ID without retrying history or treating cancellation as success.
+  Existing projects require explicit adoption, not an automatic bulk migration.
+  Retirement respects every commit policy and never requires an archive run.
 - Keep repository documentation English-only; do not add translated siblings
   of `README.md` or files in `docs/`.
 - Treat every `docs/medium*.md` file as public guidance. A

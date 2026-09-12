@@ -23,6 +23,8 @@ work using the lane meanings and priority in `memory-bank/milestone.md`.
 from __future__ import annotations
 
 import argparse
+import datetime
+import hashlib
 import json
 import math
 import os
@@ -40,23 +42,48 @@ import urllib.request
 EMBEDDED_TASK = """\
 # Tackle Next Memory-Bank Todo
 
+Resolve missing information through safe inspection first. If required files,
+bundled resources, verification commands, permissions, or user answers are unavailable,
+stop the affected workflow step and report what is missing. Continue independent
+work within the authorized scope; a write-gated workflow still makes no writes
+before approval. Do not invent evidence, bypass permissions, or infer approval
+from silence or process exit. Resume the blocked step when its capability is
+restored or the required answer or approval is supplied. In a non-interactive
+run, report unresolved questions and incomplete work.
+
+Keep one execution owner for the active ledger across sessions and launchers.
+Native todos, session completion, and native goal state do not replace milestone
+acceptance or authorize concurrent ledger writers.
+
 Read `AGENTS.md`, then read the memory bank in the order required by
 `AGENTS.md`.
 
 Read `memory-bank/milestone.md` for the status ID pattern, the lane meanings,
 milestone priority, and dependencies. Inspect every active status file for an
 existing `[~]` row. If more than one general row is in progress, stop and report
-the conflict. If one exists, resume exactly it. Otherwise select the next
-dependency-ready `[ ]` row and mark it `[~]` before implementation.
+the conflict. If one exists, resume exactly it. Otherwise check the recorded
+milestone review and closure state before selecting new work. Resume an
+interrupted review or closure without selecting another row; terminal task
+markers alone do not prove milestone acceptance. When no closure is incomplete,
+select the next dependency-ready `[ ]` row and mark it `[~]` before implementation.
+
+Consult relevant maintained lessons when the project has them. Resolve retired
+prerequisites through the project's history index; never treat a stale status
+path as permission to recreate or retry a historical ID.
 
 Tackle exactly one row:
 
 - Implement the change.
-- Update relevant memory-bank or docs files.
-- Mark the row `[+]` only when verified.
+- Update current memory-bank facts invalidated by this row in the same change.
+  A later documentation row does not defer these current-fact corrections.
+  Update other relevant docs within this row's scope. Before committing,
+  compare the implementation with maintained product, architecture, and stack
+  claims; correct contradictions. Updating only the status is insufficient.
 - If a failed attempt is consumed or the row is superseded, mark it `[-]`,
   record the outcome and accepted successor in its notes, and never retry it.
 - Run the required verification.
+- Mark a successfully implemented outcome `[+]` only after verification.
+  Preserve `[-]` for consumed or superseded work.
 - Commit the change with a scoped commit message.
 
 Before invoking an operational launcher, require its exact authorized operation
@@ -67,10 +94,18 @@ If completing this row completes a milestone, run the milestone review procedure
 from `memory-bank/milestone.md` before final handoff. Commit review fixes
 separately.
 
+When the project has adopted retirement, follow that same milestone procedure:
+consolidate facts and lessons, preserve superseded knowledge, finish downstream
+reconciliation, and retain the full status and specification in history before
+removing their active entries. Preserve earlier rows and notes. Include
+retirement in the final task or substantive closure commit. Do not batch-retire
+unrelated old milestones during this one-row run. Installing a newer skill alone
+does not authorize migrating an existing project's history.
+
 Skip `[!]` blocked, `[X]` cancelled, and `[-]` closed-historical rows and pick
 another actionable row instead. Stop if no actionable pending or in-progress
-row remains in any lane, or if the task is ambiguous enough to require human
-input.
+row remains in any lane and no milestone review or closure is incomplete, or
+if the task is ambiguous enough to require human input.
 """
 
 
@@ -330,13 +365,11 @@ def _table_cells(line: str) -> list[str]:
     return cells
 
 
-def status_rows(status: str) -> list[dict]:
-    """Read state-bearing rows from Markdown tables outside fenced blocks."""
-
-    rows = []
+def unfenced_lines(text: str):
+    """Yield source lines outside fenced blocks, retaining their line numbers."""
     fence_char = ""
     fence_length = 0
-    for line_number, line in enumerate(status.splitlines(), 1):
+    for line_number, line in enumerate(text.splitlines(), 1):
         stripped = line.lstrip(" ")
         indent = len(line) - len(stripped)
         fence = re.match(r"(`{3,}|~{3,})", stripped) if indent <= 3 else None
@@ -345,15 +378,32 @@ def status_rows(status: str) -> list[dict]:
             if not fence_char:
                 fence_char = token[0]
                 fence_length = len(token)
-            elif token[0] == fence_char and len(token) >= fence_length:
+            elif (token[0] == fence_char and len(token) >= fence_length
+                  and not stripped[len(token):].strip()):
                 fence_char = ""
                 fence_length = 0
             continue
-        if fence_char or indent > 3 or not stripped.startswith("|"):
+        if not fence_char and indent <= 3:
+            yield line_number, stripped
+
+
+def table_rows(text: str) -> list[dict]:
+    rows = []
+    for line_number, stripped in unfenced_lines(text):
+        if not stripped.startswith("|"):
             continue
         cells = _table_cells(stripped)
         if len(cells) < 2:
             continue
+        rows.append({"cells": cells, "line": line_number})
+    return rows
+
+
+def status_rows(status: str) -> list[dict]:
+    """Read state-bearing rows from Markdown tables outside fenced blocks."""
+    rows = []
+    for row in table_rows(status):
+        cells = row["cells"]
         state = STATE_MARKERS.get(cells[1])
         if state:
             rows.append(
@@ -361,7 +411,7 @@ def status_rows(status: str) -> list[dict]:
                     "item": cells[0],
                     "state": state,
                     "cells": cells,
-                    "line": line_number,
+                    "line": row["line"],
                 }
             )
     return rows
@@ -375,18 +425,230 @@ def blocked_rows(status: str) -> list[dict]:
     return [row for row in status_rows(status) if row["state"] == "blocked"]
 
 
+def status_marker_problems(status: str) -> list[str]:
+    """Reject malformed state cells without interpreting unrelated prose tables."""
+    problems = []
+    in_task_table = False
+    previous_line = 0
+    for row in table_rows(status):
+        cells = row["cells"]
+        if row["line"] != previous_line + 1:
+            in_task_table = False
+        previous_line = row["line"]
+        state = cells[1]
+        if state.lower() == "state":
+            in_task_table = True
+            continue
+        if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+            continue
+        # Full task tables validate every state cell, including blank/textual
+        # states. Headerless rows with a task-shaped marker are checked too.
+        if (in_task_table or re.search(r"\[[^\]]*\]", state)) and state not in STATE_MARKERS:
+            problems.append(f"line {row['line']}: unknown or non-backticked state marker")
+    return problems
+
+
+def fenced_document(section: str) -> str:
+    """Unwrap one literal Markdown document without interpreting its headings."""
+    lines = section.strip().splitlines(keepends=True)
+    opening = re.fullmatch(r"(`{3,}|~{3,})markdown", lines[0].strip()) if lines else None
+    if not opening or len(lines) < 3:
+        raise ValueError("expected one fenced markdown document")
+    fence = opening.group(1)
+    closing = re.compile(re.escape(fence[0]) + "{" + str(len(fence)) + r",}\s*")
+    if not closing.fullmatch(lines[-1]) or any(closing.fullmatch(line) for line in lines[1:-1]):
+        raise ValueError("document fence closes early or is missing")
+    return "".join(lines[1:-1])
+
+
+def retired_record(text: str, name: str) -> dict:
+    """Validate the portable retirement envelope; original documents stay literal."""
+    if not re.fullmatch(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", name):
+        raise ValueError("invalid retired status ID; use 01 through 99")
+    milestone_id = name.removeprefix("status-").removesuffix(".md")
+    lines = text.splitlines(keepends=True)
+    headings = [(n, line[3:]) for n, line in unfenced_lines(text) if line.startswith("## ")]
+    if [title for _, title in headings] != ["Milestone specification", "Status record"]:
+        raise ValueError("expected Milestone specification and Status record sections")
+    metadata = {}
+    for _, line in unfenced_lines("".join(lines[:headings[0][0] - 1])):
+        match = re.fullmatch(r"\*\*([\w ]+)\.\*\* (.+)", line)
+        if match:
+            key, value = match.groups()
+            if key in metadata:
+                raise ValueError(f"duplicate retirement field: {key}")
+            metadata[key] = value.strip()
+    required = (
+        "Milestone", "Outcome", "Retired", "Source status", "Source specification",
+        "Evidence", "Worktree", "Review", "Review iterations", "Verification", "Consolidated into",
+    )
+    if any(not metadata.get(key) for key in required):
+        raise ValueError("missing retirement metadata")
+    if metadata["Milestone"] != milestone_id:
+        raise ValueError("retired milestone ID does not match its filename")
+    if metadata["Source status"] != f"memory-bank/{name}":
+        raise ValueError("source status path does not match the retired ID")
+    if not re.fullmatch(r"memory-bank/milestone\.md#\S+", metadata["Source specification"]):
+        raise ValueError("missing original milestone specification anchor")
+    if metadata["Outcome"] not in {"completed", "cancelled", "superseded"}:
+        raise ValueError("invalid retirement outcome")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", metadata["Retired"]):
+        raise ValueError("retirement date must use YYYY-MM-DD")
+    datetime.date.fromisoformat(metadata["Retired"])
+    if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64}|unversioned)", metadata["Evidence"]):
+        raise ValueError("evidence must be a full commit or unversioned")
+    if metadata["Worktree"] not in {"clean", "includes uncommitted changes", "unversioned"}:
+        raise ValueError("invalid worktree provenance")
+    if (metadata["Evidence"] == "unversioned") != (metadata["Worktree"] == "unversioned"):
+        raise ValueError("inconsistent unversioned provenance")
+    if metadata["Review"] != "passed" or not re.fullmatch(r"(?:[1-9]|10)", metadata["Review iterations"]):
+        raise ValueError("retirement requires a passed review within 10 iterations")
+    if metadata["Outcome"] != "completed" and not metadata.get("Disposition"):
+        raise ValueError("cancellation or supersession needs its authorized disposition")
+    if metadata["Outcome"] == "superseded" and not metadata.get("Successor"):
+        raise ValueError("supersession needs its accepted successor")
+    specification = fenced_document("".join(lines[headings[0][0]:headings[1][0] - 1]))
+    status = fenced_document("".join(lines[headings[1][0]:]))
+    if not specification.strip() or not status.strip():
+        raise ValueError("retired source documents are empty")
+    spec_headings = [line for _, line in unfenced_lines(specification) if line.startswith("## ")]
+    if len(spec_headings) != 1 or not re.match(
+        r"## " + re.escape(milestone_id) + r"(?:\s|$)", spec_headings[0]
+    ):
+        raise ValueError("retired specification does not match its milestone ID")
+    rows = status_rows(status)
+    if problems := status_marker_problems(status):
+        raise ValueError("retired task has an " + "; ".join(problems))
+    if not rows or any(row["state"] in {"pending", "in_progress", "blocked"} for row in rows):
+        raise ValueError("retired status must contain only closed task rows")
+    for row in rows:
+        if row["state"] == "historical" and not re.search(
+            r"\bsuccessor\b\s*:?\s+\S", " ".join(row["cells"][2:]), re.I
+        ):
+            raise ValueError("closed-historical row has no named successor")
+    return {"metadata": metadata, "specification": specification, "status": status}
+
+
+def history_snapshot(repo: pathlib.Path) -> dict:
+    history = repo / "docs" / "history"
+    records, digests, problems = {}, {}, []
+    paths = sorted(history.glob("status-*.md"))
+    for path in paths:
+        try:
+            if path.is_symlink() or not re.fullmatch(r"status-[A-Z][0-9]{2}\.md", path.name):
+                raise ValueError("invalid retired filename or symlink")
+            raw = path.read_bytes()
+            records[path.name] = retired_record(raw.decode("utf-8"), path.name)
+            digests[path.name] = hashlib.sha256(raw).hexdigest()
+        except (ValueError, OSError) as exc:
+            problems.append(f"docs/history/{path.name}: {exc}")
+    index_path = history / "index.md"
+    index = index_path.read_text(encoding="utf-8") if index_path.is_file() else ""
+    entries = {}
+    for row in table_rows(index):
+        cells = row["cells"]
+        if not re.fullmatch(r"[A-Z][0-9]{2}", cells[0]):
+            continue
+        name = f"status-{cells[0]}.md"
+        if name in entries:
+            problems.append(f"duplicate history index ID: {cells[0]}")
+        entries[name] = cells
+        if name not in records:
+            problems.append(f"history index record is missing or invalid: {name}")
+    milestone_path = repo / "memory-bank" / "milestone.md"
+    milestone = milestone_path.read_text(encoding="utf-8") if milestone_path.is_file() else ""
+    milestone_lines = list(unfenced_lines(milestone))
+    spec_ids = {
+        match.group(1) for _, line in milestone_lines
+        if (match := re.match(r"^## ([A-Z][0-9]{2})(?:\s|$)", line))
+    }
+    index_ids = set()
+    for row in table_rows(milestone):
+        first = row["cells"][0].strip("` ")
+        linked_id = re.fullmatch(r"\[([A-Z][0-9]{2})\]\([^)]*\)", first)
+        index_ids.add(linked_id.group(1) if linked_id else first)
+    live = {p.name for p in status_files(repo)}
+    for milestone_id in spec_ids | index_ids:
+        if re.fullmatch(r"[A-Z][0-9]{2}", milestone_id):
+            name = f"status-{milestone_id}.md"
+            if name not in live and name not in records:
+                problems.append(f"active milestone has no status record: {milestone_id}")
+    for name, record in records.items():
+        meta = record["metadata"]
+        cells = entries.get(name, [])
+        if len(cells) != 5 or cells[1:3] != [meta["Outcome"], meta["Retired"]] or not re.fullmatch(
+            r"\[[^\]]+\]\(" + re.escape(name) + r"\)", cells[3]
+        ):
+            problems.append(f"missing or inconsistent history index entry: {name}")
+        if name in live:
+            problems.append(f"duplicate active/retired ID: {meta['Milestone']}")
+        if meta["Milestone"] in spec_ids:
+            problems.append(f"retired specification remains active: {meta['Milestone']}")
+        if meta["Milestone"] in index_ids:
+            problems.append(f"retired index row remains active: {meta['Milestone']}")
+    history_links = re.findall(
+        r"\[[^\]]+\]\(\.\./docs/history/index\.md\)",
+        "\n".join(line for _, line in milestone_lines),
+    )
+    if records and len(history_links) != 1:
+        problems.append("milestone.md must have exactly one history-index link")
+    journal_path = history / "knowledge.md"
+    journal = journal_path.read_bytes() if journal_path.is_file() else b""
+    return {
+        "records": records, "digests": digests, "entries": entries,
+        "journal": journal, "problems": problems,
+    }
+
+
+def milestone_specifications(repo: pathlib.Path) -> dict[str, str | None]:
+    path = repo / "memory-bank" / "milestone.md"
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    lines = text.splitlines(keepends=True)
+    headings = [(n, line) for n, line in unfenced_lines(text) if line.startswith("## ")]
+    specifications = {}
+    for index, (start, heading) in enumerate(headings):
+        match = re.match(r"## ([A-Z][0-9]{2})(?:\s|$)", heading)
+        if match:
+            end = headings[index + 1][0] - 1 if index + 1 < len(headings) else len(lines)
+            name = f"status-{match.group(1)}.md"
+            # A duplicate is ambiguous, not permission to silently choose one.
+            specifications[name] = None if name in specifications else "".join(lines[start - 1:end])
+    return specifications
+
+
 def row_snapshot(repo: pathlib.Path) -> dict:
-    states = {}
-    files = []
-    for path in status_files(repo):
-        files.append(path.name)
+    states, cells, documents = {}, {}, {}
+    history = history_snapshot(repo)
+    # Validate required instructions again after each run; the model may have
+    # removed or damaged them since the startup checks.
+    for relative in ("AGENTS.md", "memory-bank/milestone.md"):
+        try:
+            (repo / relative).read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            history["problems"].append(f"required project instructions unavailable: {relative}: {exc}")
+    for path in sorted((repo / "memory-bank").glob("status-*.md")):
+        if path.is_symlink() or not re.fullmatch(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", path.name):
+            history["problems"].append(f"invalid active status filename or symlink: {path.name}")
+    documents.update({name: record["status"] for name, record in history["records"].items()})
+    active = {p.name for p in status_files(repo)}
+    documents.update({p.name: p.read_text(encoding="utf-8") for p in status_files(repo)})
+    for name, document in documents.items():
+        if name in active:
+            if not status_rows(document):
+                history["problems"].append(f"active status has no recognized task rows: {name}")
+            history["problems"].extend(f"{name}: {problem}" for problem in status_marker_problems(document))
         occurrences: dict[str, int] = {}
-        for row in status_rows(path.read_text(encoding="utf-8")):
+        for row in status_rows(document):
             item = row["item"]
             occurrences[item] = occurrences.get(item, 0) + 1
-            key = (path.name, item, occurrences[item])
+            key = (name, item, occurrences[item])
             states[key] = row["state"]
-    return {"files": set(files), "states": states}
+            cells[key] = row["cells"]
+    return {
+        "files": set(documents), "states": states, "cells": cells,
+        "documents": documents, "active": active, "history": history,
+        "specifications": milestone_specifications(repo),
+    }
 
 
 def rows_in_state(repo: pathlib.Path, state: str) -> list[dict]:
@@ -411,7 +673,28 @@ def rows_in_state(repo: pathlib.Path, state: str) -> list[dict]:
 def validate_row_transition(
     before: dict, after: dict, required_key: tuple[str, str, int] | None = None
 ) -> list[str]:
-    problems = []
+    problems = list(after.get("history", {}).get("problems", []))
+    old_history = before.get("history", {})
+    new_history = after.get("history", {})
+    for name, digest in old_history.get("digests", {}).items():
+        if new_history.get("digests", {}).get(name) != digest:
+            problems.append(f"previously retired record was changed or removed: {name}")
+    for name, entry in old_history.get("entries", {}).items():
+        if new_history.get("entries", {}).get(name) != entry:
+            problems.append(f"previous history index entry was changed or removed: {name}")
+    if not new_history.get("journal", b"").startswith(old_history.get("journal", b"")):
+        problems.append("retired knowledge history was rewritten or removed")
+    retired = set(new_history.get("records", {})) - set(old_history.get("records", {}))
+    for name in retired - before["files"]:
+        problems.append(f"new retired record has no pre-existing active owner: {name}")
+    appended_knowledge = new_history.get("journal", b"")[len(old_history.get("journal", b"")):]
+    for name in retired & before["files"]:
+        original_spec = before.get("specifications", {}).get(name)
+        retained_spec = new_history["records"][name]["specification"]
+        if not original_spec:
+            problems.append(f"retirement lacks an unambiguous original specification: {name}")
+        elif original_spec.strip() not in retained_spec and original_spec.strip().encode() not in appended_knowledge:
+            problems.append(f"retirement discarded original milestone specification: {name}")
     missing_files = before["files"] - after["files"]
     if missing_files:
         problems.append("status files were removed: " + ", ".join(sorted(missing_files)))
@@ -424,6 +707,8 @@ def validate_row_transition(
         new_state = after["states"][key]
         if new_state != old_state:
             transitions.append((key, old_state, new_state))
+        elif key[0] in retired and before.get("cells", {}).get(key) != after.get("cells", {}).get(key):
+            problems.append(f"retirement changed an earlier row or its notes: {key[0]} / {key[1]!r}")
 
     for key, state in after["states"].items():
         if key not in before["states"] and state != "pending":
@@ -445,6 +730,28 @@ def validate_row_transition(
                 "the pre-existing in-progress row was not closed: "
                 f"expected {required_key[0]} / {required_key[1]!r}"
             )
+        for name in retired:
+            if name != key[0]:
+                problems.append(f"retirement is outside the current task's milestone: {name}")
+        # Packaging preserves the original status prose and earlier rows. Only
+        # the selected row may change; closure evidence can be appended.
+        if key[0] in retired:
+            original = before["documents"][key[0]]
+            rows = status_rows(original)
+            occurrences = 0
+            selected_line = None
+            for row in rows:
+                if row["item"] == key[1]:
+                    occurrences += 1
+                    if occurrences == key[2]:
+                        selected_line = row["line"]
+            remaining = iter(after["documents"][key[0]].splitlines())
+            for number, line in enumerate(original.splitlines(), 1):
+                if number == selected_line:
+                    continue
+                if not any(candidate == line for candidate in remaining):
+                    problems.append(f"retirement discarded original status content: {key[0]}")
+                    break
     return problems
 
 
@@ -1003,11 +1310,13 @@ def main() -> None:
         fail("Set LLM_MODEL or pass --model.", 2)
 
     repo = pathlib.Path(args.repo).expanduser().resolve()
-    if not (repo / "AGENTS.md").exists():
+    if not (repo / "AGENTS.md").is_file():
         fail(f"AGENTS.md not found in {repo}", 10)
     if not (repo / "memory-bank").is_dir():
         fail(f"memory-bank/ not found in {repo}", 11)
-    if not status_files(repo):
+    if not (repo / "memory-bank" / "milestone.md").is_file():
+        fail(f"memory-bank/milestone.md not found in {repo}", 11)
+    if not status_files(repo) and not (repo / "docs" / "history" / "index.md").is_file():
         fail(
             f"No status lane files matching memory-bank/{STATUS_GLOB} in {repo}.\n"
             "Status files are named memory-bank/status-<LANE><NN>.md, such as\n"
@@ -1029,6 +1338,15 @@ def main() -> None:
     print(f"API: {args.api_base.rstrip('/')}{endpoint}")
 
     for run in range(1, args.max_runs + 1):
+        try:
+            before_rows = row_snapshot(repo)
+        except (OSError, UnicodeError) as exc:
+            fail(f"Unable to read required status/history state: {exc}", 11)
+        state_problems = before_rows["history"]["problems"]
+        if not before_rows["files"]:
+            state_problems.append("no active status files or valid retired milestones")
+        if state_problems:
+            fail("Invalid memory-bank status/history state:\n  " + "\n  ".join(state_problems), 11)
         summary = lane_summary(repo)
         in_progress_rows = rows_in_state(repo, "in_progress")
         if len(in_progress_rows) > 1:
@@ -1077,7 +1395,6 @@ def main() -> None:
 
         before = git_head(repo)
         before_branch = git_branch(repo)
-        before_rows = row_snapshot(repo)
         print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
         started = time.time()
         one_agent_run(args, repo, run, summary, in_progress)
@@ -1095,16 +1412,21 @@ def main() -> None:
         if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
             print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
             raise SystemExit(9)
+        try:
+            after_rows = row_snapshot(repo)
+        except (OSError, UnicodeError) as exc:
+            fail(f"Unable to read status/history after the run: {exc}", 8)
         row_problems = validate_row_transition(
-            before_rows,
-            row_snapshot(repo),
-            in_progress["key"] if in_progress else None,
+            before_rows, after_rows, in_progress["key"] if in_progress else None,
         )
         if row_problems:
             print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
             for problem in row_problems:
                 print(f"  {problem}", file=sys.stderr)
             raise SystemExit(8)
+        if not status_files(repo):
+            print("All milestones are retired. No actionable memory-bank rows remain.")
+            return
 
     print(f"Reached MAX_RUNS={args.max_runs}. Stopping.")
     raise SystemExit(7)

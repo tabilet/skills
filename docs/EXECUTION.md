@@ -62,6 +62,52 @@ It:
 - retries transient API failures, reports provider usage, and limits loop turns
   and conversation size.
 
+After a project adopts retirement, the agent performs it as part of the closing
+run, following the project's milestone procedure after review, verification,
+knowledge consolidation, and downstream reconciliation pass. The runner does
+not independently archive files or schedule a background cleanup. Individual
+completed rows remain active until the whole milestone qualifies; unresolved
+work or missing closure evidence keeps it active. Updating the installed skills
+alone neither adopts these rules nor upgrades a separately installed API runner.
+
+The agent retains current facts and useful learning in the memory bank, including
+`lessons.md`, and moves the complete milestone specification and status to
+`docs/history/status-<LANE><NN>.md`. It adds the record to the history index and
+removes the active status file, specification, and index row. Before materially
+superseding current knowledge, it preserves the previous wording and its
+provenance and replacement in `docs/history/knowledge.md`, even when no
+milestone is closing. Routine wording edits need no journal entry.
+
+The runner rejects malformed task markers, empty/unreadable active status files,
+invalid active IDs, and indexed or specified milestones without status records
+before declaring no work, including before the first retirement. Required
+project instructions must remain readable after every run. It validates the envelope,
+literal source documents, history index,
+closed rows, and removal of the active specification/index row. It follows the same
+row identity across that move and preserves earlier rows, notes, and frozen
+records. It parses only the envelope's Status record document; examples inside
+the preserved specification never count as tasks.
+
+When retiring in an API run, retain the earlier status prose and rows; append
+closure evidence and change only the selected row. Preserve the original
+specification in the retired document, or retain its literal wording in a new
+knowledge-journal entry when a material specification change supersedes it.
+
+This is structural verification, not an independent review of the agent's
+acceptance claims or evidence. History is never scheduled. A valid all-retired
+project exits without an API call; the API runner still requires a Git worktree.
+Exit `0` can also mean all remaining active rows are terminal; it proves neither
+milestone acceptance nor that older milestones were retired. Legacy cleanup needs a separate request with
+closure evidence.
+When task rows are terminal but milestone review or closure was interrupted,
+finish that closure in an agent session using the project procedure. The API
+runner gates on actionable rows and cannot execute a closure-only recovery run;
+its no-work exit is not evidence that the review passed.
+Routine retirement needs no separate `memory-bank-archive` run; context snapshots
+remain a different workflow. The API runner still requires a commit per run.
+The file contract and retrieval workflow are documented in
+[long-term memory](../README.md#keep-long-term-memory-without-growing-the-active-plan).
+
 `ALLOW_UNSANDBOXED_SHELL=1` or `--allow-unsandboxed-shell` acknowledges host
 access; it does not create isolation. Commands can read host files and processes
 and use the network. Run the harness inside a disposable sandbox against a
@@ -83,7 +129,7 @@ control back to a human.
 
 | Code | Meaning |
 |---|---|
-| `0` | No actionable rows remain. Nothing to do. |
+| `0` | No actionable rows remain, including a valid all-retired project. |
 | `1` | An unexpected internal harness failure occurred. |
 | `2` | `LLM_MODEL` is unset, or `LLM_PROVIDER` is not `openai`/`anthropic`. |
 | `3` | Only blocked rows remain. A human needs to unblock them. |
@@ -91,10 +137,10 @@ control back to a human.
 | `5` | The agent left uncommitted changes. |
 | `6` | The agent made no commit. Stops a spin loop. |
 | `7` | `MAX_RUNS` was reached. |
-| `8` | The committed result did not contain exactly one valid row transition. |
+| `8` | The committed result violated the one-row transition or retirement preservation contract, or left required project instructions unavailable. |
 | `9` | The agent rewrote history or moved away from the original branch. |
 | `10` | No `AGENTS.md` in the target repository. |
-| `11` | No `memory-bank/`, or no `status-<LANE><NN>.md` lane files in it. |
+| `11` | Missing or invalid status/history state: unavailable required instructions, no memory bank, a milestone without its status record, no active or valid retired milestones, or inconsistent retirement records/index. Missing `AGENTS.md` at startup uses `10`. |
 | `12` | The target is not a git worktree root. |
 | `13` | Git `HEAD` could not be read. |
 | `14` | Actionable work was not given unsandboxed-shell acknowledgment. |
@@ -142,3 +188,13 @@ For each execution harness, record:
 
 The active command list belongs in `memory-bank/tech-stack.md`. Longer
 operational details belong in `docs/`.
+
+## Skill instruction loading
+
+Init, archive, and reconcile inspect their write contracts before requesting
+proposal approval. They continue through approved writes and checks without
+asking again for those same actions. Uncovered changes require a revised proposal.
+Resolve discoverable inputs through safe inspection; stop the dependent step
+when a required capability or decision remains unavailable. Headless completion
+never supplies an answer or approval. Optional native-goal help lives in the
+complete goal bundle and is read only when needed.

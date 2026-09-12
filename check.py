@@ -321,7 +321,9 @@ def review_fix_gate():
         if token not in write_contract:
             problems.append(f"write-contract.md: missing review gate contract {token!r}")
 
-    for token in ("another full milestone review", "stops after iteration 10"):
+    # The launcher delegates the gate; its canonical owners above carry the
+    # full rules. Requiring a second copy here encourages protocol drift.
+    for token in ("`GOAL.md`", "persisted milestone review counter", "incomplete review or closure"):
         if token not in goal_skill:
             problems.append(
                 f"memory-bank-goal/SKILL.md: missing review gate contract {token!r}"
@@ -517,11 +519,14 @@ def suggested_goal_reference():
         "memory-bank/suggested.txt",
         "STATUS_FILE_MAP",
         "DOWNSTREAM_IMPACTS",
-        "Explicit `$ARGUMENTS` replace",
+        "Explicit milestone order in the invoking request replaces",
         "not a source of truth",
     ):
         if token not in goal:
             problems.append(f"memory-bank-goal/SKILL.md: missing {token}")
+
+    if "$ARGUMENTS" in goal:
+        problems.append("memory-bank-goal must read the invoking request, not runtime substitution")
 
     if (ROOT / "template" / "memory-bank" / "suggested.txt").exists():
         problems.append(
@@ -577,9 +582,20 @@ def adaptive_init_contract():
         "numeric file or",
         "every context in the selected boundary is `verified`",
         "frozen baselines",
+        "Several independent stable contexts",
+        "even\nwhen their current implementations are short",
+        "A matching archive and status lane/number is not an ID collision",
     ):
         if token not in skill:
             problems.append(f"memory-bank-init/SKILL.md: missing adaptive contract {token!r}")
+
+    proposal = skill.split("## Phase 2 - Propose", 1)[-1].split("## Phase 3 - Write", 1)[0]
+    if "references/write-contract.md" not in proposal or "grants no writing authority" not in proposal:
+        problems.append("memory-bank-init: load the write contract before proposing, without write authority")
+    if ("Read this reference during Phase 2" not in write_contract_words
+            or "writes only after the user approves the complete proposal" not in write_contract_words
+            or "Read this reference only after" in write_contract_words):
+        problems.append("memory-bank-init: the reference must allow pre-proposal reads and gate only writes")
 
     for stale in (
         "### The tree",
@@ -1013,8 +1029,8 @@ def exit_codes():
 
 
 # --------------------------------------------------------------------------
-# 7. The backtick footgun: a row written `| Item | [ ] | Notes |` parses as
-#    zero actionable work, silently. The shipped template must stay matchable.
+# 7. The backtick contract: the row parser reads only backticked markers;
+#    validation must reject malformed markers instead of reporting no work.
 # --------------------------------------------------------------------------
 @check("status parser matches the shipped template rows")
 def status_markers():
@@ -1055,6 +1071,7 @@ def status_markers():
                 "never retried and does not block its accepted successor",
                 "zero or one general row may be `[~]`",
                 "exact authorized operation row to be `[~]`",
+                "rejects malformed task markers with exit `11`",
             ),
         ),
         (
@@ -1075,11 +1092,13 @@ def status_markers():
 
     if not mod.actionable_rows(template):
         problems.append("template/memory-bank/status-M01.md has no rows the harness sees as actionable")
-    # And the footgun itself must still be a footgun worth warning about.
+    # Invalid markers must never become executable work or evade validation.
     if mod.actionable_rows("| Item | [ ] | Notes. |\n"):
         problems.append("a bare [ ] row now parses as actionable; the documented warning is stale")
     if not mod.actionable_rows("| Item | `[ ]` | Notes. |\n"):
         problems.append("a backticked [ ] row no longer parses as actionable")
+    if not mod.status_marker_problems("| Item | [ ] | Notes. |\n"):
+        problems.append("a bare marker must be rejected before no-work detection")
     return problems
 
 
@@ -1226,7 +1245,7 @@ def public_interfaces():
     goal_guides = [
         ROOT / "README.md",
         ROOT / "docs" / "TUTORIAL.md",
-        SKILLS_DIR / "memory-bank-goal" / "SKILL.md",
+        SKILLS_DIR / "memory-bank-goal" / "references" / "runtime-help.md",
     ]
     codex_goal_tokens = (
         "https://learn.chatgpt.com/use-cases/follow-goals",
@@ -1368,6 +1387,95 @@ def template_row_contracts():
             if token not in normalized:
                 problems.append(f"{label} is missing row-state contract {token!r}")
     return problems
+
+
+@check("long-term memory contract preserves portable retirement records")
+def long_term_memory():
+    problems = []
+    milestone = (ROOT / "template/memory-bank/milestone.md").read_text()
+    sample = next(
+        (block for block in fenced_blocks(milestone) if block.startswith("# Retired milestone")),
+        "",
+    )
+    values = {
+        "<title>": "Delivery",
+        "<YYYY-MM-DD>": "2026-09-12",
+        "<original-anchor>": "m01-delivery",
+        "<full commit or unversioned>": "unversioned",
+        "<clean, includes uncommitted changes, or unversioned>": "unversioned",
+        "<1 through 10>": "1",
+        "<commands, results, and supporting evidence>": "Tests and review passed.",
+        "<current-document and lesson links, or no current-truth change>": "no current-truth change",
+        "<Complete final milestone specification, not a summary.>": "## M01 - Delivery\n\n**Acceptance.** Verified.",
+        "<Complete final status document, not a summary.>": "# Status M01\n\n| Task | `[+]` | Verified. |",
+    }
+    for placeholder, value in values.items():
+        sample = sample.replace(placeholder, value)
+    try:
+        record = load_harness().retired_record(sample, "status-M01.md")
+        if "**Acceptance.** Verified." not in record["specification"]:
+            problems.append("retirement envelope lost the original specification")
+    except ValueError as exc:
+        problems.append(f"shipped retirement envelope cannot be read by the harness: {exc}")
+
+    for relative, tokens in (
+        ("AGENTS.md", ("lessons.md", "docs/history/knowledge.md", "reserve IDs", "commit policy")),
+        ("template/AGENTS.md", ("memory-bank/lessons.md", "docs/history/index.md", "Retired records are frozen")),
+        ("template/memory-bank/lessons.md", ("evidence", "Merge duplicates", "docs/history/knowledge.md")),
+        ("skills/memory-bank-init/references/write-contract.md", ("Milestone specification", "Status record", "all-retired", "explicit migration", "git rev-parse --verify HEAD")),
+        ("template/memory-bank/milestone.md", ("validate every envelope field", "git rev-parse --verify HEAD")),
+        ("skills/memory-bank-reconcile/SKILL.md", ("all-retired", "does not retire milestones")),
+        ("skills/memory-bank-archive/references/write-contract.md", ("docs/history/knowledge.md", "never", "milestone/task records")),
+        ("GOAL.md", ("history index", "cancelled or superseded outcome", "retirement procedure", "commit policy", "git rev-parse --verify HEAD", "before deleting active sources")),
+        ("skills/memory-bank-next/SKILL.md", ("A later documentation row does not defer", "Updating only the status is insufficient")),
+    ):
+        text = " ".join((ROOT / relative).read_text().split())
+        for token in tokens:
+            if token not in text:
+                problems.append(f"{relative}: missing history contract {token!r}")
+    if (ROOT / "template/docs/history").exists():
+        problems.append("template must not ship project-specific or empty history directories")
+    return problems
+
+
+
+
+@check("shared skills stop safely and keep one ledger execution owner")
+def capability_contract():
+    problems = []
+    for path in [*SKILLS_DIR.glob("*/SKILL.md"), ROOT / "GOAL.md",
+                 ROOT / "template/AGENTS.md", INIT_WRITE_CONTRACT]:
+        text = " ".join(path.read_text().split())
+        for token in ("verification commands, permissions, or user answers are unavailable",
+                      "stop the affected workflow", "infer approval from silence or process exit",
+                      "one execution owner", "do not replace milestone acceptance"):
+            if token not in text:
+                problems.append(f"{path.relative_to(ROOT)}: missing capability contract {token!r}")
+    return problems
+
+
+@check("planning contracts load before proposals and optional goal help stays bundled")
+def skill_resource_contract():
+    problems = []
+    for name in ("archive", "init", "reconcile"):
+        bundle = SKILLS_DIR / f"memory-bank-{name}"
+        skill = (bundle / "SKILL.md").read_text()
+        proposal = skill.split("## Phase 2 - Propose", 1)[-1].split("## Phase 3 - Write", 1)[0]
+        if "references/write-contract.md" not in proposal:
+            problems.append(f"{bundle.name}: proposal must load its write contract")
+        contract = " ".join((bundle / "references/write-contract.md").read_text().split())
+        if "Read this reference only after" in contract:
+            problems.append(f"{bundle.name}: reference incorrectly gates inspection on approval")
+        if "writes only after the user approves the complete proposal" not in contract:
+            problems.append(f"{bundle.name}: contract must gate writes on proposal approval")
+    goal = SKILLS_DIR / "memory-bank-goal"
+    if "references/runtime-help.md" not in (goal / "SKILL.md").read_text():
+        problems.append("goal launcher must route to its bundled optional runtime help")
+    if not (goal / "references/runtime-help.md").is_file():
+        problems.append("goal runtime help is missing from its standalone bundle")
+    return problems
+
+
 
 
 def main() -> int:

@@ -29,6 +29,21 @@ If required sources cannot be discovered, complete safe read-only exploration
 first. Ask the user only when a missing choice or authority would materially
 change the result.
 
+Resolve missing information through safe inspection first. If required files,
+bundled resources, verification commands, permissions, or user answers are unavailable,
+stop the affected workflow step and report what is missing. Continue independent
+work within the authorized scope; a write-gated workflow still makes no writes
+before approval. Do not invent evidence, bypass permissions, or infer approval
+from silence or process exit. Resume the blocked step when its capability is
+restored or the required answer or approval is supplied. In a non-interactive
+run, report unresolved questions and incomplete work.
+
+Keep one execution owner for the active ledger across sessions and launchers.
+Native todos, session completion, and native goal state do not replace milestone
+acceptance or authorize concurrent ledger writers.
+
+Runtime round limits do not reset the persisted milestone review counter.
+
 ## Goal Input
 
 A multi-milestone request should name this file and provide a linear execution
@@ -98,12 +113,19 @@ Before the first milestone:
    overwrite or absorb them into milestone commits.
 3. Resolve each identifier to exactly one status specification. Validate its
    naming and indexing against project conventions and reject ambiguous IDs.
+   When the project retires milestones, consult its history index to resolve
+   stale paths and reserve historical IDs. An all-retired project remains
+   initialized. Never recreate or retry a retired status from stale goal input.
 4. Build a dependency graph from status dependencies, the supplied order,
    downstream impacts, and concrete code/configuration consumers.
 5. Classify statuses as required, conditional, already completed, cancelled,
    closed historical, or currently unavailable because of an external input.
 6. Record the reconciled remaining order. Skip completed historical milestones
    rather than reimplementing them.
+   A cancelled or superseded outcome does not automatically satisfy a required
+   completion dependency; follow its authorized disposition and successor.
+   Terminal task rows alone are insufficient: resume any incomplete milestone
+   review, verification, reconciliation, or closure instead of skipping it.
 7. Determine required verification, commit policy, related repositories, and
    external-mutation authority before making changes.
 
@@ -136,6 +158,9 @@ instructions explicitly define safe parallel ownership.
   the goal scope include them.
 - Update code-adjacent documentation and project memory/status sources in the
   same change as behavior, data, tooling, or operator-workflow changes.
+- Maintain relevant reusable lessons with evidence. Preserve materially
+  superseded knowledge under the project's history convention before replacing
+  it; do not turn the lesson reference into a chronological session log.
 - Use deterministic fixtures and project-approved disposable test resources.
   Never commit production secrets, customer/private data, captured traffic,
   generated local credentials, or environment-specific runtime state.
@@ -176,7 +201,10 @@ Use the project's documented severity definitions when they exist. Otherwise:
 Any severity above P1 also blocks this gate. The initial deep-review pass is
 iteration 1. In each iteration:
 
-1. Review the full milestone implementation and diff, with special attention to
+1. Read the persisted review count and findings before starting. Record the
+   current iteration as started before review; an interrupted pass resumes that
+   iteration, never resets to 1. Review the full milestone implementation and
+   diff, with special attention to
    fixes made by the preceding iteration. Check correctness, failure semantics,
    security/privacy, compatibility, operations, tests, and documentation.
 2. Classify and record the findings. Persist the iteration number and findings
@@ -224,6 +252,26 @@ should change only for factual correction, explicit ownership transfer, or
 lineage clarification. Closed-historical rows are never retried and do not
 block their accepted successors.
 
+After downstream reconciliation, follow the project's documented retirement
+procedure when it has adopted one. Consolidate durable knowledge, retain full
+specification and task evidence, then remove the closed work from the active
+index. Retired records stay frozen; later corrections use linked new records.
+Refresh the remaining resolved order and any existing disposable launch
+reference. Do not require a separate context-snapshot skill, clean worktree, or
+extra commit to perform ordinary consolidation and retirement.
+
+Retirement obeys the current commit policy: no commits under `none`, inclusion
+in milestone closure under `milestone`, or the final task/substantive closure
+commit under `task`. Record the observed evidence baseline honestly, identifying
+included uncommitted work or unversioned provenance without claiming that an
+earlier commit contains later changes.
+
+When Git supplies that baseline, capture the full object ID with
+`git rev-parse --verify HEAD`; never persist an abbreviated log-display hash.
+Validate the complete retirement envelope and retained source documents against
+the project's contract before deleting active sources. A malformed record is
+an incomplete retirement, not accepted closure; preserve the sources and stop.
+
 ### 5. Continue Or Stop
 
 Continue while all of these remain true:
@@ -268,6 +316,7 @@ checks before acting.
 At the end of each milestone, record:
 
 - completed status and task units;
+- retired record locations and durable lessons, when the project uses them;
 - material interface, data, configuration, UI, and operator changes;
 - downstream specifications reconciled and any order change;
 - verification and deep-review results, including review-fix iteration count;

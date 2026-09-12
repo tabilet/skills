@@ -1,6 +1,7 @@
 # Memory-Bank Write Contract
 
-Read this reference only after the user approves the Phase 2 proposal.
+Read this reference during Phase 2, before proposing file actions. Apply its
+writes only after the user approves the complete proposal.
 
 ## Contents
 
@@ -9,8 +10,10 @@ Read this reference only after the user approves the Phase 2 proposal.
 - [Handle the portable goal protocol](#handle-the-portable-goal-protocol)
 - [Write the disposable launch reference](#write-the-disposable-launch-reference)
 - [Write status tables](#write-status-tables)
+- [Preserve long-term memory](#preserve-long-term-memory)
 - [Check the output](#check-the-output)
 - [Hand off](#hand-off)
+- [Runtime capability contract](#runtime-capability-contract)
 
 ## Apply safe file actions
 
@@ -49,6 +52,7 @@ GOAL.md                          optional protocol for multi-milestone runs
 memory-bank/product.md           product, users, workflows, domain model, non-goals
 memory-bank/architecture.md      layout, data flow, ownership, public contracts
 memory-bank/tech-stack.md        stack, dependencies, harnesses, commands
+memory-bank/lessons.md           applicable reusable lessons and evidence
 memory-bank/milestone.md         active index, acceptance, candidate directions
 memory-bank/status-<LANE><NN>.md one per active milestone, one row per task
 memory-bank/suggested.txt        optional; only with a compatible GOAL.md
@@ -84,6 +88,11 @@ In `memory-bank/milestone.md`:
 - state their dependency order, acceptance, and downstream relationships; and
 - place later work in an explicitly unnumbered `Candidate Directions` section
   with columns for direction, why it is deferred, and its promotion trigger.
+
+Include the automatic closure, consolidation, retirement, and retrieval contract
+below. Keep only active specifications and index rows in `milestone.md`; create
+one link to the history index when history exists. Preserve permanent IDs across
+active and retired records. Do not create empty history files during init.
 
 Include a `Review finding severity` section in `milestone.md`. Explain that P1
 and P2 are engineering review priorities rather than product-domain terms,
@@ -147,6 +156,13 @@ goal or whenever it becomes stale. When no compatible protocol exists, omit
 
 Use this shape with project values, never the example values:
 
+Use the commit policy approved for future execution. A no-commit restriction
+during initialization does not prohibit commits in a later authorized run.
+Creating launch input does not start that run. Preserve its explicit policy;
+`GOAL.md` defines its precedence during execution, while the suggested order
+remains disposable. Do not invent a standing policy conflict from an init-only
+restriction.
+
 ```text
 # Disposable multi-milestone launch reference.
 # Reconcile this suggestion against milestone.md and the current status files.
@@ -188,6 +204,10 @@ later work in Candidate Directions instead. Never put a candidate direction in
 Create one table for every active milestone. Use an initial `[!]` row only for
 an approved non-fundamental blocker with a named owner or source, missing input,
 impact, and unblock condition. All other unfinished rows start pending.
+Do not precreate rows for hypothetical later failures, such as an exhausted
+review gate. Record such a blocker only when it actually occurs.
+Keep implementation, tests, and corrections to invalidated current memory-bank
+facts in the same row; a later documentation row cannot defer those corrections.
 
 The backticks around every marker are required by the API harness parser:
 
@@ -211,6 +231,72 @@ Across the active ledger, zero or one general row may be `[~]`. An operational
 launcher additionally requires its exact authorized operation row to be `[~]`
 before invocation; the marker records selection and does not grant missing
 external-mutation authority.
+
+## Preserve long-term memory
+
+Create `memory-bank/lessons.md` as a curated reference of applicable lessons:
+each names its scope, lesson, rationale, and source evidence. State explicitly
+when no lessons are established. Do not invent lessons or repeat the domain
+model, architecture contracts, or commands. The read order consults relevant
+topics before substantial changes; it does not read the whole history on boot.
+
+Generate these retirement rules in `memory-bank/milestone.md`:
+
+- After the review gate passes within its persisted 10 iterations, verification
+  passes, current facts/lessons are consolidated, and downstream work is
+  reconciled, automatically retire the milestone. Terminal markers alone are
+  insufficient; unresolved or conditional pending work stays active.
+- Retain full final specifications and status documents, not summaries, in
+  `docs/history/status-<LANE><NN>.md`. Preserve every earlier row and note. Use
+  separate `## Milestone specification` and `## Status record` sections, each
+  containing exactly one literal fenced `markdown` document. Choose fences
+  longer than those inside the source, preserving original path context.
+- Before those sections, put single-line fields in `**Field.** value` form:
+  `Milestone` (ID), `Outcome` (`completed`, `cancelled`, or `superseded`),
+  `Retired` (UTC YYYY-MM-DD), `Source status` (original memory-bank path),
+  `Source specification` (original milestone path and heading anchor),
+  `Evidence` (bare full Git commit or `unversioned`), `Worktree` (`clean`,
+  `includes uncommitted changes`, or `unversioned`), `Review` (`passed`),
+  `Review iterations` (1 through 10), `Verification` (commands/results/evidence),
+  and `Consolidated into` (current-document/lesson links or explicit
+  `no current-truth change`). Without Git, both provenance fields are
+  `unversioned`; never claim an earlier commit includes uncommitted work.
+  Obtain the full Git evidence ID with `git rev-parse --verify HEAD`, never a
+  shortened log-display hash. Before removing active sources, validate all
+  envelope fields and compare the complete retained source documents; a failed
+  validation keeps the milestone active and stops retirement.
+- Cancelled/superseded outcomes also need `Disposition` naming authority,
+  rationale, and dependency disposition. Supersession needs `Successor`.
+  Neither automatically satisfies a completion dependency. Every historical
+  `[-]` row must name its accepted successor in its retained notes.
+- Create `docs/history/index.md` only on first use. Its table columns are
+  `Milestone | Outcome | Retired | Record | Summary`; use bare IDs and dates,
+  matching the record metadata, with a relative link to that ID's status file.
+  Remove the retired status file, active index row, and specification together;
+  leave only a history-index link in `milestone.md`. Repair maintained incoming
+  links. Frozen archives and evolution snapshots retain their original paths,
+  resolved through record provenance. Stop on collisions or incomplete moves.
+- Freeze retired records and preserve index entries. Resolve IDs through both
+  active and retired locations; never reuse an ID or reinitialize an all-retired
+  project. Read historical records only for relevant dependencies or questions.
+  Later corrections use new linked knowledge or remediation records.
+- Before materially replacing/removing facts or lessons, append their original
+  document/heading and literal old wording, reason, evidence, and replacement
+  link (or reason for none) beneath a unique dated heading in
+  `docs/history/knowledge.md`. Link the journal from the history index. Merge
+  duplicate lessons and remove obsolete ones after preserving this evidence.
+  This also covers changes outside milestones; ordinary editorial revisions
+  need no journal entry. Git supplies optional intermediate revision history.
+- Follow the governing commit policy, including no commits under `none`.
+  Retirement requires no separate archive invocation or clean baseline.
+  Refresh existing disposable goal input for remaining active work, or remove
+  it when empty, without creating a new goal-protocol requirement.
+
+Existing projects adopt the contract through an explicit migration. An explicit
+cleanup request may retire old closed milestones only with adequate closure
+evidence; installing updated skills alone never moves existing files. The
+optional API runner still requires Git; ordinary Markdown maintenance can follow
+a permitted no-commit workflow without initializing Git.
 
 ## Check the output
 
@@ -237,6 +323,9 @@ Before reporting completion, verify all of the following:
 11. When an archive preflight exists, every selected context is `verified`, its
     link resolves, verified archives are unchanged, and no archive ID appears in
     the milestone index, a status file, or `suggested.txt`.
+12. Lessons have evidence, history is read on demand, and the generated closure
+    and retrieval contract agrees with the retirement envelope above. No
+    project-specific retired records or empty history directories were created.
 
 For an existing project, run the documented verification command when it is
 safe and available to prove the command is real. If no such command exists yet,
@@ -252,7 +341,10 @@ Explain how to continue using the form the installation accepts. Plain English
 works everywhere: *"tackle next pending item in memory bank"* for one task.
 Plugin installs use `/memory-bank:memory-bank-goal` in Claude Code and
 `$memory-bank:memory-bank-goal` in Codex. Plain-file installs use
-`/memory-bank-goal` and `$memory-bank-goal`.
+`/memory-bank-goal` and `$memory-bank-goal`, respectively. DSH filesystem
+installs use `/memory-bank-goal` or an ordinary-language request. Use its Web
+session for unresolved approvals and headless only with a complete authorized
+request or a safe stop; session exit alone is not acceptance.
 
 When `memory-bank/suggested.txt` exists, explain that running the goal skill with
 no arguments reconciles it and shows the complete resolved request for
@@ -262,3 +354,26 @@ reconstruct maps by hand. Explain that built-in `/goal` keeps the objective
 active while `GOAL.md` supplies the execution protocol. When the launch
 reference was omitted, explain how to run one row and why ordered execution is
 unavailable until a compatible protocol is installed or approved.
+
+## Runtime capability contract
+
+Include in the generated project instructions:
+
+Resolve missing information through safe inspection first. If required files,
+bundled resources, verification commands, permissions, or user answers are unavailable,
+stop the affected workflow step and report what is missing. Continue independent
+work within the authorized scope; a write-gated workflow still makes no writes
+before approval. Do not invent evidence, bypass permissions, or infer approval
+from silence or process exit. Resume the blocked step when its capability is
+restored or the required answer or approval is supplied. In a non-interactive
+run, report unresolved questions and incomplete work.
+
+Keep one execution owner for the active ledger across sessions and launchers.
+Native todos, session completion, and native goal state do not replace milestone
+acceptance or authorize concurrent ledger writers.
+
+Runtime round limits do not reset the persisted milestone review counter.
+Read its stored count and findings before each review; persist the iteration as
+started before reviewing and resume an interrupted pass at that same number.
+Terminal task rows do not prove acceptance: resume incomplete milestone review
+and closure before selecting new work.

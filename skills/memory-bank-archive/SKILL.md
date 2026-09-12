@@ -1,6 +1,6 @@
 ---
 name: memory-bank-archive
-description: Snapshot a large existing package at a clean repository baseline into frozen, evidence-backed context archives, then create or refresh its current product and architecture summaries. Use before memory-bank-init when a broad existing package needs a repository-mapping preflight, or later when materially changed contexts need successor archives. Do not use it to plan or execute status work.
+description: Create frozen context snapshots for a broad existing package, or successor snapshots for materially changed contexts. Use for archive preflight or refreshing context baselines.
 disable-model-invocation: false
 argument-hint: (no arguments)
 ---
@@ -12,6 +12,19 @@ Produce repository facts, not a roadmap: archive files never contain executable
 task state and never enter a status or goal order.
 
 Three phases: **survey**, **propose**, **write**. Write no file until phase 3.
+
+Resolve missing information through safe inspection first. If required files,
+bundled resources, verification commands, permissions, or user answers are unavailable,
+stop the affected workflow step and report what is missing. Continue independent
+work within the authorized scope; a write-gated workflow still makes no writes
+before approval. Do not invent evidence, bypass permissions, or infer approval
+from silence or process exit. Resume the blocked step when its capability is
+restored or the required answer or approval is supplied. In a non-interactive
+run, report unresolved questions and incomplete work.
+
+Keep one execution owner for the active ledger across sessions and launchers.
+Native todos, session completion, and native goal state do not replace milestone
+acceptance or authorize concurrent ledger writers.
 
 ## Phase 1 - Survey
 
@@ -35,7 +48,9 @@ continue only after the user accepts that weaker provenance.
 A partial archive run may be resumed only when `HEAD` still equals its recorded
 baseline and every worktree change is a declared output of that archive run:
 `docs/archive-<LANE><NN>.md`, `memory-bank/product.md`, or
-`memory-bank/architecture.md`. Stop on any source change or unrelated file.
+`memory-bank/architecture.md`, and approved additions to
+`docs/history/knowledge.md` and its index link. Stop on any source change or
+unrelated file.
 
 ### Build the context map
 
@@ -63,6 +78,9 @@ For each context, collect evidence for:
 Keep an evidence ledger in the conversation. Every factual claim names a
 repository path or prior user statement. Do not turn an observed gap into a milestone,
 candidate direction, status row, or implementation recommendation.
+Distinguish implemented behavior, documented ownership rules, and planned
+behavior. A next-delivery description belongs in observed gaps until the
+implementation establishes it; do not report it as a current product invariant.
 
 Coverage is `partial`, `blocked`, or `verified`. `verified` means every
 applicable branch was inspected and its claims have evidence; it does not mean
@@ -70,6 +88,10 @@ the implementation is correct. Name the missing source and impact for blocked
 coverage. Do not silently omit a context.
 
 ## Phase 2 - Propose
+
+Read [references/write-contract.md](references/write-contract.md) before preparing
+the proposal. It defines the output formats, allowed file actions, and checks.
+Reading it does not authorize writes.
 
 Present, without writing:
 
@@ -82,10 +104,19 @@ Present, without writing:
    `memory-bank/architecture.md`.
 6. Every file action: create, merge, preserve, or omit.
 
+When refreshing existing summaries, include preservation of materially
+superseded knowledge in the proposal. Keep the previous source/heading, literal
+wording, reason, evidence, and replacement reference in the knowledge history;
+this does not authorize retiring or modifying milestone/task records.
+
 An archive successor is justified only by a material change to high-level
 domain, ownership, component, flow, contract, dependency, operational, or
 verification facts. File moves and internal refactors that leave those facts
 unchanged do not create a successor.
+
+A closed milestone may motivate this review of context facts, but ordinary
+milestone consolidation and retirement never require an archive invocation.
+Keep the clean-baseline and approval requirements for actual context snapshots.
 
 Ask the user to approve the boundary, context partition, lane meanings,
 coverage, successor decisions, roll-up, and file actions. Iterate until all are
@@ -93,6 +124,6 @@ approved.
 
 ## Phase 3 - Write
 
-After approval, read [references/write-contract.md](references/write-contract.md)
-completely and follow it. It owns archive naming and freezing, document shape,
-current-summary roll-up, output checks, and handoff.
+Apply the approved actions using the already-read write contract. Continue
+through its output checks and handoff. Ask again only when a conflict or file
+action falls outside the approved proposal.

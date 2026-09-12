@@ -16,8 +16,10 @@ Status markers:
 | `[-]` | Closed Historical | A consumed failed attempt or superseded row retained for audit; it is never retried and does not block its accepted successor. |
 
 Write markers with backticks, exactly as in the table above: `` `[ ]` ``, not
-`[ ]`. The API harness matches the backticked form, so a row written
-`| Item | [ ] | Notes |` is silently treated as having no actionable work.
+`[ ]`. If you use the API runner, use a current version: it rejects malformed
+task markers with exit `11`, including `| Item | [ ] | Notes |`. Older runners
+could silently ignore them. Check the separately installed runner as well as
+the row syntax when that runner is part of your workflow.
 
 Across the active ledger, zero or one general row may be `[~]`. Resume it before
 selecting another row. An operational launcher additionally requires its exact
@@ -29,6 +31,13 @@ update the memory bank/docs, and make a scoped `git commit` before starting the
 next row. A `[-]` row's notes must record the consumed attempt or supersession
 and identify its accepted successor. If two rows are inseparable, redefine them
 as one row before starting rather than closing several rows in one commit.
+
+After the milestone's review, consolidation, and downstream reconciliation
+pass, follow [the retirement procedure](milestone.md#long-term-memory-and-retirement).
+Preserve this complete document and the full milestone specification in its
+retired record; earlier rows, notes, and original path context must survive.
+Retirement follows the governing commit policy and never changes the task
+markers or permits reuse of this milestone ID.
 
 | Item | State | Notes |
 |---|---|---|

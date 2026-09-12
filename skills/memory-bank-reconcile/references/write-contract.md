@@ -1,6 +1,7 @@
 # Review Reconciliation Write Contract
 
-Read this reference only after the user approves the reconciliation proposal.
+Read this reference before preparing the reconciliation proposal. Apply its
+writes only after the user approves the complete proposal.
 
 ## Apply safe file actions
 
@@ -25,6 +26,10 @@ silently overwrite user content or expand the reviewed project boundary.
   repository or external system without separate authorization.
 - Stop before any collision or user-owned memory-bank change that the approved
   proposal did not cover.
+- Preserve retired milestone records and their history index entries. Do not
+  retire a milestone during review intake. An all-retired project remains
+  initialized; approved remediation receives a new ID reserved against both
+  active and retired records.
 
 ## Write finding ownership and provenance
 
@@ -75,6 +80,12 @@ After approval, recheck the milestone index and filesystem, then allocate each
 approved new milestone the proposed next unused ID. Stop on an ID collision
 rather than choosing an unapproved replacement.
 
+Also search `docs/history/index.md` and retired filenames before allocation.
+Resolve old status paths by their permanent IDs and recorded original paths.
+Completed historical acceptance can satisfy a prerequisite; cancelled or
+superseded outcomes require their recorded disposition and successor instead.
+Keep the active milestone index free of retired rows and specifications.
+
 Placement rules:
 
 1. Append a pending row to an open matching milestone when the finding stays
@@ -112,6 +123,14 @@ Correct `memory-bank/product.md`, `memory-bank/architecture.md`, or
 `memory-bank/tech-stack.md` only when current repository evidence proves their
 existing factual description is stale. Do not write a proposed fix or target
 architecture as current truth.
+
+When the project has adopted long-term memory, update applicable lessons with
+evidence in `memory-bank/lessons.md` under the same proposal. Before materially
+replacing facts or lessons, append the original source/heading and literal old
+wording, reason, evidence, and replacement reference to
+`docs/history/knowledge.md`; create its history-index link if needed. Follow the
+project's retirement contract for journal entries. This is knowledge evidence,
+not a copied review or finding ledger. Preserve earlier entries unchanged.
 
 Add the next `evolution/prompt-vN.md` and `evolution/result-vN.md` pair only when
 the approved review response meets the project's material direction-change
@@ -177,7 +196,8 @@ Before reporting completion, verify:
    approved pending-to-terminal planning transition is a superseded row becoming
    `[-]` with its accepted successor recorded.
 4. Every new status ID is valid, unique, linked once from `milestone.md`, and
-   absent from completed history and archive namespaces.
+   unused across active and retired status history. Context archive IDs belong
+   to an independent namespace and do not reserve status IDs.
 5. The active graph is dependency-closed and every affected pending downstream
    specification agrees with the proposed work.
 6. Candidate Directions remain unnumbered and absent from status files and
@@ -191,6 +211,9 @@ Before reporting completion, verify:
    remains unless preservation was explicitly approved.
 10. No review copy, review ledger, code change, commit, external mutation, or
     unrelated memory-bank edit was created.
+11. Retired records and previous journal entries are unchanged; any new
+    knowledge entry retains its source and replacement, and lesson updates
+    describe evidenced current learning rather than an unimplemented fix.
 
 Run the project's structural documentation or memory-bank checks when they are
 safe and available. Run focused verification used to revalidate findings, but

@@ -1,6 +1,6 @@
 ---
 name: memory-bank-reconcile
-description: Reconcile a newly received code, architecture, security, or other engineering review into an existing memory-bank milestone/status harness. Validate each finding against the current repository, then propose and write approved planning changes without implementing the fixes. Use for a new review artifact after initialization, not to initialize a project or execute planned work.
+description: Turn a new engineering review into approved planning changes in an existing memory bank. Use for review intake; implementation is separate.
 disable-model-invocation: false
 argument-hint: <review source>
 ---
@@ -17,10 +17,24 @@ the review says to do so.
 
 Three phases: **assess**, **propose**, **write**. Write no file until phase 3.
 
+Resolve missing information through safe inspection first. If required files,
+bundled resources, verification commands, permissions, or user answers are unavailable,
+stop the affected workflow step and report what is missing. Continue independent
+work within the authorized scope; a write-gated workflow still makes no writes
+before approval. Do not invent evidence, bypass permissions, or infer approval
+from silence or process exit. Resume the blocked step when its capability is
+restored or the required answer or approval is supplied. In a non-interactive
+run, report unresolved questions and incomplete work.
+
+Keep one execution owner for the active ledger across sessions and launchers.
+Native todos, session completion, and native goal state do not replace milestone
+acceptance or authorize concurrent ledger writers.
+
 ## Phase 1 - Assess
 
 Require an initialized project with `memory-bank/milestone.md` and at least one
-`memory-bank/status-<LANE><NN>.md` file. When they are absent, stop and route the
+active `memory-bank/status-<LANE><NN>.md` file or a valid indexed retired
+milestone. When both forms of status state are absent, stop and route the
 project to `memory-bank-init`; do not create its first harness here.
 
 Use the review source named by the request or arguments. It may be pasted,
@@ -75,6 +89,10 @@ requested as its next full pass. Continue the persisted counter and its
 
 ## Phase 2 - Propose
 
+Read [references/write-contract.md](references/write-contract.md) before preparing
+the proposal. It defines provenance, allowed file actions, and output checks.
+Reading it does not authorize writes.
+
 Present a complete finding matrix without writing:
 
 | Source finding | Source priority | Local severity | Current disposition | Evidence | Proposed owner/action |
@@ -108,6 +126,13 @@ but do not allocate it until approval. Include task-sized rows, milestone
 acceptance, verification, dependencies, compatibility/migration expectations,
 and every pending downstream specification whose assumptions would change.
 
+An all-retired project also has an initialized harness through its history
+index when no active statuses remain. Resolve historical findings and stale paths through
+that index, reserve IDs from both active and retired files, and create new
+remediation work without modifying retired records. Propose evidence-backed
+lesson updates and preservation of superseded knowledge when applicable.
+Reconciliation does not retire milestones or migrate legacy history.
+
 Propose current `product.md`, `architecture.md`, or `tech-stack.md` corrections
 only for facts established by the current repository. Keep recommended future
 behavior in milestone scope and acceptance until implementation makes it true.
@@ -120,6 +145,6 @@ decision, launch-reference action, and file action. Iterate until approved.
 
 ## Phase 3 - Write
 
-After approval, read [references/write-contract.md](references/write-contract.md)
-completely and follow it. It owns safe mutation, review provenance, status and
-milestone updates, disposable goal input, output checks, and handoff.
+Apply the approved actions using the already-read write contract. Continue
+through its output checks and handoff. Ask again only when a conflict or file
+action falls outside the approved proposal.

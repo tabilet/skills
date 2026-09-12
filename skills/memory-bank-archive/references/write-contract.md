@@ -1,6 +1,7 @@
 # Archive Write Contract
 
-Read this reference only after the user approves the archive proposal.
+Read this reference before preparing the archive proposal. Apply its writes
+only after the user approves the complete proposal.
 
 ## Apply safe file actions
 
@@ -11,6 +12,13 @@ Never silently overwrite an existing file.
 - Preserve existing applicable content in `memory-bank/product.md` and
   `memory-bank/architecture.md`; merge observed current facts rather than
   replacing user decisions or project rules.
+- When an approved summary refresh materially supersedes knowledge, append its
+  original source/heading and literal old wording, reason, evidence, and
+  replacement reference under a unique dated heading in
+  `docs/history/knowledge.md`. Add a link from `docs/history/index.md` if needed.
+  Follow the project's knowledge-history convention when one exists. These
+  narrow approved journal/index additions are allowed even before init; never
+  edit prior entries or retire or modify milestone/task records.
 - Treat a verified archive as frozen. Never edit or delete it, even to correct a
   mistake. Write a successor and explain the correction there.
 - A `partial` or `blocked` archive is an in-progress artifact and may be resumed

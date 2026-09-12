@@ -31,7 +31,7 @@ your-project/
 │   ├── architecture.md    layout, data flow, boundaries
 │   ├── tech-stack.md      commands, dependencies, how you verify
 │   ├── milestone.md       active milestones plus unnumbered later directions
-│   ├── status-M01.md      one permanent file per active milestone
+│   ├── status-M01.md      one active file per milestone; ID is permanent
 │   └── suggested.txt      optional active-horizon launch reference
 ├── docs/                  long-form reference
 │   └── archive-A01.md     optional frozen existing-package context baseline
@@ -221,9 +221,11 @@ Then `memory-bank/status-S01.md` carries the rows for that milestone:
 
 **The backticks around each marker are required by the included API harness.**
 It matches
-`` `[ ]` ``, not `[ ]`. A row written `| Item | [ ] | Notes |` is silently
-ignored: the harness reports "No actionable memory-bank rows remain" and exits
-successfully, as though the work were finished.
+`` `[ ]` ``, not `[ ]`. The current harness rejects a task marker such as
+`| Item | [ ] | Notes |` with exit `11`, including when other rows are valid.
+Empty or unreadable status files also stop the run. Older separately installed
+runners can silently overlook malformed rows; updating skills does not update
+that runner.
 
 ## Set Up A New Project
 
@@ -503,7 +505,8 @@ Under the surface, the normal agent workflow is:
    milestone acceptance, or status changed.
 5. Mark a row `[+]` only after verification passes.
 6. Commit the row as a scoped unit.
-7. Keep one `memory-bank/status-<LANE><NN>.md` file for each milestone.
+7. Keep one `memory-bank/status-<LANE><NN>.md` file for each active milestone;
+   preserve closed records through the adopted retirement procedure.
 8. If a milestone becomes complete, run a deep code review and the milestone
    review procedure in `memory-bank/milestone.md`.
 9. After review and required verification pass, commit any review changes; do
@@ -557,6 +560,71 @@ meanings. Use it only for a consumed failed attempt or superseded row retained
 for audit, and name the accepted successor in the row notes. Before invoking an
 operational launcher, its exact authorized operation row must be `[~]`; that
 marker records the selection but does not grant external-mutation authority.
+
+### Keep long-term memory without growing the active plan
+
+The memory bank is the working context, not a lifetime log. Keep current facts,
+active plans, and applicable learning there; preserve retired evidence under
+`docs/history/` and consult it on demand. This prevents accumulated history
+from growing the startup read indefinitely. It does not impose a hard token or
+file-size cap: genuinely active work and relevant knowledge can still grow.
+
+**What triggers it?** `memory-bank-init` establishes the convention in newly
+initialized projects. During normal work, `memory-bank-next` and
+`memory-bank-goal` follow the project's milestone-closing procedure: after the
+bounded review gate, verification, knowledge consolidation, and downstream
+reconciliation pass, the agent retires the milestone. The same procedure can
+be followed without skills. “Automatic” means part of that agent workflow,
+not a background process, timer, or plugin-install side effect.
+
+Retirement is milestone-level, not row-level. Individual completed, cancelled,
+or closed-historical rows stay in their active status file until the whole
+milestone qualifies. Unresolved work or missing closure evidence keeps it
+active; terminal markers alone do not prove acceptance. Retirement respects
+the governing commit policy.
+
+**What stays, and where does history go?** Paths below are relative to the
+project root. History files are created only when needed.
+
+| Content | Location and lifetime |
+|---|---|
+| Current product/domain facts, architecture, and stack | Their existing files in `memory-bank/`; keep them current. |
+| Applicable learning, rationale, and evidence | `memory-bank/lessons.md`; curate and merge duplicates, not one entry per milestone or session. |
+| Active specifications, task rows, and later candidate directions | `memory-bank/milestone.md` and active `status-<LANE><NN>.md` files. Retired specifications and index rows leave this active plan; one history-index link remains. |
+| Complete retired milestone specification and status document | `docs/history/status-<LANE><NN>.md`; frozen literal Markdown with provenance, verification, review iterations, and consolidation links. |
+| Retired IDs, outcomes, and record links | `docs/history/index.md`; also links the knowledge journal when present. |
+| Superseded facts and lessons | `docs/history/knowledge.md`; append-only old wording, source, reason, supporting evidence, and replacement reference (or why there is none). |
+
+**Knowledge has its own trigger.** During ordinary maintenance, update relevant
+lessons when reusable learning is supported by evidence. Before materially
+replacing or removing obsolete knowledge from current memory, preserve it in
+the knowledge journal. This applies outside milestone closure too. Routine
+wording edits need no journal entry, and still-useful lessons stay active even
+after their supporting milestone retires.
+
+**Retirement is not a context archive.** `memory-bank-archive` creates optional
+frozen repository baselines in `docs/archive-<LANE><NN>.md`; it does not retire
+milestones. Routine retirement needs no separate archive invocation or clean
+snapshot commit. `memory-bank-reconcile` plans work from a new review and may
+propose evidenced knowledge updates, but does not retire milestones.
+`evolution/` remains reserved for direction changes.
+
+**How do you retrieve old memory?** Search current memory first, then the history
+index by permanent ID or the knowledge journal by topic, and open only the
+relevant records. Original paths in literal excerpts retain their original
+document context. IDs remain reserved; historical rows are never retried.
+Cancellation and supersession do not automatically satisfy completion
+dependencies. Later corrections point back from new knowledge or remediation,
+without rewriting frozen records. The Markdown evidence is readable without
+Git; Git adds intermediate revisions when present.
+
+**Existing projects need explicit adoption.** Update their project instructions
+and, if used, adopt a compatible API runner before retirement. Separately request
+cleanup of older closed milestones; missing closure evidence keeps them active.
+Installing newer skills alone never merges project instructions or moves files.
+
+See the complete
+[retirement contract](template/memory-bank/milestone.md#long-term-memory-and-retirement).
 
 ### Run an ordered set of milestones
 
@@ -901,8 +969,9 @@ Run 1/1: asking LLM to tackle one row.
 The harness stops early on purpose, and its exit code says why. `3` through `7`
 are normal stopping conditions rather than failures. For example, `4` means the
 worktree was dirty before the run, and `6` means the agent finished without
-committing. `11` means it found no `status-<LANE><NN>.md` files, which usually
-means the memory bank has not been filled in yet. The full table is in
+committing. `11` means active and retired status state is missing or invalid;
+check filenames and the history index. A valid project with all milestones
+retired exits `0`. The full table is in
 [Execution Harness](docs/EXECUTION.md#exit-codes).
 
 ## What The Harness Is
@@ -915,6 +984,12 @@ requires exactly one existing actionable row to become completed, blocked, or
 closed historical in each run. Separate milestone-review commits are allowed
 within that run. If one `[~]` row already exists, the harness requires the agent
 to resume exactly it; more than one in-progress row stops before the API call.
+
+A closing task may retire its milestone using the project's adopted contract.
+The harness follows the row into its validated history record, checks that
+earlier rows and notes survived, and rejects changes to previously retired
+records. Valid all-retired projects exit `0`; missing or invalid status/history
+state exits `11`. Historical rows never become actionable.
 
 It discovers every `memory-bank/status-<LANE><NN>.md` file, reports how many
 actionable, in-progress, blocked, and closed-historical rows each lane holds,

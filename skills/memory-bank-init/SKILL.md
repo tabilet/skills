@@ -1,6 +1,6 @@
 ---
 name: memory-bank-init
-description: Map one delivery boundary through an adaptive, repository-grounded interview, propose a dependency-closed active milestone horizon, then generate its memory bank and, when a compatible goal protocol is available, a disposable launch reference. Use for a new project or an existing project with no initialized milestone/status harness; a large existing package may first contain an approved archive preflight with product and architecture seeds.
+description: Initialize a memory bank through project discovery and an approved milestone plan. Use when no milestone/status harness exists, including after a completed archive preflight.
 disable-model-invocation: false
 argument-hint: (no arguments)
 ---
@@ -8,6 +8,19 @@ argument-hint: (no arguments)
 # Initialize A Memory Bank
 
 Three phases: **grill**, **propose**, **write**. Write no file until phase 3.
+
+Resolve missing information through safe inspection first. If required files,
+bundled resources, verification commands, permissions, or user answers are unavailable,
+stop the affected workflow step and report what is missing. Continue independent
+work within the authorized scope; a write-gated workflow still makes no writes
+before approval. Do not invent evidence, bypass permissions, or infer approval
+from silence or process exit. Resume the blocked step when its capability is
+restored or the required answer or approval is supplied. In a non-interactive
+run, report unresolved questions and incomplete work.
+
+Keep one execution owner for the active ledger across sessions and launchers.
+Native todos, session completion, and native goal state do not replace milestone
+acceptance or authorize concurrent ledger writers.
 
 The output is a memory bank the user owns outright. It has no link back to
 wherever this skill came from, and nothing will update it but them.
@@ -18,22 +31,13 @@ Map the project as a **design tree**: decisions branch into the decisions that
 depend on them. Interview the user until every applicable branch is settled or
 explicitly deferred.
 
-### Inspect before asking
-
-For an existing project, read applicable agent instructions, the README and
-docs, manifests, tests, build and CI configuration, source layout, public
-interfaces and schemas, and deployment or infrastructure files. Reuse facts and
-decisions already present in the conversation. Inventory existing destination
-files such as `AGENTS.md`, `GOAL.md`, `evolution/`,
-`memory-bank/product.md`, `memory-bank/architecture.md`, and
-`docs/archive-<LANE><NN>.md` so the proposal can say which will be created,
-merged, preserved, or omitted.
-
 ### Gate broad existing packages
 
-Run a cheap topology pass before the full grill. New projects and existing
-packages whose selected boundary can be evidenced reliably in one initialization
-pass proceed normally.
+Start with applicable agent instructions, the README, source layout, and any
+existing milestone or archive index. Use this cheap topology pass to identify
+the selected boundary before extensive discovery or interviewing. New projects
+and existing packages whose selected boundary can be evidenced reliably in one
+initialization pass proceed normally.
 
 For a large existing package, require `memory-bank-archive` first when the
 selected boundary spans several stable product-domain or ownership contexts, or
@@ -42,6 +46,11 @@ would omit a material context. Explain the observed topology that triggered the
 gate and stop before interviewing or writing. Do not invent a numeric file or
 line-count threshold, invoke the other skill automatically, or make archive
 preflight mandatory for a small coherent package.
+
+Evaluate the selected delivery boundary, not only the next requested feature.
+Several independent stable contexts within that boundary trigger the gate even
+when their current implementations are short. A shared test command or product
+name does not merge independent ownership and contracts into one context.
 
 A completed archive preflight may already have created
 `memory-bank/product.md` and `memory-bank/architecture.md`; their presence alone
@@ -52,9 +61,19 @@ partial, blocked, missing, or unresolved context stops initialization until the
 archive is completed. Preserve verified archives: they are frozen baselines,
 not current truth or executable work.
 
-If a project already has an initialized `memory-bank/milestone.md` and status
-files, do not reinitialize it. Reconcile and evolve the existing memory bank
-instead.
+If a project already has an initialized `memory-bank/milestone.md` and active
+status files or an indexed retired history, do not reinitialize it. A project
+whose milestones are all retired remains initialized. Reconcile and evolve
+the existing memory bank instead; reserve IDs across active and retired files.
+
+### Inspect before asking
+
+Deepen inspection where the selected boundary needs evidence: manifests and CI
+for build constraints, interfaces and schemas for contracts, tests for existing
+behavior, and deployment files for operational assumptions. Reuse facts and
+decisions already present in the conversation. Inventory destination files such
+as `AGENTS.md`, `GOAL.md`, `evolution/`, current memory-bank files, and archives
+so the proposal can identify each create, merge, preserve, or omit action.
 
 Keep a working **evidence ledger** in the conversation:
 
@@ -63,9 +82,14 @@ Keep a working **evidence ledger** in the conversation:
 - **Open decision** - record who can answer it and what depends on it.
 - **Inapplicable branch** - record why it does not apply; do not invent filler.
 
-Facts are your job; decisions are the user's. Investigate independent facts in
-parallel when the environment supports it. A fact still being researched blocks
-only the questions that depend on it.
+Resolve repository facts through inspection. Ask the user about choices that
+change scope, ownership, contracts, acceptance, or an unsettled preference.
+Use established project conventions for routine details; do not turn them into
+new interview questions. Include already supplied choices and policies in the
+discovery confirmation instead of asking the user to decide them again.
+Investigate independent facts in parallel when the
+environment supports it. A fact still being researched blocks only the questions
+that depend on it.
 
 ### Work the frontier in rounds
 
@@ -139,6 +163,11 @@ understanding.
 
 ## Phase 2 - Propose
 
+Read [references/write-contract.md](references/write-contract.md) completely
+before presenting the file-action proposal, so the proposal uses the actual
+generated file set and `memory-bank/status-<LANE><NN>.md` paths (for example,
+`memory-bank/status-M01.md`). Reading the contract grants no writing authority.
+
 Present the breakdown and file actions. **Write nothing to disk yet.**
 
 Define the **active horizon** as the smallest dependency-closed sequence of
@@ -163,11 +192,16 @@ When an archive preflight exists, include the seeded product and architecture
 merge plus preservation of every verified archive in the file actions. Archive
 IDs and lanes are independent from status IDs and lanes; never place an archive
 in the active horizon or disposable goal input.
+A matching archive and status lane/number is not an ID collision and does not
+justify renaming an existing status ID.
 
 Rules:
 
 - A milestone is a narrow, complete, independently verifiable vertical slice.
 - A row is one commit and fits in one fresh context window.
+- Keep implementation, its tests, and corrections to current memory-bank facts
+  it invalidates in the same row. Separate documentation rows cover additional
+  reference work, not deferred corrections to current truth.
 - Acceptance names real commands and any required manual or model-eval evidence;
   it never refers to an interview question number.
 - Every indexed milestone gets one status file. A candidate direction gets no
@@ -182,7 +216,10 @@ or out, and whether every file action is safe. Iterate until approved.
 
 ## Phase 3 - Write
 
-Only after approval, read [references/write-contract.md](references/write-contract.md)
-completely and follow it. It owns the file actions, generated file set, portable
+Only after the complete proposal is approved, follow the already-read
+[write contract](references/write-contract.md) to write.
+It owns the file actions, generated file set, portable
 `GOAL.md` copy rule, status tables, disposable launch reference, output checks,
 and final handoff.
+Continue through those checks and handoff; ask again only for conflicts or file
+actions outside the approved proposal.

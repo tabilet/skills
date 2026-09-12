@@ -14,9 +14,17 @@ Before substantial changes, read these in order:
    Read a linked `docs/archive-<LANE><NN>.md` only when historical baseline
    evidence for the current work is relevant.
 3. [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
+   Consult relevant topics in [memory-bank/lessons.md](memory-bank/lessons.md)
+   for reusable lessons and their evidence.
 4. [memory-bank/milestone.md](memory-bank/milestone.md)
 5. The matching `memory-bank/status-<LANE><NN>.md` file for the current
    milestone. `milestone.md` defines the lane letters and their meanings.
+
+Read `docs/history/index.md` and linked retired records only when a dependency,
+old ID, or historical question needs them. Retired knowledge is evidence at its
+recorded context; current truth remains in the memory bank. Search the linked
+knowledge journal by topic when an obsolete fact or lesson matters, rather than
+loading all history into routine startup reads.
 
 This project ships [GOAL.md](GOAL.md), one optional protocol for goal
 requests that span multiple status files. Follow it when a request names it. A
@@ -88,11 +96,24 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   `product.md`; architecture/data flow/contracts -> `architecture.md`;
   tools/dependencies/commands -> `tech-stack.md`; milestone scope/acceptance ->
   `milestone.md`; completion state -> the matching `status-<LANE><NN>.md` file.
+  Reusable lessons and their evidence -> `lessons.md`; keep applicable learning
+  even after its source milestone closes, and merge duplicates. Before materially
+  removing or superseding knowledge, preserve its old wording and replacement
+  reference in `docs/history/knowledge.md` under the milestone retirement rules.
+  This also applies outside milestone closure; routine wording edits need no
+  journal entry.
 - Keep verified archive files frozen. Later implementation updates current
   `product.md` and `architecture.md` plus its status history, not the archive.
-- Keep one `memory-bank/status-<LANE><NN>.md` file for each milestone listed in
+- Keep one `memory-bank/status-<LANE><NN>.md` file for each active milestone listed in
   [memory-bank/milestone.md](memory-bank/milestone.md), named by the status ID
   pattern defined there.
+- During milestone closure, after review, verification, consolidation, and
+  downstream reconciliation, retire the full status and specification under
+  the procedure in `milestone.md`. Completed rows remain active until the whole
+  milestone qualifies. Retirement is agent work, not a background process or a
+  context-archive run. Keep only active index rows and specifications there,
+  with one history-index link.
+  Retired records are frozen; IDs remain reserved across both locations.
 - Keep later candidate directions unnumbered and outside the milestone index.
   Promote one only after fresh reconciliation and approval; then assign the
   next unused permanent ID and create its status file.
@@ -112,8 +133,26 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
 - After the last task in a milestone is complete, run a deep code review of the
   milestone before closing it.
 - After the milestone review is complete and required verification passes,
-  commit any review changes. Do not create an empty or redundant milestone
+  commit substantive review and retirement changes under the governing policy.
+  Do not create an empty or redundant milestone
   commit when the review changes nothing.
 - Check [evolution/](evolution/) after a major review, milestone, or boundary
   change. Add a new version only when product direction, architecture boundary,
   milestone target, or public/private contract direction materially changes.
+
+## Execution capabilities
+
+Resolve missing information through safe inspection first. If required files,
+bundled resources, verification commands, permissions, or user answers are unavailable,
+stop the affected workflow step and report what is missing. Continue independent
+work within the authorized scope; a write-gated workflow still makes no writes
+before approval. Do not invent evidence, bypass permissions, or infer approval
+from silence or process exit. Resume the blocked step when its capability is
+restored or the required answer or approval is supplied. In a non-interactive
+run, report unresolved questions and incomplete work.
+
+Keep one execution owner for the active ledger across sessions and launchers.
+Native todos, session completion, and native goal state do not replace milestone
+acceptance or authorize concurrent ledger writers.
+
+Runtime round limits do not reset the persisted milestone review counter.
