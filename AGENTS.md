@@ -32,7 +32,7 @@ the file:
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
 | `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/GOAL.md` are byte-identical. |
 | `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
-| `skills/` | The five optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
+| `skills/` | The six optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
 | `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. |
 
@@ -347,6 +347,12 @@ language-suffixed copies. `README.md` is English-only too.
   and Codex read the same format, so a second copy would only be a place to
   drift. The directory name, the frontmatter `name`, and the `plugin.json` list
   must agree.
+- `memory-bank-upgrade` upgrades an existing project's workflow rules only
+  after a complete proposal is approved. Preserve task state, permanent IDs,
+  local policies, review counters, and frozen history; do not initialize,
+  implement, commit, or retire milestones as an upgrade side effect. Its bundled
+  `assets/template/` stays byte-identical to `template/`; update and verify both
+  together so installed skills need no checkout or network to inspect the target.
 - Every `SKILL.md` has a non-empty `argument-hint` in its frontmatter so both
   agents expose the command's expected input consistently.
 - **`skills/` stays at the repository root.** It looks like account payload and

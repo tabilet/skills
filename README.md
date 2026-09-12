@@ -16,8 +16,8 @@ if you want the API runner. Once the files are in place they belong to your
 project, and your project stays independent of this repository. Six months from
 now, the only files you are maintaining are still your own.
 
-Five optional skills can do the mapping, copying, and filling for you; see
-[Install The Five Skills](#install-the-five-skills). The files they write are
+Six optional skills can do the mapping, copying, and filling for you; see
+[Install The Six Skills](#install-the-six-skills). The files they write are
 yours from the moment they appear, and they stay exactly as you leave them.
 
 Your project ends up looking like this:
@@ -81,7 +81,7 @@ Run those commands in Claude Code from a new or small existing project and
 answer the questions. A large existing package may first be routed through
 `memory-bank-archive`; see [Set Up An Existing Project](#set-up-an-existing-project).
 The Codex equivalent and plain-file installation are in
-[Install The Five Skills](#install-the-five-skills).
+[Install The Six Skills](#install-the-six-skills).
 
 To work from the files by hand instead, clone this repository once. Every `cp`
 command below refers to your clone as `/path/to/skills`:
@@ -115,13 +115,15 @@ The optional API runner and its human-readable instruction copy live in
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
 
-The five skills are in [skills/](skills/). Claude Code and Codex read the same
+The six skills are in [skills/](skills/). Claude Code and Codex read the same
 `SKILL.md` format, so there is one source per skill:
 
 - [memory-bank-archive](skills/memory-bank-archive/SKILL.md) — snapshot a large
   existing package into frozen, evidence-backed context archives
 - [memory-bank-init](skills/memory-bank-init/SKILL.md) — interview a
   project into existence, then write its memory bank
+- [memory-bank-upgrade](skills/memory-bank-upgrade/SKILL.md) — propose and apply
+  approved workflow-rule upgrades while preserving existing project state
 - [memory-bank-reconcile](skills/memory-bank-reconcile/SKILL.md) — validate a
   new review against current code and reconcile the approved work plan
 - [memory-bank-next](skills/memory-bank-next/SKILL.md) — tackle one row,
@@ -229,7 +231,7 @@ that runner.
 
 ## Set Up A New Project
 
-If you installed [the five skills](#install-the-five-skills),
+If you installed [the six skills](#install-the-six-skills),
 `memory-bank-init` does everything in this section: it interviews you, proposes
 lanes and milestones, waits for your approval, and then writes the files already
 filled in. The two routes below are the same work done by hand.
@@ -463,7 +465,7 @@ optional, because the memory bank is plain markdown and works on its own:
 | Way to execute | Scope | Needs |
 |---|---|---|
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
-| [`memory-bank-next`](#install-the-five-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
+| [`memory-bank-next`](#install-the-six-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
 | [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3 |
 | [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `GOAL.md` and an agent request or optional skill |
 
@@ -626,6 +628,46 @@ Installing newer skills alone never merges project instructions or moves files.
 See the complete
 [retirement contract](template/memory-bank/milestone.md#long-term-memory-and-retirement).
 
+### Upgrade an existing project
+
+Use `memory-bank-upgrade` after updating the installed skills. It compares an
+existing project's rules with its bundled template, shows a complete merge
+proposal, and applies only approved changes. It preserves plans, local policies,
+task states, permanent IDs, review counters, and frozen history. An already
+compatible project is a no-op; older milestones are not retired by the upgrade.
+
+Invoke `/memory-bank:memory-bank-upgrade` in Claude Code,
+`$memory-bank:memory-bank-upgrade` in Codex, or `/memory-bank-upgrade` in DSH.
+Use Web for the proposal and approval; a headless continuation requires the
+exact approved proposal and stops for missing decisions or capabilities.
+The skill carries a complete reference template, so no repository checkout or
+network download is needed after installation. Its assets are examples and
+contracts, never permission to overwrite project content. The manual equivalent
+is:
+
+1. Update the [installed skills](#install-the-six-skills), preserving their
+   supporting resources. If used, update the separately installed
+   [API runner](docs/EXECUTION.md) before adopting retirement.
+2. Compare the project's instructions with `template/AGENTS.md`, the review and
+   retirement rules in `template/memory-bank/milestone.md`, the status contract,
+   and `template/memory-bank/lessons.md`. Inventory active and retired IDs,
+   frozen archives, custom rules, verification commands, and any review counter.
+3. Request a file-by-file proposal for merging the applicable rules. Preserve
+   project facts, existing task states, permanent IDs, historical evidence,
+   local policies, and the persisted review count. Keep the optional project
+   `GOAL.md` unless its replacement is explicitly included in that proposal.
+4. After approval, apply the scoped merges and verify links, status tables,
+   protocol compatibility, and the project's required checks. Do not copy
+   template placeholders over live content or rerun initialization.
+5. Request retirement of older closed milestones separately. Retain active
+   sources when verification, review, consolidation, or downstream evidence is
+   missing. Create history files only when there is evidence to preserve.
+
+An ordinary-language request can start this review: “Use memory-bank-upgrade
+to compare this project's rules with the bundled contract. Preserve our
+plans, custom instructions, IDs, and history. Show the complete file actions
+before writing.” This request does not authorize implementation tasks or commits.
+
 ### Run an ordered set of milestones
 
 The workflow above advances one row at a time. To work through several
@@ -728,16 +770,19 @@ not because anything here depends on it. If you have your own, point the two
 `GOAL.md` mentions at it instead, or delete them. They are in `AGENTS.md` and
 `memory-bank/milestone.md`.
 
-## Install The Five Skills
+<a id="install-the-five-skills"></a>
+
+## Install The Six Skills
 
 Also optional. Everything above works by typing plain sentences; these just make
-the five moments repeatable, and carry the full instruction rather than your
+the six moments repeatable, and carry the full instruction rather than your
 paraphrase of it.
 
 | Skill | When |
 |---|---|
 | `memory-bank-archive` | Before init when a large existing package needs a commit-anchored context map; later only when a material context change needs a successor snapshot. |
 | `memory-bank-init` | Once, on a project with no initialized milestone/status harness. It interviews you, proposes a breakdown, then writes the files. |
+| `memory-bank-upgrade` | After updating skills, review and approve merges of new workflow rules into an existing project. |
 | `memory-bank-reconcile` | Whenever a new review arrives after initialization. It validates findings and updates the approved plan without implementing them. |
 | `memory-bank-next` | Every day. Tackle one row, verify, commit. |
 | `memory-bank-goal` | When you want several milestones run in order. |

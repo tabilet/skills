@@ -1438,6 +1438,27 @@ def long_term_memory():
     return problems
 
 
+@check("upgrade carries the canonical contract and preserves existing project state")
+def upgrade_contract():
+    bundle = SKILLS_DIR / "memory-bank-upgrade"
+    target = bundle / "assets/template"
+    canonical = ROOT / "template"
+    expected = {p.relative_to(canonical): p.read_bytes() for p in canonical.rglob("*") if p.is_file()}
+    actual = {p.relative_to(target): p.read_bytes() for p in target.rglob("*") if p.is_file()}
+    problems = []
+    if actual != expected:
+        problems.append("upgrade assets/template must be a complete byte-identical copy of template/")
+    text = " ".join((bundle / "SKILL.md").read_text().split())
+    for token in ("complete proposal before writing", "preserve unrelated content and local policies",
+                  "Allocate no status ID", "Never reset an active review count", "all-retired",
+                  "task tables, row notes, markers", "original bytes", "already compatible",
+                  "Do not implement tasks, commit", "exact previously approved proposal",
+                  "compatibility cannot be established", "stop the affected merge"):
+        if token not in text:
+            problems.append(f"upgrade is missing its preservation contract: {token}")
+    if "memory-bank-upgrade" not in (ROOT / "AGENTS.md").read_text():
+        problems.append("AGENTS.md must record the shared upgrade contract")
+    return problems
 
 
 @check("shared skills stop safely and keep one ledger execution owner")
