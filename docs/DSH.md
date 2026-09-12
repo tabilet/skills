@@ -18,8 +18,8 @@ other platforms, and older releases are not certified here.
 DSH integration is included in **memory-bank v1.3.0**. Use a v1.3.0-or-newer
 checkout containing this guide. Before publication, use the reviewed release
 working tree; marketplace installs and `main` downloads contain only changes
-already published there. See the
-[project-upgrade procedure](../README.md#upgrade-an-existing-project).
+already published there. See the [release notes](RELEASE_NOTES.md) for upgrade
+guidance and the [project-upgrade procedure](../README.md#upgrade-an-existing-project).
 Updating installed skills does not migrate existing `AGENTS.md`,
 goal protocols, memory banks, lessons, or histories. Adopt project lifecycle
 changes explicitly; see [long-term memory](../README.md#keep-long-term-memory-without-growing-the-active-plan).
@@ -632,7 +632,7 @@ Web process and budget gateway were stopped after testing. The global DSH
 installation and existing personal/project configuration remain unchanged.
 At the end of live acceptance, repository changes were uncommitted; that test
 run performed no version bump, tag, push, release, or personal skill
-installation.
+installation. Release preparation is recorded in the [v1.3.0 notes](RELEASE_NOTES.md).
 
 ### Skill instruction revision acceptance
 

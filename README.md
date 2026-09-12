@@ -21,6 +21,9 @@ Six optional skills can do the mapping, copying, and filling for you; see
 yours from the moment they appear. You and your agent maintain them during
 authorized work; installing or updating the plugin does not migrate them.
 
+[v1.3.0 release notes](docs/RELEASE_NOTES.md) cover long-term memory, DSH
+support, workflow hardening, and upgrade guidance.
+
 Your project ends up looking like this:
 
 ```text
