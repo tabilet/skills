@@ -6,6 +6,64 @@ permanent task identities, verification, review, and retained evidence. The same
 six skill bundles and project Markdown work together without a Cordis plugin,
 runtime wrapper, or DSH-specific project files.
 
+v1.4.0 adds a separate optional
+[DSH companion](https://github.com/tabilet/tabilet-skills). This repository
+continues to own the canonical skills, portable project contract, and Python
+runner. The companion owns packaging, its read-only sidebar, and conversation
+request preparation. Both use the same project files; there is no second ledger.
+
+## Install the DSH companion
+
+The companion's v1.4.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
+with a locked dependency graph. An isolated rc.1 launcher with rc.2 components
+is a separate acceptance target. The all-rc.1 tests and v1.3.0 live evidence in
+this guide remain scoped to their original configuration.
+
+Check the companion's
+[acceptance and publication record](https://github.com/tabilet/tabilet-skills/blob/main/docs/ACCEPTANCE.md)
+for artifact identities and the distinct **published**, **catalog submission
+pending**, and **listed** states. After npm publication, install the exact
+package separately in every profile where it is wanted:
+
+```bash
+dsh plugin --profile web add tabilet-skills@1.4.0 --ignore-scripts
+dsh plugin --profile headless add tabilet-skills@1.4.0 --ignore-scripts
+```
+
+Restart that profile. Web exposes **Memory Bank** in the native right sidebar;
+headless exposes the six skills without needing the UI. The package ships
+prebuilt output and complete skill resources pinned by upstream commit and
+hashes. It has no install scripts and bundles no DSH runtime. Direct filesystem
+installation remains supported and does not depend on the companion.
+
+The panel reads the selected session's project through DSH's file interfaces.
+It uses change observations and a five-second visible refresh cycle, rechecks on
+focus, and offers manual refresh. It reports incomplete reads, denied canonical
+paths, malformed markers, duplicate identities, and multiple in-progress rows.
+Historical bodies load only when opened. Recorded evidence and explicit review
+counters remain separate from task-marker counts; terminal rows do not prove
+milestone acceptance. Documents render as literal text without active HTML or
+automatic external resources.
+
+Shortcuts preview requests for all six skills. Goal requires explicit milestone
+order, completion conditions, and commit policy; its visible default is `task`
+and requests include `EXTERNAL_MUTATIONS: none`. Reconcile treats a review path
+or URL as request text and preserves its separate remote-fetch confirmation.
+Insertion requires the same session and unchanged empty plain-text draft with
+no attachments; otherwise the user can copy the preview. The user sends normally.
+No button submits, approves, edits status, or starts another ledger writer.
+
+The bundle's filesystem provider has default-root discovery disabled and runs at
+bundled priority. Project/user overrides retain their normal precedence. The
+Compatibility view reports winning sources and known shadowing; review duplicates
+before assuming an update is active. A task marker does not prove exclusive
+ownership. Existing compatible projects work directly; adopting newer rules is
+an explicit `memory-bank-upgrade` workflow, never an installation side effect.
+
+To roll back, disable the companion row in the selected profile or run
+`dsh plugin --profile web remove tabilet-skills` (and separately for headless).
+Project records, unrelated configuration, and direct filesystem skills remain.
+
 ## Support boundary
 
 The Stage 1 target is **DSH 0.1.5-rc.1 on Linux with Node 24**, using **Web** for

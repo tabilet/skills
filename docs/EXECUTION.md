@@ -158,6 +158,13 @@ through `23` are provider or network problems, not project problems.
 
 ## DSH runtime integration
 
+The optional [v1.4.0 companion](DSH.md#install-the-dsh-companion) adds a read-only
+project dashboard and request previews. It never executes a workflow or changes
+the project's ledger. A prepared request runs only after the user sends it in
+the existing conversation; its skills retain their normal approval gates.
+Its Node/Web checks live in the companion repository. They do not add Node to
+this repository's default Python verification or portable runner.
+
 [DSH](DSH.md) is a separately installed runtime for the same six skill bundles.
 `memory-bank-upgrade` adopts new project workflow rules through an approved
 merge; it does not update the separately installed API executable or execute

@@ -35,6 +35,14 @@ same on representative tasks?
 
 ## DSH integration versus workflow acceptance
 
+The [v1.4.0 companion](DSH.md#install-the-dsh-companion) has credential-free
+parser parity, packed-artifact, UI, refresh, and draft-preservation acceptance.
+The shared fixtures in `tests/fixtures/parser-conformance.json` are verified
+against the canonical Python parser and consumed by the companion's TypeScript
+reader. These tests establish plugin behavior, not model workflow quality.
+Unchanged skill semantics require no new paid live runs for this release; later
+paid acceptance needs a separately authorized scope and budget.
+
 The [DSH compatibility job](../.github/workflows/dsh.yml) uses a locked
 0.1.5-rc.1 runtime on Linux/Node 24 to check the actual skill loader, invocation
 policy, complete bundles, resource paths, and preservation during installation,

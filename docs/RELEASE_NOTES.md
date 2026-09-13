@@ -1,3 +1,29 @@
+# memory-bank v1.4.0
+
+v1.4.0 keeps the six canonical skills, project format, and Python harness shared
+across agents, and adds conformance fixtures for read-only integrations. The
+separate [tabilet-skills repository](https://github.com/tabilet/tabilet-skills)
+owns the installable DSH companion, native Memory Bank views, and workflow request
+preparation. See [both installation routes](DSH.md#install-the-dsh-companion).
+
+The companion pins this repository's immutable release commit and payload hashes.
+Its Web and headless targets use Linux, Node 24.14.1, and locked DSH rc.2
+components; an isolated rc.1 launcher with rc.2 components is also checked. This
+repository retains the existing all-rc.1 compatibility suite and standard-library
+Python checks. Skill semantics and project contracts are unchanged from v1.3.0;
+no new paid live runs are part of v1.4.0 acceptance.
+
+Installing or updating either route does not migrate projects. Existing compatible
+projects work directly; adopt newer rules through an approved Upgrade proposal.
+The sidebar reads project Markdown and prepares conversation drafts. It does not
+write task state, approve work, submit requests, or establish milestone acceptance.
+Removal leaves project memory and the direct filesystem route available.
+
+Canonical GitHub publication, companion GitHub/npm publication, catalog submission,
+and accepted market listing are separate gates. Consult the companion's
+[release record](https://github.com/tabilet/tabilet-skills/blob/main/docs/ACCEPTANCE.md)
+for their actual state. The existing Medium drafts remain scoped to v1.3.0.
+
 # memory-bank v1.3.0
 
 v1.3.0 adds curated lessons, frozen milestone history, and approved project-rule

@@ -21,8 +21,8 @@ Six optional skills can do the mapping, copying, and filling for you; see
 yours from the moment they appear. You and your agent maintain them during
 authorized work; installing or updating the plugin does not migrate them.
 
-[v1.3.0 release notes](docs/RELEASE_NOTES.md) cover long-term memory, DSH
-support, workflow hardening, and upgrade guidance.
+[v1.4.0 release notes](docs/RELEASE_NOTES.md) cover the shared harness and the
+optional DSH companion, alongside the v1.3.0 lifecycle and upgrade guidance.
 
 Your project ends up looking like this:
 
@@ -888,6 +888,15 @@ work together; see [Run an ordered set of
 milestones](#run-an-ordered-set-of-milestones).
 
 ### DSH installation
+
+The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
+packages the six canonical skills and adds a native Memory Bank sidebar with
+task, memory, acceptance, and history views. It prepares workflow requests for
+your conversation; the user reviews and sends them. It makes no model calls or
+project writes while browsing or preparing requests. The companion targets
+DSH **0.1.5-rc.2**, Linux, and Node **24.14.1**. See
+[companion installation and release status](docs/DSH.md#install-the-dsh-companion).
+The direct filesystem route below remains available independently.
 
 DSH provides tools, permissions, and persistent sessions; memory-bank defines
 approved engineering work, verification, review, and project history. The

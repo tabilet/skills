@@ -164,6 +164,14 @@ codex plugin marketplace remove tabilet
 
 ## DSH route
 
+For the v1.4.0 sidebar route, install the
+[DSH companion](DSH.md#install-the-dsh-companion) in the Web profile, then choose
+**Memory Bank** in the selected project's native right sidebar. Inspect tasks,
+current memory, acceptance evidence, and demand-loaded history there. The workflow
+shortcuts open a request preview; insert it into an unchanged empty draft or copy
+it, then send normally. They preserve each skill's approval gates. Updating the
+plugin does not migrate the project; use Upgrade for an explicit proposal.
+
 Use the same `stomper` example with DSH 0.1.5-rc.1 on Linux and Node 24. The
 [DSH guide](DSH.md#acceptance-evidence) distinguishes tested runtime integration
 from live workflow acceptance. Install the six complete bundles from a
@@ -172,7 +180,7 @@ memory-bank v1.3.0-or-newer checkout into `$DSH_HOME/skills` (default
 and [backup/update/removal](DSH.md#update-or-remove) procedures. A shared agents
 root is an alternative; inspect duplicate-name precedence. Existing Claude Code
 and Codex commands above keep their existing forms.
-Before v1.3.0 is published, use the reviewed release working tree.
+Use a published release checkout for reproducible installation.
 
 After creating `stomper` in Step 2, run `dsh web` from that directory and confirm
 Web's selected workspace. In a fresh session check that all six skills are

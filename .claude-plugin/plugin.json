@@ -1,6 +1,6 @@
 {
   "name": "memory-bank",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Six commands for the memory-bank workflow: archive a package, initialize or upgrade its harness, reconcile a review, tackle the next row, or run ordered milestones. The project files remain yours.",
   "author": {
     "name": "Peter Bi"
