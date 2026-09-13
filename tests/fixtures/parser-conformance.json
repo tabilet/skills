@@ -1,0 +1,326 @@
+[
+  {
+    "name": "six-markers",
+    "kind": "status",
+    "text": "| 0 | `[ ]` | A \\| B | successor: M02 |\n| 1 | `[+]` | A \\| B | successor: M02 |\n| 2 | `[~]` | A \\| B | successor: M02 |\n| 3 | `[!]` | A \\| B | successor: M02 |\n| 4 | `[X]` | A \\| B | successor: M02 |\n| 5 | `[-]` | A \\| B | successor: M02 |",
+    "rows": [
+      {
+        "item": "0",
+        "state": "pending",
+        "cells": [
+          "0",
+          "`[ ]`",
+          "A | B",
+          "successor: M02"
+        ],
+        "line": 1
+      },
+      {
+        "item": "1",
+        "state": "completed",
+        "cells": [
+          "1",
+          "`[+]`",
+          "A | B",
+          "successor: M02"
+        ],
+        "line": 2
+      },
+      {
+        "item": "2",
+        "state": "in_progress",
+        "cells": [
+          "2",
+          "`[~]`",
+          "A | B",
+          "successor: M02"
+        ],
+        "line": 3
+      },
+      {
+        "item": "3",
+        "state": "blocked",
+        "cells": [
+          "3",
+          "`[!]`",
+          "A | B",
+          "successor: M02"
+        ],
+        "line": 4
+      },
+      {
+        "item": "4",
+        "state": "cancelled",
+        "cells": [
+          "4",
+          "`[X]`",
+          "A | B",
+          "successor: M02"
+        ],
+        "line": 5
+      },
+      {
+        "item": "5",
+        "state": "historical",
+        "cells": [
+          "5",
+          "`[-]`",
+          "A | B",
+          "successor: M02"
+        ],
+        "line": 6
+      }
+    ],
+    "problems": []
+  },
+  {
+    "name": "fences",
+    "kind": "status",
+    "text": "```md\n| hidden | `[ ]` |\n```\n   | visible | `[~]` | notes |\n    | indented | `[!]` |\n~~~~\n| hidden | `[+]` |\n~~~~\n",
+    "rows": [
+      {
+        "item": "visible",
+        "state": "in_progress",
+        "cells": [
+          "visible",
+          "`[~]`",
+          "notes"
+        ],
+        "line": 4
+      }
+    ],
+    "problems": []
+  },
+  {
+    "name": "invalid",
+    "kind": "status",
+    "text": "| Item | State | Notes |\n| --- | --- | --- |\n| 1 | [ ] | bad |\n| 2 | done | bad |\n| 3 | `[?]` | bad |",
+    "rows": [],
+    "problems": [
+      "line 3: unknown or non-backticked state marker",
+      "line 4: unknown or non-backticked state marker",
+      "line 5: unknown or non-backticked state marker"
+    ]
+  },
+  {
+    "name": "legacy",
+    "kind": "status",
+    "text": "| Item | State |\n| --- | --- |\n| One | `[X]` |\n| Two | `[-]` | successor: M02 |",
+    "rows": [
+      {
+        "item": "One",
+        "state": "cancelled",
+        "cells": [
+          "One",
+          "`[X]`"
+        ],
+        "line": 3
+      },
+      {
+        "item": "Two",
+        "state": "historical",
+        "cells": [
+          "Two",
+          "`[-]`",
+          "successor: M02"
+        ],
+        "line": 4
+      }
+    ],
+    "problems": []
+  },
+  {
+    "name": "empty",
+    "kind": "status",
+    "text": "",
+    "rows": [],
+    "problems": []
+  },
+  {
+    "name": "crlf",
+    "kind": "status",
+    "text": "| A | `[ ]` | x |\r\n| B | `[+]` | y |\r\n",
+    "rows": [
+      {
+        "item": "A",
+        "state": "pending",
+        "cells": [
+          "A",
+          "`[ ]`",
+          "x"
+        ],
+        "line": 1
+      },
+      {
+        "item": "B",
+        "state": "completed",
+        "cells": [
+          "B",
+          "`[+]`",
+          "y"
+        ],
+        "line": 2
+      }
+    ],
+    "problems": []
+  },
+  {
+    "name": "completed",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** completed\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "record": {
+      "metadata": {
+        "Milestone": "M01",
+        "Outcome": "completed",
+        "Retired": "2026-09-12",
+        "Source status": "memory-bank/status-M01.md",
+        "Source specification": "memory-bank/milestone.md#m01-delivery",
+        "Evidence": "unversioned",
+        "Worktree": "unversioned",
+        "Review": "passed",
+        "Review iterations": "2",
+        "Verification": "tests passed; review found no blocking issues",
+        "Consolidated into": "no current-truth change",
+        "Disposition": "Owner approved",
+        "Successor": "M02"
+      },
+      "specification": "## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n",
+      "status": "| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n"
+    }
+  },
+  {
+    "name": "completed-truncated",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** completed\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 ",
+    "invalid": true
+  },
+  {
+    "name": "completed-open-row",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** completed\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[ ]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "completed-wrong-id",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M02\n**Outcome.** completed\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "completed-review",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** completed\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 11\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "cancelled",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** cancelled\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "record": {
+      "metadata": {
+        "Milestone": "M01",
+        "Outcome": "cancelled",
+        "Retired": "2026-09-12",
+        "Source status": "memory-bank/status-M01.md",
+        "Source specification": "memory-bank/milestone.md#m01-delivery",
+        "Evidence": "unversioned",
+        "Worktree": "unversioned",
+        "Review": "passed",
+        "Review iterations": "2",
+        "Verification": "tests passed; review found no blocking issues",
+        "Consolidated into": "no current-truth change",
+        "Disposition": "Owner approved",
+        "Successor": "M02"
+      },
+      "specification": "## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n",
+      "status": "| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n"
+    }
+  },
+  {
+    "name": "cancelled-truncated",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** cancelled\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 ",
+    "invalid": true
+  },
+  {
+    "name": "cancelled-open-row",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** cancelled\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[ ]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "cancelled-wrong-id",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M02\n**Outcome.** cancelled\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "cancelled-review",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** cancelled\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 11\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "superseded",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** superseded\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "record": {
+      "metadata": {
+        "Milestone": "M01",
+        "Outcome": "superseded",
+        "Retired": "2026-09-12",
+        "Source status": "memory-bank/status-M01.md",
+        "Source specification": "memory-bank/milestone.md#m01-delivery",
+        "Evidence": "unversioned",
+        "Worktree": "unversioned",
+        "Review": "passed",
+        "Review iterations": "2",
+        "Verification": "tests passed; review found no blocking issues",
+        "Consolidated into": "no current-truth change",
+        "Disposition": "Owner approved",
+        "Successor": "M02"
+      },
+      "specification": "## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n",
+      "status": "| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n"
+    }
+  },
+  {
+    "name": "superseded-truncated",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** superseded\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 ",
+    "invalid": true
+  },
+  {
+    "name": "superseded-open-row",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** superseded\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[ ]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "superseded-wrong-id",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M02\n**Outcome.** superseded\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "superseded-review",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** superseded\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 11\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
+    "invalid": true
+  }
+]
