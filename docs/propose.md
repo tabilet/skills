@@ -40,8 +40,8 @@ ordinary feature or candidate promotion.
 
 Propose ends with a planning handoff and explicit verification gaps. Request
 [Next](next.md) or [Goal](goal.md) separately to implement approved work.
-Installing v2.0.0 will not migrate older project instructions; use
-[Upgrade](upgrade.md) to adopt the requested-change procedure explicitly.
 
-Propose is included in v2.0.0. Installing it does not change an existing
-project's records; use Upgrade to adopt the new planning procedure.
+For a v1.5.0 project, first [migrate the project layout](upgrade.md#migrate-a-v150-project-to-v2).
+Then use [Upgrade](upgrade.md#upgrade-workflow-rules) if the project's
+instructions have not adopted the requested-change procedure. Installing
+Propose does not change existing project records.

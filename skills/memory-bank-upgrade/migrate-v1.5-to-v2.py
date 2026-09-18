@@ -15,6 +15,7 @@ import tempfile
 
 OLD_ROOTS = ("GOAL.md", "memory-bank", "evolution", "docs/history")
 ARCHIVE = re.compile(r"archive-[A-Z](?:0[1-9]|[1-9][0-9])\.md$")
+STATUS = re.compile(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md$")
 MAINTAINED = {
     "AGENTS.md", "memory-bank/product.md", "memory-bank/architecture.md",
     "memory-bank/tech-stack.md", "memory-bank/lessons.md",
@@ -26,6 +27,10 @@ REPLACEMENTS = (
     ("docs/history/", "tabilet/docs/history/"),
     ("docs/archive-", "tabilet/docs/archive-"),
 )
+ROOT_REFERENCE = re.compile(
+    r"(?<![A-Za-z0-9_./-])(?:\./)?(memory-bank/|evolution/|docs/history/|docs/archive-)"
+)
+GOAL_REFERENCE = re.compile(r"(?<![A-Za-z0-9_./-])(?:\./)?GOAL\.md\b")
 
 
 def stop(message):
@@ -115,18 +120,40 @@ def v2_layout_exists(project):
     return root.exists() or root.is_symlink()
 
 
+def recognizable_layout(project, prefix=""):
+    base = project / prefix
+    bank = base / "memory-bank"
+    milestone = bank / "milestone.md"
+    statuses = bank.is_dir() and any(STATUS.fullmatch(path.name) for path in bank.iterdir())
+    history = (base / "docs/history/index.md").is_file()
+    if milestone.is_file():
+        return statuses or history
+    docs = base / "docs"
+    archives = docs.is_dir() and any(ARCHIVE.fullmatch(path.name) for path in docs.iterdir())
+    return (not milestone.exists() and not statuses and not history and archives
+            and (bank / "product.md").is_file() and (bank / "architecture.md").is_file())
+
+
+def validate_v2_layout(project):
+    if old_layout_exists(project):
+        stop("mixed v1.5/v2 layout; repair manually before migration")
+    if (project / "tabilet").is_symlink():
+        stop("symlink is not supported: tabilet")
+    if not (project / "tabilet").is_dir():
+        stop("expected directory: tabilet")
+    if not (project / "AGENTS.md").is_file() or (project / "AGENTS.md").is_symlink():
+        stop("regular root AGENTS.md is required")
+    files = tree_files(project, "tabilet")
+    if any(name.endswith(".tabilet-migrating") for name in files) or not recognizable_layout(project, "tabilet"):
+        stop("unexplained partial v2 layout; repair manually before migration")
+
+
 def rewrite(data):
     text = data.decode("utf-8")
-    # A relative link from a moved memory-bank file to a moved docs file remains valid.
-    protected = []
-    def shield(match):
-        protected.append(match.group(0))
-        return f"\x00{len(protected)-1}\x00"
-    text = re.sub(r"\.\./(?:docs/(?:history/|archive-)|GOAL\.md)", shield, text)
-    for before, after in REPLACEMENTS:
-        text = re.sub(r"(?<!tabilet/)" + re.escape(before), after, text)
-    text = re.sub(r"\x00(\d+)\x00", lambda m: protected[int(m.group(1))], text)
-    text = re.sub(r"\]\((?:\./)?GOAL\.md(?=[#\s)])", "](tabilet/GOAL.md", text)
+    # Paths beginning ../ still resolve after both files move under tabilet/.
+    # A nested path such as other/memory-bank/ belongs to that other directory.
+    text = ROOT_REFERENCE.sub(lambda match: "tabilet/" + match.group(1), text)
+    text = GOAL_REFERENCE.sub("tabilet/GOAL.md", text)
     return text.encode("utf-8")
 
 
@@ -134,18 +161,13 @@ def plan(project, head):
     if not (project / "AGENTS.md").is_file() or (project / "AGENTS.md").is_symlink():
         stop("regular root AGENTS.md is required")
     if v2_layout_exists(project):
-        if old_layout_exists(project):
-            stop("mixed v1.5/v2 layout; repair manually before migration")
-        if (project / "tabilet").is_symlink():
-            stop("symlink is not supported: tabilet")
-        if not any((project / "tabilet" / name).exists() for name in ("memory-bank", "docs", "evolution", "GOAL.md")):
-            stop("tabilet/ exists without a recognizable v2 layout")
+        validate_v2_layout(project)
         return None
     if not old_layout_exists(project):
         stop("no v1.5.0 project-owned files found")
     sources = source_files(project)
-    if not sources or not any(s.startswith("memory-bank/") or s.startswith("docs/archive-") for s in sources):
-        stop("v1.5.0 memory bank or archive preflight is missing")
+    if not sources or not recognizable_layout(project):
+        stop("v1.5.0 initialized memory bank or archive preflight is missing")
     ops = []
     for src in sources:
         data = (project / src).read_bytes()
@@ -153,14 +175,10 @@ def plan(project, head):
         if (project / dst).exists() or (project / dst).is_symlink():
             stop(f"destination collision: {dst}")
         new = rewrite(data) if src in MAINTAINED else data
-        if src == "memory-bank/suggested.txt":
-            new = new.replace(b"Using GOAL.md,", b"Using tabilet/GOAL.md,")
         ops.append({"src": src, "dst": dst, "before": digest(data), "after": digest(new),
                     "content": base64.b64encode(new).decode("ascii") if new != data else None})
     data = (project / "AGENTS.md").read_bytes()
     new = rewrite(data)
-    new = new.replace(b"(./GOAL.md)", b"(tabilet/GOAL.md)")
-    new = re.sub(rb"(?<![A-Za-z0-9_./-])GOAL\.md", b"tabilet/GOAL.md", new)
     if new != data:
         ops.append({"src": "AGENTS.md", "dst": "AGENTS.md", "before": digest(data),
                     "after": digest(new), "content": base64.b64encode(new).decode("ascii")})
@@ -291,10 +309,7 @@ def main():
     path = journal_path(project)
     if not args.resume and not path.exists() and not old_layout_exists(project) and v2_layout_exists(project):
         require_git(project, clean=False)
-        if (project / "tabilet").is_symlink():
-            stop("symlink is not supported: tabilet")
-        if not any((project / "tabilet" / name).exists() for name in ("memory-bank", "docs", "evolution", "GOAL.md")):
-            stop("tabilet/ exists without a recognizable v2 layout")
+        validate_v2_layout(project)
         print("Already using the v2 layout; no changes.")
         return
     head = require_git(project, clean=not args.resume and not path.exists())

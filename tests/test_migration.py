@@ -37,6 +37,7 @@ def fixture(repo, *, goal=True, retired=False, archive=False, customized=False):
     bank.mkdir()
     (bank / "product.md").write_text("Current product.\n")
     (bank / "architecture.md").write_text("See docs/archive-A01.md.\n" if archive else "Current architecture.\n")
+    (bank / "tech-stack.md").write_text("Current stack.\n")
     (bank / "milestone.md").write_text(
         "# Milestones\n\n[History](../docs/history/index.md)\n"
         if retired else "# Milestones\n\n## M01 - Delivery\n\n[status](status-M01.md)\n"
@@ -62,6 +63,21 @@ def fixture(repo, *, goal=True, retired=False, archive=False, customized=False):
     if customized:
         (repo / "README.md").write_text("Manual link: memory-bank/milestone.md\n")
         (bank / "lessons.md").write_text("Local policy: keep custom approval.\n")
+        (bank / "milestone.md").write_text(
+            (bank / "milestone.md").read_text()
+            + "\n[Direction](../evolution/prompt-v1.md)\n"
+            + "[Own status](../memory-bank/status-M01.md)\n"
+        )
+        (repo / "AGENTS.md").write_text(
+            (repo / "AGENTS.md").read_text()
+            + "Read [local stack](./memory-bank/tech-stack.md). "
+            + "Keep other/memory-bank/rules.md unchanged.\n"
+        )
+        if goal:
+            (bank / "suggested.txt").write_text(
+                "Follow ./GOAL.md with STATUS_ORDER: M01.\n"
+                "Also consult GOAL.md before running.\n"
+            )
     commit(repo)
 
 
@@ -84,8 +100,18 @@ class MigrationTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256((repo / "tabilet" / old).read_bytes()).hexdigest(), sha)
             self.assertIn("tabilet/memory-bank/milestone.md", (repo / "AGENTS.md").read_text())
             self.assertIn("[our goal](tabilet/GOAL.md)", (repo / "AGENTS.md").read_text())
+            self.assertIn("[local stack](tabilet/memory-bank/tech-stack.md)", (repo / "AGENTS.md").read_text())
+            self.assertIn("other/memory-bank/rules.md", (repo / "AGENTS.md").read_text())
             self.assertIn("Local policy: keep custom approval.", (repo / "AGENTS.md").read_text())
-            self.assertIn("tabilet/GOAL.md", (repo / "tabilet/memory-bank/suggested.txt").read_text())
+            milestone = (repo / "tabilet/memory-bank/milestone.md").read_text()
+            self.assertIn("[Direction](../evolution/prompt-v1.md)", milestone)
+            self.assertIn("[Own status](../memory-bank/status-M01.md)", milestone)
+            self.assertTrue((repo / "tabilet/memory-bank/../evolution/prompt-v1.md").is_file())
+            self.assertTrue((repo / "tabilet/memory-bank/../memory-bank/status-M01.md").is_file())
+            suggestion = (repo / "tabilet/memory-bank/suggested.txt").read_text()
+            self.assertIn("Follow tabilet/GOAL.md", suggestion)
+            self.assertIn("consult tabilet/GOAL.md", suggestion)
+            self.assertNotIn("./GOAL.md", suggestion)
             self.assertIn("README.md", result.stdout)
             self.assertIn("tabilet/GOAL.md", result.stdout)
             self.assertEqual(self.migrate(repo).returncode, 0)
@@ -100,6 +126,7 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(self.migrate(retired, "--apply").returncode, 0)
             self.assertEqual((retired / "tabilet/docs/history/status-M01.md").read_bytes(), frozen)
             self.assertIn("../docs/history/index.md", (retired / "tabilet/memory-bank/milestone.md").read_text())
+            self.assertIn("no changes", self.migrate(retired).stdout)
             archive = Path(tmp) / "archive"
             fixture(archive, goal=False, archive=True)
             (archive / "memory-bank/milestone.md").unlink()
@@ -108,6 +135,7 @@ class MigrationTests(unittest.TestCase):
             call("git", "-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "-qm", "archive only", cwd=archive)
             self.assertEqual(self.migrate(archive, "--apply").returncode, 0)
             self.assertTrue((archive / "tabilet/docs/archive-A01.md").is_file())
+            self.assertIn("no changes", self.migrate(archive).stdout)
 
     def test_reject_dirty_collision_mixed_and_symlink(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -128,6 +156,20 @@ class MigrationTests(unittest.TestCase):
             (repo / "tabilet").mkdir()
             (repo / "tabilet/GOAL.md").write_text("collision")
             self.assertNotEqual(self.migrate(repo, "--apply").returncode, 0)
+
+    def test_unexplained_partial_v2_layout_is_not_a_completed_migration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "partial"
+            repo.mkdir()
+            (repo / "AGENTS.md").write_text("# Local rules\n")
+            (repo / "tabilet").mkdir()
+            (repo / "tabilet/GOAL.md").write_text("Only one moved file.\n")
+            commit(repo)
+            for flags in ((), ("--apply",)):
+                result = self.migrate(repo, *flags)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("unexplained partial v2 layout", result.stderr)
+            self.assertEqual((repo / "tabilet/GOAL.md").read_text(), "Only one moved file.\n")
 
     def test_interrupted_run_resumes_only_validated_state(self):
         with tempfile.TemporaryDirectory() as tmp:
