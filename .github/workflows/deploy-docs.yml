@@ -6,17 +6,15 @@ on:
     paths:
       - docs/**
       - mkdocs.yml
-      - docs_hooks.py
       - .github/workflows/deploy-docs.yml
   pull_request:
     paths:
       - docs/**
       - mkdocs.yml
-      - docs_hooks.py
       - .github/workflows/deploy-docs.yml
 
 concurrency:
-  group: deploy-docs
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -31,9 +29,7 @@ jobs:
         with:
           python-version: '3.x'
       - run: python -m pip install -r docs/requirements.txt
-      # Strict fails on any link MkDocs cannot resolve, including an out-of-tree
-      # link that docs_hooks.py does not yet rewrite. check.py cannot see these:
-      # it validates links as repository paths, not as site paths.
+      # Strict validates the links and navigation in the published guides.
       - run: mkdocs build --strict
 
   deploy:

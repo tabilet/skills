@@ -71,6 +71,30 @@ class CheckHelperTests(unittest.TestCase):
 
             self.assertEqual(repository_checks.medium_articles(root), [article])
 
+    def test_site_pages_follow_mkdocs_navigation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "mkdocs.yml").write_text(
+                "site_name: Example\nnav:\n  - Home: index.md\n"
+                "  - Guides:\n    - New guide: added.md\n"
+            )
+            self.assertEqual(
+                [p.name for p in repository_checks.site_pages(root)],
+                ["index.md", "added.md"],
+            )
+
+    def test_anchors_ignore_fenced_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "guide.md"
+            path.write_text(
+                "# Real heading\n\n```markdown\n<a id=\"example-only\"></a>\n```\n"
+                "\n<a id=\"real-bridge\"></a>\n"
+            )
+            self.assertEqual(
+                repository_checks.anchors(path),
+                {"real-heading", "real-bridge"},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

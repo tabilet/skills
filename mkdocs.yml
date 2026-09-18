@@ -21,8 +21,6 @@ exclude_docs: |
   /medium*.png
   /requirements.txt
   /assets/*.prompt.txt
-hooks:
-  - docs_hooks.py
 extra_css:
   - assets/stylesheets/theme.css
 copyright: '© 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>'

@@ -53,10 +53,11 @@ stash, discard, commit, or require a clean worktree just to inspect.
 
 Compare behavior and contracts, not wording or a guessed installed version.
 Identify missing capabilities, compatible local equivalents, deliberate local
-overrides, and conflicts needing decisions. In particular, check curated lessons,
-knowledge preservation, retirement provenance and literal records, reserved IDs,
-all-retired identity, six task markers, sole in-progress ownership, current-fact
-maintenance, and the persisted ten-iteration review gate. Never reset an active
+overrides, and conflicts needing decisions. In particular, check the
+requested-change procedure, curated lessons, knowledge preservation, retirement
+provenance and literal records, reserved IDs, all-retired identity, six task
+markers, sole in-progress ownership, current-fact maintenance, and the persisted
+ten-iteration review gate. Never reset an active
 review count or reinterpret cancellation/supersession as delivered acceptance.
 
 If the project uses the API runner, inspect its actual executable or documented

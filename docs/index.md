@@ -28,8 +28,7 @@ of the unpublished v1.5.0 preparation; public installation remains v1.4.0.
 | New, or an existing codebase without a memory bank | [Init](init.md) inspects the project, asks about decisions, and proposes a plan. A broad codebase may need [Archive](archive.md) first. |
 | Already has approved tasks | [Next](next.md) handles one task; [Goal](goal.md) handles an explicit milestone order. |
 | Has a requested feature or candidate promotion | [Propose](propose.md) inspects the current plan and presents one planning proposal. |
-| Has a new engineering review | [Propose](propose.md) | A requested feature, candidate promotion, or future direction change needs approved planning. |
-| [Reconcile](reconcile.md) checks the findings and proposes planning changes. |
+| Has a new engineering review | [Reconcile](reconcile.md) checks the findings and proposes planning changes. |
 | Uses an older memory-bank contract | [Upgrade](upgrade.md) proposes rule changes while preserving tasks and history. |
 
 These are entry points, not a sequence every project must follow. See

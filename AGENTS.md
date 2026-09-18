@@ -42,7 +42,8 @@ the file:
 | `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
 | `skills/` | The seven optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
-| `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. |
+| `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. The published site is [Memory Bank](https://tabilet.github.io/skills/). |
+| `mkdocs.yml`, `docs/requirements.txt`, `.github/workflows/deploy-docs.yml` | Website navigation, build dependencies, and deployment workflow. Only the guides selected by `mkdocs.yml` are published. |
 
 Two consequences that matter constantly:
 
@@ -98,6 +99,9 @@ python3 check.py
 npm ci --prefix tests/dsh --ignore-scripts --no-audit --no-fund
 npm test --prefix tests/dsh
 
+# Verify the published guides and links before claiming a website change is done.
+mkdocs build --strict
+
 # Exercise the harness end-to-end against a real memory-bank project
 ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=... OPENAI_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
 ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=anthropic LLM_MODEL=... ANTHROPIC_API_KEY=... MAX_RUNS=1 harness/tackle-memory-bank-api-loop /path/to/project
@@ -118,7 +122,7 @@ like the harness.
 When you add a rule to this file, add the check that enforces it.
 
 The DSH suite is repository-only: `tests/dsh/` locks the runtime and its
-dependencies, and a separate CI job tests the six shared bundles through DSH's
+dependencies, and a separate CI job tests the seven shared bundles through DSH's
 filesystem loader. Keep Node out of the default Python checks and shipped
 payload. Paid acceptance is explicitly invoked, never automatic on pull
 requests; [docs/DSH.md](docs/DSH.md) records the supported target, cost ceiling,

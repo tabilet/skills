@@ -78,7 +78,8 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 ```
 
 Plain-file installs are unnamespaced: `/memory-bank-init` in Claude Code and
-`$memory-bank-init` in Codex, with the same pattern for the other five skills.
+`$memory-bank-init` in Codex, with the same pattern for the other six skills in
+the local v1.5.0 checkout. Public v1.4.0 installations expose five other skills.
 
 For DSH, follow the [DSH route](#dsh-route) below.
 
@@ -182,13 +183,14 @@ plugin does not migrate the project; use Upgrade for an explicit proposal.
 
 Use the same `stomper` example with DSH 0.1.5-rc.1 on Linux and Node 24. The
 [DSH guide](DSH.md#acceptance-evidence) distinguishes tested runtime integration
-from live workflow acceptance. Install the seven complete bundles from a
-memory-bank v1.3.0-or-newer checkout into `$DSH_HOME/skills` (default
+from live workflow acceptance. Install the seven complete bundles from a trusted
+local v1.5.0 source checkout into `$DSH_HOME/skills` (default
 `~/.dsh/skills`), following its [installation](DSH.md#install-the-six-bundles)
 and [backup/update/removal](DSH.md#update-or-remove) procedures. A shared agents
 root is an alternative; inspect duplicate-name precedence. Existing Claude Code
 and Codex commands above keep their existing forms.
-Use a published release checkout for reproducible installation.
+The published v1.4.0 checkout contains six bundles; use it when Propose is not
+needed. Pin the local source commit for reproducible v1.5.0 preparation.
 
 After creating `stomper` in Step 2, run `dsh web` from that directory and confirm
 Web's selected workspace. In a fresh session check that all seven skills are

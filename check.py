@@ -89,16 +89,14 @@ def markdown_files() -> list[pathlib.Path]:
 def site_pages(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
     """Return the guides published to the documentation website.
 
-    mkdocs.yml's exclude_docs publishes only these, so they are the public
-    surface the site presents. They carry install commands, invocation
-    prefixes, and model examples that go stale exactly like README.md's.
+    Read nav from mkdocs.yml so newly published guides enter the interface
+    checks automatically. site_contract verifies this list against exclude_docs.
     """
 
-    names = (
-        "index", "installation", "examples",
-        "archive", "init", "propose", "reconcile", "next", "goal", "upgrade",
-    )
-    return [root / "docs" / f"{name}.md" for name in names]
+    config = (root / "mkdocs.yml").read_text()
+    nav = config.partition("\nnav:\n")[2]
+    names = re.findall(r"^\s*-\s+[^:\n]+:\s+([A-Za-z0-9_-]+\.md)\s*$", nav, re.M)
+    return [root / "docs" / name for name in names]
 
 
 def medium_articles(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
@@ -202,7 +200,7 @@ def headings(text: str) -> list[str]:
 
 def anchors(path: pathlib.Path) -> set[str]:
     text = path.read_text()
-    return {slug(h) for h in headings(text)} | set(re.findall(r'<a\s+id="([^"]+)"\s*></a>', text))
+    return {slug(h) for h in headings(text)} | set(re.findall(r'<a\s+id="([^"]+)"\s*></a>', prose(text)))
 
 
 def init_skill_text() -> str:
@@ -437,6 +435,21 @@ def skills_manifest():
     )
     if listed != on_disk:
         problems.append(f"plugin.json lists {listed}, disk has {on_disk}")
+    marketplace_path = ROOT / ".claude-plugin/marketplace.json"
+    if not marketplace_path.is_file():
+        problems.append(".claude-plugin/marketplace.json is missing")
+    else:
+        marketplace = json.loads(marketplace_path.read_text())
+        plugins = [p for p in marketplace.get("plugins", []) if p.get("name") == "memory-bank"]
+        if len(plugins) != 1:
+            problems.append("marketplace.json must list memory-bank exactly once")
+        count_word = {7: "seven"}.get(len(on_disk))
+        if not count_word or count_word not in marketplace.get("description", "").lower():
+            problems.append("marketplace.json description must name the seven commands")
+        if plugins and "propos" not in plugins[0].get("description", "").lower():
+            problems.append("marketplace.json plugin description must include Propose")
+        if "propos" not in json.loads(PLUGIN_JSON.read_text()).get("description", "").lower():
+            problems.append("plugin.json description must include Propose")
     # Both agents reserve /goal for durable objectives; keep the protocol skill
     # distinctly named (and avoid shadowing Claude Code's plain /goal command).
     if "goal" in on_disk:
@@ -1021,6 +1034,48 @@ def links():
     return problems
 
 
+@check("published guides match MkDocs navigation and website rules")
+def site_contract():
+    config = (ROOT / "mkdocs.yml").read_text()
+    pages = site_pages()
+    names = [p.name for p in pages]
+    allowed = re.findall(r"^\s*!/([A-Za-z0-9_-]+\.md)\s*$", config, re.M)
+    problems = []
+    if not names or len(names) != len(set(names)):
+        problems.append("mkdocs.yml nav must list each published guide exactly once")
+    if set(names) != set(allowed) or len(allowed) != len(set(allowed)):
+        problems.append("mkdocs.yml nav and exclude_docs guide allowlist differ")
+    for page in pages:
+        if not page.is_file():
+            problems.append(f"mkdocs.yml nav points to missing guide {page.name}")
+
+    index = (ROOT / "docs/index.md").read_text()
+    routing = index.partition("## Choose your starting point")[2].partition("## What stays in your project")[0]
+    rows = [line for line in routing.splitlines() if line.startswith("|")]
+    if not rows or any(row.count("|") != 3 for row in rows):
+        problems.append("docs/index.md starting-point table must have two cells per row")
+    review = [row for row in rows if row.startswith("| Has a new engineering review |")]
+    if len(review) != 1 or "[Reconcile](reconcile.md)" not in review[0]:
+        problems.append("docs/index.md must route engineering reviews to Reconcile")
+    feature = [row for row in rows if row.startswith("| Has a requested feature or candidate promotion |")]
+    if len(feature) != 1 or "[Propose](propose.md)" not in feature[0]:
+        problems.append("docs/index.md must route requested features to Propose")
+
+    agents = (ROOT / "AGENTS.md").read_text()
+    readme = (ROOT / "README.md").read_text()
+    workflow = (ROOT / ".github/workflows/deploy-docs.yml").read_text()
+    for token in ("mkdocs.yml", "docs/requirements.txt", ".github/workflows/deploy-docs.yml", "mkdocs build --strict"):
+        if token not in agents:
+            problems.append(f"AGENTS.md: missing website rule {token}")
+    if "https://tabilet.github.io/skills/" not in readme:
+        problems.append("README.md must link the website")
+    if "group: ${{ github.workflow }}-${{ github.ref }}" not in workflow:
+        problems.append("docs deployment concurrency must be scoped to workflow and ref")
+    if "docs_hooks.py" in config or (ROOT / "docs_hooks.py").exists():
+        problems.append("unused docs_hooks.py must not be loaded by MkDocs")
+    return problems
+
+
 # --------------------------------------------------------------------------
 # 6. The documented exit codes must match the ones the harness can return.
 # --------------------------------------------------------------------------
@@ -1306,6 +1361,9 @@ def public_interfaces():
         "In Codex, use the namespaced plugin skill": "obsolete Claude-only built-in goal guidance",
     }
     for path in public + [HARNESS, ROOT / "AGENTS.md"]:
+        if not path.is_file():
+            problems.append(f"missing public interface file: {path.relative_to(ROOT)}")
+            continue
         text = path.read_text()
         for needle, label in forbidden.items():
             if needle in text:
@@ -1475,7 +1533,8 @@ def upgrade_contract():
                   "Allocate no status ID", "Never reset an active review count", "all-retired",
                   "task tables, row notes, markers", "original bytes", "already compatible",
                   "Do not implement tasks, commit", "exact previously approved proposal",
-                  "compatibility cannot be established", "stop the affected merge"):
+                  "compatibility cannot be established", "stop the affected merge",
+                  "requested-change procedure"):
         if token not in text:
             problems.append(f"upgrade is missing its preservation contract: {token}")
     if "memory-bank-upgrade" not in (ROOT / "AGENTS.md").read_text():
@@ -1514,6 +1573,12 @@ def propose_contract():
             skill = SKILLS_DIR / f"memory-bank-{part}" / "SKILL.md"
             if skill.is_file() and f"references/{name}" not in skill.read_text():
                 problems.append(f"{skill.relative_to(ROOT)} does not route to {name}")
+    discovery = SKILLS_DIR / "memory-bank-init/references/discovery.md"
+    if discovery.is_file():
+        words = discovery.read_text()
+        for token in ("in parallel", "❓ Q1", "➡️", "numbered frontier round"):
+            if token not in words:
+                problems.append(f"shared discovery reference lacks {token!r}")
     if not PROPOSE_SKILL.is_file():
         return problems + ["memory-bank-propose/SKILL.md is missing"]
     text = PROPOSE_SKILL.read_text()
@@ -1533,13 +1598,14 @@ def propose_contract():
 @check("planning contracts load before proposals and optional goal help stays bundled")
 def skill_resource_contract():
     problems = []
-    for name in ("archive", "init", "reconcile"):
+    for name, reference in (("archive", "write-contract.md"), ("init", "write-contract.md"),
+                            ("propose", "plan-update.md"), ("reconcile", "write-contract.md")):
         bundle = SKILLS_DIR / f"memory-bank-{name}"
         skill = (bundle / "SKILL.md").read_text()
         proposal = skill.split("## Phase 2 - Propose", 1)[-1].split("## Phase 3 - Write", 1)[0]
-        if "references/write-contract.md" not in proposal:
-            problems.append(f"{bundle.name}: proposal must load its write contract")
-        contract = " ".join((bundle / "references/write-contract.md").read_text().split())
+        if f"references/{reference}" not in proposal:
+            problems.append(f"{bundle.name}: proposal must load its planning contract")
+        contract = " ".join((bundle / "references" / reference).read_text().split())
         if "Read this reference only after" in contract:
             problems.append(f"{bundle.name}: reference incorrectly gates inspection on approval")
         if "writes only after the user approves the complete proposal" not in contract:

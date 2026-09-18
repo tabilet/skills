@@ -75,10 +75,11 @@ Headless profiles load the skills without a sidebar.
 The companion was verified on Linux with Node **24.14.1** and locked DSH
 **0.1.5-rc.2** components, plus an isolated rc.1 launcher using rc.2 components.
 
-For **skills without the dashboard**, use the [plain-file route](#as-plain-files-you-own)
-below after v1.5.0 is published, or from a trusted local v1.5.0 checkout now.
-Copy all seven complete folders to `$DSH_HOME/skills`, normally
-`~/.dsh/skills`. That route retains its separately tested all-rc.1 compatibility.
+For **skills without the dashboard**, use the [plain-file route](#as-plain-files-you-own).
+The published v1.4.0 checkout below contains six complete folders. To install
+all seven now, copy them from a trusted local v1.5.0 source checkout into
+`$DSH_HOME/skills`, normally `~/.dsh/skills`. The filesystem route retains its
+separately tested all-rc.1 compatibility.
 
 ### Using the Memory Bank panel
 
@@ -118,13 +119,15 @@ For Goal, include an explicit order and [commit policy](goal.md).
 
 ## As plain files you own
 
-Clone the released source into a separate directory:
+Clone the currently published v1.4.0 source into a separate directory (six skills):
 
 ```bash
 git clone --branch v1.4.0 --depth 1 https://github.com/tabilet/skills.git
 ```
 
-Copy each `memory-bank-*` folder from the chosen release's `skills/` directory into
+For the unpublished seven-skill v1.5.0 preparation, use a trusted local source
+checkout instead of the v1.4.0 clone. Copy each `memory-bank-*` folder from the
+selected checkout's `skills/` directory into
 the destination for your agent:
 
 | Agent | Personal skill directory |

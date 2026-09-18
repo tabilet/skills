@@ -23,6 +23,7 @@ authorized work; installing or updating the plugin does not migrate them.
 
 [v1.4.0 release notes](docs/RELEASE_NOTES.md) cover the shared harness and the
 optional DSH companion, alongside the v1.3.0 lifecycle and upgrade guidance.
+The [Memory Bank website](https://tabilet.github.io/skills/) has the published guides.
 
 Your project ends up looking like this:
 
