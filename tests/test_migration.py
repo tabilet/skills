@@ -85,6 +85,7 @@ class MigrationTests(unittest.TestCase):
             self.assertIn("Local policy: keep custom approval.", (repo / "AGENTS.md").read_text())
             self.assertIn("tabilet/GOAL.md", (repo / "tabilet/memory-bank/suggested.txt").read_text())
             self.assertIn("README.md", result.stdout)
+            self.assertIn("tabilet/GOAL.md", result.stdout)
             self.assertEqual(self.migrate(repo).returncode, 0)
             self.assertIn("no changes", self.migrate(repo).stdout)
             self.assertTrue(call("git", "status", "--porcelain", cwd=repo).stdout)
@@ -133,6 +134,11 @@ class MigrationTests(unittest.TestCase):
             env = dict(os.environ, TABILET_MIGRATION_FAIL_AFTER="2")
             self.assertIn("injected interruption", self.migrate(repo, "--apply", env=env).stderr)
             self.assertIn("--resume", self.migrate(repo).stderr)
+            moved = repo / "tabilet/GOAL.md"
+            original = moved.read_bytes()
+            moved.write_bytes(b"unexplained edit")
+            self.assertIn("journal validation failed", self.migrate(repo, "--resume").stderr)
+            moved.write_bytes(original)
             self.assertEqual(self.migrate(repo, "--resume").returncode, 0)
             self.assertTrue((repo / "tabilet/memory-bank/status-M01.md").exists())
 

@@ -188,6 +188,12 @@ def validate_resume(project, manifest, head):
             stop("invalid migration journal destination")
         if op["src"] == "AGENTS.md" and op["dst"] != "AGENTS.md":
             stop("invalid migration journal destination")
+        if op["src"] != "AGENTS.md" and not (
+            op["src"] == "GOAL.md" or
+            op["src"].startswith(("memory-bank/", "evolution/", "docs/history/")) or
+            (op["src"].startswith("docs/") and ARCHIVE.fullmatch(Path(op["src"]).name))
+        ):
+            stop("invalid migration journal source")
         if ".." in Path(op["src"]).parts or Path(op["src"]).is_absolute():
             stop("invalid migration journal path")
         if op["content"] is not None and digest(base64.b64decode(op["content"], validate=True)) != op["after"]:
@@ -252,14 +258,22 @@ def apply(project, manifest):
                 Path(directory).rmdir()
     stale = []
     for path in project.rglob("*.md"):
-        if "tabilet" in path.parts or path.name == "AGENTS.md" or ".git" in path.parts or path.is_symlink():
+        relative = path.relative_to(project)
+        if path.name == "AGENTS.md" or ".git" in relative.parts or path.is_symlink():
+            continue
+        if relative.parts[0] == "tabilet" and not (
+            relative.as_posix() == "tabilet/GOAL.md" or
+            relative.as_posix().startswith("tabilet/evolution/") or
+            (relative.as_posix().startswith("tabilet/memory-bank/") and
+             re.fullmatch(r"status-[A-Z][0-9]{2}\.md", path.name))
+        ):
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeError:
             continue
-        if any(old in text for old, _ in REPLACEMENTS) or "GOAL.md" in text:
-            stale.append(path.relative_to(project).as_posix())
+        if any(old in text for old, _ in REPLACEMENTS) or "Using GOAL.md" in text:
+            stale.append(relative.as_posix())
     return stale
 
 
