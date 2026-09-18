@@ -14,7 +14,7 @@ request preparation. Both use the same project files; there is no second ledger.
 
 ## Install the DSH companion
 
-The companion's v1.4.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
+The companion's v1.5.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
 with a locked dependency graph. An isolated rc.1 launcher with rc.2 components
 is a separate acceptance target. The all-rc.1 tests and v1.3.0 live evidence in
 this guide remain scoped to their original configuration.
@@ -27,7 +27,7 @@ in each profile where it is wanted. For Web:
 
 ```bash
 dsh plugin --profile web add \
-  https://github.com/tabilet/tabilet-skills/releases/download/v1.4.0/tabilet-skills-1.4.0.tgz \
+  https://github.com/tabilet/tabilet-skills/releases/download/v1.5.0/tabilet-skills-1.5.0.tgz \
   --ignore-scripts
 ```
 
@@ -37,7 +37,7 @@ catalog acceptance are separate release gates; consult the release record
 before using an npm package name or relying on market search.
 
 Restart that profile. Web exposes **Memory Bank** in the native right sidebar;
-headless exposes the six skills without needing the UI. The package ships
+headless exposes all seven skills without needing the UI. The package ships
 prebuilt output and complete skill resources pinned by upstream commit and
 hashes. It has no install scripts and bundles no DSH runtime. Direct filesystem
 installation remains supported and does not depend on the companion.
@@ -51,8 +51,8 @@ counters remain separate from task-marker counts; terminal rows do not prove
 milestone acceptance. Documents render as literal text without active HTML or
 automatic external resources.
 
-The published v1.4.0 shortcuts preview requests for six skills. The local
-v1.5.0 companion adds Propose with one required multiline change field. Goal
+The v1.5.0 shortcuts preview requests for seven skills. Propose has one
+required multiline change field. Goal
 requires explicit milestone
 order, completion conditions, and commit policy; its visible default is `task`
 and requests include `EXTERNAL_MUTATIONS: none`. Reconcile treats a review path
@@ -82,9 +82,8 @@ for the observed results and remaining limitations. SDK, ACP, minimal profiles,
 other platforms, and older releases are not certified here.
 
 DSH integration is included in **memory-bank v1.3.0**. Use a v1.3.0-or-newer
-checkout containing this guide. Before publication, use the reviewed release
-working tree; marketplace installs and `main` downloads contain only changes
-already published there. See the [release notes](RELEASE_NOTES.md) for upgrade
+checkout containing this guide. Use the v1.5.0 tag for a reproducible seven-skill
+installation. See the [release notes](RELEASE_NOTES.md) for upgrade
 guidance and the [project-upgrade procedure](../README.md#upgrade-an-existing-project).
 Updating installed skills does not migrate existing `AGENTS.md`,
 goal protocols, memory banks, lessons, or histories. Adopt project lifecycle
@@ -109,8 +108,7 @@ DSH does not consume this repository's plugin manifest.
 
 ## Install the seven bundles
 
-These source-checkout commands target the unpublished v1.5.0 tree. The
-published v1.4.0 companion and bundles still contain six skills.
+These source-checkout commands target the v1.5.0 tree with seven skills.
 
 The primary destination is `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`.
 Set `MEMORY_BANK_CHECKOUT` to the absolute release checkout path. Run the

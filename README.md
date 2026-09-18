@@ -21,8 +21,8 @@ Seven optional skills can do the mapping, copying, and filling for you; see
 yours from the moment they appear. You and your agent maintain them during
 authorized work; installing or updating the plugin does not migrate them.
 
-[v1.4.0 release notes](docs/RELEASE_NOTES.md) cover the shared harness and the
-optional DSH companion, alongside the v1.3.0 lifecycle and upgrade guidance.
+[v1.5.0 release notes](docs/RELEASE_NOTES.md) cover Propose and the seven-skill
+DSH companion, alongside earlier lifecycle and upgrade guidance.
 The [Memory Bank website](https://tabilet.github.io/skills/) has the published guides.
 
 Your project ends up looking like this:
@@ -811,8 +811,8 @@ not because anything here depends on it. If you have your own, point the two
 
 ## Install The Seven Skills
 
-The seventh skill is prepared in unpublished v1.5.0. Published v1.4.0
-installations still expose six; use a local v1.5.0 checkout to review Propose now.
+Version 1.5.0 publishes all seven skills, including Propose. Existing projects
+adopt its requested-change procedure through an approved Upgrade proposal.
 
 Also optional. Everything above works by typing plain sentences; these just make
 the seven moments repeatable, and carry the full instruction rather than your
@@ -908,7 +908,7 @@ milestones](#run-an-ordered-set-of-milestones).
 ### DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
-currently packages the six published v1.4.0 skills and adds a native
+packages the seven v1.5.0 skills and adds a native
 Memory Bank sidebar with
 task, memory, acceptance, and history views. It prepares workflow requests for
 your conversation; the user reviews and sends them. It makes no model calls or
@@ -938,11 +938,12 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-During release preparation, use the reviewed working tree. A marketplace
-install or `main` download includes only changes already published there.
+For a reproducible installation, use the `v1.5.0` tag. A marketplace install or
+`main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke
-`/memory-bank-init`, `/memory-bank-archive`, `/memory-bank-upgrade`, or `/memory-bank-reconcile` for
+`/memory-bank-init`, `/memory-bank-archive`, `/memory-bank-propose`,
+`/memory-bank-upgrade`, or `/memory-bank-reconcile` for
 interviews and explicit approvals. Use `/memory-bank-next`, `/memory-bank-goal`,
 or an ordinary-language request for execution. For pre-approved work, use
 `dsh --profile headless 'complete authorized request'`; the

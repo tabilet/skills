@@ -43,5 +43,5 @@ Propose ends with a planning handoff and explicit verification gaps. Request
 Installing v1.5.0 will not migrate older project instructions; use
 [Upgrade](upgrade.md) to adopt the requested-change procedure explicitly.
 
-> v1.5.0 is prepared locally and has not been published. The public v1.4.0
-> installation does not include Propose yet.
+Propose is included in v1.5.0. Installing it does not change an existing
+project's records; use Upgrade to adopt the new planning procedure.

@@ -5,7 +5,7 @@ You have an idea and an empty directory. No code yet.
 This walkthrough goes from that to an agent implementing your project against a
 memory bank it wrote from interviewing you:
 
-1. Install the skills, once. The seventh is in unpublished v1.5.0 source.
+1. Install the seven v1.5.0 skills, once.
 2. Make an empty directory.
 3. Run `memory-bank-init` and answer its questions.
 4. Approve the breakdown it proposes.
@@ -29,8 +29,7 @@ The example project uses Node and Python 3; yours needs whatever it needs.
 
 ## Step 1 — Install The Skills
 
-The examples below describe the seven-skill v1.5.0 source tree. Published
-v1.4.0 installations still have six skills; Propose is not yet available there.
+The examples below describe the published seven-skill v1.5.0 release.
 
 In Claude Code:
 
@@ -79,11 +78,11 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 
 Plain-file installs are unnamespaced: `/memory-bank-init` in Claude Code and
 `$memory-bank-init` in Codex, with the same pattern for the other six skills in
-the local v1.5.0 checkout. Public v1.4.0 installations expose five other skills.
+v1.5.0.
 
 For DSH, follow the [DSH route](#dsh-route) below.
 
-A local v1.5.0 checkout has seven commands:
+The v1.5.0 release has seven commands:
 
 | Skill | When |
 |---|---|
@@ -173,7 +172,7 @@ codex plugin marketplace remove tabilet
 
 ## DSH route
 
-For the v1.4.0 sidebar route, install the
+For the v1.5.0 sidebar route, install the
 [DSH companion](DSH.md#install-the-dsh-companion) in the Web profile, then choose
 **Memory Bank** in the selected project's native right sidebar. Inspect tasks,
 current memory, acceptance evidence, and demand-loaded history there. The workflow
@@ -183,14 +182,13 @@ plugin does not migrate the project; use Upgrade for an explicit proposal.
 
 Use the same `stomper` example with DSH 0.1.5-rc.1 on Linux and Node 24. The
 [DSH guide](DSH.md#acceptance-evidence) distinguishes tested runtime integration
-from live workflow acceptance. Install the seven complete bundles from a trusted
-local v1.5.0 source checkout into `$DSH_HOME/skills` (default
+from live workflow acceptance. Install the seven complete bundles from the
+v1.5.0 release checkout into `$DSH_HOME/skills` (default
 `~/.dsh/skills`), following its [installation](DSH.md#install-the-six-bundles)
 and [backup/update/removal](DSH.md#update-or-remove) procedures. A shared agents
 root is an alternative; inspect duplicate-name precedence. Existing Claude Code
 and Codex commands above keep their existing forms.
-The published v1.4.0 checkout contains six bundles; use it when Propose is not
-needed. Pin the local source commit for reproducible v1.5.0 preparation.
+Pin the v1.5.0 release tag for reproducible installation.
 
 After creating `stomper` in Step 2, run `dsh web` from that directory and confirm
 Web's selected workspace. In a fresh session check that all seven skills are

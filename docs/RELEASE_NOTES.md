@@ -1,4 +1,4 @@
-# memory-bank v1.5.0 (unreleased)
+# memory-bank v1.5.0
 
 The seventh skill, `memory-bank-propose`, turns a requested feature, candidate
 promotion, or future direction change in an initialized project into approved
@@ -14,8 +14,9 @@ using the existing draft guards. Website guidance and the banner include the
 seventh skill. Structural and model-free checks verify packaging and integration,
 not autonomous planning quality. No paid acceptance was run.
 
-v1.5.0 remains local and unpublished. Public installation instructions still
-point to the published v1.4.0 artifacts, which contain six skills.
+The v1.5.0 plugin and companion ship seven skills. Install from the v1.5.0 tag
+and the companion's matching prebuilt GitHub archive. Existing projects keep
+their local rules until an approved Upgrade adopts the new procedure.
 
 # memory-bank v1.4.0
 

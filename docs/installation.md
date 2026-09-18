@@ -12,8 +12,7 @@ create or upgrade a project's memory bank.**
 | Manual installation | Complete skill folders in your agent's skill directory |
 
 The canonical seven skills and the DSH companion use the same project Markdown.
-Propose is prepared in unpublished v1.5.0 source; the public v1.4.0 plugin
-and companion still install six skills.
+Version 1.5.0 includes Propose in the plugin and companion.
 Python is only required for the optional API runner.
 
 ## Claude Code
@@ -54,12 +53,12 @@ not expose plugin commands, use the [plain-file route](#as-plain-files-you-own).
 
 ## DeepSeek Harness
 
-For the **Memory Bank sidebar and all six skills**, install the prebuilt v1.4.0
+For the **Memory Bank sidebar and all seven skills**, install the prebuilt v1.5.0
 companion in your Web profile. Run this in a terminal on the machine running DSH:
 
 ```bash
 dsh plugin --profile web add \
-  https://github.com/tabilet/tabilet-skills/releases/download/v1.4.0/tabilet-skills-1.4.0.tgz \
+  https://github.com/tabilet/tabilet-skills/releases/download/v1.5.0/tabilet-skills-1.5.0.tgz \
   --ignore-scripts
 ```
 
@@ -76,10 +75,9 @@ The companion was verified on Linux with Node **24.14.1** and locked DSH
 **0.1.5-rc.2** components, plus an isolated rc.1 launcher using rc.2 components.
 
 For **skills without the dashboard**, use the [plain-file route](#as-plain-files-you-own).
-The published v1.4.0 checkout below contains six complete folders. To install
-all seven now, copy them from a trusted local v1.5.0 source checkout into
-`$DSH_HOME/skills`, normally `~/.dsh/skills`. The filesystem route retains its
-separately tested all-rc.1 compatibility.
+Copy all seven complete folders from the v1.5.0 checkout into `$DSH_HOME/skills`,
+normally `~/.dsh/skills`. The filesystem route retains its separately tested
+all-rc.1 compatibility.
 
 ### Using the Memory Bank panel
 
@@ -119,15 +117,13 @@ For Goal, include an explicit order and [commit policy](goal.md).
 
 ## As plain files you own
 
-Clone the currently published v1.4.0 source into a separate directory (six skills):
+Clone the v1.5.0 source into a separate directory (seven skills):
 
 ```bash
-git clone --branch v1.4.0 --depth 1 https://github.com/tabilet/skills.git
+git clone --branch v1.5.0 --depth 1 https://github.com/tabilet/skills.git
 ```
 
-For the unpublished seven-skill v1.5.0 preparation, use a trusted local source
-checkout instead of the v1.4.0 clone. Copy each `memory-bank-*` folder from the
-selected checkout's `skills/` directory into
+Copy each `memory-bank-*` folder from that checkout's `skills/` directory into
 the destination for your agent:
 
 | Agent | Personal skill directory |

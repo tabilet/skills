@@ -13,8 +13,8 @@ a new session or switch agents.
 
 Use the same project files with **Claude Code, Codex, or DeepSeek Harness
 (DSH)**. Seven optional skills help create and maintain them. The files stay in
-your repository and remain usable without the skills. The seventh skill is part
-of the unpublished v1.5.0 preparation; public installation remains v1.4.0.
+your repository and remain usable without the skills. Version 1.5.0 includes
+all seven skills.
 
 [Install the skills](installation.md){ .md-button .md-button--primary }
 [Start your first project](examples.md#a-new-project){ .md-button }
@@ -103,5 +103,4 @@ the existing conversation. You review and send it yourself.
 
 The dashboard reads your project files. It does not maintain a second task list
 or mark work complete. Installing the companion in a headless profile exposes
-the published six skills without the Web interface; local v1.5.0
-preparation contains seven.
+all seven v1.5.0 skills without the Web interface.
