@@ -18,7 +18,7 @@ is one optional protocol for that; any equivalent works just as well.
 
 ## Status ID Pattern
 
-Status files are named `memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single
+Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single
 uppercase letter that classifies the work, and `<NN>` is a zero-padded number
 within that lane:
 
@@ -51,14 +51,14 @@ Rules:
 - Never rename a status ID after its file exists. Resolve a lane collision by
   allocating an unused lane/ID to new work and recording lineage; preserve the
   original record and its reserved ID.
-- Do not create an aggregate `memory-bank/status.md`. Task rows live in lane
+- Do not create an aggregate `tabilet/memory-bank/status.md`. Task rows live in lane
   files only.
 - Keep the lane meanings above current as new lanes are added.
 
 ## Status Files
 
 Every active row must link its existing status file. Retired IDs and specifications
-belong in `docs/history/index.md`, not in this table. When history exists, add
+belong in `tabilet/docs/history/index.md`, not in this table. When history exists, add
 one link to that index here; do not accumulate one retired row per milestone.
 
 | Milestone | Status File | Summary |
@@ -199,7 +199,7 @@ notes identify the consumed attempt or supersession and its accepted successor:
    product scope, domain terminology, concept relationships, or business
    invariants. Update `architecture.md` or `tech-stack.md` if it changed
    boundaries, dependencies, commands, data flow, or runtime assumptions.
-5. Check `evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
+5. Check `tabilet/evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
    product direction, architecture boundary, milestone target, or public/private
    contract direction materially changes.
 6. Revisit candidate directions affected by the milestone. Update their reason
@@ -242,7 +242,7 @@ accumulated history from active context, not a fixed number of tokens or files;
 genuinely active work and useful knowledge can still grow.
 
 Before materially superseding or removing knowledge from those documents,
-append the old wording to `docs/history/knowledge.md`. Use a unique, descriptive
+append the old wording to `tabilet/docs/history/knowledge.md`. Use a unique, descriptive
 dated heading, the original document and heading, retirement reason, supporting
 evidence, and a link to its replacement (or an explicit reason there is none).
 Preserve the old excerpt in a fenced markdown block. This applies outside
@@ -261,7 +261,7 @@ baseline rule must not force commits or interrupt a no-commit goal.
    `[ ]`, `[~]`, or `[!]` row may remain. Every `[-]` row names its accepted
    successor. A cancelled or superseded milestone also needs an authorized
    disposition; it must not be described as delivered acceptance.
-2. Create `docs/history/status-<LANE><NN>.md` using the envelope below. Keep the
+2. Create `tabilet/docs/history/status-<LANE><NN>.md` using the envelope below. Keep the
    full final specification and status document in separate literal markdown
    fences, including all task text, notes, acceptance, and review evidence.
    Choose fences longer than any fence in the source. Original relative paths
@@ -299,8 +299,8 @@ Closure metadata precedes the two sections and uses one line per field.
 **Milestone.** M01
 **Outcome.** completed
 **Retired.** <YYYY-MM-DD>
-**Source status.** memory-bank/status-M01.md
-**Source specification.** memory-bank/milestone.md#<original-anchor>
+**Source status.** tabilet/memory-bank/status-M01.md
+**Source specification.** tabilet/memory-bank/milestone.md#<original-anchor>
 **Evidence.** <full commit or unversioned>
 **Worktree.** <clean, includes uncommitted changes, or unversioned>
 **Review.** passed

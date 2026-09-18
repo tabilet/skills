@@ -8,14 +8,14 @@ only after the user approves the complete proposal.
 Follow the approved create, merge, preserve, and omit action for every file.
 Never silently overwrite an existing file.
 
-- Create `docs/` or `memory-bank/` only when needed.
-- Preserve existing applicable content in `memory-bank/product.md` and
-  `memory-bank/architecture.md`; merge observed current facts rather than
+- Create `docs/` or `tabilet/memory-bank/` only when needed.
+- Preserve existing applicable content in `tabilet/memory-bank/product.md` and
+  `tabilet/memory-bank/architecture.md`; merge observed current facts rather than
   replacing user decisions or project rules.
 - When an approved summary refresh materially supersedes knowledge, append its
   original source/heading and literal old wording, reason, evidence, and
   replacement reference under a unique dated heading in
-  `docs/history/knowledge.md`. Add a link from `docs/history/index.md` if needed.
+  `tabilet/docs/history/knowledge.md`. Add a link from `tabilet/docs/history/index.md` if needed.
   Follow the project's knowledge-history convention when one exists. These
   narrow approved journal/index additions are allowed even before init; never
   edit prior entries or retire or modify milestone/task records.
@@ -24,21 +24,21 @@ Never silently overwrite an existing file.
 - A `partial` or `blocked` archive is an in-progress artifact and may be resumed
   only at the same recorded baseline under the resume rules in the parent
   skill. It freezes when its coverage becomes `verified`.
-- Do not create or modify `GOAL.md`, `memory-bank/tech-stack.md`,
-  `memory-bank/milestone.md`, any `memory-bank/status-*.md`,
-  `memory-bank/suggested.txt`, or `evolution/`.
+- Do not create or modify `tabilet/GOAL.md`, `tabilet/memory-bank/tech-stack.md`,
+  `tabilet/memory-bank/milestone.md`, any `tabilet/memory-bank/status-*.md`,
+  `tabilet/memory-bank/suggested.txt`, or `tabilet/evolution/`.
 - Stop and ask before any collision or merge not covered by the approved
   proposal.
 
 ## Allocate archive IDs
 
-Archive files are `docs/archive-<LANE><NN>.md`, where `<LANE>` is one uppercase
+Archive files are `tabilet/docs/archive-<LANE><NN>.md`, where `<LANE>` is one uppercase
 letter and `<NN>` is a zero-padded number from `01` through `99`.
 
 - Archive lanes classify stable product-domain or ownership contexts. They are
   a separate namespace from status lanes and may use different meanings.
 - `M` is the default for a cross-cutting or otherwise unclassified context.
-- Record every archive lane meaning in `memory-bank/architecture.md` before
+- Record every archive lane meaning in `tabilet/memory-bank/architecture.md` before
   using it.
 - Within a lane, allocate the next unused number. Numbers record snapshot chronology,
   not priority or execution order.
@@ -107,10 +107,10 @@ status work.
 
 Create or merge current observed facts into:
 
-- `memory-bank/product.md`: product scope, users and workflows when evidenced,
+- `tabilet/memory-bank/product.md`: product scope, users and workflows when evidenced,
   canonical domain terminology, concept relationships, business invariants, and
   non-goals that the repository establishes; and
-- `memory-bank/architecture.md`: current layout, ownership, data flow, public
+- `tabilet/memory-bank/architecture.md`: current layout, ownership, data flow, public
   contracts, dependencies, and an archive registry.
 
 Keep `product.md` and `architecture.md` current after the archive is frozen.

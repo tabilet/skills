@@ -44,12 +44,12 @@ def marker(value: str) -> str:
 
 def make_repo(root: pathlib.Path, state: str | None = None) -> pathlib.Path:
     state = state or marker("[ ]")
-    (root / "memory-bank").mkdir(parents=True)
+    (root / "tabilet/memory-bank").mkdir(parents=True)
     (root / "AGENTS.md").write_text("# Agent guide\n", encoding="utf-8")
-    (root / "memory-bank" / "milestone.md").write_text(
+    (root / "tabilet/memory-bank" / "milestone.md").write_text(
         "# Milestone\n\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n", encoding="utf-8"
     )
-    (root / "memory-bank" / "status-M01.md").write_text(
+    (root / "tabilet/memory-bank" / "status-M01.md").write_text(
         "# Status\n\n| Item | State | Notes |\n|---|---|---|\n"
         f"| Implement feature | {state} | Keep this note. |\n",
         encoding="utf-8",
@@ -118,8 +118,8 @@ def retirement_text(status: str, milestone_id: str = "M01", **fields: str) -> st
         "Milestone": milestone_id,
         "Outcome": "completed",
         "Retired": "2026-09-12",
-        "Source status": f"memory-bank/status-{milestone_id}.md",
-        "Source specification": f"memory-bank/milestone.md#{milestone_id.lower()}-delivery",
+        "Source status": f"tabilet/memory-bank/status-{milestone_id}.md",
+        "Source specification": f"tabilet/memory-bank/milestone.md#{milestone_id.lower()}-delivery",
         "Evidence": "unversioned",
         "Worktree": "unversioned",
         "Review": "passed",
@@ -147,8 +147,8 @@ def retirement_text(status: str, milestone_id: str = "M01", **fields: str) -> st
 
 
 def retire_fixture(repo: pathlib.Path, milestone_id: str = "M01", **fields: str) -> pathlib.Path:
-    source = repo / "memory-bank" / f"status-{milestone_id}.md"
-    history = repo / "docs" / "history"
+    source = repo / "tabilet/memory-bank" / f"status-{milestone_id}.md"
+    history = repo / "tabilet" / "docs" / "history"
     history.mkdir(parents=True, exist_ok=True)
     destination = history / source.name
     destination.write_text(retirement_text(source.read_text(), milestone_id, **fields))
@@ -162,7 +162,7 @@ def retire_fixture(repo: pathlib.Path, milestone_id: str = "M01", **fields: str)
         previous + f"| {milestone_id} | {fields.get('Outcome', 'completed')} | 2026-09-12 | "
         f"[{milestone_id}](status-{milestone_id}.md) | Delivery |\n"
     )
-    (repo / "memory-bank" / "milestone.md").write_text(
+    (repo / "tabilet/memory-bank" / "milestone.md").write_text(
         "# Milestones\n\n[History](../docs/history/index.md)\n"
     )
     return destination
@@ -238,7 +238,7 @@ class RetirementTests(unittest.TestCase):
     def test_retirement_preserves_row_identity_and_earlier_notes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
-            source = repo / "memory-bank" / "status-M01.md"
+            source = repo / "tabilet/memory-bank" / "status-M01.md"
             source.write_text(source.read_text() + f"| Earlier | {marker('[+]')} | Evidence. |\n")
             before = harness.row_snapshot(repo)
             source.write_text(source.read_text().replace(marker("[~]"), marker("[+]")))
@@ -255,7 +255,7 @@ class RetirementTests(unittest.TestCase):
     def test_retirement_cannot_drop_original_status_prose(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo")
-            source = repo / "memory-bank" / "status-M01.md"
+            source = repo / "tabilet/memory-bank" / "status-M01.md"
             source.write_text(source.read_text() + "\nImportant historical context.\n")
             before = harness.row_snapshot(repo)
             source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
@@ -268,7 +268,7 @@ class RetirementTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo")
             before = harness.row_snapshot(repo)
-            source = repo / "memory-bank" / "status-M01.md"
+            source = repo / "tabilet/memory-bank" / "status-M01.md"
             source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
             retired = retire_fixture(repo)
             retired.write_text(retired.read_text().replace("**Acceptance.** Feature works.", "A short summary."))
@@ -280,7 +280,7 @@ class RetirementTests(unittest.TestCase):
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             retired = retire_fixture(repo)
             self.assertEqual(harness.history_snapshot(repo)["problems"], [])
-            source = repo / "memory-bank" / "status-M01.md"
+            source = repo / "tabilet/memory-bank" / "status-M01.md"
             source.write_text(f"| Duplicate | {marker('[ ]')} | New work |\n")
             self.assertTrue(any("duplicate active/retired" in p for p in harness.history_snapshot(repo)["problems"]))
             source.unlink()
@@ -291,7 +291,7 @@ class RetirementTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             retire_fixture(repo)
-            milestone = repo / "memory-bank" / "milestone.md"
+            milestone = repo / "tabilet/memory-bank" / "milestone.md"
             milestone.write_text(milestone.read_text() + "\n## M01 - Delivery\n\nStill here.\n")
             problems = harness.history_snapshot(repo)["problems"]
         self.assertTrue(any("specification remains active" in p for p in problems))
@@ -300,9 +300,9 @@ class RetirementTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             retired = retire_fixture(repo)
-            journal = repo / "docs" / "history" / "knowledge.md"
+            journal = repo / "tabilet" / "docs" / "history" / "knowledge.md"
             journal.write_text("# Retired knowledge\n\nOld lesson with source and replacement.\n")
-            active = repo / "memory-bank" / "status-M02.md"
+            active = repo / "tabilet/memory-bank" / "status-M02.md"
             active.write_text(f"| New task | {marker('[ ]')} | Work |\n")
             before = harness.row_snapshot(repo)
             active.write_text(active.read_text().replace(marker("[ ]"), marker("[+]")))
@@ -320,9 +320,10 @@ class StatusParserTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = pathlib.Path(tmp)
             (repo / "docs").mkdir()
-            (repo / "memory-bank").mkdir()
-            (repo / "docs" / "archive-A01.md").write_text("# Archive A01\n")
-            status = repo / "memory-bank" / "status-A01.md"
+            (repo / "tabilet/memory-bank").mkdir(parents=True)
+            (repo / "tabilet" / "docs").mkdir(parents=True)
+            (repo / "tabilet" / "docs" / "archive-A01.md").write_text("# Archive A01\n")
+            status = repo / "tabilet/memory-bank" / "status-A01.md"
             status.write_text(f"| Item | {marker('[ ]')} | Notes |\n")
             self.assertEqual(harness.status_files(repo), [status])
 
@@ -530,7 +531,7 @@ class HarnessIntegrationTests(unittest.TestCase):
         for hidden in ("[ ]", "`[?]`", "`[x]`", "**[ ]**", "pending", ""):
             with self.subTest(marker=hidden), tempfile.TemporaryDirectory() as tmp:
                 repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
-                path = repo / "memory-bank/status-M01.md"
+                path = repo / "tabilet/memory-bank/status-M01.md"
                 path.write_text(path.read_text() + f"| Hidden work | {hidden} | still pending |\n")
                 proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
                 self.assertEqual(proc.returncode, 11, proc.stderr)
@@ -541,12 +542,12 @@ class HarnessIntegrationTests(unittest.TestCase):
         for content in (b"# Status\n", b"\xff"):
             with self.subTest(content=content), tempfile.TemporaryDirectory() as tmp:
                 repo = make_repo(pathlib.Path(tmp) / "repo")
-                (repo / "memory-bank/status-M01.md").write_bytes(content)
+                (repo / "tabilet/memory-bank/status-M01.md").write_bytes(content)
                 proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
                 self.assertEqual(proc.returncode, 11, proc.stderr)
 
     def test_missing_project_instructions_cannot_look_like_completion(self) -> None:
-        for relative, expected in (("AGENTS.md", 10), ("memory-bank/milestone.md", 11)):
+        for relative, expected in (("AGENTS.md", 10), ("tabilet/memory-bank/milestone.md", 11)):
             with self.subTest(path=relative), tempfile.TemporaryDirectory() as tmp:
                 repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
                 (repo / relative).unlink()
@@ -558,7 +559,7 @@ class HarnessIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             retire_fixture(repo)
-            (repo / "memory-bank/status-M00.md").write_text(f"| Work | {marker('[ ]')} | pending |\n")
+            (repo / "tabilet/memory-bank/status-M00.md").write_text(f"| Work | {marker('[ ]')} | pending |\n")
             proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
             self.assertEqual(proc.returncode, 11, proc.stderr)
             self.assertIn("invalid active status filename", proc.stderr)
@@ -597,7 +598,7 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_multiple_in_progress_rows_stop_before_shell_or_api(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
-            status = repo / "memory-bank" / "status-M01.md"
+            status = repo / "tabilet/memory-bank" / "status-M01.md"
             status.write_text(
                 status.read_text(encoding="utf-8")
                 + f"| Second active row | {marker('[~]')} | Conflict. |\n",
@@ -646,7 +647,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             retired = retire_fixture(repo)
             retired.unlink()
             broken = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
-            (repo / "docs" / "history" / "index.md").write_text("# Empty history\n")
+            (repo / "tabilet" / "docs" / "history" / "index.md").write_text("# Empty history\n")
             empty = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
         self.assertEqual(broken.returncode, 11, broken.stderr)
         self.assertEqual(empty.returncode, 11, empty.stderr)
@@ -655,7 +656,7 @@ class HarnessIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             retire_fixture(repo)
-            milestone = repo / "memory-bank" / "milestone.md"
+            milestone = repo / "tabilet/memory-bank" / "milestone.md"
             milestone.write_text(milestone.read_text() + "\n## M02 - Still required\n\nMust be implemented.\n")
             proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
         self.assertEqual(proc.returncode, 11, proc.stderr)
@@ -668,7 +669,7 @@ class HarnessIntegrationTests(unittest.TestCase):
         ):
             with self.subTest(entry=entry), tempfile.TemporaryDirectory() as tmp:
                 repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
-                milestone = repo / "memory-bank/milestone.md"
+                milestone = repo / "tabilet/memory-bank/milestone.md"
                 milestone.write_text(milestone.read_text() + "\n" + entry)
                 proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
                 self.assertEqual(proc.returncode, 11, proc.stderr)
@@ -676,12 +677,12 @@ class HarnessIntegrationTests(unittest.TestCase):
                 self.assertNotIn("No actionable", proc.stdout)
 
     def test_task_cannot_remove_required_project_instructions(self) -> None:
-        for relative in ("AGENTS.md", "memory-bank/milestone.md"):
+        for relative in ("AGENTS.md", "tabilet/memory-bank/milestone.md"):
             with self.subTest(path=relative), tempfile.TemporaryDirectory() as tmp:
                 repo = make_repo(pathlib.Path(tmp) / "repo")
 
                 def damage_instructions(args, target, number, summary, current):
-                    source = target / "memory-bank/status-M01.md"
+                    source = target / "tabilet/memory-bank/status-M01.md"
                     source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
                     (target / relative).unlink()
                     run("git", "add", "-A", cwd=target)
@@ -701,9 +702,9 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_retired_files_are_readable_without_git_but_api_still_requires_git(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = pathlib.Path(tmp) / "repo"
-            (repo / "memory-bank").mkdir(parents=True)
+            (repo / "tabilet/memory-bank").mkdir(parents=True)
             (repo / "AGENTS.md").write_text("# Agent guide\n")
-            (repo / "memory-bank" / "status-M01.md").write_text(
+            (repo / "tabilet/memory-bank" / "status-M01.md").write_text(
                 f"# Status\n\n| Task | {marker('[+]')} | Verified manually |\n"
             )
             retire_fixture(repo)
@@ -720,7 +721,7 @@ class HarnessIntegrationTests(unittest.TestCase):
 
             def close_and_retire(args, target, number, summary, current):
                 self.assertEqual(current["key"], ("status-M01.md", "Implement feature", 1))
-                source = target / "memory-bank" / "status-M01.md"
+                source = target / "tabilet/memory-bank" / "status-M01.md"
                 source.write_text(source.read_text().replace(marker("[~]"), marker("[+]")))
                 retire_fixture(target, Evidence=evidence, Worktree="includes uncommitted changes")
                 run("git", "add", "-A", cwd=target)
@@ -743,7 +744,7 @@ class HarnessIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             retire_fixture(repo)
-            (repo / "memory-bank" / "status-M02.md").write_text(
+            (repo / "tabilet/memory-bank" / "status-M02.md").write_text(
                 f"| Waiting | {marker('[!]')} | External input missing |\n"
             )
             summary = harness.lane_summary(repo)
@@ -772,8 +773,8 @@ class HarnessIntegrationTests(unittest.TestCase):
 
     def test_end_to_end_run_commits_one_completed_row(self) -> None:
         command = (
-            "sed -i 's/\\[ \\]/[+]/' memory-bank/status-M01.md && "
-            "git add memory-bank/status-M01.md && "
+            "sed -i 's/\\[ \\]/[+]/' tabilet/memory-bank/status-M01.md && "
+            "git add tabilet/memory-bank/status-M01.md && "
             "git -c user.name='Harness Test' -c user.email=harness@example.test "
             "commit -qm 'complete row'"
         )
@@ -785,7 +786,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             repo = make_repo(pathlib.Path(tmp) / "repo")
             env = self.harness_env(tmp, LLM_API_BASE=base, ALLOW_UNSANDBOXED_SHELL="1")
             proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=env)
-            status = (repo / "memory-bank" / "status-M01.md").read_text(encoding="utf-8")
+            status = (repo / "tabilet/memory-bank" / "status-M01.md").read_text(encoding="utf-8")
         self.assertEqual(proc.returncode, 7, proc.stderr)
         self.assertIn(marker("[+]"), status)
         self.assertIn("LLM usage:", proc.stdout)
@@ -793,11 +794,11 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_separate_review_commit_is_allowed(self) -> None:
         identity = "-c user.name='Harness Test' -c user.email=harness@example.test"
         command = (
-            "sed -i 's/\\[ \\]/[+]/' memory-bank/status-M01.md && "
-            "git add memory-bank/status-M01.md && "
+            "sed -i 's/\\[ \\]/[+]/' tabilet/memory-bank/status-M01.md && "
+            "git add tabilet/memory-bank/status-M01.md && "
             f"git {identity} commit -qm 'complete row' && "
-            "printf '\\nreviewed\\n' >> memory-bank/milestone.md && "
-            "git add memory-bank/milestone.md && "
+            "printf '\\nreviewed\\n' >> tabilet/memory-bank/milestone.md && "
+            "git add tabilet/memory-bank/milestone.md && "
             f"git {identity} commit -qm 'record review'"
         )
         responses = [
@@ -830,8 +831,8 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_branch_change_is_rejected(self) -> None:
         command = (
             "git checkout -qb alternate && "
-            "sed -i 's/\\[ \\]/[+]/' memory-bank/status-M01.md && "
-            "git add memory-bank/status-M01.md && "
+            "sed -i 's/\\[ \\]/[+]/' tabilet/memory-bank/status-M01.md && "
+            "git add tabilet/memory-bank/status-M01.md && "
             "git -c user.name='Harness Test' -c user.email=harness@example.test "
             "commit -qm 'complete row on another branch'"
         )

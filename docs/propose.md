@@ -33,15 +33,15 @@ change or ID collision calls for a revised proposal. It preserves current row
 outcomes, counters, local policies, and frozen history. Planned behavior stays
 in milestone/status records until implementation makes it current fact.
 
-A material change of direction may add an `evolution/` pair under the project's
-existing trigger. A compatible approved `GOAL.md` may receive a refreshed
-`memory-bank/suggested.txt` launch reference. Neither is automatic for an
+A material change of direction may add an `tabilet/evolution/` pair under the project's
+existing trigger. A compatible approved `tabilet/GOAL.md` may receive a refreshed
+`tabilet/memory-bank/suggested.txt` launch reference. Neither is automatic for an
 ordinary feature or candidate promotion.
 
 Propose ends with a planning handoff and explicit verification gaps. Request
 [Next](next.md) or [Goal](goal.md) separately to implement approved work.
-Installing v1.5.0 will not migrate older project instructions; use
+Installing v2.0.0 will not migrate older project instructions; use
 [Upgrade](upgrade.md) to adopt the requested-change procedure explicitly.
 
-Propose is included in v1.5.0. Installing it does not change an existing
+Propose is included in v2.0.0. Installing it does not change an existing
 project's records; use Upgrade to adopt the new planning procedure.

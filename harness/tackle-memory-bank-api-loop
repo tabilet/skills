@@ -14,10 +14,10 @@ The model is controlled through a plain JSON command protocol rather than
 provider-specific tool-calling, so the same agent loop runs against either
 provider unchanged.
 
-Task rows live in status lane files named `memory-bank/status-<LANE><NN>.md`,
+Task rows live in status lane files named `tabilet/memory-bank/status-<LANE><NN>.md`,
 such as `status-M01.md` or `status-A02.md`. This harness discovers every lane
 file, gates on the aggregate row counts, and lets the model choose which row to
-work using the lane meanings and priority in `memory-bank/milestone.md`.
+work using the lane meanings and priority in `tabilet/memory-bank/milestone.md`.
 """
 
 from __future__ import annotations
@@ -42,6 +42,13 @@ import urllib.request
 EMBEDDED_TASK = """\
 # Tackle Next Memory-Bank Todo
 
+Before reading project state for this workflow, inspect the root layout. If
+`GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
+`docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
+project writes or execution. Direct the user to preview and explicitly apply
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
+Installing v2 never migrates a project automatically.
+
 Resolve missing information through safe inspection first. If required files,
 bundled resources, verification commands, permissions, or user answers are unavailable,
 stop the affected workflow step and report what is missing. Continue independent
@@ -58,7 +65,7 @@ acceptance or authorize concurrent ledger writers.
 Read `AGENTS.md`, then read the memory bank in the order required by
 `AGENTS.md`.
 
-Read `memory-bank/milestone.md` for the status ID pattern, the lane meanings,
+Read `tabilet/memory-bank/milestone.md` for the status ID pattern, the lane meanings,
 milestone priority, and dependencies. Inspect every active status file for an
 existing `[~]` row. If more than one general row is in progress, stop and report
 the conflict. If one exists, resume exactly it. Otherwise check the recorded
@@ -91,7 +98,7 @@ row to be `[~]`. The marker records the selected operation; it does not grant
 missing external-mutation authority.
 
 If completing this row completes a milestone, run the milestone review procedure
-from `memory-bank/milestone.md` before final handoff. Commit review fixes
+from `tabilet/memory-bank/milestone.md` before final handoff. Commit review fixes
 separately.
 
 When the project has adopted retirement, follow that same milestone procedure:
@@ -130,7 +137,7 @@ Rules:
 - Use `rg` before slower search tools.
 - Do not use destructive commands such as `git reset --hard`, `git checkout --`,
   `git clean -fd`, or broad `rm -rf`.
-- Work on exactly one actionable row in one memory-bank/status-<LANE><NN>.md
+- Work on exactly one actionable row in one tabilet/memory-bank/status-<LANE><NN>.md
   lane file.
 - Resume the sole `[~]` in-progress row when one exists. Never retry a `[-]`
   closed-historical row.
@@ -336,7 +343,7 @@ def shell_tool(
 
 
 def status_files(repo: pathlib.Path) -> list[pathlib.Path]:
-    return sorted((repo / "memory-bank").glob(STATUS_GLOB))
+    return sorted((repo / "tabilet" / "memory-bank").glob(STATUS_GLOB))
 
 
 def _table_cells(line: str) -> list[str]:
@@ -486,9 +493,9 @@ def retired_record(text: str, name: str) -> dict:
         raise ValueError("missing retirement metadata")
     if metadata["Milestone"] != milestone_id:
         raise ValueError("retired milestone ID does not match its filename")
-    if metadata["Source status"] != f"memory-bank/{name}":
+    if metadata["Source status"] not in {f"tabilet/memory-bank/{name}", f"memory-bank/{name}"}:
         raise ValueError("source status path does not match the retired ID")
-    if not re.fullmatch(r"memory-bank/milestone\.md#\S+", metadata["Source specification"]):
+    if not re.fullmatch(r"(?:tabilet/)?memory-bank/milestone\.md#\S+", metadata["Source specification"]):
         raise ValueError("missing original milestone specification anchor")
     if metadata["Outcome"] not in {"completed", "cancelled", "superseded"}:
         raise ValueError("invalid retirement outcome")
@@ -530,7 +537,7 @@ def retired_record(text: str, name: str) -> dict:
 
 
 def history_snapshot(repo: pathlib.Path) -> dict:
-    history = repo / "docs" / "history"
+    history = repo / "tabilet" / "docs" / "history"
     records, digests, problems = {}, {}, []
     paths = sorted(history.glob("status-*.md"))
     for path in paths:
@@ -541,7 +548,7 @@ def history_snapshot(repo: pathlib.Path) -> dict:
             records[path.name] = retired_record(raw.decode("utf-8"), path.name)
             digests[path.name] = hashlib.sha256(raw).hexdigest()
         except (ValueError, OSError) as exc:
-            problems.append(f"docs/history/{path.name}: {exc}")
+            problems.append(f"tabilet/docs/history/{path.name}: {exc}")
     index_path = history / "index.md"
     index = index_path.read_text(encoding="utf-8") if index_path.is_file() else ""
     entries = {}
@@ -555,7 +562,7 @@ def history_snapshot(repo: pathlib.Path) -> dict:
         entries[name] = cells
         if name not in records:
             problems.append(f"history index record is missing or invalid: {name}")
-    milestone_path = repo / "memory-bank" / "milestone.md"
+    milestone_path = repo / "tabilet" / "memory-bank" / "milestone.md"
     milestone = milestone_path.read_text(encoding="utf-8") if milestone_path.is_file() else ""
     milestone_lines = list(unfenced_lines(milestone))
     spec_ids = {
@@ -601,7 +608,7 @@ def history_snapshot(repo: pathlib.Path) -> dict:
 
 
 def milestone_specifications(repo: pathlib.Path) -> dict[str, str | None]:
-    path = repo / "memory-bank" / "milestone.md"
+    path = repo / "tabilet" / "memory-bank" / "milestone.md"
     text = path.read_text(encoding="utf-8") if path.is_file() else ""
     lines = text.splitlines(keepends=True)
     headings = [(n, line) for n, line in unfenced_lines(text) if line.startswith("## ")]
@@ -621,12 +628,12 @@ def row_snapshot(repo: pathlib.Path) -> dict:
     history = history_snapshot(repo)
     # Validate required instructions again after each run; the model may have
     # removed or damaged them since the startup checks.
-    for relative in ("AGENTS.md", "memory-bank/milestone.md"):
+    for relative in ("AGENTS.md", "tabilet/memory-bank/milestone.md"):
         try:
             (repo / relative).read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
             history["problems"].append(f"required project instructions unavailable: {relative}: {exc}")
-    for path in sorted((repo / "memory-bank").glob("status-*.md")):
+    for path in sorted((repo / "tabilet" / "memory-bank").glob("status-*.md")):
         if path.is_symlink() or not re.fullmatch(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", path.name):
             history["problems"].append(f"invalid active status filename or symlink: {path.name}")
     documents.update({name: record["status"] for name, record in history["records"].items()})
@@ -778,7 +785,7 @@ def lane_table(summary: list[dict]) -> str:
     ]
     for lane in summary:
         rows.append(
-            f"| memory-bank/{lane['file']} | {lane['actionable']} | "
+            f"| tabilet/memory-bank/{lane['file']} | {lane['actionable']} | "
             f"{lane['in_progress']} | {lane['blocked']} | {lane['historical']} |"
         )
     return "\n".join(rows)
@@ -1014,7 +1021,7 @@ def initial_user_message(
     if in_progress:
         selection = (
             "Resume exactly the existing in-progress row at "
-            f"memory-bank/{in_progress['file']}:{in_progress['line']}.\n"
+            f"tabilet/memory-bank/{in_progress['file']}:{in_progress['line']}.\n"
         )
     else:
         selection = (
@@ -1033,7 +1040,7 @@ def initial_user_message(
         f"{lane_table(summary)}\n"
         "\n"
         "Start by reading AGENTS.md and the memory bank. Read\n"
-        "memory-bank/milestone.md for the lane meanings and milestone priority\n"
+        "tabilet/memory-bank/milestone.md for the lane meanings and milestone priority\n"
         "before choosing a row. "
         f"{selection}"
         "Use the JSON command protocol. Work on exactly\n"
@@ -1310,17 +1317,24 @@ def main() -> None:
         fail("Set LLM_MODEL or pass --model.", 2)
 
     repo = pathlib.Path(args.repo).expanduser().resolve()
+    legacy = any((repo / name).exists() or (repo / name).is_symlink() for name in
+                 ("GOAL.md", "memory-bank", "evolution", "docs/history"))
+    docs = repo / "docs"
+    legacy = legacy or (docs.is_dir() and any(docs.glob("archive-[A-Z][0-9][0-9].md")))
+    if legacy:
+        fail("v1.5.0 or mixed project layout detected. Preview and apply the explicit migration with "
+             "skills/memory-bank-upgrade/migrate-v1.5-to-v2.py PROJECT before running v2.", 11)
     if not (repo / "AGENTS.md").is_file():
         fail(f"AGENTS.md not found in {repo}", 10)
-    if not (repo / "memory-bank").is_dir():
-        fail(f"memory-bank/ not found in {repo}", 11)
-    if not (repo / "memory-bank" / "milestone.md").is_file():
-        fail(f"memory-bank/milestone.md not found in {repo}", 11)
-    if not status_files(repo) and not (repo / "docs" / "history" / "index.md").is_file():
+    if not (repo / "tabilet" / "memory-bank").is_dir():
+        fail(f"tabilet/memory-bank/ not found in {repo}", 11)
+    if not (repo / "tabilet" / "memory-bank" / "milestone.md").is_file():
+        fail(f"tabilet/memory-bank/milestone.md not found in {repo}", 11)
+    if not status_files(repo) and not (repo / "tabilet" / "docs" / "history" / "index.md").is_file():
         fail(
-            f"No status lane files matching memory-bank/{STATUS_GLOB} in {repo}.\n"
-            "Status files are named memory-bank/status-<LANE><NN>.md, such as\n"
-            "status-M01.md or status-A02.md. See memory-bank/milestone.md for the\n"
+            f"No status lane files matching tabilet/memory-bank/{STATUS_GLOB} in {repo}.\n"
+            "Status files are named tabilet/memory-bank/status-<LANE><NN>.md, such as\n"
+            "status-M01.md or status-A02.md. See tabilet/memory-bank/milestone.md for the\n"
             "status ID pattern.",
             11,
         )
@@ -1351,7 +1365,7 @@ def main() -> None:
         in_progress_rows = rows_in_state(repo, "in_progress")
         if len(in_progress_rows) > 1:
             detail = ", ".join(
-                f"memory-bank/{row['file']}:{row['line']}" for row in in_progress_rows
+                f"tabilet/memory-bank/{row['file']}:{row['line']}" for row in in_progress_rows
             )
             fail(
                 "More than one general memory-bank row is in progress. Retain exactly "
@@ -1367,14 +1381,14 @@ def main() -> None:
             if blocked:
                 print("Only blocked memory-bank rows remain. Stopping for human review.", file=sys.stderr)
                 for lane in blocked_lanes:
-                    print(f"  memory-bank/{lane['file']}: {lane['blocked']} blocked row(s)", file=sys.stderr)
+                    print(f"  tabilet/memory-bank/{lane['file']}: {lane['blocked']} blocked row(s)", file=sys.stderr)
                 raise SystemExit(3)
             print("No actionable memory-bank rows remain.")
             return
         if blocked:
             print(f"Warning: {blocked} blocked row(s) remain; continuing with actionable lanes.", file=sys.stderr)
             for lane in blocked_lanes:
-                print(f"  memory-bank/{lane['file']}: {lane['blocked']} blocked row(s)", file=sys.stderr)
+                print(f"  tabilet/memory-bank/{lane['file']}: {lane['blocked']} blocked row(s)", file=sys.stderr)
         if not args.allow_unsandboxed_shell:
             fail(
                 "Actionable work requires model-controlled host shell access. "

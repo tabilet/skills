@@ -7,6 +7,13 @@ argument-hint: [workflow changes to adopt]
 
 # Upgrade An Existing Memory Bank
 
+Before reading project state for this workflow, inspect the root layout. If
+`GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
+`docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
+project writes or execution. Direct the user to preview and explicitly apply
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
+Installing v2 never migrates a project automatically.
+
 Compare the project's adopted workflow with the contract bundled in this skill,
 propose precise file actions, then apply only the approved changes. Installing
 this skill does not migrate a project. An upgrade changes operating rules; it
@@ -31,16 +38,16 @@ another writer advances tasks.
 
 Read the project's applicable instructions and memory bank. Require an existing
 milestone/status harness: active status files or valid indexed retired history
-with `memory-bank/milestone.md`. An all-retired project remains initialized.
+with `tabilet/memory-bank/milestone.md`. An all-retired project remains initialized.
 Route a new project to initialization; treat partial or inconsistent existing
 state as a repair question, never permission to overwrite it or start over.
 
 Resolve resources relative to this skill's directory. The complete
 [bundled template](assets/template/) is the target contract, not a scaffold to
 copy over the project. Read its [agent rules](assets/template/AGENTS.md),
-[milestone rules](assets/template/memory-bank/milestone.md),
-[status rules](assets/template/memory-bank/status-M01.md), and
-[lessons convention](assets/template/memory-bank/lessons.md) before proposing.
+[milestone rules](assets/template/tabilet/memory-bank/milestone.md),
+[status rules](assets/template/tabilet/memory-bank/status-M01.md), and
+[lessons convention](assets/template/tabilet/memory-bank/lessons.md) before proposing.
 Consult other bundled files only when their contract is relevant. Never apply
 example tasks, example IDs, or bracketed placeholders as project content.
 
@@ -76,7 +83,7 @@ Include all conflicts and unresolved decisions. If the proposal spans responses,
 finish presenting every change before requesting approval. Write nothing yet.
 
 Prefer a scoped merge into `AGENTS.md` and the workflow sections of
-`memory-bank/milestone.md`. Preserve project-specific scope, acceptance,
+`tabilet/memory-bank/milestone.md`. Preserve project-specific scope, acceptance,
 dependencies, candidate directions, commands, and policies. Existing status
 files may receive approved rule/preamble updates; their task tables, row notes,
 markers, and persisted review evidence remain unchanged. Allocate no status ID.
@@ -87,15 +94,15 @@ for unused systems. A descriptive or conditional mention alone is not a missing
 capability or a reason to require adoption. Preserve these scope decisions on a
 repeat run; cosmetic differences from the template do not prevent a no-op.
 
-Create `memory-bank/lessons.md` only when approved and absent. Preserve an
+Create `tabilet/memory-bank/lessons.md` only when approved and absent. Preserve an
 existing lessons file; propose a compatible structure without deleting its
 learning. Do not invent lessons: an explicit statement that none are established
 is sufficient. Keep current facts and frozen history intact; if resolving a
 conflict would materially supersede knowledge, propose that separate maintenance
 work rather than silently changing it as an upgrade.
 
-The project's `GOAL.md` is optional. Preserve an absent, customized, or different
-protocol by default. Offer the [bundled protocol](assets/template/GOAL.md) only
+The project's `tabilet/GOAL.md` is optional. Preserve an absent, customized, or different
+protocol by default. Offer the [bundled protocol](assets/template/tabilet/GOAL.md) only
 as an explicit create/replace decision; if approved, copy it byte-for-byte.
 Never synthesize it from memory or execute it during upgrade. Preserve existing
 launch input and its explicit policies when compatible. Propose removal of a
@@ -131,7 +138,7 @@ Verify the resulting diff against the approval and original evidence:
   their original bytes, and an all-retired project stays initialized;
 - new rules point to existing project files, omitted optional features leave no
   dead links, and no unfilled project placeholder or example task was introduced;
-- an approved bundled `GOAL.md` copy is byte-identical and the resolved commit
+- an approved bundled `tabilet/GOAL.md` copy is byte-identical and the resolved commit
   policy remains explicit; and
 - applicable structural and project verification passes, with unavailable checks
   reported as incomplete rather than passed.

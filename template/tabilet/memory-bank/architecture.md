@@ -7,8 +7,8 @@
 | `[path]/` | [Role.] |
 | `[path]/` | [Role.] |
 | `docs/` | Long-form reference documentation. |
-| `memory-bank/` | Project memory and milestone state. |
-| `evolution/` | Versioned direction snapshots. |
+| `tabilet/memory-bank/` | Project memory and milestone state. |
+| `tabilet/evolution/` | Versioned direction snapshots. |
 | `[evals path]/` | [Datasets, prompts, graders, reports, if applicable.] |
 
 ## Data flow
@@ -50,7 +50,7 @@
 ## Archive baselines
 
 No archive baseline is registered. Large existing packages may use frozen
-`docs/archive-<LANE><NN>.md` context snapshots before initialization. When they
+`tabilet/docs/archive-<LANE><NN>.md` context snapshots before initialization. When they
 exist, replace this paragraph with the archive lane registry and index; current
 system truth remains in this file.
 

@@ -23,7 +23,7 @@ Once, on a project with no initialized milestone and status harness. That
 includes a brand-new project, an existing project that has never had one, and an
 existing project after a completed [archive](archive.md) preflight.
 
-An existing `memory-bank/milestone.md` with active status files **or valid indexed
+An existing `tabilet/memory-bank/milestone.md` with active status files **or valid indexed
 retired history** is already initialized. Use [Propose](propose.md) for a requested feature or candidate promotion, and
 [Reconcile](reconcile.md) for a new
 review or [upgrade](upgrade.md) to adopt newer workflow rules. Missing or
@@ -51,12 +51,12 @@ never see a bracketed placeholder, because the memory bank arrives filled in.
 The output separates three kinds of information:
 
 ```text
-memory-bank/product.md       what the product is and its domain invariants
-memory-bank/architecture.md  what the system is now
-memory-bank/tech-stack.md    commands, dependencies, and verification
-memory-bank/lessons.md       learning that still changes decisions
-memory-bank/milestone.md     the active horizon and later directions
-memory-bank/status-*.md      one task-sized row per implementation unit
+tabilet/memory-bank/product.md       what the product is and its domain invariants
+tabilet/memory-bank/architecture.md  what the system is now
+tabilet/memory-bank/tech-stack.md    commands, dependencies, and verification
+tabilet/memory-bank/lessons.md       learning that still changes decisions
+tabilet/memory-bank/milestone.md     the active horizon and later directions
+tabilet/memory-bank/status-*.md      one task-sized row per implementation unit
 ```
 
 The **active horizon** is the smallest dependency-closed set of milestones that
@@ -78,8 +78,8 @@ delivery decisions.
 
 ## The launch reference
 
-When the project contains an approved compatible `GOAL.md`, init also writes
-`memory-bank/suggested.txt`: a disposable launch request with the proposed
+When the project contains an approved compatible `tabilet/GOAL.md`, init also writes
+`tabilet/memory-bank/suggested.txt`: a disposable launch request with the proposed
 status order, file map, and downstream impacts.
 
 It is launch input, not project truth. It stays out of the required read order,

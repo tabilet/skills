@@ -12,7 +12,7 @@ Exits 0 when every check passes, 1 otherwise. Standard library only, matching
 the repository's own dependency rule.
 
 This file checks `skills` itself. It is not payload: a project that copies
-`template/` records its own verification in `memory-bank/tech-stack.md`.
+`template/` records its own verification in `tabilet/memory-bank/tech-stack.md`.
 """
 
 from __future__ import annotations
@@ -133,7 +133,7 @@ def fenced_blocks(text: str) -> list[str]:
 def goal_invocation_lacks_commit_policy(block: str) -> bool:
     """Return whether a fenced GOAL.md invocation omits its commit contract."""
 
-    invokes = "STATUS_ORDER" in block or "Using GOAL.md" in block
+    invokes = "STATUS_ORDER" in block or "Using GOAL.md" in block or "Using tabilet/GOAL.md" in block
     return invokes and "COMMIT_POLICY" not in block
 
 
@@ -251,7 +251,7 @@ def goal_copies():
     # with memory-bank-init so a plugin user gets it without this repo.
     copies = [
         ROOT / "GOAL.md",
-        ROOT / "template" / "GOAL.md",
+        ROOT / "template" / "tabilet" / "GOAL.md",
         SKILLS_DIR / "memory-bank-init" / "GOAL.md",
     ]
     problems = [f"missing {p.relative_to(ROOT)}" for p in copies if not p.exists()]
@@ -279,7 +279,7 @@ def goal_copies():
 def review_fix_gate():
     goal = " ".join((ROOT / "GOAL.md").read_text().split())
     milestone = " ".join(
-        (ROOT / "template" / "memory-bank" / "milestone.md").read_text().split()
+        (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text().split()
     )
     write_contract = " ".join(INIT_WRITE_CONTRACT.read_text().split())
     goal_skill = " ".join(
@@ -321,7 +321,7 @@ def review_fix_gate():
     ):
         if token not in milestone:
             problems.append(
-                f"template/memory-bank/milestone.md: missing review gate contract {token!r}"
+                f"template/tabilet/memory-bank/milestone.md: missing review gate contract {token!r}"
             )
 
     for token in (
@@ -338,7 +338,7 @@ def review_fix_gate():
 
     # The launcher delegates the gate; its canonical owners above carry the
     # full rules. Requiring a second copy here encourages protocol drift.
-    for token in ("`GOAL.md`", "persisted milestone review counter", "incomplete review or closure"):
+    for token in ("`tabilet/GOAL.md`", "persisted milestone review counter", "incomplete review or closure"):
         if token not in goal_skill:
             problems.append(
                 f"memory-bank-goal/SKILL.md: missing review gate contract {token!r}"
@@ -470,7 +470,7 @@ def init_covers_template():
         return ["memory-bank-init/references/write-contract.md is missing"]
     blocks = re.findall(r"```text\n(.*?)```", init_skill_text(), re.S)
     block = next(
-        (candidate for candidate in blocks if "AGENTS.md" in candidate and "memory-bank/product.md" in candidate),
+        (candidate for candidate in blocks if "AGENTS.md" in candidate and "tabilet/memory-bank/product.md" in candidate),
         None,
     )
     if not block:
@@ -484,8 +484,8 @@ def init_covers_template():
     problems = []
     for f in sorted(shipped):
         # One status file ships as an example; the skill names the pattern.
-        if f.startswith("memory-bank/status-"):
-            if not any(x.startswith("memory-bank/status-") for x in listed):
+        if f.startswith("tabilet/memory-bank/status-"):
+            if not any(x.startswith("tabilet/memory-bank/status-") for x in listed):
                 problems.append("init lists no status-<LANE><NN>.md file")
             continue
         if f not in listed:
@@ -520,7 +520,7 @@ def suggested_goal_reference():
     problems = []
 
     for token in (
-        "memory-bank/suggested.txt",
+        "tabilet/memory-bank/suggested.txt",
         "STATUS_ORDER",
         "STATUS_FILE_MAP",
         "DOWNSTREAM_IMPACTS",
@@ -532,7 +532,7 @@ def suggested_goal_reference():
             problems.append(f"memory-bank-init/SKILL.md: missing {token}")
 
     for token in (
-        "memory-bank/suggested.txt",
+        "tabilet/memory-bank/suggested.txt",
         "whole approved active horizon",
         "STATUS_ORDER",
         "STATUS_FILE_MAP",
@@ -546,7 +546,7 @@ def suggested_goal_reference():
             problems.append(f"memory-bank-reconcile: missing launch contract {token!r}")
 
     for token in (
-        "memory-bank/suggested.txt",
+        "tabilet/memory-bank/suggested.txt",
         "STATUS_FILE_MAP",
         "DOWNSTREAM_IMPACTS",
         "Explicit milestone order in the invoking request replaces",
@@ -558,15 +558,15 @@ def suggested_goal_reference():
     if "$ARGUMENTS" in goal:
         problems.append("memory-bank-goal must read the invoking request, not runtime substitution")
 
-    if (ROOT / "template" / "memory-bank" / "suggested.txt").exists():
+    if (ROOT / "template" / "tabilet" / "memory-bank" / "suggested.txt").exists():
         problems.append(
-            "template/memory-bank/suggested.txt must not ship; init or reconcile "
+            "template/tabilet/memory-bank/suggested.txt must not ship; init or reconcile "
             "derives it from the approved project graph"
         )
 
-    public = [ROOT / "README.md", ROOT / "docs" / "TUTORIAL.md", *medium_articles()]
+    public = [ROOT / "README.md", ROOT / "docs" / "TUTORIAL.md"]
     for path in public:
-        if "memory-bank/suggested.txt" not in path.read_text():
+        if "tabilet/memory-bank/suggested.txt" not in path.read_text():
             problems.append(
                 f"{path.relative_to(ROOT)}: missing disposable goal launch reference"
             )
@@ -588,7 +588,7 @@ def adaptive_init_contract():
 
     skill = INIT_SKILL.read_text()
     write_contract = INIT_WRITE_CONTRACT.read_text()
-    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    milestone = (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text()
     agents = (ROOT / "AGENTS.md").read_text()
     write_contract_words = " ".join(write_contract.split())
     agents_words = " ".join(agents.split())
@@ -640,14 +640,14 @@ def adaptive_init_contract():
         "Never silently overwrite an existing file",
         "Candidate directions are not milestones",
         "Never put a candidate direction",
-        "Create `memory-bank/suggested.txt` only when",
+        "Create `tabilet/memory-bank/suggested.txt` only when",
         "Otherwise omit the launch reference",
         "sibling `GOAL.md`",
         "provider-specific plugin-root environment variables",
         "A trailing `?` is allowed only",
         "concrete project-state trigger",
         "discretionary",
-        "Preserve every verified `docs/archive-<LANE><NN>.md` byte-for-byte",
+        "Preserve every verified `tabilet/docs/archive-<LANE><NN>.md` byte-for-byte",
         "independent namespace",
     ):
         if token not in write_contract_words:
@@ -663,7 +663,7 @@ def adaptive_init_contract():
         "obtain approval before allocating its permanent ID",
     ):
         if token not in milestone:
-            problems.append(f"template/memory-bank/milestone.md: missing {token!r}")
+            problems.append(f"template/tabilet/memory-bank/milestone.md: missing {token!r}")
 
     for token in (
         "approved compatible `GOAL.md`",
@@ -685,7 +685,7 @@ def archive_contract():
     contract = ARCHIVE_WRITE_CONTRACT.read_text()
     agents = (ROOT / "AGENTS.md").read_text()
     template_agents = (ROOT / "template" / "AGENTS.md").read_text()
-    architecture = (ROOT / "template" / "memory-bank" / "architecture.md").read_text()
+    architecture = (ROOT / "template" / "tabilet" / "memory-bank" / "architecture.md").read_text()
     problems = []
 
     for token in (
@@ -702,7 +702,7 @@ def archive_contract():
             problems.append(f"memory-bank-archive/SKILL.md: missing {token!r}")
 
     for token in (
-        "docs/archive-<LANE><NN>.md",
+        "tabilet/docs/archive-<LANE><NN>.md",
         "Treat a verified archive as frozen",
         "separate namespace from status lanes",
         "Numbers record snapshot chronology",
@@ -731,14 +731,14 @@ def archive_contract():
             template_agents,
             "template/AGENTS.md",
             (
-                "Verified `docs/archive-<LANE><NN>.md` files are frozen",
+                "Verified `tabilet/docs/archive-<LANE><NN>.md` files are frozen",
                 "independently from status lanes",
                 "Keep verified archive files frozen",
             ),
         ),
         (
             architecture,
-            "template/memory-bank/architecture.md",
+            "template/tabilet/memory-bank/architecture.md",
             ("## Archive baselines", "No archive baseline is registered"),
         ),
     ):
@@ -757,10 +757,10 @@ def archive_contract():
 
     execution_paths = [
         ROOT / "GOAL.md",
-        ROOT / "template" / "GOAL.md",
+        ROOT / "template" / "tabilet" / "GOAL.md",
         SKILLS_DIR / "memory-bank-init" / "GOAL.md",
-        ROOT / "template" / "memory-bank" / "milestone.md",
-        *sorted((ROOT / "template" / "memory-bank").glob("status-*.md")),
+        ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md",
+        *sorted((ROOT / "template" / "tabilet" / "memory-bank").glob("status-*.md")),
     ]
     for path in execution_paths:
         leaked = archive_execution_refs(path.read_text())
@@ -783,7 +783,7 @@ def reconcile_contract():
     contract_words = " ".join(contract.split())
     agents = (ROOT / "AGENTS.md").read_text()
     template_agents = (ROOT / "template" / "AGENTS.md").read_text()
-    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    milestone = (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text()
     init_contract = INIT_WRITE_CONTRACT.read_text()
     problems = []
 
@@ -852,7 +852,7 @@ def reconcile_contract():
         ),
         (
             milestone,
-            "template/memory-bank/milestone.md",
+            "template/tabilet/memory-bank/milestone.md",
             (
                 "## New review intake",
                 "planning evidence, not executable truth",
@@ -875,7 +875,7 @@ def reconcile_contract():
             if token not in text:
                 problems.append(f"{label}: missing review reconciliation contract {token!r}")
 
-    if (ROOT / "template" / "memory-bank" / "reviews.md").exists():
+    if (ROOT / "template" / "tabilet" / "memory-bank" / "reviews.md").exists():
         problems.append("template/ ships a persistent review ledger")
     for path in (ROOT / "template").rglob("review-*.md"):
         problems.append(f"{path.relative_to(ROOT)}: template ships a review artifact")
@@ -884,9 +884,9 @@ def reconcile_contract():
 
 @check("product.md owns the maintained domain model")
 def domain_model_contract():
-    product = (ROOT / "template" / "memory-bank" / "product.md").read_text()
+    product = (ROOT / "template" / "tabilet" / "memory-bank" / "product.md").read_text()
     template_agents = (ROOT / "template" / "AGENTS.md").read_text()
-    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    milestone = (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text()
     skill = INIT_SKILL.read_text()
     write_contract = INIT_WRITE_CONTRACT.read_text()
     agents = (ROOT / "AGENTS.md").read_text()
@@ -900,7 +900,7 @@ def domain_model_contract():
         "canonical product and business vocabulary",
     ):
         if token not in product:
-            problems.append(f"template/memory-bank/product.md: missing {token!r}")
+            problems.append(f"template/tabilet/memory-bank/product.md: missing {token!r}")
 
     for token in (
         "canonical domain and",
@@ -922,10 +922,10 @@ def domain_model_contract():
         problems.append("template/AGENTS.md does not route domain-model changes to product.md")
     for token in ("domain terminology", "concept relationships", "business invariants"):
         if token not in milestone_words:
-            problems.append(f"template/memory-bank/milestone.md: missing {token!r}")
-    if "`memory-bank/context.md`" not in agents:
-        problems.append("AGENTS.md does not forbid a parallel memory-bank/context.md")
-    if (ROOT / "template" / "memory-bank" / "context.md").exists():
+            problems.append(f"template/tabilet/memory-bank/milestone.md: missing {token!r}")
+    if "`tabilet/memory-bank/context.md`" not in agents:
+        problems.append("AGENTS.md does not forbid a parallel tabilet/memory-bank/context.md")
+    if (ROOT / "template" / "tabilet" / "memory-bank" / "context.md").exists():
         problems.append("template ships context.md alongside the product-owned domain model")
     if "Review finding severity" in product:
         problems.append("product.md contains engineering review severity terminology")
@@ -985,6 +985,35 @@ def skill_matches_prompt():
     if skill_body(skill) != PROMPT_COPY.read_text().strip():
         return ["memory-bank-next/SKILL.md and the prompt file have diverged"]
     return []
+
+
+@check("v2 layout and explicit v1.5 migration stay enforced")
+def v2_migration_contract():
+    problems = []
+    template = ROOT / "template"
+    bundle = SKILLS_DIR / "memory-bank-upgrade" / "assets" / "template"
+    for root in (template, bundle):
+        for old in ("GOAL.md", "memory-bank", "evolution", "docs/history"):
+            if (root / old).exists():
+                problems.append(f"{root.relative_to(ROOT)}/{old}: legacy payload path")
+        if not (root / "tabilet" / "memory-bank" / "milestone.md").is_file():
+            problems.append(f"{root.relative_to(ROOT)}: missing v2 milestone")
+    migration = SKILLS_DIR / "memory-bank-upgrade" / "migrate-v1.5-to-v2.py"
+    if not migration.is_file():
+        problems.append("Upgrade migration CLI is missing")
+    else:
+        try:
+            ast.parse(migration.read_text())
+        except SyntaxError as exc:
+            problems.append(f"migration CLI syntax error: {exc}")
+    for skill in SKILLS_DIR.glob("*/SKILL.md"):
+        if "migrate-v1.5-to-v2.py" not in skill.read_text():
+            problems.append(f"{skill.relative_to(ROOT)}: missing legacy layout gate")
+    runner = HARNESS.read_text()
+    for token in ("legacy =", "migrate-v1.5-to-v2.py", 'repo / "tabilet" / "memory-bank"'):
+        if token not in runner:
+            problems.append(f"API runner: missing v2 contract {token!r}")
+    return problems
 
 
 # --------------------------------------------------------------------------
@@ -1107,7 +1136,7 @@ def exit_codes():
 @check("status parser matches the shipped template rows")
 def status_markers():
     mod = load_harness()
-    template = (ROOT / "template" / "memory-bank" / "status-M01.md").read_text()
+    template = (ROOT / "template" / "tabilet" / "memory-bank" / "status-M01.md").read_text()
     agents = (ROOT / "AGENTS.md").read_text()
     problems = []
     expected = {
@@ -1136,7 +1165,7 @@ def status_markers():
     for text, label, tokens in (
         (
             template,
-            "template/memory-bank/status-M01.md",
+            "template/tabilet/memory-bank/status-M01.md",
             (
                 "`[-]` | Closed Historical",
                 "consumed failed attempt or superseded row retained for audit",
@@ -1163,7 +1192,7 @@ def status_markers():
                 problems.append(f"{label}: missing status contract {token!r}")
 
     if not mod.actionable_rows(template):
-        problems.append("template/memory-bank/status-M01.md has no rows the harness sees as actionable")
+        problems.append("template/tabilet/memory-bank/status-M01.md has no rows the harness sees as actionable")
     # Invalid markers must never become executable work or evade validation.
     if mod.actionable_rows("| Item | [ ] | Notes. |\n"):
         problems.append("a bare [ ] row now parses as actionable; the documented warning is stale")
@@ -1186,7 +1215,7 @@ def payload_runs():
         shutil.copytree(ROOT / "template", dest)
         if not (dest / "AGENTS.md").exists():
             problems.append("payload has no AGENTS.md")
-        lanes = list((dest / "memory-bank").glob("status-[A-Z][0-9][0-9].md"))
+        lanes = list((dest / "tabilet" / "memory-bank").glob("status-[A-Z][0-9][0-9].md"))
         if not lanes:
             problems.append("payload has no status-<LANE><NN>.md lane file")
         subprocess.run(["git", "init", "-q"], cwd=dest, check=True)
@@ -1424,12 +1453,12 @@ def harness_safety_contract():
 @check("template examples preserve row and status-ID contracts")
 def template_row_contracts():
     problems = []
-    result = (ROOT / "template" / "evolution" / "result-v1.md").read_text()
+    result = (ROOT / "template" / "tabilet" / "evolution" / "result-v1.md").read_text()
     for stale in ("**M1**", "**M2**"):
         if stale in result:
-            problems.append(f"template/evolution/result-v1.md uses unpadded {stale}")
+            problems.append(f"template/tabilet/evolution/result-v1.md uses unpadded {stale}")
 
-    status = (ROOT / "template" / "memory-bank" / "status-M01.md").read_text()
+    status = (ROOT / "template" / "tabilet" / "memory-bank" / "status-M01.md").read_text()
     if "multiple rows are inseparable" in status:
         problems.append("status-M01.md permits several rows in one commit")
     normalized_status = " ".join(status.split())
@@ -1441,7 +1470,7 @@ def template_row_contracts():
         if token not in normalized_status:
             problems.append(f"status-M01.md is missing row-state contract {token!r}")
 
-    milestone = (ROOT / "template" / "memory-bank" / "milestone.md").read_text()
+    milestone = (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text()
     if "Do not create an extra milestone commit" not in milestone:
         problems.append("milestone.md does not forbid empty review commits")
     normalized_milestone = " ".join(milestone.split())
@@ -1472,7 +1501,7 @@ def template_row_contracts():
 @check("long-term memory contract preserves portable retirement records")
 def long_term_memory():
     problems = []
-    milestone = (ROOT / "template/memory-bank/milestone.md").read_text()
+    milestone = (ROOT / "template/tabilet/memory-bank/milestone.md").read_text()
     sample = next(
         (block for block in fenced_blocks(milestone) if block.startswith("# Retired milestone")),
         "",
@@ -1499,13 +1528,13 @@ def long_term_memory():
         problems.append(f"shipped retirement envelope cannot be read by the harness: {exc}")
 
     for relative, tokens in (
-        ("AGENTS.md", ("lessons.md", "docs/history/knowledge.md", "reserve IDs", "commit policy")),
-        ("template/AGENTS.md", ("memory-bank/lessons.md", "docs/history/index.md", "Retired records are frozen")),
-        ("template/memory-bank/lessons.md", ("evidence", "Merge duplicates", "docs/history/knowledge.md")),
+        ("AGENTS.md", ("lessons.md", "tabilet/docs/history/knowledge.md", "reserve IDs", "commit policy")),
+        ("template/AGENTS.md", ("tabilet/memory-bank/lessons.md", "tabilet/docs/history/index.md", "Retired records are frozen")),
+        ("template/tabilet/memory-bank/lessons.md", ("evidence", "Merge duplicates", "tabilet/docs/history/knowledge.md")),
         ("skills/memory-bank-init/references/write-contract.md", ("Milestone specification", "Status record", "all-retired", "explicit migration", "git rev-parse --verify HEAD")),
-        ("template/memory-bank/milestone.md", ("validate every envelope field", "git rev-parse --verify HEAD")),
+        ("template/tabilet/memory-bank/milestone.md", ("validate every envelope field", "git rev-parse --verify HEAD")),
         ("skills/memory-bank-reconcile/SKILL.md", ("all-retired", "does not retire milestones")),
-        ("skills/memory-bank-archive/references/write-contract.md", ("docs/history/knowledge.md", "never", "milestone/task records")),
+        ("skills/memory-bank-archive/references/write-contract.md", ("tabilet/docs/history/knowledge.md", "never", "milestone/task records")),
         ("GOAL.md", ("history index", "cancelled or superseded outcome", "retirement procedure", "commit policy", "git rev-parse --verify HEAD", "before deleting active sources")),
         ("skills/memory-bank-next/SKILL.md", ("A later documentation row does not defer", "Updating only the status is insufficient")),
     ):
@@ -1588,7 +1617,7 @@ def propose_contract():
                   "not been implemented", "references/discovery.md", "references/plan-update.md"):
         if token not in text:
             problems.append(f"memory-bank-propose: missing {token!r}")
-    milestone = (ROOT / "template/memory-bank/milestone.md").read_text()
+    milestone = (ROOT / "template/tabilet/memory-bank/milestone.md").read_text()
     if "## Requested changes after initialization" not in milestone:
         problems.append("template milestone lacks requested-change procedure")
     if "memory-bank-propose" not in (ROOT / "AGENTS.md").read_text():

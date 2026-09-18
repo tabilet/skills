@@ -7,6 +7,13 @@ argument-hint: <review source>
 
 # Reconcile A New Review
 
+Before reading project state for this workflow, inspect the root layout. If
+`GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
+`docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
+project writes or execution. Direct the user to preview and explicitly apply
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
+Installing v2 never migrates a project automatically.
+
 Turn a newly received review into a current, dependency-closed implementation
 plan. This skill plans only: `memory-bank-next` or `memory-bank-goal` executes
 the approved work later.
@@ -32,8 +39,8 @@ acceptance or authorize concurrent ledger writers.
 
 ## Phase 1 - Assess
 
-Require an initialized project with `memory-bank/milestone.md` and at least one
-active `memory-bank/status-<LANE><NN>.md` file or a valid indexed retired
+Require an initialized project with `tabilet/memory-bank/milestone.md` and at least one
+active `tabilet/memory-bank/status-<LANE><NN>.md` file or a valid indexed retired
 milestone. When both forms of status state are absent, stop and route the
 project to `memory-bank-init`; do not create its first harness here.
 
@@ -49,8 +56,8 @@ same project boundary and current-state reconciliation.
 
 Read applicable agent instructions and the project's memory bank in its required
 order. Also read the review, relevant implementation and tests, manifests,
-interfaces, schemas, documentation, Git history, `evolution/`, and any existing
-`memory-bank/suggested.txt`. Read `GOAL.md` only to determine whether it is a
+interfaces, schemas, documentation, Git history, `tabilet/evolution/`, and any existing
+`tabilet/memory-bank/suggested.txt`. Read `tabilet/GOAL.md` only to determine whether it is a
 compatible launch protocol; do not invoke its execution loop.
 
 Resolve the review's stated baseline when it has one, the current full Git
@@ -61,7 +68,7 @@ unrelated user changes. Never require a clean checkout merely to assess a
 review, and never stash, discard, commit, or absorb existing changes.
 
 For each finding, preserve its source priority and independently apply the
-project's review-severity definitions. `memory-bank/milestone.md` defaults apply
+project's review-severity definitions. `tabilet/memory-bank/milestone.md` defaults apply
 only when project instructions or a linked review policy do not override them.
 Classify the current disposition as:
 

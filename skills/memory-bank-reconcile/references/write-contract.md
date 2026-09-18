@@ -17,10 +17,10 @@ silently overwrite user content or expand the reviewed project boundary.
   closed-historical rows. Rewrite only approved untouched pending rows, except
   that an approved superseded pending row may become `[-]` when its notes name
   the accepted successor.
-- Never edit or delete a verified `docs/archive-<LANE><NN>.md`. If review
+- Never edit or delete a verified `tabilet/docs/archive-<LANE><NN>.md`. If review
   evidence suggests the historical baseline is wrong or materially obsolete,
   report that `memory-bank-archive` must decide whether a successor is needed.
-- Do not create, replace, or modify `GOAL.md`. It is an optional execution
+- Do not create, replace, or modify `tabilet/GOAL.md`. It is an optional execution
   protocol, not review state.
 - Do not commit, push, tag, publish, open a change request, or mutate another
   repository or external system without separate authorization.
@@ -62,7 +62,7 @@ active finding points to its existing owner; it does not create another row.
 
 Maintain the status conventions already defined by the project:
 
-- one `memory-bank/status-<LANE><NN>.md` per indexed milestone;
+- one `tabilet/memory-bank/status-<LANE><NN>.md` per indexed milestone;
 - a zero-padded permanent ID that is never reused or renamed;
 - one task-sized row per commit unit; and
 - backticked markers: `` `[ ]` `` pending, `` `[+]` `` completed, `` `[~]` ``
@@ -80,7 +80,7 @@ After approval, recheck the milestone index and filesystem, then allocate each
 approved new milestone the proposed next unused ID. Stop on an ID collision
 rather than choosing an unapproved replacement.
 
-Also search `docs/history/index.md` and retired filenames before allocation.
+Also search `tabilet/docs/history/index.md` and retired filenames before allocation.
 Resolve old status paths by their permanent IDs and recorded original paths.
 Completed historical acceptance can satisfy a prerequisite; cancelled or
 superseded outcomes require their recorded disposition and successor instead.
@@ -119,20 +119,20 @@ gate iteration.
 
 ## Keep current truth separate from target work
 
-Correct `memory-bank/product.md`, `memory-bank/architecture.md`, or
-`memory-bank/tech-stack.md` only when current repository evidence proves their
+Correct `tabilet/memory-bank/product.md`, `tabilet/memory-bank/architecture.md`, or
+`tabilet/memory-bank/tech-stack.md` only when current repository evidence proves their
 existing factual description is stale. Do not write a proposed fix or target
 architecture as current truth.
 
 When the project has adopted long-term memory, update applicable lessons with
-evidence in `memory-bank/lessons.md` under the same proposal. Before materially
+evidence in `tabilet/memory-bank/lessons.md` under the same proposal. Before materially
 replacing facts or lessons, append the original source/heading and literal old
 wording, reason, evidence, and replacement reference to
-`docs/history/knowledge.md`; create its history-index link if needed. Follow the
+`tabilet/docs/history/knowledge.md`; create its history-index link if needed. Follow the
 project's retirement contract for journal entries. This is knowledge evidence,
 not a copied review or finding ledger. Preserve earlier entries unchanged.
 
-Add the next `evolution/prompt-vN.md` and `evolution/result-vN.md` pair only when
+Add the next `tabilet/evolution/prompt-vN.md` and `tabilet/evolution/result-vN.md` pair only when
 the approved review response meets the project's material direction-change
 trigger. The prompt records the newly approved direction; the result records
 the current state and links its remaining gaps to active milestones. A review's
@@ -140,8 +140,8 @@ arrival alone is not an evolution event.
 
 ## Refresh disposable goal input
 
-When the project contains an approved compatible `GOAL.md`, replace
-`memory-bank/suggested.txt` with a fresh launch reference derived from the whole
+When the project contains an approved compatible `tabilet/GOAL.md`, replace
+`tabilet/memory-bank/suggested.txt` with a fresh launch reference derived from the whole
 approved active horizon, not only the new review findings. It is disposable
 input, never review history or active truth.
 
@@ -152,14 +152,14 @@ Use this shape with project values:
 # Reconcile this suggestion against milestone.md and the current status files.
 # Delete it after launching the goal, or whenever it becomes stale.
 
-Using GOAL.md, execute this loop.
+Using tabilet/GOAL.md, execute this loop.
 
 STATUS_ORDER:
 M01 -> M02
 
 STATUS_FILE_MAP:
-M01 = memory-bank/status-M01.md
-M02 = memory-bank/status-M02.md
+M01 = tabilet/memory-bank/status-M01.md
+M02 = tabilet/memory-bank/status-M02.md
 
 DOWNSTREAM_IMPACTS:
 M01 -> M02
@@ -177,10 +177,10 @@ downstream consumers. Use a trailing `?` only for an approved conditionally
 required status whose concrete trigger is documented in `milestone.md`. Never
 include Candidate Directions.
 
-When no compatible protocol exists, omit `memory-bank/suggested.txt`. Remove an
+When no compatible protocol exists, omit `tabilet/memory-bank/suggested.txt`. Remove an
 existing stale reference only when that removal was in the approved file
 actions. Report one-row execution as the available path; do not create or
-approximate `GOAL.md`.
+approximate `tabilet/GOAL.md`.
 
 ## Check the output
 

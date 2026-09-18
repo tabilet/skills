@@ -1,3 +1,16 @@
+# memory-bank v2.0.0
+
+New projects keep `AGENTS.md` at the root and place their goal protocol, active
+memory bank, evolution snapshots, frozen archives, and retired history under
+`tabilet/`. Existing v1.5.0 projects migrate only by running the explicit
+preview/apply command bundled with Upgrade. The command leaves a reviewable,
+uncommitted diff and preserves frozen records byte-for-byte. v2 skills and the
+API runner stop on unmigrated projects. The DSH companion continues to show
+v1.5.0 projects read-only with a migration warning.
+
+The canonical repository retains `GOAL.md` at its root as the portable source;
+the project template carries the identical copy at `tabilet/GOAL.md`.
+
 # memory-bank v1.5.0
 
 The seventh skill, `memory-bank-propose`, turns a requested feature, candidate

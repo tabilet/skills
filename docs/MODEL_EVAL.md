@@ -22,15 +22,15 @@ same on representative tasks?
 
 ## Where It Fits
 
-- `memory-bank/product.md` says what model-assisted behavior matters to the
+- `tabilet/memory-bank/product.md` says what model-assisted behavior matters to the
   product.
-- `memory-bank/architecture.md` records where prompts, datasets, graders, and
+- `tabilet/memory-bank/architecture.md` records where prompts, datasets, graders, and
   reports live.
-- `memory-bank/tech-stack.md` records model providers, local runners, eval
+- `tabilet/memory-bank/tech-stack.md` records model providers, local runners, eval
   commands, environment variables, cost controls, and required credentials.
-- `memory-bank/milestone.md` can make an eval score or regression review part of
+- `tabilet/memory-bank/milestone.md` can make an eval score or regression review part of
   acceptance.
-- `evolution/` records major prompt, model, architecture, or benchmark direction
+- `tabilet/evolution/` records major prompt, model, architecture, or benchmark direction
   changes.
 
 ## DSH integration versus workflow acceptance
@@ -144,7 +144,7 @@ An eval report should list:
 - promotion decision.
 
 Store reports near the eval harness or in a documented artifact location, and
-link important direction changes from `evolution/`.
+link important direction changes from `tabilet/evolution/`.
 
 ## Comparing skill instructions
 

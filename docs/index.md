@@ -13,8 +13,8 @@ a new session or switch agents.
 
 Use the same project files with **Claude Code, Codex, or DeepSeek Harness
 (DSH)**. Seven optional skills help create and maintain them. The files stay in
-your repository and remain usable without the skills. Version 1.5.0 includes
-all seven skills.
+your repository and remain usable without the skills. Version 2.0.0 keeps
+project-owned Memory Bank files under `tabilet/`.
 
 [Install the skills](installation.md){ .md-button .md-button--primary }
 [Start your first project](examples.md#a-new-project){ .md-button }
@@ -29,7 +29,8 @@ all seven skills.
 | Already has approved tasks | [Next](next.md) handles one task; [Goal](goal.md) handles an explicit milestone order. |
 | Has a requested feature or candidate promotion | [Propose](propose.md) inspects the current plan and presents one planning proposal. |
 | Has a new engineering review | [Reconcile](reconcile.md) checks the findings and proposes planning changes. |
-| Uses an older memory-bank contract | [Upgrade](upgrade.md) proposes rule changes while preserving tasks and history. |
+| Has v1.5.0 files at the project root | [Migrate to v2](upgrade.md#migrate-a-v150-project-to-v2) before running v2 workflows. |
+| Uses an older workflow contract after migration | [Upgrade](upgrade.md) proposes rule changes while preserving tasks and history. |
 
 These are entry points, not a sequence every project must follow. See
 [worked examples](examples.md) for how they fit together.
@@ -38,27 +39,29 @@ These are entry points, not a sequence every project must follow. See
 
 ```text
 your-project/
-├── AGENTS.md              what an agent reads first
-├── GOAL.md                optional multi-milestone protocol
-├── memory-bank/
-│   ├── product.md         what this is, and is not
-│   ├── architecture.md    layout, data flow, boundaries
-│   ├── tech-stack.md      commands, dependencies, verification
-│   ├── lessons.md         learning that still applies
-│   ├── milestone.md       active milestones and acceptance
-│   └── status-M01.md      one file per active milestone, one row per task
-├── docs/history/          retired records; created when first needed
-└── evolution/             versioned direction snapshots
+├── AGENTS.md                 what an agent reads first
+├── docs/                     other project documentation
+└── tabilet/
+    ├── GOAL.md               optional multi-milestone protocol
+    ├── memory-bank/
+    │   ├── product.md         what this is, and is not
+    │   ├── architecture.md    layout, data flow, boundaries
+    │   ├── tech-stack.md      commands, dependencies, verification
+    │   ├── lessons.md         learning that still applies
+    │   ├── milestone.md       active milestones and acceptance
+    │   └── status-M01.md      one file per active milestone
+    ├── docs/history/          retired records; created when first needed
+    └── evolution/             versioned direction snapshots
 ```
 
 `AGENTS.md` tells an agent where to start. The memory bank holds current facts
 and the active plan. History preserves evidence for later questions, and
-`evolution/` records changes in direction. Status IDs remain permanent across
+`tabilet/evolution/` records changes in direction. Status IDs remain permanent across
 active and retired storage.
 
 Reading and maintaining these files needs no Memory Bank runtime. Git is needed
-for the usual per-task commit workflow. Python is needed only for the optional
-[API runner](installation.md#the-optional-api-harness); your existing agent can work
+for the usual per-task commit workflow. Python is needed for the optional
+[API runner](installation.md#the-optional-api-harness) and one-time migration; your existing agent can work
 with the files directly.
 
 ## The seven skills
@@ -82,7 +85,7 @@ Installing a skill does not authorize work or migrate an existing project.
 
 In projects that have adopted the retirement rules, a milestone's complete
 specification and status document retire into
-`docs/history/status-<LANE><NN>.md`. The identifier stays reserved, the record
+`tabilet/docs/history/status-<LANE><NN>.md`. The identifier stays reserved, the record
 freezes, and the active plan stops carrying it. Retirement follows verification,
 the bounded review gate, knowledge consolidation, and downstream reconciliation.
 Completed task markers alone do not prove milestone acceptance.
@@ -103,4 +106,4 @@ the existing conversation. You review and send it yourself.
 
 The dashboard reads your project files. It does not maintain a second task list
 or mark work complete. Installing the companion in a headless profile exposes
-all seven v1.5.0 skills without the Web interface.
+all seven v2.0.0 skills without the Web interface.

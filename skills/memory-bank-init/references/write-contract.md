@@ -23,21 +23,21 @@ destination. Never silently overwrite an existing file.
 - Merge the memory-bank read order, essential commands, boundaries, hard rules,
   and work cadence into an existing `AGENTS.md` while preserving its applicable
   project instructions and removing only approved duplication.
-- When `GOAL.md` is absent, use the bundled copy rule below. When it is already
+- When `tabilet/GOAL.md` is absent, use the bundled copy rule below. When it is already
   byte-identical, preserve it. When it differs, preserve the existing file
   unless the user approved replacing it. Treat a differing protocol as
   compatible only when its documented interface accepts the launch fields and
   sequencing contract below and the user approved using it.
-- Create `memory-bank/suggested.txt` only when the approved project will contain
-  a compatible `GOAL.md`. Otherwise omit the launch reference and every optional
-  `GOAL.md`-specific paragraph or pointer from generated `AGENTS.md` and
-  `memory-bank/milestone.md`; do not generate a request that names a missing or
+- Create `tabilet/memory-bank/suggested.txt` only when the approved project will contain
+  a compatible `tabilet/GOAL.md`. Otherwise omit the launch reference and every optional
+  `tabilet/GOAL.md`-specific paragraph or pointer from generated `AGENTS.md` and
+  `tabilet/memory-bank/milestone.md`; do not generate a request that names a missing or
   incompatible protocol.
-- When `evolution/` already contains numbered direction history, preserve it and
+- When `tabilet/evolution/` already contains numbered direction history, preserve it and
   use the next unused version for the approved initial memory-bank snapshot.
 - When an approved archive preflight exists, merge its current observed facts
-  from `memory-bank/product.md` and `memory-bank/architecture.md`. Preserve every
-  verified `docs/archive-<LANE><NN>.md` byte-for-byte. Treat archive lanes and
+  from `tabilet/memory-bank/product.md` and `tabilet/memory-bank/architecture.md`. Preserve every
+  verified `tabilet/docs/archive-<LANE><NN>.md` byte-for-byte. Treat archive lanes and
   IDs as an independent namespace that never enters milestone indexes, status
   files, or goal launch input.
 - Stop and ask before any collision whose safe merge was not approved.
@@ -48,16 +48,16 @@ Create or merge the approved project-specific content for:
 
 ```text
 AGENTS.md                        what an agent reads first
-GOAL.md                          optional protocol for multi-milestone runs
-memory-bank/product.md           product, users, workflows, domain model, non-goals
-memory-bank/architecture.md      layout, data flow, ownership, public contracts
-memory-bank/tech-stack.md        stack, dependencies, harnesses, commands
-memory-bank/lessons.md           applicable reusable lessons and evidence
-memory-bank/milestone.md         active index, acceptance, candidate directions
-memory-bank/status-<LANE><NN>.md one per active milestone, one row per task
-memory-bank/suggested.txt        optional; only with a compatible GOAL.md
-evolution/prompt-v1.md           initial direction, or next unused version
-evolution/result-v1.md           current state, or next unused version
+tabilet/GOAL.md                  optional protocol for multi-milestone runs
+tabilet/memory-bank/product.md           product, users, workflows, domain model, non-goals
+tabilet/memory-bank/architecture.md      layout, data flow, ownership, public contracts
+tabilet/memory-bank/tech-stack.md        stack, dependencies, harnesses, commands
+tabilet/memory-bank/lessons.md           applicable reusable lessons and evidence
+tabilet/memory-bank/milestone.md         active index, acceptance, candidate directions
+tabilet/memory-bank/status-<LANE><NN>.md one per active milestone, one row per task
+tabilet/memory-bank/suggested.txt        optional; only with a compatible GOAL.md
+tabilet/evolution/prompt-v1.md           initial direction, or next unused version
+tabilet/evolution/result-v1.md           current state, or next unused version
 ```
 
 Write only applicable sections. Remove optional template sections that do not
@@ -74,14 +74,14 @@ recorded baseline, while current product and system truth stays in `product.md`
 and `architecture.md`. Agents read a linked archive only when historical
 baseline evidence is relevant and never update it with later code changes.
 
-In `memory-bank/product.md`, write the canonical product and business
+In `tabilet/memory-bank/product.md`, write the canonical product and business
 terminology as a domain model. For each material concept, capture its meaning
 and the relationships or invariants that constrain it, including ownership,
 parent/child structure, cardinality, lifecycle, and state transitions when they
 matter. Keep technical storage and implementation details in `architecture.md`.
 Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
-In `memory-bank/milestone.md`:
+In `tabilet/memory-bank/milestone.md`:
 
 - index exactly the approved active milestones and link each to its one status
   file;
@@ -128,14 +128,14 @@ before allocating the next unused permanent ID.
 
 ## Handle the portable goal protocol
 
-The bundled `GOAL.md` is copied, never written from memory. It must stay
+The bundled `tabilet/GOAL.md` is copied, never written from memory. It must stay
 byte-identical across projects that carry that protocol. Resolve the directory
 containing the parent `memory-bank-init/SKILL.md` and copy the sibling `GOAL.md`
 shipped there. This location is common to plugin and plain-file installs. Do not
 depend on provider-specific plugin-root environment variables.
 
-If the project has no `GOAL.md` and the bundled file cannot be found, say so and
-omit both `GOAL.md` and `memory-bank/suggested.txt` rather than writing an
+If the project has no `tabilet/GOAL.md` and the bundled file cannot be found, say so and
+omit both `tabilet/GOAL.md` and `tabilet/memory-bank/suggested.txt` rather than writing an
 approximation or a dead-end launch request. An existing approved compatible
 protocol does not need the bundled file. The project works one row at a time
 without either protocol, and `memory-bank-goal` can tell the user where to get
@@ -147,19 +147,19 @@ requirement of the memory bank.
 
 ## Write the disposable launch reference
 
-When the approved project contains a compatible `GOAL.md`, derive
-`memory-bank/suggested.txt` only from the approved active horizon. It is advisory
+When the approved project contains a compatible `tabilet/GOAL.md`, derive
+`tabilet/memory-bank/suggested.txt` only from the approved active horizon. It is advisory
 launch input, not project truth. Do not add it to `AGENTS.md`'s required read
 order or the milestone index. Tell the user to delete it after launching the
 goal or whenever it becomes stale. When no compatible protocol exists, omit
-`memory-bank/suggested.txt` and report one-row execution as the available path.
+`tabilet/memory-bank/suggested.txt` and report one-row execution as the available path.
 
 Use this shape with project values, never the example values:
 
 Use the commit policy approved for future execution. A no-commit restriction
 during initialization does not prohibit commits in a later authorized run.
 Creating launch input does not start that run. Preserve its explicit policy;
-`GOAL.md` defines its precedence during execution, while the suggested order
+`tabilet/GOAL.md` defines its precedence during execution, while the suggested order
 remains disposable. Do not invent a standing policy conflict from an init-only
 restriction.
 
@@ -168,14 +168,14 @@ restriction.
 # Reconcile this suggestion against milestone.md and the current status files.
 # Delete it after launching the goal, or whenever it becomes stale.
 
-Using GOAL.md, execute this loop.
+Using tabilet/GOAL.md, execute this loop.
 
 STATUS_ORDER:
 M01 -> M02
 
 STATUS_FILE_MAP:
-M01 = memory-bank/status-M01.md
-M02 = memory-bank/status-M02.md
+M01 = tabilet/memory-bank/status-M01.md
+M02 = tabilet/memory-bank/status-M02.md
 
 DOWNSTREAM_IMPACTS:
 M01 -> M02
@@ -194,7 +194,7 @@ active downstream consumers; the goal loop will discover more. Use
 
 A trailing `?` is allowed only for a conditionally required status inside the
 active horizon. Document its concrete project-state trigger in
-`memory-bank/milestone.md`, and include the suffix only when the approved next
+`tabilet/memory-bank/milestone.md`, and include the suffix only when the approved next
 delivery outcome requires that status if the trigger is true. Put discretionary
 later work in Candidate Directions instead. Never put a candidate direction in
 `suggested.txt`.
@@ -234,20 +234,20 @@ external-mutation authority.
 
 ## Preserve long-term memory
 
-Create `memory-bank/lessons.md` as a curated reference of applicable lessons:
+Create `tabilet/memory-bank/lessons.md` as a curated reference of applicable lessons:
 each names its scope, lesson, rationale, and source evidence. State explicitly
 when no lessons are established. Do not invent lessons or repeat the domain
 model, architecture contracts, or commands. The read order consults relevant
 topics before substantial changes; it does not read the whole history on boot.
 
-Generate these retirement rules in `memory-bank/milestone.md`:
+Generate these retirement rules in `tabilet/memory-bank/milestone.md`:
 
 - After the review gate passes within its persisted 10 iterations, verification
   passes, current facts/lessons are consolidated, and downstream work is
   reconciled, automatically retire the milestone. Terminal markers alone are
   insufficient; unresolved or conditional pending work stays active.
 - Retain full final specifications and status documents, not summaries, in
-  `docs/history/status-<LANE><NN>.md`. Preserve every earlier row and note. Use
+  `tabilet/docs/history/status-<LANE><NN>.md`. Preserve every earlier row and note. Use
   separate `## Milestone specification` and `## Status record` sections, each
   containing exactly one literal fenced `markdown` document. Choose fences
   longer than those inside the source, preserving original path context.
@@ -269,7 +269,7 @@ Generate these retirement rules in `memory-bank/milestone.md`:
   rationale, and dependency disposition. Supersession needs `Successor`.
   Neither automatically satisfies a completion dependency. Every historical
   `[-]` row must name its accepted successor in its retained notes.
-- Create `docs/history/index.md` only on first use. Its table columns are
+- Create `tabilet/docs/history/index.md` only on first use. Its table columns are
   `Milestone | Outcome | Retired | Record | Summary`; use bare IDs and dates,
   matching the record metadata, with a relative link to that ID's status file.
   Remove the retired status file, active index row, and specification together;
@@ -283,7 +283,7 @@ Generate these retirement rules in `memory-bank/milestone.md`:
 - Before materially replacing/removing facts or lessons, append their original
   document/heading and literal old wording, reason, evidence, and replacement
   link (or reason for none) beneath a unique dated heading in
-  `docs/history/knowledge.md`. Link the journal from the history index. Merge
+  `tabilet/docs/history/knowledge.md`. Link the journal from the history index. Merge
   duplicate lessons and remove obsolete ones after preserving this evidence.
   This also covers changes outside milestones; ordinary editorial revisions
   need no journal entry. Git supplies optional intermediate revision history.
@@ -346,12 +346,12 @@ installs use `/memory-bank-goal` or an ordinary-language request. Use its Web
 session for unresolved approvals and headless only with a complete authorized
 request or a safe stop; session exit alone is not acceptance.
 
-When `memory-bank/suggested.txt` exists, explain that running the goal skill with
+When `tabilet/memory-bank/suggested.txt` exists, explain that running the goal skill with
 no arguments reconciles it and shows the complete resolved request for
 confirmation. For built-in `/goal` in Claude Code or Codex, show the complete
 reference-based objective from the goal skill rather than asking the user to
 reconstruct maps by hand. Explain that built-in `/goal` keeps the objective
-active while `GOAL.md` supplies the execution protocol. When the launch
+active while `tabilet/GOAL.md` supplies the execution protocol. When the launch
 reference was omitted, explain how to run one row and why ordered execution is
 unavailable until a compatible protocol is installed or approved.
 

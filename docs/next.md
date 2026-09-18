@@ -37,7 +37,7 @@ than selecting a new one.
 6. Commit that row's work under the governing commit policy.
 
 The usual policy is one status row per commit. A governing explicit commit
-policy, including one inside a `GOAL.md` run, can change that. A milestone is the
+policy, including one inside a `tabilet/GOAL.md` run, can change that. A milestone is the
 unit of review.
 
 ## Status markers
@@ -99,6 +99,6 @@ review in `milestone.md` before continuing. The initial full review is iteration
 review of the whole milestone. A clean pass is required within ten iterations,
 and the counter persists across sessions and reviewers.
 
-Closing a milestone also asks whether `evolution/` needs a new version. Only a
+Closing a milestone also asks whether `tabilet/evolution/` needs a new version. Only a
 real change in product direction, architecture boundary, milestone target, or
 public contract justifies one.

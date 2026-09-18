@@ -107,7 +107,7 @@ shared by several milestones.
 For a project that has adopted the retirement rules, once a milestone has
 passed verification, its review gate, knowledge consolidation, and downstream
 reconciliation, its full specification and status document retire into
-`docs/history/`, its identifier
+`tabilet/docs/history/`, its identifier
 stays reserved, and the active plan stops carrying it.
 
 What stays close to the next task is `lessons.md`. A completed milestone might

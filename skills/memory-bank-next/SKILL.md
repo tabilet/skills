@@ -7,6 +7,13 @@ argument-hint: (no arguments)
 
 # Tackle Next Memory-Bank Todo
 
+Before reading project state for this workflow, inspect the root layout. If
+`GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
+`docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
+project writes or execution. Direct the user to preview and explicitly apply
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
+Installing v2 never migrates a project automatically.
+
 Resolve missing information through safe inspection first. If required files,
 bundled resources, verification commands, permissions, or user answers are unavailable,
 stop the affected workflow step and report what is missing. Continue independent
@@ -23,7 +30,7 @@ acceptance or authorize concurrent ledger writers.
 Read `AGENTS.md`, then read the memory bank in the order required by
 `AGENTS.md`.
 
-Read `memory-bank/milestone.md` for the status ID pattern, the lane meanings,
+Read `tabilet/memory-bank/milestone.md` for the status ID pattern, the lane meanings,
 milestone priority, and dependencies. Inspect every active status file for an
 existing `[~]` row. If more than one general row is in progress, stop and report
 the conflict. If one exists, resume exactly it. Otherwise check the recorded
@@ -56,7 +63,7 @@ row to be `[~]`. The marker records the selected operation; it does not grant
 missing external-mutation authority.
 
 If completing this row completes a milestone, run the milestone review procedure
-from `memory-bank/milestone.md` before final handoff. Commit review fixes
+from `tabilet/memory-bank/milestone.md` before final handoff. Commit review fixes
 separately.
 
 When the project has adopted retirement, follow that same milestone procedure:

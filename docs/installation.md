@@ -12,8 +12,9 @@ create or upgrade a project's memory bank.**
 | Manual installation | Complete skill folders in your agent's skill directory |
 
 The canonical seven skills and the DSH companion use the same project Markdown.
-Version 1.5.0 includes Propose in the plugin and companion.
-Python is only required for the optional API runner.
+Version 2.0.0 places project-owned files under `tabilet/`. Existing v1.5.0
+projects need an explicit [one-time migration](upgrade.md#migrate-a-v150-project-to-v2).
+Python is required for that migration and for the optional API runner.
 
 ## Claude Code
 
@@ -53,12 +54,12 @@ not expose plugin commands, use the [plain-file route](#as-plain-files-you-own).
 
 ## DeepSeek Harness
 
-For the **Memory Bank sidebar and all seven skills**, install the prebuilt v1.5.0
+For the **Memory Bank sidebar and all seven skills**, install the prebuilt v2.0.0
 companion in your Web profile. Run this in a terminal on the machine running DSH:
 
 ```bash
 dsh plugin --profile web add \
-  https://github.com/tabilet/tabilet-skills/releases/download/v1.5.0/tabilet-skills-1.5.0.tgz \
+  https://github.com/tabilet/tabilet-skills/releases/download/v2.0.0/tabilet-skills-2.0.0.tgz \
   --ignore-scripts
 ```
 
@@ -75,7 +76,7 @@ The companion was verified on Linux with Node **24.14.1** and locked DSH
 **0.1.5-rc.2** components, plus an isolated rc.1 launcher using rc.2 components.
 
 For **skills without the dashboard**, use the [plain-file route](#as-plain-files-you-own).
-Copy all seven complete folders from the v1.5.0 checkout into `$DSH_HOME/skills`,
+Copy all seven complete folders from the v2.0.0 checkout into `$DSH_HOME/skills`,
 normally `~/.dsh/skills`. The filesystem route retains its separately tested
 all-rc.1 compatibility.
 
@@ -117,10 +118,10 @@ For Goal, include an explicit order and [commit policy](goal.md).
 
 ## As plain files you own
 
-Clone the v1.5.0 source into a separate directory (seven skills):
+Clone the v2.0.0 source into a separate directory (seven skills):
 
 ```bash
-git clone --branch v1.5.0 --depth 1 https://github.com/tabilet/skills.git
+git clone --branch v2.0.0 --depth 1 https://github.com/tabilet/skills.git
 ```
 
 Copy each `memory-bank-*` folder from that checkout's `skills/` directory into
@@ -234,5 +235,5 @@ Project Markdown remains in the project and is still usable after removal.
   companion in the headless profile.
 - In DSH's **Compatibility** view, inspect the winning skill source. An existing
   project or user copy can take precedence over the bundled one.
-- The `skills` repository itself contains a sample at `template/memory-bank/`;
+- The `skills` repository itself contains a sample at `template/tabilet/memory-bank/`;
   it has no active project memory bank for the dashboard to display.

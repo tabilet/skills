@@ -156,8 +156,8 @@ test('repeat install, backed-up update, and removal preserve unrelated content',
   await mkdir(join(f.dshHome, 'skills/unrelated'), { recursive: true });
   await writeFile(join(f.dshHome, 'skills/unrelated/notes.txt'), 'user content');
   await writeFile(join(f.dshHome, '.credentials.yaml'), 'unrelated credential sentinel');
-  await mkdir(join(f.project, 'memory-bank'));
-  await writeFile(join(f.project, 'memory-bank/lessons.md'), 'project memory');
+  await mkdir(join(f.project, 'tabilet/memory-bank'), { recursive: true });
+  await writeFile(join(f.project, 'tabilet/memory-bank/lessons.md'), 'project memory');
   success(f.run('install'));
   const initial = await tree(join(f.dshHome, 'skills'));
   const initialStat = await lstat(join(f.dshHome, 'skills/memory-bank-init/SKILL.md'));
@@ -176,7 +176,7 @@ test('repeat install, backed-up update, and removal preserve unrelated content',
   success(f.run('remove'));
   assert.deepEqual(await tree(join(f.dshHome, 'skills')), { unrelated: initial.unrelated });
   assert.equal(await readFile(join(f.dshHome, '.credentials.yaml'), 'utf8'), 'unrelated credential sentinel');
-  assert.equal(await readFile(join(f.project, 'memory-bank/lessons.md'), 'utf8'), 'project memory');
+  assert.equal(await readFile(join(f.project, 'tabilet/memory-bank/lessons.md'), 'utf8'), 'project memory');
   assert.deepEqual(await (await registry(t, f)).list({ cwd: f.project }), []);
 });
 
@@ -231,7 +231,7 @@ test('incomplete source bundles stop installation and update before any changes'
     'memory-bank-propose/references/discovery.md',
     'memory-bank-propose/references/plan-update.md',
     'memory-bank-reconcile/references/plan-update.md',
-    'memory-bank-upgrade/assets/template/memory-bank/milestone.md']) {
+    'memory-bank-upgrade/assets/template/tabilet/memory-bank/milestone.md']) {
     const path = join(candidate, 'skills', resource);
     const content = await readFile(path);
     await rm(path);

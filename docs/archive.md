@@ -34,12 +34,12 @@ Facts, not a roadmap. Archive files never contain executable task state and
 never enter a status or goal order.
 
 ```text
-docs/archive-C01.md    public client API at commit 4f8c…
-docs/archive-T01.md    transport and process lifecycle at commit 4f8c…
-docs/archive-A01.md    artifact capture and storage at commit 4f8c…
+tabilet/docs/archive-C01.md    public client API at commit 4f8c…
+tabilet/docs/archive-T01.md    transport and process lifecycle at commit 4f8c…
+tabilet/docs/archive-A01.md    artifact capture and storage at commit 4f8c…
 
-memory-bank/product.md         current product and domain summary
-memory-bank/architecture.md    current system summary plus the archive registry
+tabilet/memory-bank/product.md         current product and domain summary
+tabilet/memory-bank/architecture.md    current system summary plus the archive registry
 ```
 
 For each context it establishes purpose and ownership, domain concepts and
@@ -67,7 +67,7 @@ written until you approve all of it.
 
 ## Archive lanes
 
-Archive files are named `docs/archive-<LANE><NN>.md`. The letter classifies a
+Archive files are named `tabilet/docs/archive-<LANE><NN>.md`. The letter classifies a
 stable product-domain or ownership context; the number is snapshot chronology
 within that lane.
 

@@ -149,7 +149,7 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
     fi
     if test "$bundle" = memory-bank-upgrade; then
-      for resource in AGENTS.md GOAL.md memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md evolution/{prompt-v1,result-v1}.md; do
+      for resource in AGENTS.md tabilet/GOAL.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/assets/template/$resource"
       done
     fi
@@ -172,11 +172,11 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
 
 Copying only `SKILL.md` is incomplete. Initialization, archive, and reconciliation
 have `references/write-contract.md`; initialization also carries the portable
-`GOAL.md`. Upgrade carries `assets/template/`, a complete reference copy of the
+`tabilet/GOAL.md`. Upgrade carries `assets/template/`, a complete reference copy of the
 project payload; preserve that tree too. Goal includes `references/runtime-help.md`
 for invocation syntax and optional native continuation. DSH returns a skill's directory as its resource base. Relative
 supporting resources resolve against that directory; project paths such as
-`memory-bank/milestone.md` and the project's `GOAL.md` resolve in the selected
+`tabilet/memory-bank/milestone.md` and the project's `tabilet/GOAL.md` resolve in the selected
 workspace. The init write contract explicitly identifies its bundled protocol.
 Init, archive, and reconcile read their write contracts before preparing the
 file-action proposal; approval gates writes, not those reads. Goal runtime help
@@ -250,7 +250,7 @@ bundles are backed up before any replacement is copied.
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
     fi
     if test "$bundle" = memory-bank-upgrade; then
-      for resource in AGENTS.md GOAL.md memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md evolution/{prompt-v1,result-v1}.md; do
+      for resource in AGENTS.md tabilet/GOAL.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/assets/template/$resource"
       done
     fi
@@ -385,7 +385,7 @@ For an ordered run, supply the resolved request with its explicit policies and
 acceptance. Example after the project has approved this order:
 
 ```bash
-dsh --profile headless 'Use memory-bank-goal. Using GOAL.md, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: none. EXTERNAL_MUTATIONS: none. Completion condition: both milestones meet their documented acceptance, verification, review, and closure requirements. Stop if any required answer or capability is unavailable.'
+dsh --profile headless 'Use memory-bank-goal. Using tabilet/GOAL.md, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: none. EXTERNAL_MUTATIONS: none. Completion condition: both milestones meet their documented acceptance, verification, review, and closure requirements. Stop if any required answer or capability is unavailable.'
 ```
 
 Replace these IDs and approvals with actual project decisions. A blanket
@@ -412,7 +412,7 @@ complete protocol request as the objective only when you intend to use
 [GOAL.md](../GOAL.md):
 
 ```text
-/goal Using GOAL.md, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none. Completion condition: both required milestones meet their acceptance, verification, and bounded review gates, with downstream reconciliation and adopted retirement complete.
+/goal Using tabilet/GOAL.md, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none. Completion condition: both required milestones meet their acceptance, verification, and bounded review gates, with downstream reconciliation and adopted retirement complete.
 ```
 
 The [native goal service](https://github.com/deepseek-ai/deepseek-harness/tree/dsh-v0.1.5-rc.1/packages/goal/goal)
@@ -545,13 +545,13 @@ test processes. Telemetry and auxiliary LLM titles were disabled.
 
 | Scenario | Observed evidence |
 |---|---|
-| 1. Small existing project | Quill initialized after an explicit proposal approval. Original `AGENTS.md` text and source/test bytes survived; complete memory-bank/evolution files, valid status paths, and byte-identical bundled protocol were checked. An initial output-limit interruption was resumed without claiming success. |
+| 1. Small existing project | Quill initialized after an explicit proposal approval. Original `AGENTS.md` text and source/test bytes survived; complete tabilet/memory-bank/evolution files, valid status paths, and byte-identical bundled protocol were checked. An initial output-limit interruption was resumed without claiming success. |
 | 2. Broad package | Parcel's catalog, orders, billing, and cross-cutting contexts received approved, full-commit-anchored, verified archives. Proposal stages made no writes. Subsequent approved initialization preserved all four archive hashes and original source/instructions, and merged current summaries. Archive/status `M01` overlap retained its independent namespaces and permanent ID. |
 | 3. Review reconciliation | Confirmed arithmetic defect, duplicate planned work, unsupported allegation, and deferred lower-priority finding received distinct dispositions. Before approval the tree stayed clean. After approval only the four proposed planning files changed; implementation, tests, historical rows, and HEAD stayed unchanged. A supplied remote URL triggered separate exact-URL confirmation; no fetch occurred. |
 | 4. One row and resumption | Resumed the sole existing `[~]` row, verified its behavior, corrected the invalidated current product fact, and made exactly one scoped commit. Historical `[-]` and remaining pending rows stayed byte-identical; the next row did not start. |
 | 5. Ordered goals | Explicit `M01 -> M02` and policies overrode a stale reversed suggestion. `none` left HEAD unchanged; `task` produced two task commits and two substantive closure commits. M01 reconciled the pending M02 consumer before execution. A controlled interruption persisted review iteration 4 as started; a fresh headless continuation completed that same iteration, with 4 retained in its frozen record. |
 | 6. Long-term memory | Current lessons became quantity-aware; the old literal wording, source, reason, and replacement survived in the knowledge journal. Both final goal fixtures passed the repository's actual retired-record parser and had no active status files. Retrieval and stale goal paths preserved every project-file hash. Init recognized all-retired identity. Additional cancelled and superseded milestone probes reported required acceptance incomplete without recreating history or executing an unauthorized successor. |
-| 7. Headless stopping | Missing proposal approval, missing `GOAL.md`, missing required verification, and denied writes all stopped without project changes or commits. These live runs exited 0 while reporting incomplete work. The read-only denial caused no escalation attempt. |
+| 7. Headless stopping | Missing proposal approval, missing `tabilet/GOAL.md`, missing required verification, and denied writes all stopped without project changes or commits. These live runs exited 0 while reporting incomplete work. The read-only denial caused no escalation attempt. |
 
 ### Usage and cost
 
@@ -680,8 +680,8 @@ gateway. The test credential remained `DSH_SKILLS` from `~/.profile`; no secret
 was copied into the runtime environment or project files.
 
 - Web inspection and proposal left every project byte unchanged. The approved
-  upgrade changed only `AGENTS.md`, `memory-bank/milestone.md`, the active status
-  preamble, and a new `memory-bank/lessons.md`.
+  upgrade changed only `AGENTS.md`, `tabilet/memory-bank/milestone.md`, the active status
+  preamble, and a new `tabilet/memory-bank/lessons.md`.
 - Independent hashes and parser checks verified unchanged task tables/notes,
   milestone specification, candidate direction, review iteration **4**, local
   severity and no-commit policies, custom goal protocol, current facts, frozen

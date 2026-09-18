@@ -83,8 +83,8 @@ dependency-closed active plan and file actions.
 The output includes project-specific current facts, verification commands,
 `lessons.md`, active milestone specifications and status files, and later
 candidate directions without permanent IDs. Existing project instructions are
-merged safely, not replaced wholesale. A compatible approved `GOAL.md` enables
-the disposable `memory-bank/suggested.txt` launch reference.
+merged safely, not replaced wholesale. A compatible approved `tabilet/GOAL.md` enables
+the disposable `tabilet/memory-bank/suggested.txt` launch reference.
 
 Then request `memory-bank-next` for one row, or `memory-bank-goal` for the
 approved ordered work. New projects have nothing to snapshot, and a small
@@ -110,7 +110,7 @@ to make the worktree clean. Without Git, it requires acceptance of weaker
 `unversioned` provenance.
 
 After approval, it writes frozen factual baselines such as
-`docs/archive-O01.md`, plus current product and architecture summaries and the
+`tabilet/docs/archive-O01.md`, plus current product and architecture summaries and the
 archive registry. These archives contain no executable tasks. Archive lanes
 classify contexts independently from milestone/status lanes.
 
@@ -148,16 +148,16 @@ it reconcile an existing `suggested.txt` or derive an order and obtain
 confirmation. The skill materializes the complete resolved request in the
 conversation; the temporary suggestion is not active truth.
 
-The project must contain an approved compatible `GOAL.md` for this skill. A
+The project must contain an approved compatible `tabilet/GOAL.md` for this skill. A
 portable request, usable without the skill too, looks like:
 
 ```text
-Using GOAL.md, execute this loop.
+Using tabilet/GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> M02
 STATUS_FILE_MAP:
-  M01: memory-bank/status-M01.md
-  M02: memory-bank/status-M02.md
+  M01: tabilet/memory-bank/status-M01.md
+  M02: tabilet/memory-bank/status-M02.md
 DOWNSTREAM_IMPACTS:
   M01 -> M02: reconcile M02 against the interface delivered by M01.
 COMMIT_POLICY: task
@@ -210,8 +210,8 @@ or closure evidence is missing, the milestone remains active. Completed,
 cancelled, or closed-historical markers alone do not prove acceptance.
 
 Once those gates pass, the agent preserves the full specification and final
-status document in `docs/history/status-M01.md`, indexes the record in
-`docs/history/index.md`, and removes the active status file, specification,
+status document in `tabilet/docs/history/status-M01.md`, indexes the record in
+`tabilet/docs/history/index.md`, and removes the active status file, specification,
 and index row. It repairs maintained links and dependencies and refreshes an
 existing disposable launch reference. `milestone.md` retains active work and
 later directions, with one history-index link. Current facts and still-useful
@@ -219,13 +219,13 @@ lessons remain in the memory bank with evidence links.
 
 There is a second automatic maintenance trigger: before materially replacing
 obsolete knowledge, the agent preserves its wording, source, reason, evidence,
-and replacement in `docs/history/knowledge.md`. For example, replacing an old
+and replacement in `tabilet/docs/history/knowledge.md`. For example, replacing an old
 single-worker recovery lesson with a verified multi-worker recovery rule
 preserves the old lesson before updating `lessons.md`. This applies even when
 no milestone closes. Routine wording edits need no journal entry.
 
 Both triggers run within authorized agent work, not on a timer or plugin update.
-The [milestone contract](../template/memory-bank/milestone.md#long-term-memory-and-retirement)
+The [milestone contract](../template/tabilet/memory-bank/milestone.md#long-term-memory-and-retirement)
 owns the exact gates and preservation rules; retirement respects the governing
 commit policy. A one-row run does not bulk-retire unrelated older milestones.
 Legacy adoption and cleanup of older closed work need explicit requests and
@@ -239,7 +239,7 @@ follows a lesson through closure and later replacement.
 
 ## 7. Explicitly snapshot a materially changed system
 
-Suppose `docs/archive-O01.md` describes synchronous order processing. Later
+Suppose `tabilet/docs/archive-O01.md` describes synchronous order processing. Later
 approved milestones introduce queued processing with workers. Their normal
 execution already updates current architecture and lessons and retires task
 evidence. None of that automatically creates `archive-O02.md`.
@@ -250,7 +250,7 @@ separate run at a clean Git baseline. Explain that you want a successor context
 snapshot, not task cleanup. Review and approve its boundary, coverage,
 successor decisions, and file actions before writing.
 
-The skill creates the next unused successor, for example `docs/archive-O02.md`
+The skill creates the next unused successor, for example `tabilet/docs/archive-O02.md`
 when that ID is available, links its predecessor, and refreshes the current
 summaries and archive registry. `O01` remains frozen, unchanged contexts receive
 no new snapshot, and retired milestone records remain untouched. An established
@@ -270,8 +270,8 @@ relevant knowledge-history entry and retired task evidence. Explain what was
 true at the old baseline and what is true now. Do not modify files or retry work.
 ```
 
-Use `docs/history/index.md` to resolve a permanent milestone ID or old status
-path, and `docs/history/knowledge.md` for replaced facts or lessons. Read the
+Use `tabilet/docs/history/index.md` to resolve a permanent milestone ID or old status
+path, and `tabilet/docs/history/knowledge.md` for replaced facts or lessons. Read the
 specific retired record or context archive only when it answers the question.
 The Markdown evidence is readable without Git; Git adds intermediate revisions.
 

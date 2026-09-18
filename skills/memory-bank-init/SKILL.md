@@ -7,6 +7,13 @@ argument-hint: (no arguments)
 
 # Initialize A Memory Bank
 
+Before reading project state for this workflow, inspect the root layout. If
+`GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
+`docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
+project writes or execution. Direct the user to preview and explicitly apply
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
+Installing v2 never migrates a project automatically.
+
 Three phases: **grill**, **propose**, **write**. Write no file until phase 3.
 
 Resolve missing information through safe inspection first. If required files,
@@ -53,15 +60,15 @@ when their current implementations are short. A shared test command or product
 name does not merge independent ownership and contracts into one context.
 
 A completed archive preflight may already have created
-`memory-bank/product.md` and `memory-bank/architecture.md`; their presence alone
+`tabilet/memory-bank/product.md` and `tabilet/memory-bank/architecture.md`; their presence alone
 does not mean initialization is complete. Read the archive registry and every
-linked `docs/archive-<LANE><NN>.md` as commit-anchored evidence. Continue only
+linked `tabilet/docs/archive-<LANE><NN>.md` as commit-anchored evidence. Continue only
 when every context in the selected boundary is `verified`. Any proposed,
 partial, blocked, missing, or unresolved context stops initialization until the
 archive is completed. Preserve verified archives: they are frozen baselines,
 not current truth or executable work.
 
-If a project already has an initialized `memory-bank/milestone.md` and active
+If a project already has an initialized `tabilet/memory-bank/milestone.md` and active
 status files or an indexed retired history, do not reinitialize it. A project
 whose milestones are all retired remains initialized. Reconcile and evolve
 the existing memory bank instead; reserve IDs across active and retired files.
@@ -72,7 +79,7 @@ Deepen inspection where the selected boundary needs evidence: manifests and CI
 for build constraints, interfaces and schemas for contracts, tests for existing
 behavior, and deployment files for operational assumptions. Reuse facts and
 decisions already present in the conversation. Inventory destination files such
-as `AGENTS.md`, `GOAL.md`, `evolution/`, current memory-bank files, and archives
+as `AGENTS.md`, `tabilet/GOAL.md`, `tabilet/evolution/`, current memory-bank files, and archives
 so the proposal can identify each create, merge, preserve, or omit action.
 
 Keep a working **evidence ledger** and work the **whole frontier** of the
@@ -137,8 +144,8 @@ understanding.
 
 Read [references/write-contract.md](references/write-contract.md) completely
 before presenting the file-action proposal, so the proposal uses the actual
-generated file set and `memory-bank/status-<LANE><NN>.md` paths (for example,
-`memory-bank/status-M01.md`). Reading the contract grants no writing authority.
+generated file set and `tabilet/memory-bank/status-<LANE><NN>.md` paths (for example,
+`tabilet/memory-bank/status-M01.md`). Reading the contract grants no writing authority.
 
 Present the breakdown and file actions. **Write nothing to disk yet.**
 
@@ -191,7 +198,7 @@ or out, and whether every file action is safe. Iterate until approved.
 Only after the complete proposal is approved, follow the already-read
 [write contract](references/write-contract.md) to write.
 It owns the file actions, generated file set, portable
-`GOAL.md` copy rule, status tables, disposable launch reference, output checks,
+`tabilet/GOAL.md` copy rule, status tables, disposable launch reference, output checks,
 and final handoff.
 Continue through those checks and handoff; ask again only for conflicts or file
 actions outside the approved proposal.

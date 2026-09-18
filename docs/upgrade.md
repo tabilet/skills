@@ -1,5 +1,38 @@
 # Upgrade
 
+## Migrate a v1.5.0 project to v2
+
+v2 keeps `AGENTS.md` at the project root and moves Memory Bank files under
+`tabilet/`: `GOAL.md`, `memory-bank/`, `evolution/`, archives, and retired
+history. Other project documentation stays at the root. Installing v2 never
+moves these files, and v2 skills and the API runner stop on a legacy or mixed
+layout. The v2 DSH sidebar can display a v1.5.0 project read-only with a
+migration warning.
+
+Use the standard-library command bundled with the Upgrade skill, or the same
+file in a v2 source checkout. Start from a committed, clean Git worktree:
+
+```bash
+python3 /path/to/skills/skills/memory-bank-upgrade/migrate-v1.5-to-v2.py /path/to/project
+python3 /path/to/skills/skills/memory-bank-upgrade/migrate-v1.5-to-v2.py /path/to/project --apply
+```
+
+The first command only previews file actions. `--apply` moves the files,
+updates maintained instructions and indexes, preserves frozen archives and
+retired records byte-for-byte, and leaves the diff uncommitted for review. It
+reports path references in other project documents for manual review. It also
+supports all-retired projects, archive-only preflights, an absent or customized
+goal protocol, and local policies.
+
+If interrupted, run the same command with `--resume`. It checks a temporary
+journal outside tracked project files, Git `HEAD`, and every planned file hash
+before continuing. An unexplained partial layout, symlink, or destination
+collision stops for manual repair. Once complete, a repeat run is a no-op.
+
+After reviewing the diff and project checks, commit it under your project's
+normal policy. If workflow rules also need updating, use Upgrade below as a
+separate approved merge.
+
 Upgrade an existing memory bank's workflow rules through approved merges,
 preserving project plans, local policies, and history.
 

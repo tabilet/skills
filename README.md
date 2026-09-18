@@ -21,30 +21,32 @@ Seven optional skills can do the mapping, copying, and filling for you; see
 yours from the moment they appear. You and your agent maintain them during
 authorized work; installing or updating the plugin does not migrate them.
 
-[v1.5.0 release notes](docs/RELEASE_NOTES.md) cover Propose and the seven-skill
-DSH companion, alongside earlier lifecycle and upgrade guidance.
+[Release notes](docs/RELEASE_NOTES.md) include the v2 project layout and
+the explicit v1.5.0 migration.
 The [Memory Bank website](https://tabilet.github.io/skills/) has the published guides.
 
 Your project ends up looking like this:
 
 ```text
 your-project/
-├── AGENTS.md              what an agent should read first
-├── GOAL.md                optional multi-milestone protocol
-├── memory-bank/           what is true now
-│   ├── product.md         product scope, domain model, and non-goals
-│   ├── architecture.md    layout, data flow, boundaries
-│   ├── tech-stack.md      commands, dependencies, how you verify
-│   ├── lessons.md         applicable lessons and their evidence
-│   ├── milestone.md       active milestones plus unnumbered later directions
-│   ├── status-M01.md      one status file per active milestone; ID is permanent
-│   └── suggested.txt      optional active-horizon launch reference
-├── docs/                  long-form reference
-│   ├── archive-A01.md     optional frozen existing-package context baseline
-│   └── history/          created when a milestone or knowledge first retires
-└── evolution/             versioned direction snapshots
-    ├── prompt-v1.md       the initial direction
-    └── result-v1.md       the state it produced
+├── AGENTS.md                 what an agent should read first
+├── docs/                     other project documentation
+└── tabilet/
+    ├── GOAL.md               optional multi-milestone protocol
+    ├── memory-bank/           current facts and active work
+    │   ├── product.md         product scope, domain model, and non-goals
+    │   ├── architecture.md    layout, data flow, boundaries
+    │   ├── tech-stack.md      commands, dependencies, verification
+    │   ├── lessons.md         applicable lessons and their evidence
+    │   ├── milestone.md       active milestones and later directions
+    │   ├── status-M01.md      one file per active milestone
+    │   └── suggested.txt      optional launch reference
+    ├── docs/                  optional frozen archives and retired history
+    │   ├── archive-A01.md
+    │   └── history/
+    └── evolution/             versioned direction snapshots
+        ├── prompt-v1.md
+        └── result-v1.md
 ```
 
 The term *memory bank* was popularised by [Cline](https://docs.cline.bot/best-practices/memory-bank); this is a different
@@ -71,10 +73,12 @@ Git is required by the usual per-task commit workflow and the optional API
 harness. A permitted no-commit workflow can maintain the same files without
 Git, including their retired records.
 
-**Python 3 is only for the optional API harness**, the unattended loop described
-in [Install The API Harness](#install-the-api-harness). It uses nothing but the
-standard library, so there is nothing to install with `pip`. Skip it entirely if
-you drive the memory bank through an agent you already use.
+Python 3 is used by the optional API harness and the one-time v1.5.0 migration
+command. Both use only the standard library.
+
+Already have v1.5.0 project files at the root? [Preview the explicit v2
+migration](docs/upgrade.md#migrate-a-v150-project-to-v2) before using v2 skills.
+Installing v2 does not move project files.
 
 The existing-project instructions below also use
 [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) for the initial inventory.
@@ -112,15 +116,15 @@ Project-level sample files in [template/](template/), copied into a project
 root:
 
 - [template/AGENTS.md](template/AGENTS.md)
-- [template/GOAL.md](template/GOAL.md) — the multi-milestone execution protocol
-- [template/memory-bank/product.md](template/memory-bank/product.md)
-- [template/memory-bank/architecture.md](template/memory-bank/architecture.md)
-- [template/memory-bank/tech-stack.md](template/memory-bank/tech-stack.md)
-- [template/memory-bank/lessons.md](template/memory-bank/lessons.md)
-- [template/memory-bank/milestone.md](template/memory-bank/milestone.md)
-- [template/memory-bank/status-M01.md](template/memory-bank/status-M01.md)
-- [template/evolution/prompt-v1.md](template/evolution/prompt-v1.md)
-- [template/evolution/result-v1.md](template/evolution/result-v1.md)
+- [template/tabilet/GOAL.md](template/tabilet/GOAL.md) — the multi-milestone execution protocol
+- [template/tabilet/memory-bank/product.md](template/tabilet/memory-bank/product.md)
+- [template/tabilet/memory-bank/architecture.md](template/tabilet/memory-bank/architecture.md)
+- [template/tabilet/memory-bank/tech-stack.md](template/tabilet/memory-bank/tech-stack.md)
+- [template/tabilet/memory-bank/lessons.md](template/tabilet/memory-bank/lessons.md)
+- [template/tabilet/memory-bank/milestone.md](template/tabilet/memory-bank/milestone.md)
+- [template/tabilet/memory-bank/status-M01.md](template/tabilet/memory-bank/status-M01.md)
+- [template/tabilet/evolution/prompt-v1.md](template/tabilet/evolution/prompt-v1.md)
+- [template/tabilet/evolution/result-v1.md](template/tabilet/evolution/result-v1.md)
 
 The optional API runner and its human-readable instruction copy live in
 [harness/](harness/):
@@ -154,8 +158,8 @@ keep its supporting reference when copying the bundle.
 
 Unlike the copyable template, `memory-bank-init` can derive project-specific
 goal input; `memory-bank-reconcile` and `memory-bank-propose` can refresh it
-when approved planning changes the active graph. When the project contains an approved compatible `GOAL.md`,
-they write `memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
+when approved planning changes the active graph. When the project contains an approved compatible `tabilet/GOAL.md`,
+they write `tabilet/memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
 `STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is advisory and disposable,
 covers only the approved active horizon, and excludes unnumbered candidate
 directions; the milestone and status files remain authoritative. They omit the
@@ -175,7 +179,7 @@ Harness references:
 The template ships placeholders. Here is the same memory bank filled in for a
 small shopping service, so you can see the destination before the directions.
 
-`memory-bank/product.md` starts as `[project-name] is [one or two sentences
+`tabilet/memory-bank/product.md` starts as `[project-name] is [one or two sentences
 describing the project]` and becomes:
 
 ```markdown
@@ -191,7 +195,7 @@ It owns cart state, pricing, and the handoff to payments.
 | Checkout | The transition from an active cart to payment. | Starts only from a non-empty cart with current pricing. |
 ```
 
-`memory-bank/milestone.md` is the file that decides how everything else is
+`tabilet/memory-bank/milestone.md` is the file that decides how everything else is
 organised. It names the lanes and states what each one covers:
 
 ```markdown
@@ -228,7 +232,7 @@ Lane meanings:
 succeeds against the staging payment sandbox.
 ```
 
-Then `memory-bank/status-S01.md` carries the rows for that milestone:
+Then `tabilet/memory-bank/status-S01.md` carries the rows for that milestone:
 
 ```markdown
 # Status S01 - Cart And Checkout
@@ -268,18 +272,18 @@ mkdir -p docs
 
 Then edit the copied files in this order:
 
-1. `memory-bank/product.md`: define product scope, canonical domain terminology,
+1. `tabilet/memory-bank/product.md`: define product scope, canonical domain terminology,
    concept relationships and business invariants, and non-goals.
-2. `memory-bank/architecture.md`: define layout, data flow, and boundaries.
-3. `memory-bank/tech-stack.md`: define commands, dependencies, and harnesses.
-4. `memory-bank/milestone.md`: define the status ID lanes (see
+2. `tabilet/memory-bank/architecture.md`: define layout, data flow, and boundaries.
+3. `tabilet/memory-bank/tech-stack.md`: define commands, dependencies, and harnesses.
+4. `tabilet/memory-bank/milestone.md`: define the status ID lanes (see
    [Status ID lanes](#status-id-lanes)) and the first milestone.
-5. `memory-bank/status-M01.md`: define the first milestone's actionable rows.
+5. `tabilet/memory-bank/status-M01.md`: define the first milestone's actionable rows.
    See [what a filled-in memory bank looks
    like](#what-a-filled-in-memory-bank-looks-like), and note that the marker
    backticks matter.
-6. `evolution/prompt-v1.md`: record the initial direction.
-7. `evolution/result-v1.md`: record the current starting state.
+6. `tabilet/evolution/prompt-v1.md`: record the initial direction.
+7. `tabilet/evolution/result-v1.md`: record the current starting state.
 8. `AGENTS.md`: replace placeholders with project-specific commands and rules.
 
 Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
@@ -323,21 +327,21 @@ Then chat with the agent until the product, users, boundaries, commands, and
 first milestone are clear. Ask it to fill in:
 
 - `AGENTS.md`
-- `memory-bank/product.md`
-- `memory-bank/architecture.md`
-- `memory-bank/tech-stack.md`
-- `memory-bank/milestone.md`
-- `memory-bank/status-M01.md`
-- `evolution/prompt-v1.md`
-- `evolution/result-v1.md`
+- `tabilet/memory-bank/product.md`
+- `tabilet/memory-bank/architecture.md`
+- `tabilet/memory-bank/tech-stack.md`
+- `tabilet/memory-bank/milestone.md`
+- `tabilet/memory-bank/status-M01.md`
+- `tabilet/evolution/prompt-v1.md`
+- `tabilet/evolution/result-v1.md`
 
 Example prompt:
 
 ```text
-Read the sample AGENTS.md, memory-bank/*, and evolution/* files. Based on our
+Read the sample AGENTS.md, tabilet/memory-bank/*, and tabilet/evolution/* files. Based on our
 discussion of this new project, replace the placeholders with accurate project
 content. Keep README user-facing, put long-form references in docs/, define the
-status ID lanes in memory-bank/milestone.md, and make memory-bank/status-M01.md
+status ID lanes in tabilet/memory-bank/milestone.md, and make tabilet/memory-bank/status-M01.md
 contain the first actionable milestone rows.
 ```
 
@@ -365,9 +369,9 @@ $memory-bank:memory-bank-archive   # Codex plugin
 
 The skill maps the whole selected product boundary breadth-first and proposes
 stable domain or ownership contexts before writing. After approval it creates
-frozen context dossiers such as `docs/archive-C01.md`, records the full baseline
-commit, and creates or refreshes the current `memory-bank/product.md` and
-`memory-bank/architecture.md` summaries.
+frozen context dossiers such as `tabilet/docs/archive-C01.md`, records the full baseline
+commit, and creates or refreshes the current `tabilet/memory-bank/product.md` and
+`tabilet/memory-bank/architecture.md` summaries.
 
 Archive lanes classify contexts independently from status lanes. Their numbers
 are snapshot chronology, not work priority. Every context must be `verified`
@@ -404,8 +408,8 @@ Then:
 3. Fill the memory bank from what the project already says, not from an imagined
    rewrite.
 4. Move stable long-form references into `docs/`.
-5. Convert duplicated roadmap/status material into `memory-bank/milestone.md`
-   and one `memory-bank/status-<LANE><NN>.md` file per milestone.
+5. Convert duplicated roadmap/status material into `tabilet/memory-bank/milestone.md`
+   and one `tabilet/memory-bank/status-<LANE><NN>.md` file per milestone.
 6. Keep known gaps visible in the matching status file instead of hiding them.
 
 ### With Help Of An AI Agent
@@ -415,7 +419,7 @@ draft. This works best when the project already has useful README, docs, package
 comments, tests, or CI files.
 
 Warning: copying these sample files into an existing project can overwrite
-existing `AGENTS.md`, `memory-bank/`, or `evolution/` files. Commit first, make a
+existing `AGENTS.md`, `tabilet/memory-bank/`, or `tabilet/evolution/` files. Commit first, make a
 backup, or copy the samples to a temporary location before asking the agent to
 merge them.
 
@@ -431,9 +435,9 @@ Then ask the agent to read the project before writing:
 ```text
 Read the existing README, docs, package README files, tests, build files, and
 major source directories. Use that actual project content to fill in AGENTS.md,
-memory-bank/*, and evolution/*. Preserve useful existing documentation by moving
+tabilet/memory-bank/*, and tabilet/evolution/*. Preserve useful existing documentation by moving
 long-form references into docs/. Keep known gaps visible in the matching
-memory-bank/status-<LANE><NN>.md file. Do not invent product direction that is
+tabilet/memory-bank/status-<LANE><NN>.md file. Do not invent product direction that is
 not supported by the existing project.
 ```
 
@@ -445,7 +449,7 @@ The agent should:
 4. Move or summarize long-form references into `docs/`.
 5. Keep `README.md` simple and user-facing.
 6. Leave unresolved gaps as pending or blocked rows in the matching
-   `memory-bank/status-<LANE><NN>.md` file.
+   `tabilet/memory-bank/status-<LANE><NN>.md` file.
 
 ## Propose A Requested Change
 
@@ -484,7 +488,7 @@ inside a review do not authorize another fetch.
 The review is not copied into the project. Portable finding IDs, both severity
 classifications, current evidence, and lineage live with the planned rows. The
 skill updates downstream specifications and refreshes `suggested.txt` from the
-whole active horizon when a compatible `GOAL.md` exists. It does not implement,
+whole active horizon when a compatible `tabilet/GOAL.md` exists. It does not implement,
 commit, or launch the fixes; use `memory-bank-next` or `memory-bank-goal` after
 approving the reconciled plan.
 
@@ -498,7 +502,7 @@ optional, because the memory bank is plain markdown and works on its own:
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
 | [`memory-bank-next`](#install-the-seven-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
 | [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3 |
-| [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `GOAL.md` and an agent request or optional skill |
+| [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `tabilet/GOAL.md` and an agent request or optional skill |
 
 With an agent such as Codex or Claude Code, the user-facing workflow can be as
 simple as typing:
@@ -508,22 +512,22 @@ tackle next pending item in memory bank
 ```
 
 The agent should find the next actionable row in the current milestone's
-`memory-bank/status-<LANE><NN>.md` file,
+`tabilet/memory-bank/status-<LANE><NN>.md` file,
 complete that task, run the required verification, update the memory bank, and
 make a scoped git commit. If that row is the last open item in a milestone, the
 agent should run a deep code review of the milestone, run the milestone review
-from `memory-bank/milestone.md`, complete required verification, and commit any
+from `tabilet/memory-bank/milestone.md`, complete required verification, and commit any
 review changes before moving on. Do not create an extra commit when review
 changes nothing. The review-fix gate reviews the whole milestone again after
-every [P1/P2-or-higher](template/memory-bank/milestone.md#review-finding-severity)
+every [P1/P2-or-higher](template/tabilet/memory-bank/milestone.md#review-finding-severity)
 fix and requires a clean pass within 10 iterations; if the tenth review still
 finds a blocking issue, the milestone stays incomplete.
-During that review it should also decide whether `evolution/` needs a new version
+During that review it should also decide whether `tabilet/evolution/` needs a new version
 because the product direction, architecture boundary, milestone target, or
 public/private contract direction materially changed.
 
 Before you trust any of this, give the agent something to verify against. Fill
-the **Execution harnesses** table in `memory-bank/tech-stack.md` with the command
+the **Execution harnesses** table in `tabilet/memory-bank/tech-stack.md` with the command
 that proves your project works, such as `make test`, `npm test`, or a script you
 already run, and record what passing it proves. A row should not reach `[+]` until that
 command has passed. Without it, "mark a row complete only when verified" has no
@@ -538,23 +542,23 @@ Under the surface, the normal agent workflow is:
    milestone acceptance, or status changed.
 5. Mark a row `[+]` only after verification passes.
 6. Commit the row as a scoped unit.
-7. Keep one `memory-bank/status-<LANE><NN>.md` file for each active milestone;
+7. Keep one `tabilet/memory-bank/status-<LANE><NN>.md` file for each active milestone;
    preserve closed records through the adopted retirement procedure.
 8. If a milestone becomes complete, run a deep code review and the milestone
-   review procedure in `memory-bank/milestone.md`.
+   review procedure in `tabilet/memory-bank/milestone.md`.
 9. After review and required verification pass, commit any review changes; do
    not create an empty or redundant milestone commit.
-10. Check `evolution/` and add a new version only when the review finds a real
+10. Check `tabilet/evolution/` and add a new version only when the review finds a real
    direction, boundary, milestone, or contract change.
 
 ### Status ID lanes
 
-Status files are named `memory-bank/status-<LANE><NN>.md`. The lane letter
+Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. The lane letter
 classifies the work and the number is zero-padded to two digits, so accounting
 milestones become `status-A01.md` and `status-A02.md` while shopping milestones
 become `status-S01.md`. `M` is the default lane for work that does not classify
 into a domain lane. A lane holds at most 99 files; when a lane fills up, open a
-new letter instead of adding a third digit. `memory-bank/milestone.md` records
+new letter instead of adding a third digit. `tabilet/memory-bank/milestone.md` records
 what each letter means and never lets an ID be reused.
 
 The milestone file also holds **candidate directions** outside the active
@@ -598,7 +602,7 @@ marker records the selection but does not grant external-mutation authority.
 
 The memory bank is the working context, not a lifetime log. Keep current facts,
 active plans, and applicable learning there; preserve retired evidence under
-`docs/history/` and consult it on demand. This prevents accumulated history
+`tabilet/docs/history/` and consult it on demand. This prevents accumulated history
 from growing the startup read indefinitely. It does not impose a hard token or
 file-size cap: genuinely active work and relevant knowledge can still grow.
 
@@ -621,12 +625,12 @@ project root. History files are created only when needed.
 
 | Content | Location and lifetime |
 |---|---|
-| Current product/domain facts, architecture, and stack | Their existing files in `memory-bank/`; keep them current. |
-| Applicable learning, rationale, and evidence | `memory-bank/lessons.md`; curate and merge duplicates, not one entry per milestone or session. |
-| Active specifications, task rows, and later candidate directions | `memory-bank/milestone.md` and active `status-<LANE><NN>.md` files. Retired specifications and index rows leave this active plan; one history-index link remains. |
-| Complete retired milestone specification and status document | `docs/history/status-<LANE><NN>.md`; frozen literal Markdown with provenance, verification, review iterations, and consolidation links. |
-| Retired IDs, outcomes, and record links | `docs/history/index.md`; also links the knowledge journal when present. |
-| Superseded facts and lessons | `docs/history/knowledge.md`; append-only old wording, source, reason, supporting evidence, and replacement reference (or why there is none). |
+| Current product/domain facts, architecture, and stack | Their existing files in `tabilet/memory-bank/`; keep them current. |
+| Applicable learning, rationale, and evidence | `tabilet/memory-bank/lessons.md`; curate and merge duplicates, not one entry per milestone or session. |
+| Active specifications, task rows, and later candidate directions | `tabilet/memory-bank/milestone.md` and active `status-<LANE><NN>.md` files. Retired specifications and index rows leave this active plan; one history-index link remains. |
+| Complete retired milestone specification and status document | `tabilet/docs/history/status-<LANE><NN>.md`; frozen literal Markdown with provenance, verification, review iterations, and consolidation links. |
+| Retired IDs, outcomes, and record links | `tabilet/docs/history/index.md`; also links the knowledge journal when present. |
+| Superseded facts and lessons | `tabilet/docs/history/knowledge.md`; append-only old wording, source, reason, supporting evidence, and replacement reference (or why there is none). |
 
 **Knowledge has its own trigger.** During ordinary maintenance, update relevant
 lessons when reusable learning is supported by evidence. Before materially
@@ -636,11 +640,11 @@ wording edits need no journal entry, and still-useful lessons stay active even
 after their supporting milestone retires.
 
 **Retirement is not a context archive.** `memory-bank-archive` creates optional
-frozen repository baselines in `docs/archive-<LANE><NN>.md`; it does not retire
+frozen repository baselines in `tabilet/docs/archive-<LANE><NN>.md`; it does not retire
 milestones. Routine retirement needs no separate archive invocation or clean
 snapshot commit. `memory-bank-reconcile` plans work from a new review and may
 propose evidenced knowledge updates, but does not retire milestones.
-`evolution/` remains reserved for direction changes.
+`tabilet/evolution/` remains reserved for direction changes.
 
 **How do you retrieve old memory?** Search current memory first, then the history
 index by permanent ID or the knowledge journal by topic, and open only the
@@ -657,7 +661,7 @@ cleanup of older closed milestones; missing closure evidence keeps them active.
 Installing newer skills alone never merges project instructions or moves files.
 
 See the complete
-[retirement contract](template/memory-bank/milestone.md#long-term-memory-and-retirement)
+[retirement contract](template/tabilet/memory-bank/milestone.md#long-term-memory-and-retirement)
 and the tutorial's
 [worked example](docs/TUTORIAL.md#example-a-milestone-closes-and-a-lesson-survives).
 For when to invoke each skill, see [skill use cases](docs/USE_CASES.md), especially
@@ -685,13 +689,13 @@ is:
    supporting resources. If used, update the separately installed
    [API runner](docs/EXECUTION.md) before adopting retirement.
 2. Compare the project's instructions with `template/AGENTS.md`, the review and
-   retirement rules in `template/memory-bank/milestone.md`, the status contract,
-   and `template/memory-bank/lessons.md`. Inventory active and retired IDs,
+   retirement rules in `template/tabilet/memory-bank/milestone.md`, the status contract,
+   and `template/tabilet/memory-bank/lessons.md`. Inventory active and retired IDs,
    frozen archives, custom rules, verification commands, and any review counter.
 3. Request a file-by-file proposal for merging the applicable rules. Preserve
    project facts, existing task states, permanent IDs, historical evidence,
    local policies, and the persisted review count. Keep the optional project
-   `GOAL.md` unless its replacement is explicitly included in that proposal.
+   `tabilet/GOAL.md` unless its replacement is explicitly included in that proposal.
 4. After approval, apply the scoped merges and verify links, status tables,
    protocol compatibility, and the project's required checks. Do not copy
    template placeholders over live content or rerun initialization.
@@ -707,7 +711,7 @@ before writing.” This request does not authorize implementation tasks or commi
 ### Run an ordered set of milestones
 
 The workflow above advances one row at a time. To work through several
-milestones in a defined order, [GOAL.md](template/GOAL.md) is one protocol for
+milestones in a defined order, [GOAL.md](template/tabilet/GOAL.md) is one protocol for
 that: it reconciles dependencies before each milestone, reconciles the
 milestones downstream of one that just closed, and stops rather than guessing
 when a decision or authority is missing.
@@ -716,7 +720,7 @@ It is invoked, not ambient. Whatever your agent, the request that starts a run i
 the same block, and it names the file, the order, and the commit policy:
 
 ```text
-Using GOAL.md, execute this loop.
+Using tabilet/GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
@@ -724,14 +728,14 @@ COMMIT_POLICY: task
 
 When `memory-bank-init` creates the active horizon, or `memory-bank-reconcile`
 changes it after a new review, either skill writes the complete proposed request
-to `memory-bank/suggested.txt` when the project has a compatible `GOAL.md`.
+to `tabilet/memory-bank/suggested.txt` when the project has a compatible `tabilet/GOAL.md`.
 Treat that file as a launch suggestion, not a second roadmap: reconcile it
 against `milestone.md` and the current status files, then delete it after launch
 or whenever it becomes stale. Without a compatible protocol they omit this file
 and leave one-row execution available. To reference an existing suggestion directly:
 
 ```text
-Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
 COMMIT_POLICY: task
 ```
 
@@ -756,12 +760,12 @@ Both [Claude Code](https://code.claude.com/docs/en/goal) and
 [Codex](https://learn.chatgpt.com/use-cases/follow-goals) provide a built-in
 `/goal` for keeping a durable objective active. It is an optional persistence
 layer, not the memory-bank protocol: `/goal` keeps the run alive, while
-`GOAL.md` defines how milestones are reconciled, implemented, reviewed, and
+`tabilet/GOAL.md` defines how milestones are reconciled, implemented, reviewed, and
 closed. Give the built-in command the complete protocol request and a measurable
 completion condition together:
 
 ```text
-/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
+/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 In either agent, run `/goal` with no arguments to show its status and
@@ -770,7 +774,7 @@ In either agent, run `/goal` with no arguments to show its status and
 If `/goal` is not listed in Codex, enable it with `codex features enable goals`.
 
 Built-in `/goal` does not discover this repository's protocol automatically;
-the objective must name `GOAL.md`, as in the example above. You can instead
+the objective must name `tabilet/GOAL.md`, as in the example above. You can instead
 invoke `memory-bank-goal` directly using the Claude Code or Codex forms shown
 above; that is the portable non-persistent launcher. [Codex custom
 prompts](https://learn.chatgpt.com/docs/custom-prompts) are deprecated in favor
@@ -787,7 +791,7 @@ rule. For the length of the run it is the entire commit rule: `AGENTS.md` may sa
 each status row is a commit unit, but `COMMIT_POLICY: none`, which is the
 protocol's default, means no commits at all. That is correct behavior rather
 than a conflict. Say `task` when you want the usual per-row commits. Precedence runs
-request, then `GOAL.md`, then `AGENTS.md`, and only for commits, and only inside
+request, then `tabilet/GOAL.md`, then `AGENTS.md`, and only for commits, and only inside
 the run.
 
 A trailing `?` marks a milestone conditional: it is skipped, not cancelled, when
@@ -795,23 +799,23 @@ its documented trigger is absent. Use it only for work conditionally required to
 reach the active outcome; discretionary later work stays an unnumbered candidate
 direction instead.
 
-`GOAL.md` carries no project-specific paths, lane letters, or commands. It
+`tabilet/GOAL.md` carries no project-specific paths, lane letters, or commands. It
 discovers those from `AGENTS.md` and the memory bank, so the same file works
 unchanged in every project that copies it.
 
 Nothing requires you to use it. Bring your own protocol, or none at all, and
-the memory bank behaves exactly the same. `GOAL.md` is offered because writing
+the memory bank behaves exactly the same. `tabilet/GOAL.md` is offered because writing
 one of these is fiddly,
 not because anything here depends on it. If you have your own, point the two
-`GOAL.md` mentions at it instead, or delete them. They are in `AGENTS.md` and
-`memory-bank/milestone.md`.
+`tabilet/GOAL.md` mentions at it instead, or delete them. They are in `AGENTS.md` and
+`tabilet/memory-bank/milestone.md`.
 
 <a id="install-the-five-skills"></a>
 <a id="install-the-six-skills"></a>
 
 ## Install The Seven Skills
 
-Version 1.5.0 publishes all seven skills, including Propose. Existing projects
+Version 2.0.0 publishes all seven skills under the new project layout. Existing projects
 adopt its requested-change procedure through an approved Upgrade proposal.
 
 Also optional. Everything above works by typing plain sentences; these just make
@@ -908,7 +912,7 @@ milestones](#run-an-ordered-set-of-milestones).
 ### DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
-packages the seven v1.5.0 skills and adds a native
+packages the seven v2.0.0 skills and adds a native
 Memory Bank sidebar with
 task, memory, acceptance, and history views. It prepares workflow requests for
 your conversation; the user reviews and sends them. It makes no model calls or
@@ -938,7 +942,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v1.5.0` tag. A marketplace install or
+For a reproducible installation, use the `v2.0.0` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke
@@ -1130,7 +1134,7 @@ earlier rows and notes survived, and rejects changes to previously retired
 records. Valid all-retired projects exit `0`; missing or invalid status/history
 state exits `11`. Historical rows never become actionable.
 
-It discovers every `memory-bank/status-<LANE><NN>.md` file, reports how many
+It discovers every `tabilet/memory-bank/status-<LANE><NN>.md` file, reports how many
 actionable, in-progress, blocked, and closed-historical rows each lane holds,
 and asks the agent to pick a row using the lane meanings and milestone priority.
 A blocked row in one lane does
@@ -1150,8 +1154,8 @@ Read more:
 - Keep `AGENTS.md` short.
 - Keep project `README.md` user-facing.
 - Put long explanations in `docs/`.
-- Put active truth in `memory-bank/`.
-- Put historical direction snapshots in `evolution/`.
+- Put active truth in `tabilet/memory-bank/`.
+- Put historical direction snapshots in `tabilet/evolution/`.
 - Update memory in the same commit as the code or docs it describes.
 - Add a new evolution version only for a real direction change.
 - Delete duplicate docs once useful content has been merged.

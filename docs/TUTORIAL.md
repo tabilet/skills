@@ -269,7 +269,7 @@ What it works through, and where each answer lands:
 |---|---|---|
 | Delivery boundary, users, workflows, non-goals | Scope and ownership. | `product.md`, `AGENTS.md` |
 | Domain terminology, relationships, invariants | Keeps the product and business model consistent. | `product.md` |
-| Current and target state | Separates facts from intended change. | `product.md`, `evolution/` |
+| Current and target state | Separates facts from intended change. | `product.md`, `tabilet/evolution/` |
 | System shape and public contracts | Prevents boundary and compatibility drift. | `architecture.md` |
 | Stack, runtime, operations, hard rules | Rules the agent must not break. | `tech-stack.md`, `AGENTS.md` |
 | Runnable and manual evidence | Everything downstream closes against this. | `tech-stack.md`, milestone acceptance |
@@ -421,8 +421,8 @@ Only after you approve does it write:
 ```text
 stomper/
 ├── AGENTS.md              ← commands, boundaries, hard rules
-├── GOAL.md                ← copied, not written — a portable protocol
-├── memory-bank/
+├── tabilet/GOAL.md                ← copied, not written — a portable protocol
+├── tabilet/memory-bank/
 │   ├── product.md         ← scope, domain model, and non-goals
 │   ├── architecture.md    ← module layout, the DOM-free rule
 │   ├── tech-stack.md      ← stack, and how it is verified
@@ -433,14 +433,14 @@ stomper/
 │   ├── status-M03.md       ← enemies and pickups
 │   ├── status-M04.md       ← HUD and game states
 │   └── suggested.txt      ← disposable active-horizon order and impacts
-└── evolution/
+└── tabilet/evolution/
     ├── prompt-v1.md
     └── result-v1.md
 ```
 
 **These files are yours.** They have no update subscription to the plugin.
 Agents maintain them during authorized work, and uninstalling the commands
-leaves them exactly as they are. `docs/history/` is created only when a milestone
+leaves them exactly as they are. `tabilet/docs/history/` is created only when a milestone
 or knowledge first needs retirement, not as an empty initialization artifact.
 
 You will not see a bracketed placeholder — the memory bank arrives filled in.
@@ -542,10 +542,10 @@ The same harness shows what it found:
 ```text
 | Status file | Actionable rows | In progress | Blocked | Historical |
 |---|---|---|---|---|
-| memory-bank/status-M01.md | 5 | 0 | 0 | 0 |
-| memory-bank/status-M02.md | 7 | 0 | 0 | 0 |
-| memory-bank/status-M03.md | 6 | 0 | 0 | 0 |
-| memory-bank/status-M04.md | 5 | 0 | 0 | 0 |
+| tabilet/memory-bank/status-M01.md | 5 | 0 | 0 | 0 |
+| tabilet/memory-bank/status-M02.md | 7 | 0 | 0 | 0 |
+| tabilet/memory-bank/status-M03.md | 6 | 0 | 0 | 0 |
+| tabilet/memory-bank/status-M04.md | 5 | 0 | 0 | 0 |
 ```
 
 Twenty-three rows of work, parsed out of files written from a ten-minute
@@ -585,9 +585,9 @@ The [bounded review-fix gate](../GOAL.md#bounded-review-fix-gate) is not a singl
 pass. It advances only after a clean review and stops with the milestone
 incomplete if iteration 10 still finds a blocking issue.
 
-Because this example carries the bundled compatible `GOAL.md`, init also writes
+Because this example carries the bundled compatible `tabilet/GOAL.md`, init also writes
 a complete active-horizon `STATUS_ORDER`, `STATUS_FILE_MAP`, and
-`DOWNSTREAM_IMPACTS` to `memory-bank/suggested.txt`. It is disposable input, not
+`DOWNSTREAM_IMPACTS` to `tabilet/memory-bank/suggested.txt`. It is disposable input, not
 project truth. Run the goal skill with no arguments to have it reconcile that
 file and show the resolved request before starting; delete the file after launch
 or when it becomes stale. Unnumbered candidate directions never appear in it.
@@ -605,8 +605,8 @@ $memory-bank:memory-bank-reconcile <review source>
 The skill checks every finding against current code, proposes whether it belongs
 in open work, a new remediation milestone, or an unnumbered Candidate Direction,
 and waits for approval before changing the plan. It never reopens completed
-history or implements a fix. When the active graph changes and `GOAL.md` remains
-compatible, it refreshes `memory-bank/suggested.txt` for the whole horizon; then
+history or implements a fix. When the active graph changes and `tabilet/GOAL.md` remains
+compatible, it refreshes `tabilet/memory-bank/suggested.txt` for the whole horizon; then
 `memory-bank-next` or `memory-bank-goal` performs the approved work.
 
 If the review source is remote, the skill shows the exact URL and asks for a
@@ -622,17 +622,17 @@ implemented as planned and wrong.
 **In [Claude Code](https://code.claude.com/docs/en/goal) and
 [Codex](https://learn.chatgpt.com/use-cases/follow-goals), built-in `/goal` is
 an optional persistence layer** for a long run. It keeps the objective active;
-`GOAL.md` still defines the execution protocol. Include the complete protocol
+`tabilet/GOAL.md` still defines the execution protocol. Include the complete protocol
 request, commit policy, and measurable completion condition in the invocation:
 
 ```text
-/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and node --test passes.
+/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and node --test passes.
 ```
 
 Use `/goal` with no arguments to see its status and `/goal clear` to stop it in
 either agent. Codex also supports `/goal pause` and `/goal resume`; if the
 command is not listed, run `codex features enable goals`. Built-in `/goal` does
-not discover `GOAL.md` automatically, so keep the file name in the objective.
+not discover `tabilet/GOAL.md` automatically, so keep the file name in the objective.
 
 Then watch the first milestone. `git log` should show one commit per row, code
 and status-row flip together. If the agent closed three rows in one commit, say
@@ -670,7 +670,7 @@ edit, with no dependency on the plugin that generated them.
 The memory bank is mutable and expected to change: `product.md`,
 `architecture.md`, and `tech-stack.md` get rewritten in the same commit as the
 code that makes them true. That includes updating `product.md` when domain
-terminology, concept relationships, or business invariants change. `evolution/`
+terminology, concept relationships, or business invariants change. `tabilet/evolution/`
 gets a new version only when direction genuinely shifts — rarely.
 
 `memory-bank-init` establishes the retirement convention. During execution,
@@ -692,7 +692,7 @@ request. All retirement writes follow the governing commit policy.
 
 Suppose `stomper` has active milestones `M01` through `M04`. `M01` implements the
 world and camera; `M02` consumes its tile queries. Finishing one `M01` task does
-not move that task anywhere. It remains in `memory-bank/status-M01.md`, with its
+not move that task anywhere. It remains in `tabilet/memory-bank/status-M01.md`, with its
 verified completion marker and notes, while other `M01` work is still open.
 
 When all `M01` work is terminal, its acceptance is verified, its review gate
@@ -701,8 +701,8 @@ passes, and its downstream impacts are reconciled, the closing agent:
 1. Keeps the delivered tile-query contract in `architecture.md` and applicable
    camera-test learning in `lessons.md`, with links to the supporting evidence.
 2. Preserves the full `M01` specification and final status document, including
-   task notes and closure evidence, in `docs/history/status-M01.md`.
-3. Adds `M01` to `docs/history/index.md`, removes its active status file,
+   task notes and closure evidence, in `tabilet/docs/history/status-M01.md`.
+3. Adds `M01` to `tabilet/docs/history/index.md`, removes its active status file,
    specification, and index row, and leaves one history-index link in
    `milestone.md`. It repairs maintained links, including the evidence behind
    the lesson and `M02`'s dependency on `M01`.
@@ -718,7 +718,7 @@ bounds with both narrower and wider maps.” Suppose a later milestone introduce
 resizing and replaces that guidance with a resize-aware test matrix. Before
 replacing it, the agent appends the old wording, its source heading and evidence,
 the reason it is obsolete, and its replacement reference to
-`docs/history/knowledge.md`. The history index links that journal. The revised
+`tabilet/docs/history/knowledge.md`. The history index links that journal. The revised
 lesson stays in `lessons.md`; unrelated useful lessons stay there too. This
 preservation happens whenever knowledge is materially superseded, even outside
 milestone closure. A typo correction needs no journal entry.

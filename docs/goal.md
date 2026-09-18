@@ -1,6 +1,6 @@
 # Goal
 
-Execute or resume ordered memory-bank milestones using the project's `GOAL.md`
+Execute or resume ordered memory-bank milestones using the project's `tabilet/GOAL.md`
 protocol.
 
 Send one of these in a session for your project, replacing the IDs with your
@@ -27,20 +27,20 @@ execution order.
 When several milestones should run in a defined order, rather than one task at
 a time.
 
-When no order is supplied, the skill checks `memory-bank/suggested.txt` against
+When no order is supplied, the skill checks `tabilet/memory-bank/suggested.txt` against
 the current milestone and status files. It prefers a valid suggested order or
 derives one from `milestone.md`, then shows the complete request for confirmation.
-It asks you when the order is ambiguous. A missing `GOAL.md` stops this workflow;
+It asks you when the order is ambiguous. A missing `tabilet/GOAL.md` stops this workflow;
 one-task execution remains available through [Next](next.md).
 
 ## GOAL.md is offered, never required
 
-`GOAL.md` is one optional protocol. It is invoked, not ambient: whatever your
+`tabilet/GOAL.md` is one optional protocol. It is invoked, not ambient: whatever your
 agent, the request that starts a run names the file, the order, and the commit
 policy.
 
 ```text
-Using GOAL.md, execute this loop.
+Using tabilet/GOAL.md, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
@@ -55,7 +55,7 @@ paths, lane letters, or commands — it reads those from `AGENTS.md` and the
 memory bank — so the same file works unchanged in any project that copies it.
 
 The same project files also work with another protocol or one-task execution.
-The `memory-bank-goal` skill specifically requires `GOAL.md`; adopting that
+The `memory-bank-goal` skill specifically requires `tabilet/GOAL.md`; adopting that
 protocol remains optional for the project.
 
 ## COMMIT_POLICY is the one that matters
@@ -67,19 +67,19 @@ protocol remains optional for the project.
     That is correct behavior, not a conflict.
 
 Write `task` when you want the usual per-row commits, or `none` when you want
-the changes left uncommitted. The request takes precedence over `GOAL.md`, which
+the changes left uncommitted. The request takes precedence over `tabilet/GOAL.md`, which
 takes precedence over `AGENTS.md`. The commit-policy exception lasts only for
 the run; other applicable project rules still govern.
 
 ## Built-in `/goal` is a different thing
 
 An agent's native goal feature can keep an objective active across turns. It
-does not replace this project's protocol or implicitly select `GOAL.md`.
+does not replace this project's protocol or implicitly select `tabilet/GOAL.md`.
 When using native `/goal` continuation for this workflow, name the protocol,
 commit policy, and measurable completion condition explicitly:
 
 ```text
-/goal Using GOAL.md, reconcile memory-bank/suggested.txt against the current
+/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current
 memory bank, then execute the resolved loop. COMMIT_POLICY: task.
 EXTERNAL_MUTATIONS: none.
 Completion condition: every required status is complete, every triggered conditional

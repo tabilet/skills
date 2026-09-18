@@ -16,7 +16,7 @@ records. Keep product facts in `product.md`, system contracts in
 
 Merge duplicates. Before materially replacing or removing an obsolete lesson,
 append its previous wording, source, reason, and replacement reference to
-`docs/history/knowledge.md` under the retirement rules in
+`tabilet/docs/history/knowledge.md` under the retirement rules in
 [milestone.md](milestone.md#long-term-memory-and-retirement). Preserve the
 evidence links when merging lessons. Revalidate historical evidence before
 applying it to current work. Knowledge preservation is triggered by material

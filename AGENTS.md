@@ -38,7 +38,7 @@ the file:
 | Path | Role |
 |---|---|
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
-| `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/GOAL.md` are byte-identical. |
+| `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/tabilet/GOAL.md` are byte-identical. |
 | `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
 | `skills/` | The seven optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
@@ -49,12 +49,13 @@ Two consequences that matter constantly:
 
 - **`[bracketed placeholders]` in `template/` are the deliverable, not TODOs.**
   Do not "complete" them with content about this repository unless asked.
-- **`template/memory-bank/` is not this repository's project state.** The
+- **`template/tabilet/memory-bank/` is not this repository's project state.** The
   workflow it describes ("tackle next pending item in memory bank") is for
   downstream projects.
 
-Two executable files: `harness/tackle-memory-bank-api-loop`, which is payload,
-and `check.py`, which verifies this repository and is not.
+Two Python payload commands: `harness/tackle-memory-bank-api-loop` and
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`. `check.py` verifies this
+repository and is not payload.
 
 ## Boundaries
 
@@ -85,7 +86,7 @@ is only worth anything if additions are argued against something:
   generated plan folders that accumulate with the project.
 - **No memory bank for this repository itself.** `skills` is the generator that
   gives birth to other projects' harnesses; it is not an instance of its own
-  output. A root `memory-bank/` beside `template/memory-bank/` would force every
+  output. A root `tabilet/memory-bank/` beside `template/tabilet/memory-bank/` would force every
   reader and agent to disambiguate two of them for no gain. The workflow is
   proven in the projects that copied it, not here.
 
@@ -152,34 +153,34 @@ the whole point of the design:
 | Layer | Role |
 |---|---|
 | `AGENTS.md` | Short bootstrap pointer; read first by agents. Names commands, boundaries, hard rules. |
-| `memory-bank/` | Active truth: product, architecture, stack, curated `lessons.md`, active milestone specifications and status files. |
-| `evolution/` | Versioned direction snapshots (`prompt-vN.md` / `result-vN.md`). New version only on a real direction, boundary, milestone, or contract change. |
+| `tabilet/memory-bank/` | Active truth: product, architecture, stack, curated `lessons.md`, active milestone specifications and status files. |
+| `tabilet/evolution/` | Versioned direction snapshots (`prompt-vN.md` / `result-vN.md`). New version only on a real direction, boundary, milestone, or contract change. |
 | `docs/` | Long-form reference, optional frozen context baselines, and on-demand retired milestone/knowledge history. `README.md` stays short and user-facing. |
 
 ### Archive ID lanes
 
 Archive files are optional facts-only snapshots for large existing packages,
-named `docs/archive-<LANE><NN>.md`. Their one-letter lanes classify stable
+named `tabilet/docs/archive-<LANE><NN>.md`. Their one-letter lanes classify stable
 product-domain or ownership contexts and are independent from status lanes.
 Within an archive lane, the two-digit number is snapshot chronology. Verified
 archives are frozen at their recorded full Git commit; a material high-level
 change gets the next unused successor ID rather than rewriting history.
 
-`memory-bank/architecture.md` owns the archive lane registry and archive index.
-`memory-bank/product.md` and `memory-bank/architecture.md` remain current after
+`tabilet/memory-bank/architecture.md` owns the archive lane registry and archive index.
+`tabilet/memory-bank/product.md` and `tabilet/memory-bank/architecture.md` remain current after
 an archive freezes. Archive IDs never appear in milestone indexes, status files,
 or goal orders, and the API harness ignores them because it globs only
-`memory-bank/status-<LANE><NN>.md`.
+`tabilet/memory-bank/status-<LANE><NN>.md`.
 
 ### Status ID lanes
 
-Status files are `memory-bank/status-<LANE><NN>.md`: one uppercase letter
+Status files are `tabilet/memory-bank/status-<LANE><NN>.md`: one uppercase letter
 classifying the domain, then a zero-padded two-digit number. `A01`/`A02` for
 accounting, `S01` for shopping, `M` as the default lane for anything that
 doesn't classify. A lane holds at most 99 files — when it fills, open a new
 letter rather than a third digit. IDs are never reused or renamed once their
 file exists, and there is no aggregate `status.md`. The pattern, the lane
-meanings, and the index table live in `template/memory-bank/milestone.md`.
+meanings, and the index table live in `template/tabilet/memory-bank/milestone.md`.
 
 This shape is load-bearing for the harness, not just convention: lane files are
 found by glob and rows are parsed out of markdown tables. Real deployments run
@@ -189,9 +190,9 @@ found by glob and rows are parsed out of markdown tables. Real deployments run
 
 `lessons.md` holds curated applicable learning with evidence, alongside current
 product, architecture, and stack facts. Superseded knowledge is preserved in
-the append-only `docs/history/knowledge.md` journal. After review, consolidation,
+the append-only `tabilet/docs/history/knowledge.md` journal. After review, consolidation,
 and downstream reconciliation, the closing workflow retires a milestone's full
-specification and status into `docs/history/status-<LANE><NN>.md`. The history
+specification and status into `tabilet/docs/history/status-<LANE><NN>.md`. The history
 index owns retired IDs; active `milestone.md` retains only active specifications
 and index rows, with one history-index link. Retired records are frozen, IDs
 remain reserved across both locations, and history is consulted on demand.
@@ -259,10 +260,17 @@ language-suffixed copies. `README.md` is English-only too.
 ## Hard Rules
 
 - Keep the harness dependency-free: Python standard library only.
+- v2 project-owned files live under `tabilet/`; only `AGENTS.md` stays at the
+  project root. Installing v2 never migrates v1.5.0 projects. The Upgrade
+  bundle's migration CLI previews by default, requires a committed clean Git
+  baseline for `--apply`, validates any `--resume` journal, and leaves its diff
+  uncommitted. Skills and the API runner stop on legacy or mixed layouts before
+  writes or model calls. Frozen records keep their bytes and old source-path
+  metadata remains valid historical provenance.
 - `EMBEDDED_TASK` in `harness/tackle-memory-bank-api-loop` and
   `harness/prompts/tackle-next-memory-bank-todo.md` say the same thing. Change
   both together.
-- `GOAL.md` and `template/GOAL.md` are byte-identical, and stay identical to the
+- `GOAL.md` and `template/tabilet/GOAL.md` are byte-identical, and stay identical to the
   copy any other project carries — it is a portable protocol, not a per-project
   file. Change both together, and do not add project-specific paths, lane names,
   or commands to either.
@@ -290,7 +298,7 @@ language-suffixed copies. `README.md` is English-only too.
   reader's agent, not to this harness, and the memory bank must work with a
   different goal protocol or none at all. Do not route a built-in goal through
   `GOAL.md` unless its objective names the file.
-- `memory-bank/suggested.txt` is project-specific, disposable launch input
+- `tabilet/memory-bank/suggested.txt` is project-specific, disposable launch input
   generated by `memory-bank-init` or refreshed by `memory-bank-reconcile`, not
   active truth. Do not ship a static copy in `template/`, add it to `AGENTS.md`'s
   required read order, or let `memory-bank-goal` use it without reconciling it
@@ -312,7 +320,7 @@ language-suffixed copies. `README.md` is English-only too.
   thresholds, require archives for small packages, or treat a partial archive
   seed as an initialized milestone/status harness.
 - `memory-bank-archive` writes facts, not plans. It requires a clean Git `HEAD`
-  when Git exists, uses `docs/archive-<LANE><NN>.md`, keeps archive lanes
+  when Git exists, uses `tabilet/docs/archive-<LANE><NN>.md`, keeps archive lanes
   independent from status lanes, and creates a successor only for a material
   high-level change. A verified archive is frozen; later code updates current
   `product.md` and `architecture.md` plus status history, never the archive.
@@ -340,13 +348,13 @@ language-suffixed copies. `README.md` is English-only too.
   show the exact URL and obtain a separate explicit confirmation, including when
   the request supplied that URL; discovered and embedded URLs do not authorize a
   fetch.
-- `memory-bank/product.md` owns the maintained domain model: canonical product
+- `tabilet/memory-bank/product.md` owns the maintained domain model: canonical product
   and business terminology, concept relationships, and invariants. Keep
   implementation details in `architecture.md`; do not create an overlapping
-  `memory-bank/context.md`.
-- Keep `memory-bank/lessons.md` curated and evidence-linked. Before materially
+  `tabilet/memory-bank/context.md`.
+- Keep `tabilet/memory-bank/lessons.md` curated and evidence-linked. Before materially
   superseding knowledge, preserve its old wording, source, reason, and
-  replacement in `docs/history/knowledge.md`; do not journal every edit.
+  replacement in `tabilet/docs/history/knowledge.md`; do not journal every edit.
 - After adoption, retire milestones only after the bounded review gate,
   verification, consolidation, and downstream reconciliation pass. Preserve
   complete specification and status documents in frozen retired records,
@@ -362,7 +370,7 @@ language-suffixed copies. `README.md` is English-only too.
   named by its corresponding article; do not accumulate orphaned publishing
   images.
 - Status files are named `status-<LANE><NN>.md`. The pattern is defined in
-  [template/memory-bank/milestone.md](template/memory-bank/milestone.md); the
+  [template/tabilet/memory-bank/milestone.md](template/tabilet/memory-bank/milestone.md); the
   harness discovers lane files by that shape, so the two must agree. Placeholder
   references use the same zero-padded form (`M01`, never `M1`).
 - Across the active status ledger, zero or one general row may be `[~]`. Resume

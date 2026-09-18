@@ -51,7 +51,7 @@ order. It may also provide project-context paths, a status-file map, downstream
 impacts, and execution policies:
 
 ```text
-Using GOAL.md, execute this loop.
+Using tabilet/GOAL.md, execute this loop.
 
 PROJECT_CONTEXT:
 - AGENTS.md

@@ -21,11 +21,11 @@ are known or expected.
 ## Where It Fits
 
 - `AGENTS.md` lists the essential harness commands agents should run.
-- `memory-bank/tech-stack.md` records prerequisites, environment variables,
+- `tabilet/memory-bank/tech-stack.md` records prerequisites, environment variables,
   Docker images, ports, and command names.
 - `docs/` holds long-form setup, teardown, and troubleshooting notes.
-- `memory-bank/milestone.md` can make a harness pass part of acceptance.
-- The matching `memory-bank/status-<LANE><NN>.md` file records whether
+- `tabilet/memory-bank/milestone.md` can make a harness pass part of acceptance.
+- The matching `tabilet/memory-bank/status-<LANE><NN>.md` file records whether
   harness-related rows are pending, in progress, complete, blocked, cancelled,
   or closed historical evidence.
 
@@ -40,7 +40,7 @@ It:
   API when `LLM_PROVIDER=anthropic`,
 - embeds the memory-bank task instruction directly in the API call,
 - gives the model a shell command protocol,
-- discovers every `memory-bank/status-<LANE><NN>.md` lane file and reports each
+- discovers every `tabilet/memory-bank/status-<LANE><NN>.md` lane file and reports each
   lane's actionable, in-progress, blocked, and closed-historical row counts to
   the model,
 - resumes the sole `[~]` in-progress row when one exists and stops before the
@@ -72,10 +72,10 @@ alone neither adopts these rules nor upgrades a separately installed API runner.
 
 The agent retains current facts and useful learning in the memory bank, including
 `lessons.md`, and moves the complete milestone specification and status to
-`docs/history/status-<LANE><NN>.md`. It adds the record to the history index and
+`tabilet/docs/history/status-<LANE><NN>.md`. It adds the record to the history index and
 removes the active status file, specification, and index row. Before materially
 superseding current knowledge, it preserves the previous wording and its
-provenance and replacement in `docs/history/knowledge.md`, even when no
+provenance and replacement in `tabilet/docs/history/knowledge.md`, even when no
 milestone is closing. Routine wording edits need no journal entry.
 
 The runner rejects malformed task markers, empty/unreadable active status files,
@@ -217,7 +217,7 @@ For each execution harness, record:
 - CI job name,
 - known limitations or blocked rows.
 
-The active command list belongs in `memory-bank/tech-stack.md`. Longer
+The active command list belongs in `tabilet/memory-bank/tech-stack.md`. Longer
 operational details belong in `docs/`.
 
 ## Skill instruction loading

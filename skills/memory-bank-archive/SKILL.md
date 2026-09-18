@@ -7,6 +7,13 @@ argument-hint: (no arguments)
 
 # Archive A Large Existing Package
 
+Before reading project state for this workflow, inspect the root layout. If
+`GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
+`docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
+project writes or execution. Direct the user to preview and explicitly apply
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
+Installing v2 never migrates a project automatically.
+
 Map one coherent product, ownership, and verification boundary breadth-first.
 Produce repository facts, not a roadmap: archive files never contain executable
 task state and never enter a status or goal order.
@@ -47,9 +54,9 @@ continue only after the user accepts that weaker provenance.
 
 A partial archive run may be resumed only when `HEAD` still equals its recorded
 baseline and every worktree change is a declared output of that archive run:
-`docs/archive-<LANE><NN>.md`, `memory-bank/product.md`, or
-`memory-bank/architecture.md`, and approved additions to
-`docs/history/knowledge.md` and its index link. Stop on any source change or
+`tabilet/docs/archive-<LANE><NN>.md`, `tabilet/memory-bank/product.md`, or
+`tabilet/memory-bank/architecture.md`, and approved additions to
+`tabilet/docs/history/knowledge.md` and its index link. Stop on any source change or
 unrelated file.
 
 ### Build the context map
@@ -62,7 +69,7 @@ to establish applicable high-level facts.
 Archive lanes are independent from status lanes. Use `M` for a cross-cutting or
 unclassified context. Open another single-letter lane only for a durable context,
 choose an unused mnemonic letter, and record its meaning in
-`memory-bank/architecture.md`. A lane has its own chronological archive sequence
+`tabilet/memory-bank/architecture.md`. A lane has its own chronological archive sequence
 from `01` through `99`.
 
 For each context, collect evidence for:
@@ -100,8 +107,8 @@ Present, without writing:
 3. Every context's scope, coverage, evidence roots, and proposed archive path.
 4. Existing archives that remain current, and materially changed contexts that
    need the next unused successor ID.
-5. The facts to create or refresh in `memory-bank/product.md` and
-   `memory-bank/architecture.md`.
+5. The facts to create or refresh in `tabilet/memory-bank/product.md` and
+   `tabilet/memory-bank/architecture.md`.
 6. Every file action: create, merge, preserve, or omit.
 
 When refreshing existing summaries, include preservation of materially

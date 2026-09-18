@@ -1,17 +1,24 @@
 ---
 name: memory-bank-goal
-description: Execute or resume ordered memory-bank milestones using the project's GOAL.md protocol.
+description: Execute or resume ordered memory-bank milestones using the project's tabilet/GOAL.md protocol.
 disable-model-invocation: false
 argument-hint: M01 -> S01 -> A01?
 ---
 
 # Run An Ordered Set Of Milestones
 
-Read the project's `GOAL.md` and follow it. That protocol owns sequencing,
+Before reading project state for this workflow, inspect the root layout. If
+`GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
+`docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
+project writes or execution. Direct the user to preview and explicitly apply
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
+Installing v2 never migrates a project automatically.
+
+Read the project's `tabilet/GOAL.md` and follow it. That protocol owns sequencing,
 verification, review, reconciliation, closure, and commit policy. This skill
 resolves the launch request; it does not define a second execution loop.
 
-If `GOAL.md` is missing, stop ordered execution. It ships beside the
+If `tabilet/GOAL.md` is missing, stop ordered execution. It ships beside the
 `memory-bank-init` skill and at <https://github.com/tabilet/skills/blob/main/GOAL.md>.
 Offer one-row work or a user-supplied protocol without starting either workflow.
 
@@ -19,7 +26,7 @@ Offer one-row work or a user-supplied protocol without starting either workflow.
 
 Read explicit order and policies from the invoking request itself, without
 runtime argument substitution. Explicit milestone order in the invoking request replaces
-`memory-bank/suggested.txt`'s `STATUS_ORDER`. The suggestion is disposable input,
+`tabilet/memory-bank/suggested.txt`'s `STATUS_ORDER`. The suggestion is disposable input,
 not a source of truth. Reuse its file map and downstream impacts only where the
 request has not supplied them, after checking every ID, path, dependency,
 conditional trigger, and impact against the current memory bank and implementation.
@@ -33,7 +40,7 @@ Materialize the complete resolved request in the conversation so execution does
 not depend on the disposable file remaining on disk:
 
 ```text
-Using GOAL.md, execute this loop.
+Using tabilet/GOAL.md, execute this loop.
 
 STATUS_ORDER: <resolved order>
 
@@ -57,7 +64,7 @@ commits for the whole run: `none` means no commits; `task` means per-row commits
 Use the protocol's request precedence and other policy definitions.
 
 When no order was supplied, prefer a valid suggested order, otherwise derive one
-from `memory-bank/milestone.md`. Show the complete resolved request and obtain
+from `tabilet/memory-bank/milestone.md`. Show the complete resolved request and obtain
 confirmation before starting. Ask for an order if none is unambiguous.
 A trailing `?` marks a conditional milestone: when its documented trigger is
 absent, skip it without completing or cancelling it.
@@ -75,7 +82,7 @@ run, report unresolved questions and incomplete work.
 
 Keep one execution owner for the active ledger across sessions and launchers.
 Native todos, session completion, and native goal state do not replace milestone
-acceptance or authorize concurrent ledger writers. Follow `GOAL.md` through
+acceptance or authorize concurrent ledger writers. Follow `tabilet/GOAL.md` through
 acceptance or its defined stop. Resume an incomplete review or closure even
 when all task rows are terminal. Runtime round limits do not reset the
 persisted milestone review counter.
