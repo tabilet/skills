@@ -14,7 +14,7 @@ request preparation. Both use the same project files; there is no second ledger.
 
 ## Install the DSH companion
 
-The companion's v1.5.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
+The companion's v2.0.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
 with a locked dependency graph. An isolated rc.1 launcher with rc.2 components
 is a separate acceptance target. The all-rc.1 tests and v1.3.0 live evidence in
 this guide remain scoped to their original configuration.
@@ -27,7 +27,7 @@ in each profile where it is wanted. For Web:
 
 ```bash
 dsh plugin --profile web add \
-  https://github.com/tabilet/tabilet-skills/releases/download/v1.5.0/tabilet-skills-1.5.0.tgz \
+  https://github.com/tabilet/tabilet-skills/releases/download/v2.0.0/tabilet-skills-2.0.0.tgz \
   --ignore-scripts
 ```
 
@@ -51,7 +51,7 @@ counters remain separate from task-marker counts; terminal rows do not prove
 milestone acceptance. Documents render as literal text without active HTML or
 automatic external resources.
 
-The v1.5.0 shortcuts preview requests for seven skills. Propose has one
+The v2.0.0 shortcuts preview requests for seven skills. Propose has one
 required multiline change field. Goal
 requires explicit milestone
 order, completion conditions, and commit policy; its visible default is `task`
@@ -60,6 +60,8 @@ or URL as request text and preserves its separate remote-fetch confirmation.
 Insertion requires the same session and unchanged empty plain-text draft with
 no attachments; otherwise the user can copy the preview. The user sends normally.
 No button submits, approves, edits status, or starts another ledger writer.
+The v2 sidebar displays v1.5.0 projects read-only with a migration warning;
+workflow previews are offered after explicit migration.
 
 The bundle's filesystem provider has default-root discovery disabled and runs at
 bundled priority. Project/user overrides retain their normal precedence. The
@@ -82,7 +84,7 @@ for the observed results and remaining limitations. SDK, ACP, minimal profiles,
 other platforms, and older releases are not certified here.
 
 DSH integration is included in **memory-bank v1.3.0**. Use a v1.3.0-or-newer
-checkout containing this guide. Use the v1.5.0 tag for a reproducible seven-skill
+checkout containing this guide. Use the v2.0.0 tag for a reproducible seven-skill
 installation. See the [release notes](RELEASE_NOTES.md) for upgrade
 guidance and the [project-upgrade procedure](../README.md#upgrade-an-existing-project).
 Updating installed skills does not migrate existing `AGENTS.md`,
@@ -108,7 +110,7 @@ DSH does not consume this repository's plugin manifest.
 
 ## Install the seven bundles
 
-These source-checkout commands target the v1.5.0 tree with seven skills.
+These source-checkout commands target the v2.0.0 tree with seven skills.
 
 The primary destination is `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`.
 Set `MEMORY_BANK_CHECKOUT` to the absolute release checkout path. Run the
@@ -149,6 +151,7 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
     fi
     if test "$bundle" = memory-bank-upgrade; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/migrate-v1.5-to-v2.py"
       for resource in AGENTS.md tabilet/GOAL.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/assets/template/$resource"
       done
@@ -250,6 +253,7 @@ bundles are backed up before any replacement is copied.
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
     fi
     if test "$bundle" = memory-bank-upgrade; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/migrate-v1.5-to-v2.py"
       for resource in AGENTS.md tabilet/GOAL.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/assets/template/$resource"
       done
