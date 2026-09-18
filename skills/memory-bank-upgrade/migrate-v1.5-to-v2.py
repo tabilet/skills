@@ -126,8 +126,7 @@ def rewrite(data):
     for before, after in REPLACEMENTS:
         text = re.sub(r"(?<!tabilet/)" + re.escape(before), after, text)
     text = re.sub(r"\x00(\d+)\x00", lambda m: protected[int(m.group(1))], text)
-    if "[GOAL.md](GOAL.md)" in text:
-        text = text.replace("[GOAL.md](GOAL.md)", "[tabilet/GOAL.md](tabilet/GOAL.md)")
+    text = re.sub(r"\]\((?:\./)?GOAL\.md(?=[#\s)])", "](tabilet/GOAL.md", text)
     return text.encode("utf-8")
 
 
@@ -159,7 +158,9 @@ def plan(project, head):
         ops.append({"src": src, "dst": dst, "before": digest(data), "after": digest(new),
                     "content": base64.b64encode(new).decode("ascii") if new != data else None})
     data = (project / "AGENTS.md").read_bytes()
-    new = rewrite(data).replace(b"`GOAL.md`", b"`tabilet/GOAL.md`")
+    new = rewrite(data)
+    new = new.replace(b"(./GOAL.md)", b"(tabilet/GOAL.md)")
+    new = re.sub(rb"(?<![A-Za-z0-9_./-])GOAL\.md", b"tabilet/GOAL.md", new)
     if new != data:
         ops.append({"src": "AGENTS.md", "dst": "AGENTS.md", "before": digest(data),
                     "after": digest(new), "content": base64.b64encode(new).decode("ascii")})

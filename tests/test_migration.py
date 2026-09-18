@@ -30,7 +30,8 @@ def fixture(repo, *, goal=True, retired=False, archive=False, customized=False):
     repo.mkdir()
     (repo / "AGENTS.md").write_text(
         "# Local rules\n\nRead [milestones](memory-bank/milestone.md). "
-        "Local policy: keep custom approval.\n"
+        + ("Use [our goal](./GOAL.md) if present. " if goal else "")
+        + "Local policy: keep custom approval.\n"
     )
     bank = repo / "memory-bank"
     bank.mkdir()
@@ -82,6 +83,7 @@ class MigrationTests(unittest.TestCase):
             for old, sha in protected.items():
                 self.assertEqual(hashlib.sha256((repo / "tabilet" / old).read_bytes()).hexdigest(), sha)
             self.assertIn("tabilet/memory-bank/milestone.md", (repo / "AGENTS.md").read_text())
+            self.assertIn("[our goal](tabilet/GOAL.md)", (repo / "AGENTS.md").read_text())
             self.assertIn("Local policy: keep custom approval.", (repo / "AGENTS.md").read_text())
             self.assertIn("tabilet/GOAL.md", (repo / "tabilet/memory-bank/suggested.txt").read_text())
             self.assertIn("README.md", result.stdout)
