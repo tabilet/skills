@@ -85,6 +85,21 @@ def markdown_files() -> list[pathlib.Path]:
     )
 
 
+def site_pages(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
+    """Return the guides published to the documentation website.
+
+    mkdocs.yml's exclude_docs publishes only these, so they are the public
+    surface the site presents. They carry install commands, invocation
+    prefixes, and model examples that go stale exactly like README.md's.
+    """
+
+    names = (
+        "index", "installation", "examples",
+        "archive", "init", "reconcile", "next", "goal", "upgrade",
+    )
+    return [root / "docs" / f"{name}.md" for name in names]
+
+
 def medium_articles(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
     """Return every Medium article that is part of the public interface."""
 
@@ -1217,6 +1232,7 @@ def public_interfaces():
     public = (
         readmes
         + [ROOT / "docs" / "TUTORIAL.md", ROOT / "docs" / "USE_CASES.md", *medium_articles()]
+        + site_pages()
         + sorted(SKILLS_DIR.glob("*/SKILL.md"))
     )
 

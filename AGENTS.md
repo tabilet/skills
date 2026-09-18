@@ -9,6 +9,14 @@ This is the single source of truth for every agent. Tools that read a different
 filename should bridge to this file rather than duplicate it — see
 [Wiring up your agent](README.md#wiring-up-your-agent).
 
+This repository bridges itself the same way it asks users to. Claude Code reads
+`CLAUDE.md` and not `AGENTS.md`, so `./CLAUDE.md` is a one-line `@AGENTS.md`
+import and holds no instructions of its own. Deleting it would stop Claude Code
+loading these rules here; changing it into a second copy would create a place for
+them to drift. Anything true of the repository belongs in this file. Put
+Claude-Code-specific instructions in `CLAUDE.md` below the import, if any ever
+arise.
+
 [GOAL.md](GOAL.md) is one optional protocol for goal requests that span
 multiple status files. Follow it when a request names it. A request that names a
 different protocol, or none, does not use it.
