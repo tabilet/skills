@@ -1,0 +1,51 @@
+name: Deploy docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - docs_hooks.py
+      - .github/workflows/deploy-docs.yml
+  pull_request:
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - docs_hooks.py
+      - .github/workflows/deploy-docs.yml
+
+concurrency:
+  group: deploy-docs
+  cancel-in-progress: true
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python -m pip install -r docs/requirements.txt
+      # Strict fails on any link MkDocs cannot resolve, including an out-of-tree
+      # link that docs_hooks.py does not yet rewrite. check.py cannot see these:
+      # it validates links as repository paths, not as site paths.
+      - run: mkdocs build --strict
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python -m pip install -r docs/requirements.txt
+      - run: mkdocs gh-deploy --force --strict

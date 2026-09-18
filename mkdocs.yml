@@ -1,0 +1,58 @@
+site_name: Memory Bank
+site_description: A minimal engineering harness — plain Markdown project memory and six portable skills for coding agents
+site_url: https://tabilet.github.io/skills/
+repo_url: https://github.com/tabilet/skills
+repo_name: tabilet/skills
+docs_dir: docs
+# Publish only the website guides. Repository references and publishing drafts
+# stay out of generated pages, search results, and the sitemap.
+exclude_docs: |
+  *.md
+  !/index.md
+  !/installation.md
+  !/examples.md
+  !/init.md
+  !/next.md
+  !/goal.md
+  !/reconcile.md
+  !/upgrade.md
+  !/archive.md
+  /medium*.png
+  /requirements.txt
+  /assets/*.prompt.txt
+hooks:
+  - docs_hooks.py
+copyright: '© 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>'
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: deep orange
+      accent: deep orange
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Get started:
+    - Installation: installation.md
+    - Choose a workflow: examples.md
+  - Skills:
+    - Init: init.md
+    - Next: next.md
+    - Goal: goal.md
+    - Reconcile: reconcile.md
+    - Upgrade: upgrade.md
+    - Archive: archive.md

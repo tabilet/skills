@@ -2,3 +2,9 @@ medium-legacy.md
 
 # Repository-only locked DSH compatibility dependencies.
 tests/dsh/node_modules/
+
+# MkDocs imports docs_hooks.py and renders into site/. Neither belongs in
+# the tree: stray bytecode fails check.py, and an untracked site/ makes
+# git_clean() report a dirty worktree, which stops a harness run at exit 4.
+__pycache__/
+site/
