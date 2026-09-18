@@ -33,6 +33,8 @@ After reviewing the diff and project checks, commit it under your project's
 normal policy. If workflow rules also need updating, use Upgrade below as a
 separate approved merge.
 
+## Upgrade workflow rules
+
 Upgrade an existing memory bank's workflow rules through approved merges,
 preserving project plans, local policies, and history.
 
