@@ -22,6 +22,8 @@ exclude_docs: |
   /assets/*.prompt.txt
 hooks:
   - docs_hooks.py
+extra_css:
+  - assets/stylesheets/theme.css
 copyright: '© 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>'
 
 theme:
@@ -33,9 +35,18 @@ theme:
     - search.highlight
     - content.code.copy
   palette:
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
     - scheme: default
-      primary: deep orange
-      accent: deep orange
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
 
 markdown_extensions:
   - admonition

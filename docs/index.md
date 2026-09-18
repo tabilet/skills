@@ -1,6 +1,6 @@
 # Memory Bank
 
-<p align="center">
+<p class="memory-bank-hero" align="center">
   <a href="assets/memory-bank-infographic.png" title="Open the full-size Memory Bank infographic">
     <img src="assets/memory-bank-infographic.png" alt="Memory Bank: plain Markdown project memory supports verified work and preserved history. Six shared skills: Archive, Init, Reconcile, Next, Goal, and Upgrade." width="820" style="max-width: 100%; height: auto;">
   </a>

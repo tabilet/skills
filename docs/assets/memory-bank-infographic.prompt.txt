@@ -1,24 +1,23 @@
-Generated with the built-in image_gen tool.
+Edited with the built-in image_gen tool.
+Edit target: docs/assets/memory-bank-infographic.png from Git commit 9fed8d2.
+Removed the upper masthead, shortened the composition, and replaced the warm palette.
 
-Use case: infographic-diagram.
-Asset type: a finished wide hero infographic for the Memory Bank documentation homepage at tabilet.github.io/skills. Create one original landscape PNG image, approximately 2:1 aspect ratio, ideally 2048 by 1024 or higher, suitable to display at 820 CSS pixels wide. This is a new image, not an edit of the example.
+Use case: precise-object-edit.
+Input image: the provided Memory Bank homepage infographic is the edit target.
+Primary request: remove the ENTIRE upper masthead, including the stacked-document logo, the large "Memory Bank" title, and the "A minimal engineering harness" subtitle. Remove the space they occupied by cropping/recomposing to a substantially shorter, wide banner. Also change the warm orange-and-white palette to a cool developer-editor palette.
+Output: one finished PNG landscape banner, approximately 3:1 aspect ratio, ideally 1920 by 640 pixels. No blank title area. Modest even margins.
 
-Primary request: a polished branded explanatory banner for a minimal engineering harness built around plain Markdown project files and six portable coding-agent skills. The reference page uses a spacious typographic software wordmark above its introduction. Use that clarity and strong visual hierarchy, but make an original Memory Bank composition.
+Preserve the remaining explanatory structure and its meaning: three aligned groups across one row, showing a Markdown document stack, a verified checklist, and a records drawer; two arrows connecting left to right; a subtle dotted retrieval line from history back to project memory; and a compact footer with six equal skill labels. Keep the clean illustrated shapes and legible typography. Keep all three illustrations and their captions; compress only unnecessary space, do not omit content.
+Recolor: flat opaque charcoal/navy background #0d1117, pale cool text #e6edf3, muted slate details #9daec2, blue arrows #58a6ff, teal verification and accent details #3dd9c5. Documents and drawer use cool slate panels and light outlines. No orange, red, yellow, cream, or warm cast. A calm crisp code-editor aesthetic. No decorative glow, gradient background, extra icons, or new words.
 
-Style: crisp editorial information design, precise near-vector illustration, substantial modern sans-serif typography, exceptionally legible English lettering, spacious aligned layout. Opaque white or subtly warm off-white background, charcoal ink and the site's deep orange accent (#ff5722), a few quiet gray details. No checkerboard, no transparency pattern, no photorealism, no gradients or glows, no external logos, no robots or brains, no stock financial bank imagery, no watermarks.
+Text to preserve verbatim, and ONLY this text:
+"Project memory"
+"Plain Markdown files"
+"Verified work"
+"Tasks, milestones, evidence"
+"Preserved history"
+"Lessons and frozen records"
+"Six shared skills"
+"Archive" "Init" "Reconcile" "Next" "Goal" "Upgrade"
 
-Composition: a large confident Memory Bank wordmark and its subtitle in the upper third, with a small original emblem made of stacked document cards connected by three simple round nodes. In the middle and lower area, three generous visual groups form one clear left-to-right story: an open stack of organized Markdown document cards, a small task checklist with a verification check, and a file archive drawer with preserved records. Connect the groups with discreet directional arrows. The history drawer remains visibly connected back to the document group by one subtle dotted retrieval line. This should feel like an explanatory illustration, not a screenshot or a dense architecture chart. Keep the main title by far the largest type; all supporting labels large enough to read at half resolution. Maintain generous margins.
-
-Text, render exactly and only this copy:
-Main title: "Memory Bank"
-Subtitle: "A minimal engineering harness"
-First group heading: "Project memory"
-First group line: "Plain Markdown files"
-Second group heading: "Verified work"
-Second group line: "Tasks, milestones, evidence"
-Third group heading: "Preserved history"
-Third group line: "Lessons and frozen records"
-Footer: "Six shared skills"
-Footer skill names as a clean row of six evenly spaced labels, not an arrow sequence: "Archive" "Init" "Reconcile" "Next" "Goal" "Upgrade"
-
-Constraints: show a single shared set of project records. Preserve the distinction between active project memory, verified task work, and preserved history. The footer skill names are a toolkit, not a mandatory six-step pipeline. Do not invent statistics, version numbers, command syntax, features, badges, approval claims, or extra text. Professional, calm, attractive, immediately readable documentation homepage hero.
+Keep headings bold, captions readable at 820 CSS pixels wide, skills in a single evenly spaced row. Skill names are an unordered toolkit, with no arrows between the six names. Remove the old upper title and subtitle completely; do not move them elsewhere or introduce a replacement title. No logos or watermarks.
