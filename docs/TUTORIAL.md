@@ -50,10 +50,12 @@ across your marketplaces, so `memory-bank@tabilet` is the form to learn.
 namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex skill
 invocation](https://developers.openai.com/plugins/build/skills), Claude Code uses
 `/memory-bank:memory-bank-archive`, `/memory-bank:memory-bank-init`,
-`/memory-bank:memory-bank-reconcile`, `/memory-bank:memory-bank-next`, and
+`/memory-bank:memory-bank-upgrade`, `/memory-bank:memory-bank-reconcile`,
+`/memory-bank:memory-bank-next`, and
 `/memory-bank:memory-bank-goal`. Codex uses
 `$memory-bank:memory-bank-archive`, `$memory-bank:memory-bank-init`,
-`$memory-bank:memory-bank-reconcile`, `$memory-bank:memory-bank-next`, and
+`$memory-bank:memory-bank-upgrade`, `$memory-bank:memory-bank-reconcile`,
+`$memory-bank:memory-bank-next`, and
 `$memory-bank:memory-bank-goal`. Plain English also works in both.
 
 Either agent can also take them as plain files you own instead of a managed
@@ -283,7 +285,7 @@ them without a hundred repeated prompts. That is the gap this tutorial closes,
 and step 6 is where it lands — a blocker-aware ordered run:
 
 ```text
-/memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04
+/memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none.
 ```
 
 It works in dependency order, rewriting later milestones as earlier ones change
@@ -563,14 +565,15 @@ the command just carries the full instruction instead of your paraphrase of it.
 **A whole ordered set**, for a release or a migration with real dependencies:
 
 ```text
-/memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04
-$memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04
+/memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none.
+$memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none.
 ```
 
-That follows [GOAL.md](../GOAL.md): reconcile before each milestone, implement,
-verify, deep-review, then reconcile the milestones downstream of the one that
-just closed. It sends `COMMIT_POLICY: task` for you — worth knowing, because
-`GOAL.md`'s own default is `none`, meaning no commits at all.
+These are alternative requests for Claude Code and Codex. They follow
+[GOAL.md](../GOAL.md) and explicitly select `COMMIT_POLICY: task` for per-row
+commits. Use `COMMIT_POLICY: none` when you want changes left uncommitted; it is
+the protocol's default, so the examples state their policy rather than relying
+on an implicit choice.
 
 The [bounded review-fix gate](../GOAL.md#bounded-review-fix-gate) is not a single
 pass. It advances only after a clean review and stops with the milestone

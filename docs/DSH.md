@@ -3,8 +3,8 @@
 DSH supplies the agent runtime, tools, permissions, and session persistence.
 Memory-bank supplies the project's engineering workflow: approved scope,
 permanent task identities, verification, review, and retained evidence. The same
-six skill bundles and project Markdown work together without a Cordis plugin,
-runtime wrapper, or DSH-specific project files.
+six skill bundles and project Markdown work through the direct filesystem
+installation without a companion plugin or DSH-specific project files.
 
 v1.4.0 adds a separate optional
 [DSH companion](https://github.com/tabilet/tabilet-skills). This repository
@@ -22,13 +22,19 @@ this guide remain scoped to their original configuration.
 Check the companion's
 [acceptance and publication record](https://github.com/tabilet/tabilet-skills/blob/main/docs/ACCEPTANCE.md)
 for artifact identities and the distinct **published**, **catalog submission
-pending**, and **listed** states. After npm publication, install the exact
-package separately in every profile where it is wanted:
+pending**, and **listed** states. Install the published prebuilt GitHub archive
+in each profile where it is wanted. For Web:
 
 ```bash
-dsh plugin --profile web add tabilet-skills@1.4.0 --ignore-scripts
-dsh plugin --profile headless add tabilet-skills@1.4.0 --ignore-scripts
+dsh plugin --profile web add \
+  https://github.com/tabilet/tabilet-skills/releases/download/v1.4.0/tabilet-skills-1.4.0.tgz \
+  --ignore-scripts
 ```
+
+For headless, use the same command with `--profile headless`. The GitHub archive
+does not require an npm account or a marketplace listing. npm publication and
+catalog acceptance are separate release gates; consult the release record
+before using an npm package name or relying on market search.
 
 Restart that profile. Web exposes **Memory Bank** in the native right sidebar;
 headless exposes the six skills without needing the UI. The package ships
@@ -66,10 +72,10 @@ Project records, unrelated configuration, and direct filesystem skills remain.
 
 ## Support boundary
 
-The Stage 1 target is **DSH 0.1.5-rc.1 on Linux with Node 24**, using **Web** for
-interactive work and the **headless** one-shot profile for fully authorized
-requests or safe stopping. Credential-free integration and live workflow
-acceptance are separate gates; see [acceptance evidence](#acceptance-evidence)
+The direct filesystem route was verified against **DSH 0.1.5-rc.1 on Linux with
+Node 24**, using **Web** for interactive work and the **headless** one-shot
+profile for fully authorized requests or safe stopping. Credential-free
+integration and live workflow acceptance are separate gates; see [acceptance evidence](#acceptance-evidence)
 for the observed results and remaining limitations. SDK, ACP, minimal profiles,
 other platforms, and older releases are not certified here.
 
