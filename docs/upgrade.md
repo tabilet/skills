@@ -22,7 +22,9 @@ updates maintained instructions and indexes, preserves frozen archives and
 retired records byte-for-byte, and leaves the diff uncommitted for review. It
 reports path references in other project documents for manual review. It also
 supports all-retired projects, archive-only preflights, an absent or customized
-goal protocol, and local policies.
+goal protocol, and local policies. For the unmodified v1.5.0 `GOAL.md`, it
+updates the one path example to the v2 location. A customized `GOAL.md` stays
+byte-for-byte intact and is always flagged for manual path review.
 
 If interrupted, run the same command with `--resume`. It checks a temporary
 journal outside tracked project files, Git `HEAD`, and every planned file hash

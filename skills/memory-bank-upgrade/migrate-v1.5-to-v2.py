@@ -14,6 +14,10 @@ import tempfile
 
 
 OLD_ROOTS = ("GOAL.md", "memory-bank", "evolution", "docs/history")
+STOCK_V15_GOAL_SHA256 = "8e89b16bc6b26554ccc26b0288200074f8956dd672c900eded320f4800d53cd4"
+STOCK_V2_GOAL_SHA256 = "b312ffc76c1727a2fc5403ae7de9ad5f2392cdfb3608ca6263b467bd020847e3"
+STOCK_GOAL_OLD_LINE = b"Using GOAL.md, execute this loop."
+STOCK_GOAL_NEW_LINE = b"Using tabilet/GOAL.md, execute this loop."
 ARCHIVE = re.compile(r"archive-[A-Z](?:0[1-9]|[1-9][0-9])\.md$")
 STATUS = re.compile(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md$")
 MAINTAINED = {
@@ -157,6 +161,20 @@ def rewrite(data):
     return text.encode("utf-8")
 
 
+def migrate_goal(data):
+    if digest(data) != STOCK_V15_GOAL_SHA256:
+        return data
+    updated = data.replace(STOCK_GOAL_OLD_LINE, STOCK_GOAL_NEW_LINE)
+    if digest(updated) != STOCK_V2_GOAL_SHA256:
+        stop("stock v1.5.0 GOAL.md does not produce the expected v2 protocol")
+    return updated
+
+
+def custom_goal(manifest):
+    return any(op["src"] == "GOAL.md" and op["before"] != STOCK_V15_GOAL_SHA256
+               for op in manifest["ops"])
+
+
 def plan(project, head):
     if not (project / "AGENTS.md").is_file() or (project / "AGENTS.md").is_symlink():
         stop("regular root AGENTS.md is required")
@@ -174,7 +192,7 @@ def plan(project, head):
         dst = f"tabilet/{src}"
         if (project / dst).exists() or (project / dst).is_symlink():
             stop(f"destination collision: {dst}")
-        new = rewrite(data) if src in MAINTAINED else data
+        new = migrate_goal(data) if src == "GOAL.md" else rewrite(data) if src in MAINTAINED else data
         ops.append({"src": src, "dst": dst, "before": digest(data), "after": digest(new),
                     "content": base64.b64encode(new).decode("ascii") if new != data else None})
     data = (project / "AGENTS.md").read_bytes()
@@ -293,7 +311,9 @@ def apply(project, manifest):
             continue
         if any(old in text for old, _ in REPLACEMENTS) or "Using GOAL.md" in text:
             stale.append(relative.as_posix())
-    return stale
+    if custom_goal(manifest):
+        stale.append("tabilet/GOAL.md")
+    return sorted(set(stale))
 
 
 def main():
@@ -328,6 +348,8 @@ def main():
         print(f"{len(manifest['ops'])} file operations from committed HEAD {head}")
         for op in manifest["ops"]:
             print(f"  {op['src']} -> {op['dst']}" if op["src"] != op["dst"] else f"  rewrite {op['src']}")
+        if custom_goal(manifest):
+            print("Customized GOAL.md will stay byte-for-byte intact and need manual path review.")
         if not args.apply:
             print("Preview only. Run --apply to migrate; the diff remains uncommitted.")
             return
@@ -336,7 +358,7 @@ def main():
     path.unlink()
     print("Migration complete. Review and commit the project diff when ready.")
     if stale:
-        print("Review stale references in other project documents:")
+        print("Review these files for project-specific path references:")
         for name in stale:
             print(f"  {name}")
 

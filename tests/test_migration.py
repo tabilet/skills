@@ -2,9 +2,11 @@
 
 from pathlib import Path
 import hashlib
+import io
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 
@@ -84,6 +86,56 @@ def fixture(repo, *, goal=True, retired=False, archive=False, customized=False):
 class MigrationTests(unittest.TestCase):
     def migrate(self, repo, *flags, env=None):
         return call(sys.executable, str(CLI), str(repo), *flags, env=env)
+
+    def test_copied_v15_template_migrates_to_v2_goal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "project"
+            repo.mkdir()
+            archive = subprocess.run(
+                ["git", "archive", "--format=tar", "v1.5.0:template"], cwd=ROOT,
+                capture_output=True, check=True,
+            )
+            with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as bundle:
+                for member in bundle:
+                    if member.isfile():
+                        path = repo / member.name
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        with bundle.extractfile(member) as source:
+                            path.write_bytes(source.read())
+            commit(repo)
+            protected = {
+                path.relative_to(repo).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                for parent in (repo / "memory-bank", repo / "evolution")
+                for path in parent.rglob("*") if path.is_file() and
+                (path.name.startswith("status-") or parent.name == "evolution")
+            }
+            preview = self.migrate(repo)
+            self.assertEqual(preview.returncode, 0, preview.stderr)
+            self.assertFalse((repo / "tabilet").exists())
+            result = self.migrate(repo, "--apply")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((repo / "tabilet/GOAL.md").read_bytes(), (ROOT / "GOAL.md").read_bytes())
+            self.assertNotIn("Review these files", result.stdout)
+            for name, sha in protected.items():
+                self.assertEqual(hashlib.sha256((repo / "tabilet" / name).read_bytes()).hexdigest(), sha)
+            self.assertIn("no changes", self.migrate(repo).stdout)
+
+    def test_custom_goal_without_known_stale_text_still_gets_review_notice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "project"
+            fixture(repo)
+            custom = b"# Team execution protocol\n\nRead the project rules first.\n"
+            (repo / "GOAL.md").write_bytes(custom)
+            call("git", "add", "GOAL.md", cwd=repo)
+            result = call("git", "-c", "user.name=Test", "-c", "user.email=test@example.test",
+                          "commit", "-qm", "customize goal", cwd=repo)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            preview = self.migrate(repo)
+            self.assertIn("manual path review", preview.stdout)
+            result = self.migrate(repo, "--apply")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((repo / "tabilet/GOAL.md").read_bytes(), custom)
+            self.assertIn("  tabilet/GOAL.md\n", result.stdout)
 
     def test_ordinary_preview_apply_and_repeat_preserve_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
