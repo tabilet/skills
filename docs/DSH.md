@@ -22,8 +22,8 @@ this guide remain scoped to their original configuration.
 Check the companion's
 [acceptance and publication record](https://github.com/tabilet/tabilet-skills/blob/main/docs/ACCEPTANCE.md)
 for artifact identities and the distinct **published**, **catalog submission
-pending**, and **listed** states. Install the published prebuilt GitHub archive
-in each profile where it is wanted. For Web:
+pending**, and **listed** states. After the v2 release is published, install
+the prebuilt GitHub archive in each profile where it is wanted. For Web:
 
 ```bash
 dsh plugin --profile web add \
