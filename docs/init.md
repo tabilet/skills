@@ -24,7 +24,8 @@ includes a brand-new project, an existing project that has never had one, and an
 existing project after a completed [archive](archive.md) preflight.
 
 An existing `memory-bank/milestone.md` with active status files **or valid indexed
-retired history** is already initialized. Use [reconcile](reconcile.md) for a new
+retired history** is already initialized. Use [Propose](propose.md) for a requested feature or candidate promotion, and
+[Reconcile](reconcile.md) for a new
 review or [upgrade](upgrade.md) to adopt newer workflow rules. Missing or
 inconsistent records need inspection; they are not permission to start over.
 

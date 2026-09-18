@@ -13,6 +13,7 @@ workflow automatically.
 | Broad existing package needing a factual context map | [archive](archive.md) → verified preflight → [init](init.md) → execution |
 | An initialized project with one ready task | [next](next.md) |
 | Several approved milestones to run in order | [goal](goal.md) |
+| An initialized project needs a requested feature or candidate promotion | [propose](propose.md) → approved planning changes → separately requested execution |
 | A new engineering review arrives | [reconcile](reconcile.md) → approved planning changes → separately requested execution |
 | An existing project needs updated workflow rules | [upgrade](upgrade.md) → approved rule merges → separately requested execution |
 | The current milestone becomes ready to close | Its execution workflow performs review and closure, including retirement when the project has adopted that lifecycle. No archive invocation. |

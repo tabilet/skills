@@ -1,5 +1,10 @@
 # AGENTS.md
 
+Requested features, candidate promotions, and future direction changes after
+initialization follow the requested-change procedure in
+[memory-bank/milestone.md](memory-bank/milestone.md). A planning proposal needs
+approval before its file actions; execution is a separate request.
+
 ## Purpose
 
 Bootstrap guide for agents working on `[project-name]`. Keep this file short and

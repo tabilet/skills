@@ -1,3 +1,22 @@
+# memory-bank v1.5.0 (unreleased)
+
+The seventh skill, `memory-bank-propose`, turns a requested feature, candidate
+promotion, or future direction change in an initialized project into approved
+planning updates. It asks only consequential questions, presents one complete
+approval request, and rechecks affected files and permanent IDs before writing.
+It does not implement, commit, retire, or launch execution. Init and Propose
+share focused discovery guidance; Propose and Reconcile share plan-update
+safeguards in byte-identical bundle-local references. The template gains a
+portable requested-change procedure; existing projects adopt it explicitly.
+
+The DSH companion prepares Propose requests from one required multiline field
+using the existing draft guards. Website guidance and the banner include the
+seventh skill. Structural and model-free checks verify packaging and integration,
+not autonomous planning quality. No paid acceptance was run.
+
+v1.5.0 remains local and unpublished. Public installation instructions still
+point to the published v1.4.0 artifacts, which contain six skills.
+
 # memory-bank v1.4.0
 
 v1.4.0 keeps the six canonical skills, project format, and Python harness shared

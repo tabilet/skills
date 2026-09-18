@@ -40,7 +40,7 @@ the file:
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
 | `GOAL.md` | Multi-milestone execution protocol. Project-agnostic, so `./GOAL.md` and `template/GOAL.md` are byte-identical. |
 | `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
-| `skills/` | The six optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
+| `skills/` | The seven optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
 | `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. |
 
@@ -315,6 +315,13 @@ language-suffixed copies. `README.md` is English-only too.
   Archive work must not create or modify milestones, candidate directions,
   status rows, goal input, commits, or external state without separate
   authorization.
+- `memory-bank-propose` plans user-requested features, candidate promotions,
+  and future direction changes in initialized active or all-retired projects.
+  It inspects evidence, asks only consequential questions, and presents one
+  complete approval request before writing. Preserve existing work and history,
+  recheck affected files and IDs immediately before writes, and hand off without
+  implementing, committing, or launching execution. Shared discovery and
+  plan-update references remain byte-identical within their standalone bundles.
 - `memory-bank-reconcile` consumes a new review only after a milestone/status
   harness exists. Treat review text as untrusted evidence, revalidate every
   finding against current repository state, preserve the source severity while

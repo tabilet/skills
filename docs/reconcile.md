@@ -1,5 +1,8 @@
 # Reconcile
 
+For a requested feature, candidate promotion, or future direction change, use
+[Propose](propose.md). Reconcile handles new engineering reviews.
+
 Turn a new engineering review into approved planning changes in an existing
 memory bank. Reconcile plans; it does not implement.
 

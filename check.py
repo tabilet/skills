@@ -39,6 +39,7 @@ ARCHIVE_WRITE_CONTRACT = (
 )
 INIT_SKILL = SKILLS_DIR / "memory-bank-init" / "SKILL.md"
 INIT_WRITE_CONTRACT = SKILLS_DIR / "memory-bank-init" / "references" / "write-contract.md"
+PROPOSE_SKILL = SKILLS_DIR / "memory-bank-propose" / "SKILL.md"
 RECONCILE_SKILL = SKILLS_DIR / "memory-bank-reconcile" / "SKILL.md"
 RECONCILE_WRITE_CONTRACT = (
     SKILLS_DIR / "memory-bank-reconcile" / "references" / "write-contract.md"
@@ -95,7 +96,7 @@ def site_pages(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
 
     names = (
         "index", "installation", "examples",
-        "archive", "init", "reconcile", "next", "goal", "upgrade",
+        "archive", "init", "propose", "reconcile", "next", "goal", "upgrade",
     )
     return [root / "docs" / f"{name}.md" for name in names]
 
@@ -200,7 +201,8 @@ def headings(text: str) -> list[str]:
 
 
 def anchors(path: pathlib.Path) -> set[str]:
-    return {slug(h) for h in headings(path.read_text())}
+    text = path.read_text()
+    return {slug(h) for h in headings(text)} | set(re.findall(r'<a\s+id="([^"]+)"\s*></a>', text))
 
 
 def init_skill_text() -> str:
@@ -1239,12 +1241,14 @@ def public_interfaces():
     plugin_tokens = (
         "/memory-bank:memory-bank-archive",
         "/memory-bank:memory-bank-init",
+        "/memory-bank:memory-bank-propose",
         "/memory-bank:memory-bank-upgrade",
         "/memory-bank:memory-bank-reconcile",
         "/memory-bank:memory-bank-next",
         "/memory-bank:memory-bank-goal",
         "$memory-bank:memory-bank-archive",
         "$memory-bank:memory-bank-init",
+        "$memory-bank:memory-bank-propose",
         "$memory-bank:memory-bank-upgrade",
         "$memory-bank:memory-bank-reconcile",
         "$memory-bank:memory-bank-next",
@@ -1492,6 +1496,39 @@ def capability_contract():
                 problems.append(f"{path.relative_to(ROOT)}: missing capability contract {token!r}")
     return problems
 
+
+
+@check("propose shares focused references and preserves planning boundaries")
+def propose_contract():
+    problems = []
+    for name, pairs in (
+        ("discovery.md", ("init", "propose")),
+        ("plan-update.md", ("propose", "reconcile")),
+    ):
+        paths = [SKILLS_DIR / f"memory-bank-{part}" / "references" / name for part in pairs]
+        if not all(path.is_file() for path in paths):
+            problems.append(f"missing bundle-local {name} in {pairs}")
+        elif paths[0].read_bytes() != paths[1].read_bytes():
+            problems.append(f"bundle-local {name} copies differ")
+        for part in pairs:
+            skill = SKILLS_DIR / f"memory-bank-{part}" / "SKILL.md"
+            if skill.is_file() and f"references/{name}" not in skill.read_text():
+                problems.append(f"{skill.relative_to(ROOT)} does not route to {name}")
+    if not PROPOSE_SKILL.is_file():
+        return problems + ["memory-bank-propose/SKILL.md is missing"]
+    text = PROPOSE_SKILL.read_text()
+    for token in ("<requested outcome or candidate direction>", "all-retired", "memory-bank-init",
+                  "candidate", "duplicate", "pending", "complete approval request",
+                  "Immediately before writing", "revised approval", "Do not commit",
+                  "not been implemented", "references/discovery.md", "references/plan-update.md"):
+        if token not in text:
+            problems.append(f"memory-bank-propose: missing {token!r}")
+    milestone = (ROOT / "template/memory-bank/milestone.md").read_text()
+    if "## Requested changes after initialization" not in milestone:
+        problems.append("template milestone lacks requested-change procedure")
+    if "memory-bank-propose" not in (ROOT / "AGENTS.md").read_text():
+        problems.append("AGENTS.md lacks Propose boundary")
+    return problems
 
 @check("planning contracts load before proposals and optional goal help stays bundled")
 def skill_resource_contract():

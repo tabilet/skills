@@ -5,7 +5,7 @@ You have an idea and an empty directory. No code yet.
 This walkthrough goes from that to an agent implementing your project against a
 memory bank it wrote from interviewing you:
 
-1. Install the six skills, once.
+1. Install the skills, once. The seventh is in unpublished v1.5.0 source.
 2. Make an empty directory.
 3. Run `memory-bank-init` and answer its questions.
 4. Approve the breakdown it proposes.
@@ -27,7 +27,10 @@ illustrative.
 
 The example project uses Node and Python 3; yours needs whatever it needs.
 
-## Step 1 — Install The Six Skills
+## Step 1 — Install The Skills
+
+The examples below describe the seven-skill v1.5.0 source tree. Published
+v1.4.0 installations still have six skills; Propose is not yet available there.
 
 In Claude Code:
 
@@ -50,11 +53,13 @@ across your marketplaces, so `memory-bank@tabilet` is the form to learn.
 namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex skill
 invocation](https://developers.openai.com/plugins/build/skills), Claude Code uses
 `/memory-bank:memory-bank-archive`, `/memory-bank:memory-bank-init`,
-`/memory-bank:memory-bank-upgrade`, `/memory-bank:memory-bank-reconcile`,
+`/memory-bank:memory-bank-upgrade`, `/memory-bank:memory-bank-propose`,
+`/memory-bank:memory-bank-reconcile`,
 `/memory-bank:memory-bank-next`, and
 `/memory-bank:memory-bank-goal`. Codex uses
 `$memory-bank:memory-bank-archive`, `$memory-bank:memory-bank-init`,
-`$memory-bank:memory-bank-upgrade`, `$memory-bank:memory-bank-reconcile`,
+`$memory-bank:memory-bank-upgrade`, `$memory-bank:memory-bank-propose`,
+`$memory-bank:memory-bank-reconcile`,
 `$memory-bank:memory-bank-next`, and
 `$memory-bank:memory-bank-goal`. Plain English also works in both.
 
@@ -77,13 +82,14 @@ Plain-file installs are unnamespaced: `/memory-bank-init` in Claude Code and
 
 For DSH, follow the [DSH route](#dsh-route) below.
 
-You now have six commands, and they are the whole interface:
+A local v1.5.0 checkout has seven commands:
 
 | Skill | When |
 |---|---|
 | `memory-bank-archive` | Before init when a large existing package needs a frozen, commit-anchored context map. New projects skip it. |
 | `memory-bank-init` | Once per project, on the way in. |
 | `memory-bank-upgrade` | After a skill update, to review and adopt new rules in an existing project. |
+| `memory-bank-propose` | When an initialized project needs a feature or candidate promotion. It proposes planning changes for approval. |
 | `memory-bank-reconcile` | Whenever a new review arrives after initialization. Validate it and update the plan without implementing it. |
 | `memory-bank-next` | Execute or resume one row, then verify and commit under the governing policy. |
 | `memory-bank-goal` | Several milestones in a defined order. |
@@ -176,7 +182,7 @@ plugin does not migrate the project; use Upgrade for an explicit proposal.
 
 Use the same `stomper` example with DSH 0.1.5-rc.1 on Linux and Node 24. The
 [DSH guide](DSH.md#acceptance-evidence) distinguishes tested runtime integration
-from live workflow acceptance. Install the six complete bundles from a
+from live workflow acceptance. Install the seven complete bundles from a
 memory-bank v1.3.0-or-newer checkout into `$DSH_HOME/skills` (default
 `~/.dsh/skills`), following its [installation](DSH.md#install-the-six-bundles)
 and [backup/update/removal](DSH.md#update-or-remove) procedures. A shared agents
@@ -185,7 +191,7 @@ and Codex commands above keep their existing forms.
 Use a published release checkout for reproducible installation.
 
 After creating `stomper` in Step 2, run `dsh web` from that directory and confirm
-Web's selected workspace. In a fresh session check that all six skills are
+Web's selected workspace. In a fresh session check that all seven skills are
 discoverable, then use `/memory-bank-init` for Step 3. Answer the same design-tree
 questions and approve the complete milestone and file-action proposal in Step 4.
 Read the generated files in Step 5. Preserve existing project instructions when

@@ -1,7 +1,7 @@
 # Review Reconciliation Write Contract
 
 Read this reference before preparing the reconciliation proposal. Apply its
-writes only after the user approves the complete proposal.
+writes only after the user approves the complete proposal. Read [plan-update.md](plan-update.md) for shared existing-plan safeguards before proposing file actions.
 
 ## Apply safe file actions
 

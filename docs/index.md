@@ -2,7 +2,7 @@
 
 <p class="memory-bank-hero" align="center">
   <a href="assets/memory-bank-infographic.png" title="Open the full-size Memory Bank infographic">
-    <img src="assets/memory-bank-infographic.png" alt="Memory Bank: plain Markdown project memory supports verified work and preserved history. Six shared skills: Archive, Init, Reconcile, Next, Goal, and Upgrade." width="820" style="max-width: 100%; height: auto;">
+    <img src="assets/memory-bank-infographic.png" alt="Memory Bank: plain Markdown project memory supports verified work and preserved history. Seven shared skills: Archive, Init, Propose, Reconcile, Next, Goal, and Upgrade." width="820" style="max-width: 100%; height: auto;">
   </a>
 </p>
 
@@ -12,8 +12,9 @@ project is, what has been done, and what should happen next—even when you star
 a new session or switch agents.
 
 Use the same project files with **Claude Code, Codex, or DeepSeek Harness
-(DSH)**. Six optional skills help create and maintain them. The files stay in
-your repository and remain usable without the skills.
+(DSH)**. Seven optional skills help create and maintain them. The files stay in
+your repository and remain usable without the skills. The seventh skill is part
+of the unpublished v1.5.0 preparation; public installation remains v1.4.0.
 
 [Install the skills](installation.md){ .md-button .md-button--primary }
 [Start your first project](examples.md#a-new-project){ .md-button }
@@ -26,7 +27,9 @@ your repository and remain usable without the skills.
 |---|---|
 | New, or an existing codebase without a memory bank | [Init](init.md) inspects the project, asks about decisions, and proposes a plan. A broad codebase may need [Archive](archive.md) first. |
 | Already has approved tasks | [Next](next.md) handles one task; [Goal](goal.md) handles an explicit milestone order. |
-| Has a new engineering review | [Reconcile](reconcile.md) checks the findings and proposes planning changes. |
+| Has a requested feature or candidate promotion | [Propose](propose.md) inspects the current plan and presents one planning proposal. |
+| Has a new engineering review | [Propose](propose.md) | A requested feature, candidate promotion, or future direction change needs approved planning. |
+| [Reconcile](reconcile.md) checks the findings and proposes planning changes. |
 | Uses an older memory-bank contract | [Upgrade](upgrade.md) proposes rule changes while preserving tasks and history. |
 
 These are entry points, not a sequence every project must follow. See
@@ -59,18 +62,19 @@ for the usual per-task commit workflow. Python is needed only for the optional
 [API runner](installation.md#the-optional-api-harness); your existing agent can work
 with the files directly.
 
-## The six skills
+## The seven skills
 
 | Skill | When you reach for it |
 |---|---|
 | [Archive](archive.md) | A broad existing package needs a commit-anchored map of what is already there. |
 | [Init](init.md) | A project has no milestone and status harness yet. |
+| [Propose](propose.md) | A requested feature, candidate promotion, or future direction change needs approved planning. |
 | [Reconcile](reconcile.md) | A new code, architecture, or security review arrives. |
 | [Next](next.md) | Implement or resume one task, verify it, and commit under the governing policy. |
 | [Goal](goal.md) | Execute ordered milestones with an explicit commit policy and completion condition. |
 | [Upgrade](upgrade.md) | You installed newer skills and want to adopt their rules safely. |
 
-**Init, Archive, Reconcile, and Upgrade** present a complete proposal for approval
+**Init, Archive, Propose, Reconcile, and Upgrade** present a complete proposal for approval
 before writing. **Next and Goal** execute work you have authorized; they can
 change code, update records, and make commits under the applicable policy.
 Installing a skill does not authorize work or migrate an existing project.
@@ -100,4 +104,5 @@ the existing conversation. You review and send it yourself.
 
 The dashboard reads your project files. It does not maintain a second task list
 or mark work complete. Installing the companion in a headless profile exposes
-the same six skills without the Web interface.
+the published six skills without the Web interface; local v1.5.0
+preparation contains seven.

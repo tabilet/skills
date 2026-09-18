@@ -91,7 +91,7 @@ requested as its next full pass. Continue the persisted counter and its
 
 Read [references/write-contract.md](references/write-contract.md) before preparing
 the proposal. It defines provenance, allowed file actions, and output checks.
-Reading it does not authorize writes.
+Reading it does not authorize writes. Read [references/plan-update.md](references/plan-update.md) for the shared existing-plan preservation and pre-write checks.
 
 Present a complete finding matrix without writing:
 

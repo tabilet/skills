@@ -73,11 +73,32 @@ specification and status file together before including its row above:
 | [A]01 | `status-A01.md` | [Domain milestone summary.] |
 ```
 
+## Requested changes after initialization
+
+For a requested feature, candidate promotion, or change to future direction,
+inspect the current plan and implementation first. Record user intent separately
+from observed facts and unresolved assumptions. If a pending milestone already
+owns a small change, propose the smallest row and acceptance update that fits.
+Otherwise propose a dependency-closed milestone with an unused permanent ID.
+A candidate's trigger prompts a new decision and approval; promotion is never
+automatic. Schedule by approved priority and dependencies, not review finding
+severity. Reconcile affected downstream acceptance and optional launch input.
+
+Present one complete proposal with intended outcome, owner rows, acceptance,
+verification, dependencies, downstream effects, and exact file actions. Write
+planning changes only after approval and a fresh check of affected files,
+worktree changes, and active and retired IDs. Preserve non-pending outcomes,
+review counters, local policy, and frozen history. Record target behavior here
+and in pending status rows until implemented; current architecture describes
+only what the repository establishes as fact. Planning does not implement or
+accept the requested behavior. Use `memory-bank-propose` where installed, or
+follow this procedure directly with another agent.
+
 ## Candidate Directions
 
 Candidate directions are outside the active execution horizon. They are not
 milestones: they have no lane, permanent status ID, status file, or place in an
-execution order. A promotion trigger causes fresh reconciliation and approval,
+execution order. A promotion trigger causes fresh planning and approval,
 not automatic scheduling. Assign the next unused permanent ID only after a
 candidate is promoted.
 

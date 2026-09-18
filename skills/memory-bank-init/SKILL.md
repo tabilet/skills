@@ -75,39 +75,11 @@ decisions already present in the conversation. Inventory destination files such
 as `AGENTS.md`, `GOAL.md`, `evolution/`, current memory-bank files, and archives
 so the proposal can identify each create, merge, preserve, or omit action.
 
-Keep a working **evidence ledger** in the conversation:
-
-- **Observed fact** - cite the repository path or prior user statement.
-- **User decision** - record the choice and its reason.
-- **Open decision** - record who can answer it and what depends on it.
-- **Inapplicable branch** - record why it does not apply; do not invent filler.
-
-Resolve repository facts through inspection. Ask the user about choices that
-change scope, ownership, contracts, acceptance, or an unsettled preference.
-Use established project conventions for routine details; do not turn them into
-new interview questions. Include already supplied choices and policies in the
-discovery confirmation instead of asking the user to decide them again.
-Investigate independent facts in parallel when the
-environment supports it. A fact still being researched blocks only the questions
-that depend on it.
-
-### Work the frontier in rounds
-
-The **frontier** is every open decision whose prerequisites are settled. Ask the
-whole frontier in one numbered round, give a recommended answer for every
-question, then wait. No question in a round may depend on another answer in that
-round. Recompute the design tree and its frontier after every response.
-
-Use this shape so the user can answer by number:
-
-```text
-❓ Q1 - <short title>: <question and meaningful choices>
-
-➡️ <recommended answer and the project evidence or tradeoff behind it>
-```
-
-Honor a request for one-question-at-a-time pacing. Do not impose a fixed number
-of questions or stop merely because the seed coverage below has been mentioned.
+Keep a working **evidence ledger** and work the **whole frontier** of the
+**design tree**. Read [references/discovery.md](references/discovery.md) when
+moving beyond the cheap topology gate. It carries the shared inspection,
+question, and completion technique. Init still uses the coverage roots below
+and asks for a structured discovery confirmation before proposing files.
 
 ### Grow the design tree
 
@@ -206,7 +178,7 @@ Rules:
   it never refers to an interview question number.
 - Every indexed milestone gets one status file. A candidate direction gets no
   lane, ID, status file, or disposable launch entry.
-- A promotion trigger causes fresh reconciliation, not automatic scheduling.
+- A promotion trigger causes a fresh approved proposal, not automatic scheduling.
   Allocate an ID only after the promoted breakdown is approved.
 
 Ask the user, as a numbered frontier round, whether the boundary and delivery

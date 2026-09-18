@@ -8,10 +8,12 @@ create or upgrade a project's memory bank.**
 |---|---|
 | Claude Code | The `memory-bank` plugin from the `tabilet` marketplace |
 | Codex | The same `memory-bank` plugin through the Codex CLI |
-| DSH Web or headless | The `tabilet-skills` companion, or the six filesystem bundles |
+| DSH Web or headless | The `tabilet-skills` companion, or the seven source-checkout filesystem bundles |
 | Manual installation | Complete skill folders in your agent's skill directory |
 
-The canonical six skills and the DSH companion use the same project Markdown.
+The canonical seven skills and the DSH companion use the same project Markdown.
+Propose is prepared in unpublished v1.5.0 source; the public v1.4.0 plugin
+and companion still install six skills.
 Python is only required for the optional API runner.
 
 ## Claude Code
@@ -74,7 +76,8 @@ The companion was verified on Linux with Node **24.14.1** and locked DSH
 **0.1.5-rc.2** components, plus an isolated rc.1 launcher using rc.2 components.
 
 For **skills without the dashboard**, use the [plain-file route](#as-plain-files-you-own)
-below. Copy all six complete folders to `$DSH_HOME/skills`, normally
+below after v1.5.0 is published, or from a trusted local v1.5.0 checkout now.
+Copy all seven complete folders to `$DSH_HOME/skills`, normally
 `~/.dsh/skills`. That route retains its separately tested all-rc.1 compatibility.
 
 ### Using the Memory Bank panel
@@ -109,7 +112,7 @@ depends on how you installed them:
 | Claude Code plain files | `/memory-bank-next` |
 | Codex plain files | `$memory-bank-next` |
 
-Substitute `init`, `archive`, `reconcile`, `upgrade`, or `goal` for `next` as
+Substitute `init`, `archive`, `propose`, `reconcile`, `upgrade`, or `goal` for `next` as
 needed. The [skill guides](init.md) explain each input and approval boundary.
 For Goal, include an explicit order and [commit policy](goal.md).
 
@@ -121,7 +124,7 @@ Clone the released source into a separate directory:
 git clone --branch v1.4.0 --depth 1 https://github.com/tabilet/skills.git
 ```
 
-Copy each of the six `memory-bank-*` folders from its `skills/` directory into
+Copy each `memory-bank-*` folder from the chosen release's `skills/` directory into
 the destination for your agent:
 
 | Agent | Personal skill directory |
@@ -202,7 +205,7 @@ codex plugin add memory-bank@tabilet
 
 For the DSH companion, install the chosen published release archive in each
 applicable profile, then restart it. For filesystem installs, stop sessions
-using the bundles, inspect and back up the six old folders, then replace them
+using the bundles, inspect and back up the installed folders, then replace them
 with complete folders from the chosen release. Preserve unrelated skills and
 review project or user overrides that may take precedence over the new bundles.
 

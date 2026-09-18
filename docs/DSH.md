@@ -3,7 +3,7 @@
 DSH supplies the agent runtime, tools, permissions, and session persistence.
 Memory-bank supplies the project's engineering workflow: approved scope,
 permanent task identities, verification, review, and retained evidence. The same
-six skill bundles and project Markdown work through the direct filesystem
+seven skill bundles and project Markdown work through the direct filesystem
 installation without a companion plugin or DSH-specific project files.
 
 v1.4.0 adds a separate optional
@@ -51,7 +51,9 @@ counters remain separate from task-marker counts; terminal rows do not prove
 milestone acceptance. Documents render as literal text without active HTML or
 automatic external resources.
 
-Shortcuts preview requests for all six skills. Goal requires explicit milestone
+The published v1.4.0 shortcuts preview requests for six skills. The local
+v1.5.0 companion adds Propose with one required multiline change field. Goal
+requires explicit milestone
 order, completion conditions, and commit policy; its visible default is `task`
 and requests include `EXTERNAL_MUTATIONS: none`. Reconcile treats a review path
 or URL as request text and preserves its separate remote-fetch confirmation.
@@ -103,7 +105,12 @@ DSH does not consume this repository's plugin manifest.
 
 <a id="install-the-five-bundles"></a>
 
-## Install the six bundles
+<a id="install-the-six-bundles"></a>
+
+## Install the seven bundles
+
+These source-checkout commands target the unpublished v1.5.0 tree. The
+published v1.4.0 companion and bundles still contain six skills.
 
 The primary destination is `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`.
 Set `MEMORY_BANK_CHECKOUT` to the absolute release checkout path. Run the
@@ -122,7 +129,7 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
   set -euo pipefail
   : "${MEMORY_BANK_CHECKOUT:?Set the absolute release checkout path}"
   dsh_skill_root="${DSH_SKILL_ROOT:-${DSH_HOME:-$HOME/.dsh}/skills}"
-  bundles=(memory-bank-archive memory-bank-init memory-bank-upgrade memory-bank-reconcile memory-bank-next memory-bank-goal)
+  bundles=(memory-bank-archive memory-bank-init memory-bank-propose memory-bank-upgrade memory-bank-reconcile memory-bank-next memory-bank-goal)
   for bundle in "${bundles[@]}"; do
     test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/SKILL.md"
     case "$bundle" in
@@ -131,6 +138,14 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
     esac
     if test "$bundle" = memory-bank-init; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/GOAL.md"
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/discovery.md"
+    fi
+    if test "$bundle" = memory-bank-propose; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/discovery.md"
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/plan-update.md"
+    fi
+    if test "$bundle" = memory-bank-reconcile; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/plan-update.md"
     fi
     if test "$bundle" = memory-bank-goal; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
@@ -196,7 +211,7 @@ updated user bundle. Inspect every root before deciding an update failed.
 
 ## Update or remove
 
-Review the six named destinations first: these commands assume they are the
+Review the seven named destinations first: these commands assume they are the
 memory-bank bundles you intend to replace or remove. Save any local edits you
 want to merge into the new source. Updates back up complete old bundles outside
 the scanned skills root, then copy the complete candidate bundles, removing
@@ -206,7 +221,7 @@ Preflight requires each installed bundle's frontmatter to name the expected
 command and each source bundle to contain its required supporting files. A
 mismatched or unrecognizable command name stops the operation for inspection.
 Missing destinations are added from the new checkout, so the same update block
-adds `memory-bank-upgrade` to an earlier five-bundle installation. Existing
+adds Propose to an earlier six-bundle installation. Existing
 bundles are backed up before any replacement is copied.
 
 <!-- dsh-update -->
@@ -215,7 +230,7 @@ bundles are backed up before any replacement is copied.
   set -euo pipefail
   : "${MEMORY_BANK_CHECKOUT:?Set the absolute release checkout path}"
   dsh_skill_root="${DSH_SKILL_ROOT:-${DSH_HOME:-$HOME/.dsh}/skills}"
-  bundles=(memory-bank-archive memory-bank-init memory-bank-upgrade memory-bank-reconcile memory-bank-next memory-bank-goal)
+  bundles=(memory-bank-archive memory-bank-init memory-bank-propose memory-bank-upgrade memory-bank-reconcile memory-bank-next memory-bank-goal)
   for bundle in "${bundles[@]}"; do
     test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/SKILL.md"
     case "$bundle" in
@@ -224,6 +239,14 @@ bundles are backed up before any replacement is copied.
     esac
     if test "$bundle" = memory-bank-init; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/GOAL.md"
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/discovery.md"
+    fi
+    if test "$bundle" = memory-bank-propose; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/discovery.md"
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/plan-update.md"
+    fi
+    if test "$bundle" = memory-bank-reconcile; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/plan-update.md"
     fi
     if test "$bundle" = memory-bank-goal; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
@@ -260,11 +283,11 @@ bundles are backed up before any replacement is copied.
 ```
 
 If copying is interrupted, keep sessions stopped. Compare the backup with the
-live paths and restore or finish the six bundles before starting DSH again.
+live paths and restore or finish the seven bundles before starting DSH again.
 Never run two install/update operations on the same root simultaneously.
 Backups preserve local edits but do not merge them automatically.
 
-Removal moves only those six bundles into a retained backup; it deletes no
+Removal moves only those seven bundles into a retained backup; it deletes no
 project memory, credentials, configuration, or unrelated skills. Missing bundles
 are harmless. A same-name file or symlink requires manual inspection.
 
@@ -273,7 +296,7 @@ are harmless. A same-name file or symlink requires manual inspection.
 (
   set -euo pipefail
   dsh_skill_root="${DSH_SKILL_ROOT:-${DSH_HOME:-$HOME/.dsh}/skills}"
-  bundles=(memory-bank-archive memory-bank-init memory-bank-upgrade memory-bank-reconcile memory-bank-next memory-bank-goal)
+  bundles=(memory-bank-archive memory-bank-init memory-bank-propose memory-bank-upgrade memory-bank-reconcile memory-bank-next memory-bank-goal)
   for bundle in "${bundles[@]}"; do
     target="$dsh_skill_root/$bundle"
     test ! -L "$target"
@@ -318,6 +341,7 @@ checkout. Use a fresh session to inspect the skill menu and load a skill.
 | Map a broad package | `/memory-bank-archive` |
 | Initialize | `/memory-bank-init` |
 | Upgrade project rules | `/memory-bank-upgrade` |
+| Propose a requested change | `/memory-bank-propose Add offline export` |
 | Reconcile a local review | `/memory-bank-reconcile review.md` |
 | Execute one row | `/memory-bank-next` |
 | Execute an explicit order | `/memory-bank-goal M01 -> M02. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none.` |

@@ -25,6 +25,8 @@ alone do not request task execution.
 | Broad existing package needs a factual context map | Explicit `memory-bank-archive` → verified preflight → `memory-bank-init` → execution |
 | Existing harness has one ready task | `memory-bank-next` |
 | Several approved milestones should run in order | `memory-bank-goal` |
+| An initialized project needs a feature or candidate promotion | `memory-bank-propose` → approved planning changes → separately requested execution |
+| A small pending task needs adding | Propose a concise row and acceptance update in its existing milestone. |
 | A new engineering review arrives | `memory-bank-reconcile` → approved planning changes → separately requested execution |
 | An existing project needs updated workflow rules | `memory-bank-upgrade` → approved rule merges → separately requested execution |
 | The current milestone becomes ready to close | Its execution workflow performs review, consolidation, and retirement; no archive invocation |
@@ -42,11 +44,12 @@ review paths with a source you actually have.
 | Context snapshot | `/memory-bank:memory-bank-archive` | `$memory-bank:memory-bank-archive` | `/memory-bank-archive` |
 | Initialization | `/memory-bank:memory-bank-init` | `$memory-bank:memory-bank-init` | `/memory-bank-init` |
 | Project rule upgrade | `/memory-bank:memory-bank-upgrade` | `$memory-bank:memory-bank-upgrade` | `/memory-bank-upgrade` |
+| Requested change | `/memory-bank:memory-bank-propose <outcome>` | `$memory-bank:memory-bank-propose <outcome>` | `/memory-bank-propose <outcome>` |
 | New review | `/memory-bank:memory-bank-reconcile /tmp/review.md` | `$memory-bank:memory-bank-reconcile /tmp/review.md` | `/memory-bank-reconcile review.md` |
 | One task | `/memory-bank:memory-bank-next` | `$memory-bank:memory-bank-next` | `/memory-bank-next` |
 | Ordered milestones | `/memory-bank:memory-bank-goal` | `$memory-bank:memory-bank-goal` | `/memory-bank-goal` |
 
-Initialization, upgrade, archive, and review reconciliation propose their file actions
+Initialization, requested-change planning, upgrade, archive, and review reconciliation propose their file actions
 before writing and require approval. They do not implement planned fixes,
 commit, or launch execution without separate authorization. `next` normally
 commits its task; `goal` uses the explicitly resolved commit policy. None of

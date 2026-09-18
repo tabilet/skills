@@ -1,5 +1,5 @@
 site_name: Memory Bank
-site_description: A minimal engineering harness — plain Markdown project memory and six portable skills for coding agents
+site_description: A minimal engineering harness — plain Markdown project memory and seven portable skills for coding agents
 site_url: https://tabilet.github.io/skills/
 repo_url: https://github.com/tabilet/skills
 repo_name: tabilet/skills
@@ -15,6 +15,7 @@ exclude_docs: |
   !/next.md
   !/goal.md
   !/reconcile.md
+  !/propose.md
   !/upgrade.md
   !/archive.md
   /medium*.png
@@ -64,6 +65,7 @@ nav:
     - Init: init.md
     - Next: next.md
     - Goal: goal.md
+    - Propose: propose.md
     - Reconcile: reconcile.md
     - Upgrade: upgrade.md
     - Archive: archive.md

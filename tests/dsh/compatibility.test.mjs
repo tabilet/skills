@@ -12,7 +12,7 @@ import * as skillTool from '@deepseek-ai/dsh-tool-skill';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../..');
-const names = ['archive', 'goal', 'init', 'next', 'reconcile', 'upgrade'].map(s => `memory-bank-${s}`);
+const names = ['archive', 'goal', 'init', 'next', 'propose', 'reconcile', 'upgrade'].map(s => `memory-bank-${s}`);
 const guide = await readFile(join(repo, 'docs/DSH.md'), 'utf8');
 const commands = Object.fromEntries(['install', 'update', 'remove'].map(action => {
   const match = guide.match(new RegExp(`<!-- dsh-${action} -->\n\x60\x60\x60bash\n([\\s\\S]*?)\n\x60\x60\x60`));
@@ -85,7 +85,7 @@ test('locked runtime and every installed DSH component are rc.1', async () => {
     { encoding: 'utf8' }).trim(), '0.1.5-rc.1');
 });
 
-test('actual loader discovers all six complete bundles, policies, and resources', async t => {
+test('actual loader discovers all seven complete bundles, policies, and resources', async t => {
   const f = await fixture(t);
   success(f.run('install'));
   const skills = await registry(t, f);
@@ -115,9 +115,9 @@ test('actual loader discovers all six complete bundles, policies, and resources'
     await tree(join(repo, 'template')));
 });
 
-test('updating a five-bundle installation adds upgrade and preserves all old bundles in backup', async t => {
+test('updating a six-bundle installation adds Propose and preserves old bundles in backup', async t => {
   const f = await fixture(t); success(f.run('install'));
-  await rm(join(f.dshHome, 'skills/memory-bank-upgrade'), { recursive: true });
+  await rm(join(f.dshHome, 'skills/memory-bank-propose'), { recursive: true });
   await writeFile(join(f.dshHome, 'skills/memory-bank-init/local-note.md'), 'keep this');
   const old = await tree(join(f.dshHome, 'skills'));
   const result = f.run('update'); success(result);
@@ -227,6 +227,10 @@ test('incomplete source bundles stop installation and update before any changes'
   const original = await tree(f.dshHome);
   for (const resource of ['memory-bank-init/GOAL.md', 'memory-bank-archive/references/write-contract.md',
     'memory-bank-goal/references/runtime-help.md',
+    'memory-bank-init/references/discovery.md',
+    'memory-bank-propose/references/discovery.md',
+    'memory-bank-propose/references/plan-update.md',
+    'memory-bank-reconcile/references/plan-update.md',
     'memory-bank-upgrade/assets/template/memory-bank/milestone.md']) {
     const path = join(candidate, 'skills', resource);
     const content = await readFile(path);
