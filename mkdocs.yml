@@ -1,4 +1,4 @@
-site_name: Memory Bank
+site_name: Tabilet Memory Bank
 site_description: A minimal engineering harness — plain Markdown project memory and seven portable skills for coding agents
 site_url: https://tabilet.github.io/skills/
 repo_url: https://github.com/tabilet/skills
@@ -6,6 +6,8 @@ repo_name: tabilet/skills
 docs_dir: docs
 # Publish only the website guides. Repository references and publishing drafts
 # stay out of generated pages, search results, and the sitemap.
+# The English guides and their Simplified Chinese translations in docs/zh/ are
+# listed one by one so the site contract check can hold the two sets in parity.
 exclude_docs: |
   *.md
   !/index.md
@@ -18,12 +20,34 @@ exclude_docs: |
   !/propose.md
   !/upgrade.md
   !/archive.md
+  !/zh/index.md
+  !/zh/installation.md
+  !/zh/examples.md
+  !/zh/init.md
+  !/zh/next.md
+  !/zh/goal.md
+  !/zh/reconcile.md
+  !/zh/propose.md
+  !/zh/upgrade.md
+  !/zh/archive.md
   /medium*.png
   /requirements.txt
   /assets/*.prompt.txt
 extra_css:
   - assets/stylesheets/theme.css
 copyright: '© 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>'
+
+# The language switcher rendered in the header beside the search box. Each
+# entry is a fixed link to that language's home page, so switching languages
+# always lands on the home page of the other language, not the equivalent page.
+extra:
+  alternate:
+    - name: English
+      link: /skills/
+      lang: en
+    - name: 中文
+      link: /skills/zh/
+      lang: zh
 
 theme:
   name: material
@@ -54,6 +78,18 @@ markdown_extensions:
   - toc:
       permalink: true
 
+# `zh` enables the bundled lunr Chinese tokenizer so the translated guides are
+# searchable rather than indexed as one long token.
+plugins:
+  - search:
+      lang:
+        - en
+        - zh
+
+# The Chinese pages are translated from the English guides of the same name.
+# site_contract in check.py requires the two sets to stay in parity. Chinese
+# headings that a guide deep-links to carry an explicit `{#ascii-id}` so the
+# fragment survives translation; see the translation note in AGENTS.md.
 nav:
   - Home: index.md
   - Get started:
@@ -67,3 +103,16 @@ nav:
     - Reconcile: reconcile.md
     - Upgrade: upgrade.md
     - Archive: archive.md
+  - 中文:
+    - 首页: zh/index.md
+    - 开始使用:
+      - 安装: zh/installation.md
+      - 选择工作流: zh/examples.md
+    - 技能:
+      - Init 初始化: zh/init.md
+      - Next 下一步: zh/next.md
+      - Goal 目标: zh/goal.md
+      - Propose 提议: zh/propose.md
+      - Reconcile 协调: zh/reconcile.md
+      - Upgrade 升级: zh/upgrade.md
+      - Archive 归档: zh/archive.md

@@ -23,7 +23,7 @@ authorized work; installing or updating the plugin does not migrate them.
 
 [Release notes](docs/RELEASE_NOTES.md) include the v2 project layout and
 the explicit v1.5.0 migration.
-The [Memory Bank website](https://tabilet.github.io/skills/) has the published guides.
+The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the published guides, with a [Simplified Chinese mirror](https://tabilet.github.io/skills/zh/).
 
 Your project ends up looking like this:
 

@@ -1,4 +1,4 @@
-# Memory Bank
+# Tabilet Memory Bank
 
 <p class="memory-bank-hero" align="center">
   <a href="assets/memory-bank-infographic.png" title="Open the full-size Memory Bank infographic">

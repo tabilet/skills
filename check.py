@@ -91,12 +91,15 @@ def site_pages(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
 
     Read nav from mkdocs.yml so newly published guides enter the interface
     checks automatically. site_contract verifies this list against exclude_docs.
+    The English guides and their Simplified Chinese translations under docs/zh/
+    are both published, so both sets enter the interface checks.
     """
 
     config = (root / "mkdocs.yml").read_text()
     nav = config.partition("\nnav:\n")[2]
     names = re.findall(r"^\s*-\s+[^:\n]+:\s+([A-Za-z0-9_-]+\.md)\s*$", nav, re.M)
-    return [root / "docs" / name for name in names]
+    translated = re.findall(r"^\s*-\s+[^:\n]+:\s+(zh/[A-Za-z0-9_-]+\.md)\s*$", nav, re.M)
+    return [root / "docs" / name for name in names + translated]
 
 
 def medium_articles(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
@@ -200,7 +203,15 @@ def headings(text: str) -> list[str]:
 
 def anchors(path: pathlib.Path) -> set[str]:
     text = path.read_text()
-    return {slug(h) for h in headings(text)} | set(re.findall(r'<a\s+id="([^"]+)"\s*></a>', prose(text)))
+    # `{#id}` is how a translated guide keeps a linkable ASCII anchor: the `toc`
+    # extension strips non-ASCII characters from a generated heading id, so a
+    # Chinese heading would otherwise carry an id nobody can predict or link to.
+    explicit = set(re.findall(r"\{#([^}\s]+)\}", prose(text)))
+    return (
+        {slug(h) for h in headings(text)}
+        | explicit
+        | set(re.findall(r'<a\s+id="([^"]+)"\s*></a>', prose(text)))
+    )
 
 
 def init_skill_text() -> str:
@@ -1067,8 +1078,9 @@ def links():
 def site_contract():
     config = (ROOT / "mkdocs.yml").read_text()
     pages = site_pages()
-    names = [p.name for p in pages]
-    allowed = re.findall(r"^\s*!/([A-Za-z0-9_-]+\.md)\s*$", config, re.M)
+    docs = ROOT / "docs"
+    names = [str(page.relative_to(docs)) for page in pages]
+    allowed = re.findall(r"^\s*!/((?:zh/)?[A-Za-z0-9_-]+\.md)\s*$", config, re.M)
     problems = []
     if not names or len(names) != len(set(names)):
         problems.append("mkdocs.yml nav must list each published guide exactly once")
@@ -1076,7 +1088,16 @@ def site_contract():
         problems.append("mkdocs.yml nav and exclude_docs guide allowlist differ")
     for page in pages:
         if not page.is_file():
-            problems.append(f"mkdocs.yml nav points to missing guide {page.name}")
+            problems.append(f"mkdocs.yml nav points to missing guide {page.relative_to(docs)}")
+
+    # The translated site is a mirror, not a subset: every published English
+    # guide has exactly one Simplified Chinese counterpart and no orphan.
+    english = sorted(name for name in names if not name.startswith("zh/"))
+    chinese = sorted(name[len("zh/"):] for name in names if name.startswith("zh/"))
+    if not chinese:
+        problems.append("docs/zh/ must publish a Simplified Chinese translation of every guide")
+    elif english != chinese:
+        problems.append("docs/zh/ must translate every published guide one-for-one")
 
     index = (ROOT / "docs/index.md").read_text()
     routing = index.partition("## Choose your starting point")[2].partition("## What stays in your project")[0]
@@ -1102,6 +1123,49 @@ def site_contract():
         problems.append("docs deployment concurrency must be scoped to workflow and ref")
     if "docs_hooks.py" in config or (ROOT / "docs_hooks.py").exists():
         problems.append("unused docs_hooks.py must not be loaded by MkDocs")
+    return problems
+
+
+@check("translated guides resolve local references and explicit anchors")
+def translated_references():
+    """Check the two things the MkDocs validator and `links()` both miss.
+
+    `links()` reads Markdown link syntax only, so the raw-HTML `src`/`href` of
+    the front-page hero is invisible to it — and because a translation sits one
+    directory deeper, a copied `assets/...` path silently points at
+    `docs/zh/assets/...`, which no build fails on. Separately, `anchors()`
+    slugs a heading the way GitHub does, keeping Chinese characters, while the
+    MkDocs `toc` extension strips them from the id it builds, so a translated
+    `#安装` resolves for the checker while 404ing in a browser. A translated
+    guide therefore links only to anchors it declared explicitly with `{#id}`.
+    """
+
+    zh = ROOT / "docs" / "zh"
+    if not zh.is_dir():
+        return ["docs/zh/: the translated site is missing"]
+    problems = []
+    for path in sorted(zh.glob("*.md")):
+        text = path.read_text()
+        references = re.findall(r"\]\(([^)\s]+)\)", prose(text))
+        references += re.findall(r'(?:src|href)="([^"]+)"', text)
+        for target in references:
+            if target.startswith(("http://", "https://", "mailto:", "data:")):
+                continue
+            file_part, _, fragment = target.partition("#")
+            dest = (path.parent / file_part).resolve() if file_part else path.resolve()
+            if not dest.is_file():
+                problems.append(
+                    f"{path.relative_to(ROOT)}: local reference {target} does not resolve"
+                )
+                continue
+            if not fragment:
+                continue
+            explicit = set(re.findall(r"\{#([^}\s]+)\}", prose(dest.read_text())))
+            if fragment not in explicit:
+                problems.append(
+                    f"{path.relative_to(ROOT)}: #{fragment} needs an explicit "
+                    f"{{#{fragment}}} anchor on a heading in {file_part or path.name}"
+                )
     return problems
 
 
@@ -1283,10 +1347,14 @@ def sampling_params():
 #     to drift behind the canonical files, so reject them rather than merely
 #     comparing their heading counts.
 # --------------------------------------------------------------------------
-@check("repository documentation stays English-only")
+@check("repository documentation stays English-only outside the translated site")
 def english_only_docs():
     problems = []
-    for path in sorted((ROOT / "docs").glob("*.md")):
+    # docs/zh/ is the one sanctioned translation: the published guides ship in
+    # Simplified Chinese, and site_contract holds the two sets in one-for-one
+    # parity so a translation cannot silently drift or go stale. Everywhere
+    # else in docs/, a language-suffixed copy of a canonical file is rejected.
+    for path in sorted((ROOT / "docs").rglob("*.md")):
         canonical = suffixed_doc_sibling(path)
         if canonical is not None:
             problems.append(

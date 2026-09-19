@@ -42,8 +42,9 @@ the file:
 | `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
 | `skills/` | The seven optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
-| `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. The published site is [Memory Bank](https://tabilet.github.io/skills/). |
-| `mkdocs.yml`, `docs/requirements.txt`, `.github/workflows/deploy-docs.yml` | Website navigation, build dependencies, and deployment workflow. Only the guides selected by `mkdocs.yml` are published. |
+| `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. The published site is [Tabilet Memory Bank](https://tabilet.github.io/skills/), with a Simplified Chinese mirror at [tabilet.github.io/skills/zh/](https://tabilet.github.io/skills/zh/). |
+| `docs/zh/` | The Simplified Chinese translation of the published guides, one file per published English guide. Hand-maintained, and held in one-for-one parity by `check.py`. |
+| `mkdocs.yml`, `docs/requirements.txt`, `.github/workflows/deploy-docs.yml` | Website navigation, build dependencies, and deployment workflow. Only the guides selected by `mkdocs.yml` are published, in both languages. |
 
 Two consequences that matter constantly:
 
@@ -118,8 +119,8 @@ and its `SKILL.md` twin, the generator agreeing with `template/`, the plugin
 version against the tags, explicit `COMMIT_POLICY` in every `GOAL.md`
 invocation, links *and* heading anchors, the documented exit codes, the
 status-marker regexes, the shipped payload, the disposable goal-reference
-contract, and the English-only documentation policy. Standard library only,
-like the harness.
+contract, the English-only documentation policy and its translated-site
+exception. Standard library only, like the harness.
 When you add a rule to this file, add the check that enforces it.
 
 The DSH suite is repository-only: `tests/dsh/` locks the runtime and its
@@ -253,9 +254,22 @@ one milestone = one review unit.
 
 ## Documentation Language
 
-Repository documentation is English-only. `docs/EXECUTION.md` and
-`docs/MODEL_EVAL.md` are the canonical long-form references; do not add
-language-suffixed copies. `README.md` is English-only too.
+Repository documentation is English-only, with one deliberate exception: the
+published website ships in English and Simplified Chinese. The translated
+guides live in `docs/zh/`, one file per published English guide, listed under
+the `中文` tab in `mkdocs.yml` and in its `exclude_docs` allowlist. `check.py`
+holds the two sets in one-for-one parity, so a translation cannot drift behind
+the guide it mirrors or accumulate an orphan. Everywhere else — `README.md`,
+`docs/EXECUTION.md`, `docs/MODEL_EVAL.md`, and any other file in `docs/` — a
+language-suffixed copy of a canonical file stays rejected.
+
+A translated heading needs an explicit `{#ascii-id}` whenever a guide
+deep-links to it. The MkDocs `toc` extension strips non-ASCII characters when it
+generates a heading id, so a Chinese heading otherwise gets an id like `_1` that
+no fragment can predict or reach. Translated guides therefore link only to
+anchors they declared explicitly, `check.py` rejects a translated `#fragment`
+that resolves only through a non-ASCII slug, and the id keeps its English
+spelling so an inbound link survives translation.
 
 ## Hard Rules
 
@@ -363,8 +377,13 @@ language-suffixed copies. `README.md` is English-only too.
   by permanent ID without retrying history or treating cancellation as success.
   Existing projects require explicit adoption, not an automatic bulk migration.
   Retirement respects every commit policy and never requires an archive run.
-- Keep repository documentation English-only; do not add translated siblings
-  of `README.md` or files in `docs/`.
+- Keep repository documentation English-only, except for the translated website
+  in `docs/zh/`. Do not add translated siblings of `README.md`, of
+  `docs/EXECUTION.md`/`docs/MODEL_EVAL.md`, or of any other canonical file.
+  `docs/zh/` is a checked mirror of the published guides, not a free-form
+  translation directory: every page is listed in `mkdocs.yml`, matched
+  one-for-one with its English counterpart, and linked only through explicit
+  `{#id}` anchors.
 - Treat every `docs/medium*.md` file as public guidance. A
   `docs/medium*-infographic.png` is a manual Medium-upload asset and must be
   named by its corresponding article; do not accumulate orphaned publishing
