@@ -1,83 +1,83 @@
 # Init
 
-把你的想法或既有代码库变成项目专属的记忆库。Init 会检查可用的证据，就不确定的决策向你提问，
-并提出达成下一个可验证结果所需的里程碑。只有在你批准完整提案之后，它才会写入文件。
+把你的想法或者现有的代码库，变成一个项目专属的记忆库。Init 先看看手头有哪些证据，拿不准的
+决策再问你，然后给出里程碑，让你走到下一个可以验证的结果。你把整个方案批准之后，它才落笔写
+文件。
 
-在项目的会话中发送请求：
+在项目会话里发送请求：
 
 | 智能体 | 会话中的请求 |
 |---|---|
-| Claude Code plugin | `/memory-bank:memory-bank-init` |
-| Codex plugin | `$memory-bank:memory-bank-init` |
+| Claude Code 插件 | `/memory-bank:memory-bank-init` |
+| Codex 插件 | `$memory-bank:memory-bank-init` |
 | DSH | `/memory-bank-init` |
 
-不需要任何参数。你也可以附上一段说明，描述你想构建什么。如果是直接安装到技能目录，
-请参见[调用前缀](installation.md#invoke-a-skill)。
+不需要参数。你也可以附上一段说明，讲清打算做什么。如果是直接装到技能目录，请参见
+[调用前缀](installation.md#invoke-a-skill)。
 
 ## 何时使用
 
-在尚未初始化里程碑与状态运行器的项目上使用一次。这包括全新的项目、从未有过这类运行器的
-既有项目，以及完成 [Archive](archive.md) 预检之后的既有项目。
+只给一个没初始化过里程碑和状态运行器的项目用。全新项目、从来没有过这类运行器的现有项目，
+以及做完 [Archive](archive.md) 预检的现有项目，都算。
 
-一个已存在的 `tabilet/memory-bank/milestone.md`，只要它带有活跃状态文件**或有效的已索引退役
-历史**，就说明项目已经初始化。若要处理请求的功能或候选提升，请使用 [Propose](propose.md)；
-若要处理新的评审，请使用 [Reconcile](reconcile.md)；若要采用更新的工作流规则，请使用
-[Upgrade](upgrade.md)。缺失或不一致的记录需要检查，它们不是推倒重来的许可。
+项目里已经有 `tabilet/memory-bank/milestone.md`，而且带着活跃状态文件**或者有效的已索引退役
+历史**，就说明它初始化过了。这时想加功能或提升某个候选方向，用 [Propose](propose.md)；来了
+新评审，用 [Reconcile](reconcile.md)；想采用更新的工作流规则，用 [Upgrade](upgrade.md)。
+记录缺失或者对不上，需要的是排查，不是推倒重来。
 
 ## 三个阶段
 
-**发现。** Init 会先读仓库，再就它无法从证据中确定的决策提问。问题以编号轮次提出，并附带
-推荐答案和相关的取舍。每一轮都建立在此前答案的基础上；没有固定问卷，也不限制它能探索的范围。
+**发现。** Init 先读仓库，读不出来的决策再问。问题按轮次编号发给你，每一轮都附上推荐答案和
+相关取舍。后一轮建立在前一轮的回答上；没有固定问卷，能探查的范围也不设上限。
 
-**提议。** 它会呈现边界、提议的活跃视界、通道含义、候选方向以及每一项文件操作。在你全部批准
-之前，不会写入任何内容。
+**提议。** 它会给出边界、建议的活跃视野、通道含义、候选方向，以及每一项文件操作。你没全部
+批准之前，它一个字都不写。
 
-**写入。** 它会按照捆绑的写入契约执行已批准的操作。你永远不会看到方括号占位符，因为记忆库
-到手时就已经填充完毕。
+**写入。** 它按随附的写入约定执行已批准的操作。方括号占位符你一个都看不到，因为记忆库交到你
+手上时就已经填好了。
 
-*（访谈技巧改编自 [mattpocock/skills](https://github.com/mattpocock/skills) 中的 `grilling` 技能，MIT。）*
+*（访谈技巧改编自 [mattpocock/skills](https://github.com/mattpocock/skills) 里的 `grilling` 技能，MIT。）*
 
-## 活跃视界
+## 活跃视野
 
-输出把信息分成三类：
+产出把信息分成三类：
 
 ```text
 tabilet/memory-bank/product.md       产品是什么，以及它的领域不变量
-tabilet/memory-bank/architecture.md  系统当前是什么样
+tabilet/memory-bank/architecture.md  系统现在是什么样
 tabilet/memory-bank/tech-stack.md    命令、依赖与验证
-tabilet/memory-bank/lessons.md       仍会改变决策的经验教训
-tabilet/memory-bank/milestone.md     活跃视界与后续方向
+tabilet/memory-bank/lessons.md       至今仍会改变决策的经验
+tabilet/memory-bank/milestone.md     活跃视野与后续方向
 tabilet/memory-bank/status-*.md      每个实现单元对应一行任务粒度的状态行
 ```
 
-**活跃视界**是能够达成下一个有意义的、可验证结果的最小依赖闭合里程碑集合。永久状态标识
-只分配给该视界。
+**活跃视野**是能走到下一个有意义、可验证结果的最小依赖闭合里程碑集合。永久状态 ID 只发给
+这个视野。
 
-后续的想法保持不编号，留在 Candidate Directions 中并带有提升触发条件。它们不会仅仅因为仓库
-调研注意到了它们就获得状态 ID，也绝不会出现在启动参考中。
+后头的想法留在 Candidate Directions 里，不编号，但带提升触发器。仓库调研注意到了它们，并不
+因此就发状态 ID，启动参考里也永远不出现。
 
-> Archive 记录已存在的内容。Init 决定接下来做什么。
+> Archive 记录已经存在的东西。Init 决定接下来做什么。
 
 ## Archive 预检之后
 
-Init 不会第二次从零开始压缩代码包。它会消费已验证的上下文证据，保留冻结的归档，安全地合并
-当前的产品与架构摘要，并只针对剩余的交付决策进行访谈。
+Init 不会从零再把整个包压缩一遍。它拿已经验证过的上下文证据，保留冻结的归档，把当前产品摘要
+和架构摘要稳妥地并到一起，只对剩下的交付决策做访谈。
 
 ## 启动参考
 
-当项目中存在已批准且兼容的 `tabilet/GOAL.md` 时，Init 还会写入
-`tabilet/memory-bank/suggested.txt`：一份可丢弃的启动请求，其中包含提议的状态顺序、文件映射
-和下游影响。
+项目里有已获批准、版本兼容的 `tabilet/GOAL.md` 时，Init 还会写
+`tabilet/memory-bank/suggested.txt`。这是一份用完就丢的启动请求，其中包含建议的状态顺序、
+文件映射和下游影响。
 
-它是启动输入，不是项目事实。它不在必读顺序之内；使用前应先对照 `milestone.md` 和当前状态
-文件进行检查，一旦启动完成或已经过期就删除。若没有兼容的协议，Init 会省略它，而单任务执行
-仍然可用。
+它只是启动输入，不是项目事实。它不进必读清单；用之前先对照 `milestone.md` 和当前状态文件核
+一遍，一旦启动完成或者过期就删掉。没有兼容协议时，Init 直接省略它，单任务执行照样可用。
 
 ## 验证结果
 
-检查 `tech-stack.md` 中的 **Execution harnesses** 表格：它应指明实际的验证命令，以及一次通过
-能确立什么。在开始执行之前先解决缺失的验证。只有当适用的检查全部通过、验收要求得到满足之后，
-任务才会到达 `[+]`。
+查看 `tech-stack.md` 里的 **Execution harnesses** 表格：它应当写明实际的验证命令，以及一次通过
+能证明什么。开始执行之前，先把缺的验证补上。适用的检查全部通过、验收要求也都满足，任务才算
+走到 `[+]`。
 
-然后通过 [Next](next.md) 请求一个已批准的任务，或通过 [Goal](goal.md) 请求明确的里程碑顺序。
-初始化不会启动实现。
+接下来可以用 [Next](next.md) 请求一个已批准的任务，或者用 [Goal](goal.md) 指定明确的里程碑
+顺序。初始化不会启动实现。
