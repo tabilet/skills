@@ -43,8 +43,8 @@ the file:
 | `skills/` | The seven optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |
 | `docs/`, `README.md`, `AGENTS.md` | This repository's own documentation. The published site is [Tabilet Memory Bank](https://tabilet.github.io/skills/), with a Simplified Chinese mirror at [tabilet.github.io/skills/zh/](https://tabilet.github.io/skills/zh/). |
-| `docs/zh/` | The Simplified Chinese translation of the published guides, one file per published English guide. Hand-maintained, and held in one-for-one parity by `check.py`. |
-| `mkdocs.yml`, `docs/requirements.txt`, `.github/workflows/deploy-docs.yml` | Website navigation, build dependencies, and deployment workflow. Only the guides selected by `mkdocs.yml` are published, in both languages. |
+| `docs/zh/` | The Simplified Chinese translation of the published guides, one file per published English guide, resolved from the single `nav` by `mkdocs-static-i18n`. Hand-maintained, and held in one-for-one parity by `check.py`. |
+| `mkdocs.yml`, `docs/requirements.txt`, `.github/workflows/deploy-docs.yml` | Website navigation, build dependencies (including the `mkdocs-static-i18n` plugin that publishes both locales), and deployment workflow. Only the guides selected by `mkdocs.yml` are published, in both languages. |
 
 Two consequences that matter constantly:
 
@@ -256,12 +256,23 @@ one milestone = one review unit.
 
 Repository documentation is English-only, with one deliberate exception: the
 published website ships in English and Simplified Chinese. The translated
-guides live in `docs/zh/`, one file per published English guide, listed under
-the `中文` tab in `mkdocs.yml` and in its `exclude_docs` allowlist. `check.py`
-holds the two sets in one-for-one parity, so a translation cannot drift behind
-the guide it mirrors or accumulate an orphan. Everywhere else — `README.md`,
-`docs/EXECUTION.md`, `docs/MODEL_EVAL.md`, and any other file in `docs/` — a
-language-suffixed copy of a canonical file stays rejected.
+guides live in `docs/zh/`, one file per published English guide, and
+`mkdocs-static-i18n` (pinned in `docs/requirements.txt`) publishes both locales
+from a single `nav`: the plugin resolves each English guide and each nav label
+to its `docs/zh/` counterpart, so a Chinese page links to Chinese pages and the
+header switcher lands on the equivalent page rather than the home page. That is
+why `mkdocs.yml` carries no `extra.alternate` and no second nav — both belong to
+the plugin, and a hand-written copy shadows or duplicates it.
+
+Every `nav` label needs a `nav_translations` entry. A missing one leaves the
+Chinese pages showing an English tab, so `check.py` fails the build on it. The
+plugin's upstream is frozen, so its version pin is deliberate: it is what works
+with the pinned MkDocs and Material, and it should not be bumped casually.
+
+`check.py` also holds the two page sets in one-for-one parity, so a translation
+cannot drift behind the guide it mirrors or accumulate an orphan. Everywhere
+else — `README.md`, `docs/EXECUTION.md`, `docs/MODEL_EVAL.md`, and any other
+file in `docs/` — a language-suffixed copy of a canonical file stays rejected.
 
 A translated heading needs an explicit `{#ascii-id}` whenever a guide
 deep-links to it. The MkDocs `toc` extension strips non-ASCII characters when it
@@ -381,9 +392,9 @@ spelling so an inbound link survives translation.
   in `docs/zh/`. Do not add translated siblings of `README.md`, of
   `docs/EXECUTION.md`/`docs/MODEL_EVAL.md`, or of any other canonical file.
   `docs/zh/` is a checked mirror of the published guides, not a free-form
-  translation directory: every page is listed in `mkdocs.yml`, matched
-  one-for-one with its English counterpart, and linked only through explicit
-  `{#id}` anchors.
+  translation directory: every page is named by `mkdocs.yml` `nav` or derived
+  from it, matched one-for-one with its English counterpart, and linked only
+  through explicit `{#id}` anchors.
 - Treat every `docs/medium*.md` file as public guidance. A
   `docs/medium*-infographic.png` is a manual Medium-upload asset and must be
   named by its corresponding article; do not accumulate orphaned publishing

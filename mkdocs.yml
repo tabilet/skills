@@ -37,18 +37,6 @@ extra_css:
   - assets/stylesheets/theme.css
 copyright: '© 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>'
 
-# The language switcher rendered in the header beside the search box. Each
-# entry is a fixed link to that language's home page, so switching languages
-# always lands on the home page of the other language, not the equivalent page.
-extra:
-  alternate:
-    - name: English
-      link: /skills/
-      lang: en
-    - name: 中文
-      link: /skills/zh/
-      lang: zh
-
 theme:
   name: material
   features:
@@ -80,16 +68,49 @@ markdown_extensions:
 
 # `zh` enables the bundled lunr Chinese tokenizer so the translated guides are
 # searchable rather than indexed as one long token.
+#
+# The i18n plugin publishes one build per locale: the English guides keep their
+# paths, and each is resolved to its docs/zh/ counterpart for the Chinese build.
+# That is what makes the top navigation language-correct — a Chinese page links
+# to Chinese pages — and the plugin also injects the header language switcher,
+# which points at the equivalent page in the other locale. Do not add
+# `extra.alternate` by hand; the plugin owns that entry.
+#
+# `nav` below therefore names the English guides once. Every label it uses needs
+# a `nav_translations` entry, or the Chinese pages show an English tab;
+# site_contract in check.py fails on a missing label.
 plugins:
   - search:
       lang:
         - en
         - zh
+  - i18n:
+      docs_structure: folder
+      languages:
+        - locale: en
+          default: true
+          name: English
+        - locale: zh
+          name: 中文
+          nav_translations:
+            Home: 首页
+            Get started: 开始使用
+            Installation: 安装
+            Choose a workflow: 选择工作流
+            Skills: 技能
+            Init: Init 初始化
+            Next: Next 下一步
+            Goal: Goal 目标
+            Propose: Propose 提议
+            Reconcile: Reconcile 协调
+            Upgrade: Upgrade 升级
+            Archive: Archive 归档
 
-# The Chinese pages are translated from the English guides of the same name.
-# site_contract in check.py requires the two sets to stay in parity. Chinese
-# headings that a guide deep-links to carry an explicit `{#ascii-id}` so the
-# fragment survives translation; see the translation note in AGENTS.md.
+# The Chinese guides are translated from the English guides of the same name.
+# site_contract requires the two sets to stay in parity. A Chinese heading that
+# a guide deep-links to carries an explicit `{#ascii-id}` so the fragment
+# survives translation; see the translation note in AGENTS.md.
+# Keep this section last: check.py reads it as the final top-level key.
 nav:
   - Home: index.md
   - Get started:
@@ -103,16 +124,3 @@ nav:
     - Reconcile: reconcile.md
     - Upgrade: upgrade.md
     - Archive: archive.md
-  - 中文:
-    - 首页: zh/index.md
-    - 开始使用:
-      - 安装: zh/installation.md
-      - 选择工作流: zh/examples.md
-    - 技能:
-      - Init 初始化: zh/init.md
-      - Next 下一步: zh/next.md
-      - Goal 目标: zh/goal.md
-      - Propose 提议: zh/propose.md
-      - Reconcile 协调: zh/reconcile.md
-      - Upgrade 升级: zh/upgrade.md
-      - Archive 归档: zh/archive.md

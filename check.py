@@ -86,20 +86,48 @@ def markdown_files() -> list[pathlib.Path]:
     )
 
 
+def nav_section(config: str) -> str:
+    """Return the top-level `nav:` section, up to the next top-level key."""
+
+    return re.split(r"\n(?=\S)", config.partition("\nnav:\n")[2])[0]
+
+
+def yaml_block(config: str, key: str) -> list[str]:
+    """Return the lines nested under the first `key:` line of a YAML document."""
+
+    lines = config.splitlines()
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not (stripped.startswith(f"{key}:") or stripped.startswith(f"- {key}:")):
+            continue
+        indent = len(line) - len(line.lstrip())
+        block = []
+        for follow in lines[index + 1:]:
+            if follow.strip() and len(follow) - len(follow.lstrip()) <= indent:
+                break
+            block.append(follow)
+        return block
+    return []
+
+
 def site_pages(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
-    """Return the guides published to the documentation website.
+    """Return the guides published to the documentation website, both locales.
 
     Read nav from mkdocs.yml so newly published guides enter the interface
-    checks automatically. site_contract verifies this list against exclude_docs.
-    The English guides and their Simplified Chinese translations under docs/zh/
-    are both published, so both sets enter the interface checks.
+    checks automatically. `nav` names the default (English) guides once, and
+    mkdocs-static-i18n resolves each to its `docs/zh/` counterpart, so that
+    derived set is published as well. site_contract verifies both sets against
+    exclude_docs and against the files actually on disk.
     """
 
-    config = (root / "mkdocs.yml").read_text()
-    nav = config.partition("\nnav:\n")[2]
-    names = re.findall(r"^\s*-\s+[^:\n]+:\s+([A-Za-z0-9_-]+\.md)\s*$", nav, re.M)
-    translated = re.findall(r"^\s*-\s+[^:\n]+:\s+(zh/[A-Za-z0-9_-]+\.md)\s*$", nav, re.M)
-    return [root / "docs" / name for name in names + translated]
+    names = re.findall(
+        r"^\s*-\s+[^:\n]+:\s+([A-Za-z0-9_-]+\.md)\s*$",
+        nav_section((root / "mkdocs.yml").read_text()),
+        re.M,
+    )
+    return [root / "docs" / name for name in names] + [
+        root / "docs" / "zh" / name for name in names
+    ]
 
 
 def medium_articles(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
@@ -1090,14 +1118,46 @@ def site_contract():
         if not page.is_file():
             problems.append(f"mkdocs.yml nav points to missing guide {page.relative_to(docs)}")
 
+    # The site is published in two locales by mkdocs-static-i18n: `nav` names
+    # the English guides once and the plugin resolves each to docs/zh/. A label
+    # missing from nav_translations leaves the Chinese pages showing an English
+    # tab, which is the exact regression the translated site exists to prevent.
+    requirements = (ROOT / "docs/requirements.txt").read_text()
+    if "mkdocs-static-i18n" not in requirements:
+        problems.append("docs/requirements.txt must pin mkdocs-static-i18n for the translated site")
+    i18n = yaml_block(config, "i18n")
+    if not i18n:
+        problems.append("mkdocs.yml must configure the i18n plugin for the translated site")
+    else:
+        joined = "\n".join(i18n)
+        if "docs_structure: folder" not in joined:
+            problems.append("the i18n plugin must use docs_structure: folder")
+        if "locale: en" not in joined or "locale: zh" not in joined:
+            problems.append("the i18n plugin must declare the en and zh locales")
+        if "default: true" not in joined:
+            problems.append("the i18n plugin must mark one locale as the default")
+        labels = re.findall(r"^\s*-\s+([^:\n]+?):", nav_section(config), re.M)
+        translated = set()
+        for line in yaml_block(config, "nav_translations"):
+            match = re.match(r"\s*([^:\n]+?):", line)
+            if match:
+                translated.add(match.group(1).strip())
+        missing = sorted({label.strip() for label in labels} - translated)
+        if missing:
+            problems.append(
+                "mkdocs.yml nav_translations must translate every nav label; "
+                f"missing {', '.join(missing)}"
+            )
+
     # The translated site is a mirror, not a subset: every published English
     # guide has exactly one Simplified Chinese counterpart and no orphan.
-    english = sorted(name for name in names if not name.startswith("zh/"))
-    chinese = sorted(name[len("zh/"):] for name in names if name.startswith("zh/"))
+    english = sorted(page.name for page in pages if page.parent.name != "zh")
+    chinese = sorted(page.name for page in pages if page.parent.name == "zh")
+    on_disk = sorted(path.name for path in (ROOT / "docs" / "zh").glob("*.md"))
     if not chinese:
         problems.append("docs/zh/ must publish a Simplified Chinese translation of every guide")
-    elif english != chinese:
-        problems.append("docs/zh/ must translate every published guide one-for-one")
+    elif english != chinese or on_disk != chinese:
+        problems.append("docs/zh/ must translate every published guide one-for-one, with no orphan")
 
     index = (ROOT / "docs/index.md").read_text()
     routing = index.partition("## Choose your starting point")[2].partition("## What stays in your project")[0]

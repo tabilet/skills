@@ -78,9 +78,14 @@ class CheckHelperTests(unittest.TestCase):
                 "site_name: Example\nnav:\n  - Home: index.md\n"
                 "  - Guides:\n    - New guide: added.md\n"
             )
+            # `nav` names the default-locale guides once; the i18n plugin
+            # resolves each to its docs/zh/ mirror, so both sets are published.
             self.assertEqual(
-                [p.name for p in repository_checks.site_pages(root)],
-                ["index.md", "added.md"],
+                [
+                    str(path.relative_to(root / "docs"))
+                    for path in repository_checks.site_pages(root)
+                ],
+                ["index.md", "added.md", "zh/index.md", "zh/added.md"],
             )
 
     def test_anchors_ignore_fenced_html(self) -> None:
