@@ -1188,6 +1188,10 @@ class AuditRun:
         try:
             import tabilet_audit
             self.recorder = tabilet_audit
+            if git_ref is None:
+                head = run_local(["git", "rev-parse", "HEAD"], repo)
+                git_ref = head.stdout.strip() if head.returncode == 0 else None
+                self.git_ref = git_ref
             self.connection = self.recorder.open_database(args.audit_db, project_roots=[repo])
             self.workspace_id = self.recorder.ensure_workspace(self.connection, repo, branch=git_branch(repo))
             self.run_id = self.recorder.start_run(
