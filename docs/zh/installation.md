@@ -174,6 +174,32 @@ API 运行器要求每次运行都留下一次提交。碰到脏状态、缺少�
 表示剩下的全是阻塞工作；退出码 `0` 表示没有可执行的行了，而不是每个里程碑都过了评审。
 事后请检查记录的验证和关闭证据。同一个活跃账本上，别同时再跑另一个智能体。
 
+## 可选的 SQLite 审计与检索 {#optional-sqlite}
+
+Markdown 仍是权威来源。可选工具将本地审计存储在项目外，并为里程碑、任务、
+历史、演进和归档建立可重建的索引。在包含此功能的仓库检出目录中运行：
+
+```bash
+mkdir -p ~/.local/bin
+install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py ~/.local/bin/
+install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
+export PATH="$HOME/.local/bin:$PATH"
+export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+tabilet-audit index sync /absolute/project
+tabilet-audit index search /absolute/project 'authentication' --kind task
+```
+
+设置数据库路径会启用 API 运行器及交互式技能指令中的审计步骤。
+仅安装技能不会创建数据库。相关消息捕获需单独启用；原始聊天文本必须由宿主提供。
+即使审计仅记录元数据，索引仍保存当前 Markdown 文本。
+索引结果显示上次刷新时间和来源位置，执行前仍须重新读取磁盘上的 Markdown。
+暂不新增完整文件快照，已有快照证据会保留。工具仅使用 Python 标准库，无需 npm 包。
+
+宿主生命周期、筛选、备用搜索、迁移、备份和恢复详见仓库的
+[操作指南](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)。
+DSH 仪表盘继续直接读取项目 Markdown；安装此工具不会添加图形浏览器或宿主聊天捕获钩子。
+
 ## 更新
 
 Claude Code 用自带的 `/plugin` 管理器更新已安装的插件。Codex 则刷新市场快照，再重装：

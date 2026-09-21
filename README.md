@@ -1117,6 +1117,20 @@ check filenames and the history index. A valid project with all milestones
 retired exits `0`. The full table is in
 [Execution Harness](docs/EXECUTION.md#exit-codes).
 
+## Optional SQLite audit and lookup
+
+Markdown remains authoritative. The optional `tabilet-audit` toolkit records
+workflow evidence in an external SQLite database and builds a disposable index
+of active milestones/tasks, retired history, evolution, and context archives.
+Indexing does not change project Markdown or require new task IDs.
+
+See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
+The API runner records enabled runs; interactive skills can use the same optional
+CLI. Exact chat capture requires text supplied by the host. Default audit capture
+stores metadata; the lookup index separately contains current Markdown text.
+Installing skills alone never creates a database. Existing
+snapshot evidence stays readable; new full-file snapshot capture is deferred.
+
 ## What The Harness Is
 
 For normal project work, `tackle-memory-bank-api-loop` is an execution harness:

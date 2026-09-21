@@ -156,6 +156,22 @@ control back to a human.
 Codes `10` through `15` are target or authorization setup problems. Codes `20`
 through `23` are provider or network problems, not project problems.
 
+## Optional SQLite audit and lookup
+
+The runner remains a single-file installation when auditing is disabled. To opt
+in, install the [optional toolkit](sqlite.md#install-and-use-the-optional-toolkit)
+and set `TABILET_AUDIT_DB` to an external database path or pass `--audit-db`.
+`--audit-capture metadata` is the default; `relevant` also stores the selected
+host-observed output. The recorder captures task transitions, successful commits,
+validation evidence, and terminal outcomes, then refreshes the Markdown index.
+
+Audit or index failure is reported as a gap and preserves the runner's exit-code
+and commit rules. A committed blocked row records a blocked result; historical
+closure is not successful acceptance. No new snapshots are captured. Legacy
+`--audit-archives` requests stop with a replacement instruction before execution.
+The [CLI lifecycle and query commands](sqlite.md#record-a-host-workflow) also serve
+interactive hosts. Live Markdown must be reread before acting on indexed results.
+
 ## DSH runtime integration
 
 The optional [v1.4.0 companion](DSH.md#install-the-dsh-companion) adds a read-only

@@ -193,6 +193,36 @@ Exit `0` means no actionable rows remain, not that every milestone passed its
 review. Check the recorded verification and closure evidence afterward. Do not
 run another agent against the same active ledger at the same time.
 
+## Optional SQLite audit and lookup {#optional-sqlite}
+
+Markdown stays authoritative. The optional toolkit stores a local audit outside
+projects and builds a rebuildable index of milestones, tasks, history, evolution,
+and archives. From a checkout containing this feature:
+
+```bash
+mkdir -p ~/.local/bin
+install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py ~/.local/bin/
+install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
+export PATH="$HOME/.local/bin:$PATH"
+export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+tabilet-audit index sync /absolute/project
+tabilet-audit index search /absolute/project 'authentication' --kind task
+```
+
+Setting the database path enables audit hooks in the API runner and interactive
+skill instructions. Installing skills alone never creates it. Relevant message
+capture is separately opt-in; exact chat text requires host capture. The index
+stores current Markdown text even in metadata-only audit mode. Index results
+show the last refresh and source location; reread live Markdown before execution.
+New full-file snapshots are deferred, and existing snapshot evidence is preserved.
+The toolkit uses Python's standard library and requires no npm package.
+
+See the repository's [operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)
+for host lifecycle, filters, fallback search, migration, backup, and recovery.
+The DSH dashboard continues reading project Markdown; installing this toolkit
+does not add a graphical explorer or host transcript hooks.
+
 ## Update
 
 For Claude Code, use its `/plugin` manager to update the installed plugin.
