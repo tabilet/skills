@@ -127,8 +127,9 @@ class ExplorerApp:
                       "history": 0, "archives": 0, "evolution": 0}
             for row in tasks:
                 counts[row["state"].replace("_", " ")] = counts.get(row["state"].replace("_", " "), 0) + row["count"]
-            for key, kind in (("history", "history_status"), ("archives", "context_archive"), ("evolution", "evolution_prompt")):
+            for key, kind in (("history", "history_status"), ("archives", "context_archive")):
                 counts[key] = connection.execute("SELECT COUNT(*) FROM index_documents WHERE workspace_id=? AND kind=?", (workspace_id, kind)).fetchone()[0]
+            counts["evolution"] = connection.execute("SELECT COUNT(*) FROM index_documents WHERE workspace_id=? AND kind LIKE 'evolution_%'", (workspace_id,)).fetchone()[0]
             attention = [{"message": str(item), "kind": "diagnostic"} for item in state.get("diagnostics", [])]
             attention += [{"message": f"{row['count']} blocked task(s)", "kind": "blocked"} for row in tasks if row["state"] == "blocked"]
             unfinished = connection.execute("SELECT COUNT(*) FROM runs WHERE workspace_id=? AND completed_at IS NULL", (workspace_id,)).fetchone()[0]
@@ -137,8 +138,9 @@ class ExplorerApp:
             for milestone in milestones:
                 per = audit.records(connection, "SELECT state,COUNT(*) AS count FROM index_tasks WHERE workspace_id=? AND milestone_id=? GROUP BY state", (workspace_id, milestone["milestone_id"]))
                 milestone["task_counts"] = ", ".join(f"{row['state']}: {row['count']}" for row in per)
-            def cards(kind):
-                rows = audit.records(connection, "SELECT path,text,sha256 FROM index_documents WHERE workspace_id=? AND kind=? ORDER BY path", (workspace_id, kind))
+            def cards(kind, pattern=False):
+                operator = "LIKE" if pattern else "="
+                rows = audit.records(connection, f"SELECT path,text,sha256 FROM index_documents WHERE workspace_id=? AND kind {operator} ? ORDER BY path", (workspace_id, kind))
                 return [{'title': row['path'], 'summary': row['text'][:400],
                          'source': {'path': row['path'], 'sha256': row['sha256']}} for row in rows]
             active = []
@@ -153,7 +155,7 @@ class ExplorerApp:
                     "active_milestones": active,
                     "history": cards('history_status'),
                     "archives": cards('context_archive'),
-                    "evolution": cards('evolution_prompt'),
+                    "evolution": cards('evolution_%', pattern=True),
                     "groups": {"history": counts["history"], "archives": counts["archives"], "evolution": counts["evolution"]}}
 
     def timeline(self, params):
