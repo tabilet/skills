@@ -15,6 +15,7 @@ import pathlib
 import re
 import sqlite3
 from typing import Any
+import uuid
 
 
 SCHEMA_NAME = "tabilet.audit/v1"
@@ -267,3 +268,223 @@ def open_database(path: str | os.PathLike[str] | None = None) -> sqlite3.Connect
     except Exception:
         connection.close()
         raise
+
+
+def ensure_workspace(
+    connection: sqlite3.Connection,
+    project_root: str | os.PathLike[str],
+    *,
+    repository_id: str | None = None,
+    branch: str | None = None,
+    observed_at: str | None = None,
+) -> str:
+    """Return the stable workspace ID for one local checkout."""
+
+    root = pathlib.Path(project_root).expanduser().absolute()
+    root_text = str(root)
+    timestamp = observed_at or utc_now()
+    _timestamp(timestamp, "observed_at")
+    with connection:
+        row = connection.execute(
+            "SELECT workspace_id FROM workspaces WHERE project_root = ?", (root_text,)
+        ).fetchone()
+        if row:
+            connection.execute(
+                "UPDATE workspaces SET repository_id = COALESCE(?, repository_id), "
+                "branch = COALESCE(?, branch), last_seen_at = ? WHERE workspace_id = ?",
+                (repository_id, branch, timestamp, row[0]),
+            )
+            return row[0]
+        workspace_id = str(uuid.uuid4())
+        connection.execute(
+            "INSERT INTO workspaces(workspace_id, project_root, repository_id, branch, created_at, last_seen_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (workspace_id, root_text, repository_id, branch, timestamp, timestamp),
+        )
+        return workspace_id
+
+
+def start_run(
+    connection: sqlite3.Connection,
+    workspace_id: str,
+    operation: str,
+    *,
+    run_id: str | None = None,
+    capture_mode: str = "metadata",
+    parent_run_id: str | None = None,
+    git_head: str | None = None,
+    worktree_state: str = "unversioned",
+    started_at: str | None = None,
+) -> str:
+    """Create one run record and return its ID."""
+
+    if operation not in OPERATIONS:
+        raise AuditValidationError(f"unknown operation: {operation}")
+    if capture_mode not in {"metadata", "relevant"}:
+        raise AuditValidationError(f"unknown capture mode: {capture_mode}")
+    if worktree_state not in WORKTREE_STATES:
+        raise AuditValidationError(f"unknown worktree state: {worktree_state}")
+    run_id = run_id or str(uuid.uuid4())
+    timestamp = started_at or utc_now()
+    _text(workspace_id, "workspace_id")
+    _text(run_id, "run_id")
+    _timestamp(timestamp, "started_at")
+    with connection:
+        if not connection.execute(
+            "SELECT 1 FROM workspaces WHERE workspace_id = ?", (workspace_id,)
+        ).fetchone():
+            raise AuditValidationError(f"unknown workspace: {workspace_id}")
+        connection.execute(
+            "INSERT INTO runs(run_id, workspace_id, operation, started_at, recorder_version, "
+            "capture_mode, parent_run_id, git_head, worktree_state) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (run_id, workspace_id, operation, timestamp, RECORDER_VERSION, capture_mode,
+             parent_run_id, git_head, worktree_state),
+        )
+    return run_id
+
+
+def _event_payload(event: dict[str, Any]) -> str:
+    return canonical_json(event)
+
+
+def append_event(
+    connection: sqlite3.Connection,
+    event: dict[str, Any],
+    *,
+    sequence: int | None = None,
+) -> int:
+    """Append one validated event and return its run-local sequence."""
+
+    normalized = validate_event(event)
+    event_id = normalized["event_id"]
+    run_id = normalized["run_id"]
+    payload = _event_payload(normalized)
+    existing = connection.execute(
+        "SELECT sequence, payload_json FROM events WHERE event_id = ?", (event_id,)
+    ).fetchone()
+    if existing:
+        if existing[1] != payload:
+            raise AuditConflict(f"event ID reused with a different payload: {event_id}")
+        return int(existing[0])
+    run = connection.execute(
+        "SELECT workspace_id, operation FROM runs WHERE run_id = ?", (run_id,)
+    ).fetchone()
+    if not run:
+        raise AuditValidationError(f"unknown run: {run_id}")
+    if run[1] != normalized["operation"]:
+        raise AuditValidationError("event operation does not match its run")
+    if run[0] != normalized["workspace_id"]:
+        raise AuditValidationError("event workspace does not match its run")
+    if sequence is None:
+        sequence = connection.execute(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM events WHERE run_id = ?", (run_id,)
+        ).fetchone()[0]
+    if not isinstance(sequence, int) or sequence < 1:
+        raise AuditValidationError("event sequence must be a positive integer")
+    subject = normalized["subject"]
+    details = normalized["details"]
+    verification = details.get("verification")
+    file_actions = details.get("file_actions")
+    commit_sha = details.get("commit_sha")
+    with connection:
+        try:
+            connection.execute(
+                "INSERT INTO events(event_id, run_id, sequence, recorded_at, occurred_at, operation, "
+                "event_type, milestone_id, task_label, status_path, old_state, new_state, "
+                "verification_json, file_actions_json, commit_sha, details_json, payload_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (event_id, run_id, sequence, normalized["recorded_at"], normalized.get("occurred_at"),
+                 normalized["operation"], normalized["event_type"], subject.get("milestone_id"),
+                 subject.get("task_label"), subject.get("status_path"), subject.get("old_state"),
+                 subject.get("new_state"), canonical_json(verification) if verification is not None else None,
+                 canonical_json(file_actions) if file_actions is not None else None, commit_sha,
+                 canonical_json(details), payload),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise AuditConflict(f"event sequence or ID conflict: {event_id}") from exc
+    return sequence
+
+
+def capture_message(
+    connection: sqlite3.Connection,
+    run_id: str,
+    role: str,
+    text: str,
+    *,
+    capture_source: str,
+    fidelity: str,
+    message_id: str | None = None,
+    sequence: int | None = None,
+    captured_at: str | None = None,
+    redaction_note: str | None = None,
+) -> str:
+    """Store one explicitly selected visible message."""
+
+    if capture_source not in CAPTURE_SOURCES:
+        raise AuditValidationError(f"unknown capture source: {capture_source}")
+    if fidelity not in FIDELITIES:
+        raise AuditValidationError(f"unknown message fidelity: {fidelity}")
+    if not isinstance(run_id, str) or not run_id.strip():
+        raise AuditValidationError("run_id must be a non-empty string")
+    _text(role, "role")
+    _text(text, "text")
+    captured_at = captured_at or utc_now()
+    _timestamp(captured_at, "captured_at")
+    if not connection.execute("SELECT 1 FROM runs WHERE run_id = ?", (run_id,)).fetchone():
+        raise AuditValidationError(f"unknown run: {run_id}")
+    message_id = message_id or str(uuid.uuid4())
+    if sequence is None:
+        sequence = connection.execute(
+            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM captured_messages WHERE run_id = ?", (run_id,)
+        ).fetchone()[0]
+    if not isinstance(sequence, int) or sequence < 1:
+        raise AuditValidationError("message sequence must be a positive integer")
+    existing = connection.execute(
+        "SELECT run_id, sequence, role, captured_at, text, capture_source, fidelity, redaction_note "
+        "FROM captured_messages WHERE message_id = ?", (message_id,)
+    ).fetchone()
+    values = (run_id, sequence, role, captured_at, text, capture_source, fidelity, redaction_note)
+    if existing:
+        if tuple(existing) != values:
+            raise AuditConflict(f"message ID reused with a different payload: {message_id}")
+        return message_id
+    with connection:
+        try:
+            connection.execute(
+                "INSERT INTO captured_messages(message_id, run_id, sequence, role, captured_at, text, "
+                "capture_source, fidelity, redaction_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (message_id, *values),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise AuditConflict(f"message sequence or ID conflict: {message_id}") from exc
+    return message_id
+
+
+def finish_run(
+    connection: sqlite3.Connection,
+    run_id: str,
+    result: str,
+    *,
+    completed_at: str | None = None,
+) -> None:
+    """Set a run's terminal result once evidence is available."""
+
+    if result not in RUN_RESULTS:
+        raise AuditValidationError(f"unknown run result: {result}")
+    completed_at = completed_at or utc_now()
+    _timestamp(completed_at, "completed_at")
+    row = connection.execute(
+        "SELECT completed_at, result FROM runs WHERE run_id = ?", (run_id,)
+    ).fetchone()
+    if not row:
+        raise AuditValidationError(f"unknown run: {run_id}")
+    if row[0] is not None or row[1] is not None:
+        if row[0] == completed_at and row[1] == result:
+            return
+        raise AuditConflict(f"run already has a different terminal result: {run_id}")
+    with connection:
+        connection.execute(
+            "UPDATE runs SET completed_at = ?, result = ? WHERE run_id = ?",
+            (completed_at, result, run_id),
+        )

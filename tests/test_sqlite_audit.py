@@ -127,6 +127,54 @@ class SqliteAuditContractTests(unittest.TestCase):
             with self.assertRaisesRegex(audit.AuditError, "newer"):
                 audit.open_database(newer)
 
+    def test_workspace_run_event_message_and_finish_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            workspace_id = audit.ensure_workspace(
+                connection, Path(temporary) / "project", repository_id="repo", branch="sqlite"
+            )
+            self.assertEqual(
+                audit.ensure_workspace(connection, Path(temporary) / "project"), workspace_id
+            )
+            run_id = audit.start_run(
+                connection, workspace_id, "next", git_head="abc123", worktree_state="clean"
+            )
+            self.assertEqual(
+                audit.append_event(connection, event(run_id=run_id, workspace_id=workspace_id)), 1
+            )
+            message_id = audit.capture_message(
+                connection,
+                run_id,
+                "assistant",
+                "Completed the recorder task.",
+                capture_source="agent",
+                fidelity="summarized",
+            )
+            self.assertTrue(message_id)
+            audit.finish_run(connection, run_id, "completed")
+            row = connection.execute(
+                "SELECT operation, git_head, worktree_state, result FROM runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            self.assertEqual(row, ("next", "abc123", "clean", "completed"))
+            self.assertEqual(
+                connection.execute("SELECT task_label FROM events WHERE run_id = ?", (run_id,)).fetchone()[0],
+                "Implement recorder",
+            )
+            self.assertEqual(
+                connection.execute("SELECT text FROM captured_messages WHERE message_id = ?", (message_id,)).fetchone()[0],
+                "Completed the recorder task.",
+            )
+
+    def test_foreign_keys_reject_unknown_run_and_workspace(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.executescript(audit.SCHEMA_SQL)
+        with self.assertRaises(audit.AuditValidationError):
+            audit.start_run(connection, "missing", "next")
+        with self.assertRaises(audit.AuditValidationError):
+            audit.append_event(connection, event())
+
 
 if __name__ == "__main__":
     unittest.main()
