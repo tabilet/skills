@@ -272,7 +272,8 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
     # Layout/source discovery precedes registration and all index writes.
     layout_check(root)
     context=git_context(root)
-    workspace=ensure_workspace(connection,root,branch=context['branch'])
+    existing=connection.execute('SELECT workspace_id FROM workspaces WHERE project_root=?',(str(root),)).fetchone()
+    workspace=existing[0] if existing else ensure_workspace(connection,root,branch=context['branch'])
     attempted=utc_now()
     try:
         paths=inventory(root)
