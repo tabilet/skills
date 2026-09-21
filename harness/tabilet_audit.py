@@ -774,10 +774,11 @@ def export_json(connection, *, workspace_id=None, include_content=False):
     try:
         where, values = (' WHERE workspace_id=?',(workspace_id,)) if workspace_id else ('',())
         runs = records(connection, 'SELECT * FROM runs'+where+' ORDER BY started_at,run_id',values)
+        has_explorer = 'event_explorer' in schema_tables(connection)
         for run in runs:
             run['events'] = records(connection,'SELECT * FROM events WHERE run_id=? ORDER BY sequence',(run['run_id'],))
             for observed in run['events']:
-                explorer = records(connection, 'SELECT * FROM event_explorer WHERE event_id=?', (observed['event_id'],))
+                explorer = records(connection, 'SELECT * FROM event_explorer WHERE event_id=?', (observed['event_id'],)) if has_explorer else []
                 observed['explorer'] = explorer[0] if explorer else None
                 if observed['explorer'] is not None:
                     observed['explorer']['message_refs'] = records(

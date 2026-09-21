@@ -166,8 +166,11 @@ Check that viewing/copying creates no project writes, audit execution runs,
 model calls, or inferred approvals. Run focused browser/service tests and
 `python3 check.py` before the milestone review.
 
-Review iteration: 1 (focused implementation review passed). The static browser
-asset suite, Node syntax check, and credential-free service tests cover the three
+Review iteration: 2 (deep review fixes applied). Run details now render captured
+request/output messages and structured event/artifact references; source buttons
+open live declared documents, global search opens indexed source matches, and
+browser history does not push duplicate entries while restoring a deep link. The
+static browser asset suite, Node syntax check, and credential-free service tests cover the three
 views, safe text rendering, filters, pagination, follow-up actions, polling, and
 degraded states. The client uses text nodes for untrusted values and has a
 manual selection fallback when clipboard access is unavailable.

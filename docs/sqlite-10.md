@@ -133,7 +133,10 @@ Use credential-free HTTP tests and a minimal browser smoke test for routing,
 focus, source preview, and polling. Run `python3 check.py` and `git diff --check`.
 SQLite 11 starts only after the server/API contract and milestone review pass.
 
-Review iteration: 1 (focused implementation review passed). Credential-free HTTP
+Review iteration: 2 (deep review fixes applied). Timeline search is applied in
+SQL before pagination across run, event, and captured-message evidence, and
+health exposes audit activity so polling notices new runs as well as index
+refreshes. Credential-free HTTP
 tests, copied-toolkit smoke testing, and repository checks passed. The server
 serves the richer bundled client and accepts its same-origin cookie while
 retaining the header-token compatibility path. No project writes occur during

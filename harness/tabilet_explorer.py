@@ -13,7 +13,6 @@ import contextlib
 import hashlib
 import html
 import http.server
-import html
 import json
 import os
 import pathlib
@@ -101,7 +100,7 @@ class ExplorerApp:
 
     def health(self):
         result = {"project_root": str(self.project), "database": str(self.database), "database_available": False,
-                  "setup_required": not self.database.is_file(), "index": None, "diagnostics": []}
+                  "setup_required": not self.database.is_file(), "index": None, "diagnostics": [], "activity": None}
         if not self.database.is_file():
             return result
         try:
@@ -109,6 +108,8 @@ class ExplorerApp:
                 result.update({"database_available": True, "workspace_id": workspace["workspace_id"], "branch": workspace.get("branch")})
                 result["index"] = index.status(connection, workspace["workspace_id"])
                 result["diagnostics"] = result["index"].get("diagnostics", [])
+                latest = connection.execute("SELECT MAX(value) FROM (SELECT started_at AS value FROM runs WHERE workspace_id=? UNION ALL SELECT e.recorded_at AS value FROM events e JOIN runs r USING(run_id) WHERE r.workspace_id=? UNION ALL SELECT m.captured_at AS value FROM captured_messages m JOIN runs r USING(run_id) WHERE r.workspace_id=?)", (workspace["workspace_id"], workspace["workspace_id"], workspace["workspace_id"])).fetchone()[0]
+                result["activity"] = latest
         except (audit.AuditError, sqlite3.Error, OSError) as exc:
             result["diagnostics"] = [str(exc)]
             result["setup_required"] = False
@@ -121,7 +122,10 @@ class ExplorerApp:
         with self.read() as (connection, workspace):
             workspace_id = workspace["workspace_id"]
             state = index.status(connection, workspace_id)
-            milestones = audit.records(connection, "SELECT * FROM index_milestones WHERE workspace_id=? AND lifecycle='active' ORDER BY line,milestone_id", (workspace_id,))
+            if 'index_milestone_projection' in audit.schema_tables(connection):
+                milestones = audit.records(connection, "SELECT m.*,p.display_order,p.summary,p.acceptance_text,p.review_evidence,p.closure_state FROM index_milestones m LEFT JOIN index_milestone_projection p ON p.workspace_id=m.workspace_id AND p.milestone_id=m.milestone_id WHERE m.workspace_id=? AND m.lifecycle='active' ORDER BY COALESCE(p.display_order,2147483647),m.line,m.milestone_id", (workspace_id,))
+            else:
+                milestones = audit.records(connection, "SELECT * FROM index_milestones WHERE workspace_id=? AND lifecycle='active' ORDER BY line,milestone_id", (workspace_id,))
             tasks = audit.records(connection, "SELECT milestone_id,state,COUNT(*) AS count FROM index_tasks WHERE workspace_id=? GROUP BY milestone_id,state", (workspace_id,))
             counts = {"active milestones": len(milestones), "pending": 0, "in progress": 0, "blocked": 0, "completed": 0,
                       "history": 0, "archives": 0, "evolution": 0}
@@ -172,6 +176,16 @@ class ExplorerApp:
             if operation: clauses.append("r.operation=?"); values.append(operation)
             if outcome and outcome != "unfinished": clauses.append("r.result=?"); values.append(outcome)
             if outcome == "unfinished": clauses.append("r.completed_at IS NULL")
+            if search:
+                clauses.append("(" + " OR ".join([
+                    "instr(lower(coalesce(r.operation,'')),?)>0",
+                    "instr(lower(coalesce(r.result,'')),?)>0",
+                    "instr(lower(coalesce(r.git_head,'')),?)>0",
+                    "instr(lower(coalesce(r.worktree_state,'')),?)>0",
+                    "EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.run_id AND (instr(lower(coalesce(e.event_type,'')),?)>0 OR instr(lower(coalesce(e.task_label,'')),?)>0 OR instr(lower(coalesce(e.details_json,'')),?)>0 OR instr(lower(coalesce(e.payload_json,'')),?)>0))",
+                    "EXISTS (SELECT 1 FROM captured_messages m WHERE m.run_id=r.run_id AND (instr(lower(coalesce(m.role,'')),?)>0 OR instr(lower(m.text),?)>0))",
+                ]) + ")")
+                values.extend([search] * 10)
             if cursor:
                 boundary = audit.time_bound(cursor["started_at"])
                 key = audit.time_key("r.started_at")
@@ -179,8 +193,6 @@ class ExplorerApp:
                 values.extend([boundary, boundary, cursor["run_id"]])
             where = " AND ".join(clauses)
             rows = audit.records(connection, f"SELECT r.* FROM runs r WHERE {where} ORDER BY {audit.time_key('r.started_at')} DESC,r.run_id DESC LIMIT ?", (*values, limit + 1))
-            if search:
-                rows = [row for row in rows if search in json.dumps(row, ensure_ascii=False).lower() or connection.execute("SELECT 1 FROM events WHERE run_id=? AND lower(details_json) LIKE ? LIMIT 1", (row["run_id"], "%" + search + "%")).fetchone()]
             more = len(rows) > limit; rows = rows[:limit]
             for row in rows:
                 row["child_run_ids"] = [x[0] for x in connection.execute("SELECT run_id FROM runs WHERE parent_run_id=? ORDER BY run_id", (row["run_id"],))]
@@ -194,6 +206,13 @@ class ExplorerApp:
             if not row: raise audit.AuditError("run is not part of this project")
             result = row[0]
             result["events"] = audit.query_events(connection, run_id, workspace_id=workspace["workspace_id"], limit=10000)
+            if 'event_explorer' in audit.schema_tables(connection):
+                for event in result["events"]:
+                    explorer_rows = audit.records(connection, "SELECT * FROM event_explorer WHERE event_id=?", (event["event_id"],))
+                    if explorer_rows:
+                        event["explorer"] = explorer_rows[0]
+                        event["explorer"]["message_refs"] = audit.records(connection, "SELECT * FROM event_message_refs WHERE event_id=? ORDER BY message_id", (event["event_id"],))
+                        event["explorer"]["artifact_refs"] = audit.records(connection, "SELECT * FROM event_artifacts WHERE event_id=? ORDER BY namespace,identifier", (event["event_id"],))
             result["messages"] = audit.records(connection, "SELECT * FROM captured_messages WHERE run_id=? ORDER BY sequence", (run_id,))
             result["snapshot_observations"] = audit.records(connection, "SELECT * FROM run_snapshots WHERE run_id=? ORDER BY source_path", (run_id,))
             return {"run": result, "events": result.pop("events"), "messages": result.pop("messages"), "snapshot_observations": result.pop("snapshot_observations")}
@@ -243,17 +262,65 @@ class ExplorerApp:
             raise audit.AuditError('unknown follow-up action')
         with self.read() as (connection, workspace):
             workspace_id = workspace['workspace_id']
+            readiness = index.readiness(connection, workspace_id, self.project)
+            if readiness['source_freshness'] != 'current' or (readiness['needs_review'] and action != 'review'):
+                raise audit.AuditError('follow-up requires a current, review-free index; refresh and resolve diagnostics first')
             explicit, label, milestone = payload.get('task_id'), payload.get('task_label'), payload.get('milestone_id')
+            item = None
             if explicit or label:
-                rows = audit.records(connection, 'SELECT * FROM index_tasks WHERE workspace_id=? AND (? IS NULL OR explicit_id=?) AND (? IS NULL OR label=?) AND (? IS NULL OR milestone_id=?)', (workspace_id, explicit, explicit, label, label, milestone))
+                rows = audit.records(connection, 'SELECT * FROM index_tasks WHERE workspace_id=? AND (? IS NULL OR explicit_id=?) AND (? IS NULL OR label=?) AND (? IS NULL OR milestone_id=?)', (workspace_id, explicit, explicit, label, label, milestone, milestone))
                 if len(rows) != 1:
                     raise audit.AuditError('follow-up task is missing or ambiguous')
                 item = rows[0]
             elif payload.get('path'):
                 item = {'path': _safe_relative(str(payload['path'])), 'line': payload.get('line')}
+            elif action == 'review' and milestone:
+                rows = audit.records(connection, 'SELECT * FROM index_milestones WHERE workspace_id=? AND milestone_id=?', (workspace_id, milestone))
+                if len(rows) != 1:
+                    raise audit.AuditError('review milestone is missing or ambiguous')
+                item = rows[0]
             else:
                 raise audit.AuditError('follow-up needs a task or declared source path')
+            if action == 'review':
+                review_milestones = {entry.get('milestone_id') for entry in readiness['needs_review'] if entry.get('milestone_id')}
+                review_milestones.update(milestone for entry in readiness['needs_review'] for milestone in entry.get('milestone_ids', []))
+                if item.get('milestone_id') not in review_milestones:
+                    raise audit.AuditError('review follow-up requires a milestone with recorded review evidence')
+            source_ref = payload.get('source')
+            if source_ref is not None and not isinstance(source_ref, dict):
+                raise audit.AuditError('follow-up source must be an object')
+            if item.get('milestone_id'):
+                task_key = item.get('explicit_id') or f"{item['path']}#{item['line']}"
+                buckets = {
+                    'continue': {x['task']['task_key'] for x in readiness['resume'] + readiness['ready']},
+                    'investigate': {x['task']['task_key'] for x in readiness['blocked']},
+                    'clarify': {x['task']['task_key'] for x in readiness['waiting']},
+                    'review': set(),
+                }
+                if action != 'review' and task_key not in buckets[action]:
+                    raise audit.AuditError(f'follow-up action is not valid for the current task state: {action}')
+            elif action != 'continue':
+                raise audit.AuditError('a task is required for this follow-up action')
+            if source_ref:
+                if source_ref.get('path') != item['path']:
+                    raise audit.AuditError('follow-up source is not the selected task source')
+                if source_ref.get('line') is not None and source_ref.get('line') != item.get('line'):
+                    raise audit.AuditError('follow-up source line is not the selected task line')
+                if source_ref.get('sha256') and source_ref['sha256'] != item.get('sha256'):
+                    raise audit.AuditError('follow-up source hash is stale')
+            known = connection.execute('SELECT 1 FROM index_documents WHERE workspace_id=? AND path=?', (workspace_id, item['path'])).fetchone()
+            if not known:
+                raise audit.AuditError('follow-up source is not a declared indexed document')
             text, digest, _ = index.read_document(self.project, item['path'])
+            line = item.get('line')
+            if line is not None:
+                try:
+                    line = int(line)
+                except (TypeError, ValueError) as exc:
+                    raise audit.AuditError('follow-up source line must be an integer') from exc
+                if line < 1 or line > len(text.splitlines()):
+                    raise audit.AuditError('follow-up source line is outside the current document')
+                item['line'] = line
             source = {'path': item['path'], 'line': item.get('line'), 'sha256': digest}
             verbs = {'continue': 'Continue', 'investigate': 'Investigate', 'review': 'Review', 'clarify': 'Clarify'}
             prompt = f"{verbs[action]} the current Tabilet task. Reread AGENTS.md and the live source before acting. Inspect {source['path']}"

@@ -50,6 +50,11 @@ def main():
             start = time.perf_counter()
             index.search(connection, state['workspace_id'], 'authentication', kind='task')
             literal = time.perf_counter() - start
+            start = time.perf_counter()
+            readiness = index.readiness(connection, state['workspace_id'], root)
+            readiness_ms = (time.perf_counter() - start) * 1000
+            assert readiness['source_freshness'] == 'current'
+            assert len(readiness['ready']) == count * 20
             print(json.dumps({
                 'python': platform.python_version(), 'sqlite': sqlite3.sqlite_version,
                 'status_files': count, 'lanes': 17, 'tasks': count * 20,
@@ -58,6 +63,8 @@ def main():
                 'search_mode': state['search_mode'], 'searches': len(elapsed),
                 'search_median_ms': round(statistics.median(elapsed) * 1000, 2),
                 'literal_search_ms': round(literal * 1000, 2),
+                'readiness_ms': round(readiness_ms, 2),
+                'recommendations': len(readiness['recommendations']),
                 'fallback_mode': fallback['search_mode'],
             }, indent=2))
         finally:

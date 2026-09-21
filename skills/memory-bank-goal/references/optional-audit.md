@@ -52,6 +52,24 @@ or invoking this skill without audit configuration never creates a database.
    }
    ```
 
+For explorer-ready records, add the optional `details.explorer` object to the
+same event. It is a typed observation extension, not an authorization signal:
+
+```json
+"explorer": {
+  "schema": "tabilet.audit.explorer/v1",
+  "phase": "request",
+  "summary": "User requested the next SQLite task",
+  "message_refs": [{"message_id": "MSG_ID", "purpose": "request"}],
+  "artifact_refs": [{"namespace": "task", "identifier": "M01/T01", "relationship": "observed", "path": "tabilet/memory-bank/status-M01.md", "line": 12}]
+}
+```
+
+Use `request`, `proposal`, `approval`, and `applied` for the observed phase.
+Message references must belong to the same run; artifact references name only
+observed or explicitly proposed files and rows. Do not put hidden reasoning,
+credentials, or claims of a write that was not observed in this extension.
+
    Use `task_observed` for planning observations, with request/proposal/approval
    summaries and proposed or approved file actions in details. Record approval
    only after receiving it. Use `task_transition` with observed `old_state` and

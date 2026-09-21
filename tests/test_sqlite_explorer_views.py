@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+import shutil
 import subprocess
 import unittest
 
@@ -55,6 +56,8 @@ class ExplorerAssetTests(unittest.TestCase):
         self.assertIn("@media (max-width:700px)", self.css)
 
     def test_javascript_parses_without_a_build_tool(self) -> None:
+        if shutil.which("node") is None:
+            self.skipTest("Node is optional for the credential-free Python suite")
         completed = subprocess.run(
             ["node", "--check", str(ASSETS / "explorer.js")],
             capture_output=True,

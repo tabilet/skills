@@ -348,6 +348,10 @@ def publish(connection, workspace, documents, parsed, generation, context, attem
                 if table=='index_search' and fts:connection.execute('INSERT INTO index_fts(rowid,text) VALUES (?,?)',(cursor.lastrowid,item['text']))
     connection.execute('INSERT OR REPLACE INTO index_state VALUES (?,?,?,?,?,?,?,?,?)',
         (workspace,generation,utc_now(),context['git_head'],context['branch'],1,attempted,canonical_json(diagnostics),'fts5' if fts else 'literal'))
+    # A v2 database may already contain index_documents but none of the SQL9
+    # explorer projections. Record readiness only after this publish has filled
+    # the complete derived projection.
+    connection.execute("INSERT OR REPLACE INTO schema_meta(key,value) VALUES ('index_projection','v1')")
 
 
 def sync(connection, project_root, *, rebuild=False, force_literal=False):
@@ -362,6 +366,8 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
         paths=inventory(root)
         documents={};parsed={};stats={};diagnostics=[]
         previous={r['path']:r for r in records(connection,'SELECT * FROM index_documents WHERE workspace_id=?',(workspace,))}
+        projection = connection.execute("SELECT value FROM schema_meta WHERE key='index_projection'").fetchone()
+        projection_ready = projection == ('v1',)
         for path,kind in paths.items():
             text,digest,info=read_document(root,path)
             stats[path]=signature(info)
@@ -369,7 +375,7 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
             old=previous.get(path)
             if old and old['sha256']!=digest and (kind=='history_status' or kind.startswith('evolution_') or (kind=='context_archive' and '**Coverage.** verified' in old['text'])):
                 diagnostics.append(f'{path}: frozen source changed since indexed observation')
-            if old and old['sha256']==digest and not rebuild:
+            if old and old['sha256']==digest and not rebuild and projection_ready:
                 parts={}
                 for table in DERIVED_TABLES[1:]:
                     parts[table]=[{k:v for k,v in row.items() if k not in ('workspace_id','path','search_id')} for row in records(connection,f'SELECT * FROM {table} WHERE workspace_id=? AND path=?',(workspace,path))]
@@ -434,6 +440,12 @@ def readiness(connection, workspace, project_root=None):
     if not info.get('generation'):
         result['needs_review'].append({'reason':info.get('diagnostic','index has no published generation')})
         return result
+    required_tables = {'index_milestones', 'index_tasks', 'index_task_dependencies'}
+    present_tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    missing_tables = sorted(required_tables - present_tables)
+    if missing_tables:
+        result['needs_review'].append({'reason':'index schema needs an explicit refresh after audit migration', 'missing_tables':missing_tables})
+        return result
     freshness,problems=_current_source_state(connection,workspace,project_root)
     result['source_freshness']=freshness;result['freshness_diagnostics']=problems
     diagnostics=list(info.get('diagnostics') or [])+problems
@@ -442,11 +454,16 @@ def readiness(connection, workspace, project_root=None):
     tasks=records(connection,'SELECT * FROM index_tasks WHERE workspace_id=? ORDER BY path,line',(workspace,))
     active={key for key,value in milestones.items() if value['lifecycle']=='active'}
     tasks=[row for row in tasks if row['milestone_id'] in active]
+    projection_exists = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='index_milestone_projection'").fetchone()
+    projection_order = {row['milestone_id']: (row['display_order'] if row['display_order'] is not None else 2147483647)
+                       for row in records(connection, 'SELECT milestone_id,display_order FROM index_milestone_projection WHERE workspace_id=?', (workspace,))} if projection_exists else {}
+    tasks.sort(key=lambda row: (projection_order.get(row['milestone_id'], 2147483647), row['path'], row['line']))
     for row in tasks:
         row['task_key']=row.get('explicit_id') or f"{row['path']}#{row['line']}"
         row['source']={'path':row['path'],'line':row['line'],'sha256':row['sha256']}
-    by_key={row['task_key']:row for row in tasks}
-    completed={row['task_key'] for row in tasks if row['state']=='completed'}
+    by_key={}
+    for row in tasks:
+        by_key.setdefault(row['task_key'], []).append(row)
     dependency_rows=records(connection,'SELECT * FROM index_task_dependencies WHERE workspace_id=?',(workspace,))
     dependencies={}
     for dep in dependency_rows:
@@ -456,6 +473,7 @@ def readiness(connection, workspace, project_root=None):
     # explained waiting bucket instead of treating display order as priority.
     milestone_dependencies=records(connection, "SELECT source, target, path, line FROM index_relationships WHERE workspace_id=? AND relation='depends_on' AND source LIKE 'milestone:%'", (workspace,))
     milestone_waiting={}
+    milestone_review={}
     for relation in milestone_dependencies:
         source_id=relation['source'].removeprefix('milestone:')
         target_id=relation['target'].removeprefix('milestone:')
@@ -464,9 +482,13 @@ def readiness(connection, workspace, project_root=None):
         if target_id not in milestones:
             diagnostics.append(f"{relation['path']}:{relation['line']}: unresolved milestone dependency: {relation['target']}")
             continue
-        unfinished=connection.execute("SELECT 1 FROM index_tasks WHERE workspace_id=? AND milestone_id=? AND state NOT IN ('completed','cancelled','historical') LIMIT 1", (workspace,target_id)).fetchone()
-        if unfinished:
+        target_rows=records(connection, "SELECT state FROM index_tasks WHERE workspace_id=? AND milestone_id=?", (workspace,target_id))
+        unfinished=any(row['state'] in {'pending','in_progress','blocked'} for row in target_rows)
+        unsafe_terminal=any(row['state'] in {'cancelled','historical'} for row in target_rows)
+        if not target_rows or unfinished or unsafe_terminal:
             milestone_waiting.setdefault(source_id,[]).append(target_id)
+            if not target_rows or unsafe_terminal:
+                milestone_review.setdefault(source_id, []).append(target_id)
     in_progress=[row for row in tasks if row['state']=='in_progress']
     if len(in_progress)>1:
         result['needs_review'].append({'reason':'multiple in-progress tasks own the ledger',
@@ -488,20 +510,69 @@ def readiness(connection, workspace, project_root=None):
         if in_progress:
             reasons.append('another task is already in progress')
         if row['milestone_id'] in milestone_waiting:
-            reasons.append('milestone dependency is unfinished: ' + ', '.join(sorted(milestone_waiting[row['milestone_id']])))
-        for dep in dependencies.get(row['task_key'],[]):
-            target=by_key.get(dep['target_key'])
-            if target is None and dep.get('target_explicit_id'):
-                target=next((item for item in tasks if item.get('explicit_id')==dep['target_explicit_id']),None)
-            if target is None:
+            reason = 'milestone dependency is unfinished: '
+            if row['milestone_id'] in milestone_review:
+                reason = 'milestone dependency requires review: '
+            reasons.append(reason + ', '.join(sorted(milestone_waiting[row['milestone_id']])))
+        for dep in (item for item in dependencies.get(row['task_key'], []) if item.get('milestone_id') == row['milestone_id']):
+            candidates = []
+            if dep.get('target_milestone_id'):
+                candidates = [item for item in by_key.get(dep['target_explicit_id'], []) if item['milestone_id'] == dep['target_milestone_id']]
+            else:
+                candidates = [item for item in by_key.get(dep['target_key'], []) if item['milestone_id'] == row['milestone_id']]
+                if not candidates:
+                    candidates = by_key.get(dep['target_key'], [])
+            if len(candidates) != 1:
                 reasons.append(f"unresolved dependency: {dep['target_key']}")
+                continue
+            target=candidates[0]
+            if target['state'] in {'cancelled','historical'}:
+                reasons.append(f"dependency requires review: {dep['target_key']}")
             elif target['state']!='completed':
                 reasons.append(f"dependency is {target['state']}: {dep['target_key']}")
         if reasons:
             result['waiting'].append({'task':row,'reason':'; '.join(reasons)})
         else:
             result['ready'].append({'task':row,'reason':'pending row has no unsatisfied explicit dependency'})
-    if diagnostics or freshness!='current' or len(in_progress)>1:
+    # Detect cycles in the explicit task graph. A cycle is review work, even if
+    # another independent task could technically be selected.
+    graph={}
+    for source, items in dependencies.items():
+        source_rows=by_key.get(source, [])
+        for source_row in source_rows:
+            node=(source_row['milestone_id'], source_row['task_key'])
+            for dep in items:
+                if dep.get('milestone_id') != source_row['milestone_id']:
+                    continue
+                targets=by_key.get(dep['target_key'], [])
+                if dep.get('target_milestone_id'):
+                    targets=[item for item in targets if item['milestone_id'] == dep['target_milestone_id']]
+                else:
+                    same_milestone=[item for item in targets if item['milestone_id'] == source_row['milestone_id']]
+                    targets=same_milestone or targets
+                if len(targets) != 1:
+                    continue
+                for target in targets:
+                    graph.setdefault(node, set()).add((target['milestone_id'], target['task_key']))
+    visiting=set(); visited=set(); cycles=[]
+    def visit(node, trail):
+        if node in visiting:
+            cycles.append(' -> '.join(f'{mid}/{key}' for mid,key in trail[trail.index(node):] + [node]))
+            return
+        if node in visited:
+            return
+        visiting.add(node)
+        for target in graph.get(node, ()):
+            visit(target, trail + [node])
+        visiting.remove(node); visited.add(node)
+    for node in graph:
+        visit(node, [])
+    if cycles:
+        cycle_values = sorted(set(cycles))
+        cycle_milestones = sorted({node[0] for node in graph if any(f'{node[0]}/' in cycle for cycle in cycle_values)})
+        result['needs_review'].append({'reason':'dependency cycle requires review', 'cycles': cycle_values,
+                                       'milestone_ids': cycle_milestones})
+    if diagnostics or freshness!='current' or len(in_progress)>1 or result['needs_review']:
         if diagnostics:
             result['needs_review'].append({'reason':'projection or source diagnostics prevent safe ordering', 'diagnostics':diagnostics})
         result['recommendations']=[]

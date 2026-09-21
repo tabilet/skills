@@ -173,12 +173,16 @@ rebuildable projection adds milestone presentation metadata and explicit task
 dependency observations. `tabilet_index.readiness` validates live source hashes
 and withholds recommendations on stale, unresolved, or contradictory state.
 
-Verification: 35 focused SQLite audit, repair, and index tests pass, including
+Verification: 36 focused SQLite audit, repair, and index tests pass, including
 v1/v2 migration, extension ownership, projection, dependency, stale-source, and
 multiple-in-progress cases. No Markdown or snapshot bytes are rewritten. The
 complete repository and website gates remain the parent milestone's final
 acceptance check before SQLite 10 starts.
 
-Review iteration: 1 (focused implementation review passed). The parent goal
+Review iteration: 2 (deep review fixes applied). Projection publication now
+rebuilds SQL9 tables when a v2 index is first upgraded; readiness resolves
+duplicate IDs in milestone scope, reports dependency cycles, preserves
+maintained milestone order, and withholds downstream work for cancelled,
+historical, missing, or unreviewed prerequisites. The parent goal
 must run the complete repository, DSH, and strict website gates before treating
 this milestone as accepted downstream.

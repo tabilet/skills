@@ -125,8 +125,9 @@ The final handoff identifies the implemented commands, test evidence, supported
 data states, and outstanding limitations. Stop at the completed local work unless
 a separate instruction authorizes a merge, push, or release.
 
-Review iteration: 1 (focused implementation review passed). `python3 check.py`
-(36 checks), the full credential-free Python suite (125 tests), DSH tests (13),
+Review iteration: 2 (deep review fixes applied). The benchmark now measures
+readiness classification in addition to index search and refresh. `python3 check.py`
+(36 checks), the full credential-free Python suite (126 tests), DSH tests (13),
 `mkdocs build --strict`, explorer asset tests, copied-toolkit smoke testing, and
 the 120-status/2,400-task benchmark passed. No merge, push, publication, or
 release action was performed. A full browser automation dependency remains

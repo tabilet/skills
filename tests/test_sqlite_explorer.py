@@ -93,6 +93,16 @@ class ExplorerTests(unittest.TestCase):
                                       body={"path": "tabilet/memory-bank/status-M01.md", "line": 5})
         self.assertEqual(status, 200, follow)
         self.assertIn("status-M01.md:5", follow["prompt"])
+        status, rejected = self.request("POST", "/api/follow-up", token=token,
+                                        origin=f"http://127.0.0.1:{self.port}",
+                                        body={"path": "private.txt", "line": 1})
+        self.assertEqual(status, 400)
+        self.assertIn("declared indexed", rejected["error"])
+        status, rejected = self.request("POST", "/api/follow-up", token=token,
+                                        origin=f"http://127.0.0.1:{self.port}",
+                                        body={"path": "tabilet/memory-bank/status-M01.md", "line": 999})
+        self.assertEqual(status, 400)
+        self.assertIn("outside", rejected["error"])
         self.project.joinpath("tabilet/memory-bank/status-M01.md").write_text(
             "| Item | State | Notes |\n|---|---|---|\n| Changed | `[ ]` | now different |\n",
             encoding="utf-8")
@@ -109,6 +119,10 @@ class ExplorerTests(unittest.TestCase):
             audit.finish_run(connection, first, "completed")
             second = audit.start_run(connection, workspace, "propose", run_id="run-b")
             audit.finish_run(connection, second, "blocked")
+            third = audit.start_run(connection, workspace, "goal", run_id="run-c", capture_mode="relevant")
+            audit.capture_message(connection, third, "user", "needle appears only in this older request",
+                                  capture_source="host", fidelity="exact", message_id="message-c")
+            audit.finish_run(connection, third, "completed")
         status, page = self.request("GET", "/api/timeline?limit=1", token=token)
         self.assertEqual(status, 200)
         self.assertEqual(len(page["results"]), 1)
@@ -119,6 +133,12 @@ class ExplorerTests(unittest.TestCase):
         status, detail = self.request("GET", "/api/runs/run-b", token=token)
         self.assertEqual(status, 200)
         self.assertEqual(detail["run"]["run_id"], "run-b")
+        status, searched = self.request("GET", "/api/timeline?limit=1&search=needle", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual([row["run_id"] for row in searched["results"]], ["run-c"])
+        status, captured = self.request("GET", "/api/runs/run-c", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(captured["messages"][0]["text"], "needle appears only in this older request")
         status, bad = self.request("GET", "/api/runs/other-project-run", token=token)
         self.assertEqual(status, 400)
         self.assertIn("project", bad["error"])

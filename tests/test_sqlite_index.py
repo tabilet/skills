@@ -193,6 +193,28 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(multiple['recommendations'],[])
         self.assertTrue(any('multiple in-progress' in item['reason'] for item in multiple['needs_review']))
 
+    def test_readiness_detects_duplicate_ids_cycles_and_cancelled_prerequisites(self):
+        milestone = self.root / 'tabilet/memory-bank/milestone.md'
+        milestone.write_text(
+            '# Milestone\n\n## M01 - First\n\n**Acceptance.** first\n\n'
+            '## M02 - Second\n\n**Acceptance.** second\n**Dependencies.** M01\n'
+        )
+        self.source.write_text(
+            '# Status\n\n| ID | State | Notes |\n|---|---|---|\n'
+            '| SAME | `[X]` | cancelled prerequisite |\n'
+            '| A | `[ ]` | Depends on: B |\n'
+        )
+        second = self.root / 'tabilet/memory-bank/status-M02.md'
+        second.write_text(
+            '# Status\n\n| ID | State | Notes |\n|---|---|---|\n'
+            '| SAME | `[ ]` | duplicate in another milestone |\n'
+            '| B | `[ ]` | Depends on: A |\n'
+        )
+        state = self.sync(); ready = ix.readiness(self.c, state['workspace_id'], self.root)
+        self.assertFalse(ready['recommendations'])
+        self.assertTrue(any(item['reason'] == 'dependency cycle requires review' for item in ready['needs_review']))
+        self.assertTrue(any('requires review' in item['reason'] for item in ready['waiting']))
+
     def test_retirement_fenced_heading_does_not_change_task_or_relation_locations(self):
         self.source.write_text('| Old attempt | `[-]` | successor: M02 |\n')
         retired=h.retire_fixture(self.root)
