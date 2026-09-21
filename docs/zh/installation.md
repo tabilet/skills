@@ -183,11 +183,15 @@ Markdown 仍是权威来源。可选工具将本地审计存储在项目外，�
 mkdir -p ~/.local/bin
 install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py ~/.local/bin/
+install -m 755 harness/tabilet_explorer.py ~/.local/bin/
+install -d ~/.local/share/tabilet/explorer
+install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
 install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
 export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
 tabilet-audit index sync /absolute/project
 tabilet-audit index search /absolute/project 'authentication' --kind task
+tabilet-audit explorer /absolute/project --port 8000
 ```
 
 设置数据库路径会启用 API 运行器及交互式技能指令中的审计步骤。
@@ -195,6 +199,13 @@ tabilet-audit index search /absolute/project 'authentication' --kind task
 即使审计仅记录元数据，索引仍保存当前 Markdown 文本。
 索引结果显示上次刷新时间和来源位置，执行前仍须重新读取磁盘上的 Markdown。
 暂不新增完整文件快照，已有快照证据会保留。工具仅使用 Python 标准库，无需 npm 包。
+
+浏览器探索器提供总览、时间线和待办视图。它读取外部 SQLite 审计和索引，
+Markdown 仍是权威来源；刷新只写外部数据库。后续操作会检查实时来源并生成
+可复制的提示词，但不会运行代理、修改项目文件或创建任务。如果浏览器在
+Chromebook 上，请使用 `ssh -N -L 8000:127.0.0.1:8000 user@host`，然后打开
+`http://localhost:8000/`。缺失的捕获内容和过期来源会显示为诊断信息，来源
+通过刷新或人工检查前不会提供建议。
 
 宿主生命周期、筛选、备用搜索、迁移、备份和恢复详见仓库的
 [操作指南](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)。

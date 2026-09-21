@@ -13,6 +13,7 @@ import contextlib
 import hashlib
 import html
 import http.server
+import html
 import json
 import os
 import pathlib
@@ -20,6 +21,7 @@ import secrets
 import sqlite3
 import threading
 import urllib.parse
+from http.cookies import SimpleCookie
 from typing import Any
 
 import tabilet_audit as audit
@@ -29,43 +31,8 @@ import tabilet_index as index
 MAX_BODY = 64 * 1024
 MAX_PAGE = 100
 POLL_SECONDS = 5
-
-
-HTML = """<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tabilet Explorer</title><meta name="tabilet-token" content="__TOKEN__"><link rel="stylesheet" href="/assets/explorer.css"></head>
-<body><header><a class="brand" href="#overview">Tabilet Explorer</a><span id="project"></span><span id="branch"></span><span id="health" role="status"></span>
-<label class="search"><span class="sr-only">Search</span><input id="search" type="search" placeholder="Search project"></label></header>
-<nav aria-label="Primary"><a href="#overview" data-view="overview">Overview</a><a href="#timeline" data-view="timeline">Timeline</a><a href="#todo" data-view="todo">To-do</a></nav>
-<main id="app" tabindex="-1"><p>Loading project…</p></main>
-<script src="/assets/explorer.js" defer></script></body></html>"""
-
-
-CSS = r"""*{box-sizing:border-box}body{margin:0;font:16px system-ui,sans-serif;color:#222;background:#f7f7f7}header{display:flex;gap:1rem;align-items:center;padding:1rem 5vw;background:#fff;border-bottom:1px solid #ddd;flex-wrap:wrap}.brand{font-weight:700;color:#174f75;text-decoration:none}.search{margin-left:auto}.search input{width:min(32rem,80vw);padding:.5rem;border:1px solid #999;border-radius:4px}nav{display:flex;gap:.25rem;padding:.5rem 5vw;background:#fff;border-bottom:1px solid #ddd}nav a{padding:.55rem .9rem;color:#174f75;text-decoration:none;border-radius:4px}nav a[aria-current=true]{background:#e6f1f8;font-weight:600}main{max-width:1200px;margin:1.25rem auto;padding:0 1rem}section,article{background:#fff;border:1px solid #ddd;border-radius:6px;padding:1rem;margin-bottom:1rem}h1,h2,h3{margin-top:0}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.75rem}.card{border:1px solid #ddd;border-radius:5px;padding:.75rem}.number{font-size:1.7rem;font-weight:700}.muted{color:#666}.error{color:#8a1d1d;background:#fff1f1;padding:.75rem;border-radius:4px}.warning{color:#674c00;background:#fff8db;padding:.75rem;border-radius:4px}.row{display:flex;gap:1rem;align-items:baseline;border-top:1px solid #eee;padding:.8rem 0;flex-wrap:wrap}.row:first-child{border-top:0}.row button,.row a{font:inherit;color:#174f75;background:none;border:0;text-decoration:underline;cursor:pointer;padding:0}.tag{display:inline-block;padding:.15rem .4rem;border-radius:4px;background:#eee;font-size:.85rem}.tag.blocked{background:#ffe0e0}.tag.completed{background:#e3f4e3}.tag.in_progress{background:#e3efff}.detail{white-space:pre-wrap;background:#f4f4f4;padding:.75rem;overflow:auto}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}:focus-visible{outline:3px solid #1769aa;outline-offset:2px}@media(max-width:600px){header,nav{padding-left:1rem;padding-right:1rem}main{margin-top:.75rem;padding:0 .65rem}.search{width:100%;margin:0}.search input{width:100%}}"""
-
-
-JS = r"""(() => {
-  const token = document.querySelector('meta[name="tabilet-token"]').content;
-  const app = document.getElementById('app');
-  const state = {view: location.hash.slice(1) || 'overview', timer: null};
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const stamp = value => value ? `<time datetime="${esc(value)}">${esc(new Date(value).toLocaleString())}</time>` : '<span class="muted">not recorded</span>';
-  async function api(path, options={}) { const response = await fetch(path, {headers:{'X-Tabilet-Token': token, ...(options.headers||{})}, ...options}); const data = await response.json(); if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`); return data; }
-  function nav() { document.querySelectorAll('[data-view]').forEach(a => a.setAttribute('aria-current', a.dataset.view === state.view ? 'true' : 'false')); }
-  function runRow(run) { return `<div class="row"><button data-run="${esc(run.run_id)}"><strong>${esc(run.operation)}</strong></button><span class="tag ${esc(run.result || 'unknown')}">${esc(run.result || 'unfinished')}</span><span>${stamp(run.started_at)}</span><span class="muted">${esc(run.run_id)}</span></div>`; }
-  function taskRow(task) { return `<div class="row"><span class="tag ${esc(task.state)}">${esc(task.state)}</span><strong>${esc(task.label)}</strong><span class="muted">${esc(task.milestone_id)} · ${esc(task.path)}:${esc(task.line)}</span></div>`; }
-  async function renderOverview() { const data = await api('/api/overview'); document.getElementById('project').textContent = data.project_root || ''; document.getElementById('branch').textContent = data.branch ? `(${data.branch})` : ''; document.getElementById('health').textContent = data.index?.refreshed_at ? `refreshed ${new Date(data.index.refreshed_at).toLocaleString()}` : ''; if (data.setup_required) { app.innerHTML = `<section><h1>Set up this project</h1><p>No external audit/index database is available.</p><button id="refresh">Create index</button></section>`; bindRefresh(); return; } app.innerHTML = `<h1>Overview</h1><section><div class="cards">${Object.entries(data.counts||{}).map(([key,value]) => `<div class="card"><div class="muted">${esc(key)}</div><div class="number">${esc(value)}</div></div>`).join('')}</div></section><section><h2>Attention</h2>${(data.attention||[]).map(x => `<p class="warning">${esc(x.message || x)}</p>`).join('') || '<p class="muted">Nothing requires attention.</p>'}</section><section><h2>Active milestones</h2>${(data.milestones||[]).map(m => `<article><h3>${esc(m.milestone_id)}</h3><p>${esc(m.specification || '')}</p><p>${esc(m.task_counts || '')}</p></article>`).join('') || '<p class="muted">No active milestones are indexed.</p>'}</section>`; bindRuns(); }
-  async function renderTimeline() { const data = await api('/api/timeline?limit=50'); app.innerHTML = `<h1>Timeline</h1><section>${(data.results||[]).map(runRow).join('') || '<p class="muted">No recorded workflow entries.</p>'}<button id="more" ${data.next_cursor?'':'hidden'}>Load more</button></section>`; document.querySelector('#more')?.addEventListener('click', async () => { const more=await api(`/api/timeline?limit=50&cursor=${encodeURIComponent(data.next_cursor)}`); document.querySelector('#more').insertAdjacentHTML('beforebegin', more.results.map(runRow).join('')); document.querySelector('#more').hidden=!more.next_cursor; }); bindRuns(); }
-  async function renderTodo() { const data = await api('/api/todo'); const validation = data.validation?.valid ? '' : `<p class="warning">${esc((data.validation?.diagnostics||[]).join('; ') || 'Live sources need refresh or review.')}</p>`; app.innerHTML = `<h1>To-do</h1><section>${validation}${(data.groups||[]).map(group => `<h2>${esc(group.label)}</h2>${(group.tasks||[]).map(taskRow).join('') || '<p class="muted">None.</p>'}`).join('') || '<p class="muted">Recommendations are unavailable until the current sources validate.</p>'}</section>`; }
-  async function detail(run) { const data=await api(`/api/runs/${encodeURIComponent(run)}`); app.innerHTML = `<p><a href="#timeline">← Timeline</a></p><article><h1>${esc(data.run.operation)} <span class="tag">${esc(data.run.result || 'unfinished')}</span></h1><p>${stamp(data.run.started_at)} · ${esc(data.run.run_id)}</p><h2>Messages</h2>${(data.messages||[]).map(m => `<section><strong>${esc(m.role)}</strong> <span class="tag">${esc(m.fidelity)}</span><div class="detail">${esc(m.text)}</div></section>`).join('') || '<p class="muted">Request text was not captured.</p>'}<h2>Observed activity</h2>${(data.events||[]).map(e => `<section><strong>${esc(e.event_type)}</strong><p>${esc(e.task_label || e.milestone_id || '')}</p><div class="detail">${esc(e.details_json || '')}</div></section>`).join('') || '<p class="muted">No event details were recorded.</p>'}</article>`; }
-  function bindRuns() { document.querySelectorAll('[data-run]').forEach(b => b.addEventListener('click', () => detail(b.dataset.run))); }
-  function bindRefresh() { document.getElementById('refresh')?.addEventListener('click', async () => { const button=document.getElementById('refresh'); button.disabled=true; button.textContent='Refreshing…'; try { await api('/api/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); await render(); } catch(e) { app.insertAdjacentHTML('afterbegin',`<p class="error">${esc(e.message)}</p>`); button.disabled=false; button.textContent='Retry'; } }); }
-  async function render() { nav(); try { if (state.view === 'timeline') await renderTimeline(); else if (state.view === 'todo') await renderTodo(); else await renderOverview(); } catch(e) { app.innerHTML=`<section class="error"><h1>Explorer error</h1><p>${esc(e.message)}</p></section>`; } }
-  window.addEventListener('hashchange', () => { state.view=location.hash.slice(1)||'overview'; render(); });
-  document.getElementById('search').addEventListener('keydown', e => { if(e.key==='Enter' && e.target.value) location.hash='search'; });
-  document.addEventListener('visibilitychange', () => { if(document.hidden) { clearInterval(state.timer); state.timer=null; } else if(!state.timer) state.timer=setInterval(() => api('/api/health').catch(()=>{}), 5000); });
-  render(); state.timer=setInterval(() => { if(!document.hidden) api('/api/health').catch(()=>{}); }, 5000);
-})();"""
+ASSET_DIR = pathlib.Path(__file__).with_name("explorer")
+INSTALLED_ASSET_DIR = pathlib.Path.home() / ".local" / "share" / "tabilet" / "explorer"
 
 
 def _json(value: Any) -> str:
@@ -170,19 +137,39 @@ class ExplorerApp:
             for milestone in milestones:
                 per = audit.records(connection, "SELECT state,COUNT(*) AS count FROM index_tasks WHERE workspace_id=? AND milestone_id=? GROUP BY state", (workspace_id, milestone["milestone_id"]))
                 milestone["task_counts"] = ", ".join(f"{row['state']}: {row['count']}" for row in per)
+            def cards(kind):
+                rows = audit.records(connection, "SELECT path,text,sha256 FROM index_documents WHERE workspace_id=? AND kind=? ORDER BY path", (workspace_id, kind))
+                return [{'title': row['path'], 'summary': row['text'][:400],
+                         'source': {'path': row['path'], 'sha256': row['sha256']}} for row in rows]
+            active = []
+            for milestone in milestones:
+                states = audit.records(connection, "SELECT state,COUNT(*) AS count FROM index_tasks WHERE workspace_id=? AND milestone_id=? GROUP BY state", (workspace_id, milestone['milestone_id']))
+                active.append({'milestone_id': milestone['milestone_id'], 'title': milestone['milestone_id'],
+                               'summary': milestone.get('specification') or '',
+                               'specification': milestone.get('specification') or '',
+                               'counts': {row['state']: row['count'] for row in states},
+                               'source': {'path': milestone['path'], 'line': milestone['line']}})
             return {**health, "counts": counts, "attention": attention, "milestones": milestones,
+                    "active_milestones": active,
+                    "history": cards('history_status'),
+                    "archives": cards('context_archive'),
+                    "evolution": cards('evolution_prompt'),
                     "groups": {"history": counts["history"], "archives": counts["archives"], "evolution": counts["evolution"]}}
 
     def timeline(self, params):
         limit = min(int(params.get("limit", [50])[0]), MAX_PAGE)
         cursor = _decode_cursor(params["cursor"][0]) if params.get("cursor") else None
         operation = params.get("operation", [None])[0]
+        outcome = params.get("outcome", [None])[0]
+        search = (params.get("search", [""])[0] or "").strip().lower()
         if operation and operation not in audit.OPERATIONS:
             raise audit.AuditError("unknown operation")
         with self.read() as (connection, workspace):
             workspace_id = workspace["workspace_id"]
             clauses = ["r.workspace_id=?"]; values: list[Any] = [workspace_id]
             if operation: clauses.append("r.operation=?"); values.append(operation)
+            if outcome and outcome != "unfinished": clauses.append("r.result=?"); values.append(outcome)
+            if outcome == "unfinished": clauses.append("r.completed_at IS NULL")
             if cursor:
                 boundary = audit.time_bound(cursor["started_at"])
                 key = audit.time_key("r.started_at")
@@ -190,11 +177,13 @@ class ExplorerApp:
                 values.extend([boundary, boundary, cursor["run_id"]])
             where = " AND ".join(clauses)
             rows = audit.records(connection, f"SELECT r.* FROM runs r WHERE {where} ORDER BY {audit.time_key('r.started_at')} DESC,r.run_id DESC LIMIT ?", (*values, limit + 1))
+            if search:
+                rows = [row for row in rows if search in json.dumps(row, ensure_ascii=False).lower() or connection.execute("SELECT 1 FROM events WHERE run_id=? AND lower(details_json) LIKE ? LIMIT 1", (row["run_id"], "%" + search + "%")).fetchone()]
             more = len(rows) > limit; rows = rows[:limit]
             for row in rows:
                 row["child_run_ids"] = [x[0] for x in connection.execute("SELECT run_id FROM runs WHERE parent_run_id=? ORDER BY run_id", (row["run_id"],))]
             next_cursor = _cursor({"started_at": rows[-1]["started_at"], "run_id": rows[-1]["run_id"]}) if more and rows else None
-            return {"workspace_id": workspace_id, "results": rows, "limit": limit, "next_cursor": next_cursor,
+            return {"workspace_id": workspace_id, "results": rows, "runs": rows, "entries": rows, "limit": limit, "next_cursor": next_cursor,
                     "index": index.status(connection, workspace_id)}
 
     def run(self, run_id):
@@ -222,17 +211,55 @@ class ExplorerApp:
     def todo(self):
         with self.read() as (connection, workspace):
             workspace_id = workspace["workspace_id"]
-            validation = self._live_validation(connection, workspace_id)
-            if not validation["valid"]:
-                return {"workspace_id": workspace_id, "validation": validation, "groups": [], "index": index.status(connection, workspace_id)}
-            tasks = audit.records(connection, "SELECT * FROM index_tasks WHERE workspace_id=? ORDER BY milestone_id,line", (workspace_id,))
-            groups = []
-            for state, label in (("in_progress", "Resume"), ("blocked", "Blocked"), ("cancelled", "Cancelled"), ("historical", "Historical"), ("completed", "Completed")):
-                groups.append({"label": label, "tasks": [task for task in tasks if task["state"] == state]})
-            ready, waiting = self._partition_pending(connection, workspace_id, [task for task in tasks if task["state"] == "pending"])
-            groups.insert(1, {"label": "Ready", "tasks": ready})
-            groups.insert(2, {"label": "Waiting", "tasks": waiting})
-            return {"workspace_id": workspace_id, "validation": validation, "groups": groups, "index": index.status(connection, workspace_id)}
+            readiness = index.readiness(connection, workspace_id, self.project)
+            validation = {'valid': readiness['source_freshness'] == 'current' and not readiness['needs_review'],
+                          'diagnostics': readiness.get('freshness_diagnostics', [])}
+            def flatten(items):
+                result = []
+                for item in items:
+                    task = dict(item.get('task', item))
+                    if item.get('reason'):
+                        task['reason'] = item['reason']
+                    result.append(task)
+                return result
+            buckets = {
+                'resume': flatten(readiness['resume']), 'ready': flatten(readiness['ready']),
+                'waiting': flatten(readiness['waiting']), 'blocked': flatten(readiness['blocked']),
+                'needs_review': flatten(readiness['needs_review']),
+            }
+            groups = ([{'label': key.replace('_', ' ').title(), 'tasks': value} for key, value in buckets.items()]
+                      if validation['valid'] else [])
+            return {'workspace_id': workspace_id, 'validation': validation,
+                    'validated': validation['valid'],
+                    'recommendations_available': bool(readiness['recommendations']),
+                    'validation_reason': '; '.join(validation['diagnostics']) if validation['diagnostics'] else None,
+                    **buckets, 'groups': groups, 'index': readiness['index']}
+
+    def follow_up(self, payload):
+        action = payload.get('action', 'continue')
+        if action not in {'continue', 'investigate', 'review', 'clarify'}:
+            raise audit.AuditError('unknown follow-up action')
+        with self.read() as (connection, workspace):
+            workspace_id = workspace['workspace_id']
+            explicit, label, milestone = payload.get('task_id'), payload.get('task_label'), payload.get('milestone_id')
+            if explicit or label:
+                rows = audit.records(connection, 'SELECT * FROM index_tasks WHERE workspace_id=? AND (? IS NULL OR explicit_id=?) AND (? IS NULL OR label=?) AND (? IS NULL OR milestone_id=?)', (workspace_id, explicit, explicit, label, label, milestone))
+                if len(rows) != 1:
+                    raise audit.AuditError('follow-up task is missing or ambiguous')
+                item = rows[0]
+            elif payload.get('path'):
+                item = {'path': _safe_relative(str(payload['path'])), 'line': payload.get('line')}
+            else:
+                raise audit.AuditError('follow-up needs a task or declared source path')
+            text, digest, _ = index.read_document(self.project, item['path'])
+            source = {'path': item['path'], 'line': item.get('line'), 'sha256': digest}
+            verbs = {'continue': 'Continue', 'investigate': 'Investigate', 'review': 'Review', 'clarify': 'Clarify'}
+            prompt = f"{verbs[action]} the current Tabilet task. Reread AGENTS.md and the live source before acting. Inspect {source['path']}"
+            if source.get('line'):
+                prompt += f":{source['line']}"
+            prompt += "."
+            return {'action': action, 'prompt': prompt, 'source': source,
+                    'validation_note': 'Prepared from the current source hash. Copying this prompt does not execute work.'}
 
     def _partition_pending(self, connection, workspace_id, tasks):
         # Dependencies are currently indexed at milestone level. Keep the
@@ -311,24 +338,43 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _auth(self, api=False, post=False):
         if not self._host_ok(): return False
-        if api and not secrets.compare_digest(self.headers.get("X-Tabilet-Token", ""), self.app.token): return False
+        supplied = self.headers.get("X-Tabilet-Token", "")
+        if not supplied:
+            cookies = SimpleCookie(self.headers.get("Cookie", ""))
+            supplied = urllib.parse.unquote(cookies.get("tabilet_token").value) if cookies.get("tabilet_token") else ""
+        if api and not secrets.compare_digest(supplied, self.app.token): return False
         if post and self.headers.get("Origin") is None: return False
         return True
 
-    def _send(self, status, value, content_type="application/json"):
+    def _send(self, status, value, content_type="application/json", cookie=None):
         body = value if isinstance(value, bytes) else (_json(value).encode("utf-8") if content_type == "application/json" else str(value).encode("utf-8"))
-        self.send_response(status); self.send_header("Content-Type", content_type + "; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(body)
+        self.send_response(status); self.send_header("Content-Type", content_type + "; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", "no-store")
+        if cookie: self.send_header("Set-Cookie", cookie)
+        self.end_headers(); self.wfile.write(body)
 
     def _error(self, status, exc): self._send(status, {"error": str(exc), "type": type(exc).__name__})
+
+    def _asset(self, name):
+        for directory in (ASSET_DIR, INSTALLED_ASSET_DIR):
+            try:
+                return (directory / name).read_bytes()
+            except (OSError, ValueError):
+                continue
+        raise audit.AuditError("missing explorer asset: " + name)
 
     def do_GET(self):
         if not self._host_ok(): self._error(403, audit.AuditError("host is not allowed")); return
         parsed = urllib.parse.urlsplit(self.path); path = parsed.path; params = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
         if path.startswith("/api/") and not self._auth(api=True): self._error(401, audit.AuditError("missing or invalid explorer token")); return
         try:
-            if path == "/": self._send(200, HTML.replace("__TOKEN__", html.escape(self.app.token, quote=True)), "text/html")
-            elif path == "/assets/explorer.css": self._send(200, CSS, "text/css")
-            elif path == "/assets/explorer.js": self._send(200, JS, "text/javascript")
+            if path == "/":
+                shell = self._asset("index.html").decode("utf-8")
+                shell = shell.replace('href="explorer.css"', 'href="/assets/explorer.css"').replace('src="explorer.js"', 'src="/assets/explorer.js"')
+                if 'name="tabilet-token"' not in shell:
+                    shell = shell.replace('<head>', '<head><meta name="tabilet-token" content="' + html.escape(self.app.token, quote=True) + '">', 1)
+                self._send(200, shell, "text/html", "tabilet_token=" + urllib.parse.quote(self.app.token, safe="") + "; Path=/; SameSite=Strict")
+            elif path == "/assets/explorer.css": self._send(200, self._asset("explorer.css"), "text/css")
+            elif path == "/assets/explorer.js": self._send(200, self._asset("explorer.js"), "text/javascript")
             elif path == "/api/health": self._send(200, self.app.health())
             elif path == "/api/overview": self._send(200, self.app.overview())
             elif path == "/api/timeline": self._send(200, self.app.timeline(params))
@@ -350,10 +396,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not isinstance(payload, dict): raise audit.AuditError("request body must be a JSON object")
             if parsed.path == "/api/refresh": self._send(200, self.app.refresh(bool(payload.get("rebuild")), bool(payload.get("literal"))))
             else:
-                result = self.app.document({"path": [str(payload.get("path", ""))], "live": ["1"]})
                 line = payload.get("line")
                 if line is not None and not isinstance(line, int): raise audit.AuditError("line must be an integer")
-                self._send(200, {"prompt": f"Continue the task at {result['path']}" + (f":{line}" if line else "") + ". Reread current project instructions and verify the live task state before editing.", "source": result})
+                if line is not None: payload['line'] = line
+                self._send(200, self.app.follow_up(payload))
         except (audit.AuditError, sqlite3.Error, OSError, ValueError, TypeError, json.JSONDecodeError) as exc: self._error(400, exc)
 
 

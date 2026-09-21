@@ -451,6 +451,22 @@ def readiness(connection, workspace, project_root=None):
     dependencies={}
     for dep in dependency_rows:
         dependencies.setdefault(dep['source_key'],[]).append(dep)
+    # Milestone-level dependencies are an explicit ordering constraint for all
+    # tasks in the dependent milestone. Preserve the reason in the same
+    # explained waiting bucket instead of treating display order as priority.
+    milestone_dependencies=records(connection, "SELECT source, target, path, line FROM index_relationships WHERE workspace_id=? AND relation='depends_on' AND source LIKE 'milestone:%'", (workspace,))
+    milestone_waiting={}
+    for relation in milestone_dependencies:
+        source_id=relation['source'].removeprefix('milestone:')
+        target_id=relation['target'].removeprefix('milestone:')
+        if source_id not in active:
+            continue
+        if target_id not in milestones:
+            diagnostics.append(f"{relation['path']}:{relation['line']}: unresolved milestone dependency: {relation['target']}")
+            continue
+        unfinished=connection.execute("SELECT 1 FROM index_tasks WHERE workspace_id=? AND milestone_id=? AND state NOT IN ('completed','cancelled','historical') LIMIT 1", (workspace,target_id)).fetchone()
+        if unfinished:
+            milestone_waiting.setdefault(source_id,[]).append(target_id)
     in_progress=[row for row in tasks if row['state']=='in_progress']
     if len(in_progress)>1:
         result['needs_review'].append({'reason':'multiple in-progress tasks own the ledger',
@@ -471,6 +487,8 @@ def readiness(connection, workspace, project_root=None):
         reasons=[]
         if in_progress:
             reasons.append('another task is already in progress')
+        if row['milestone_id'] in milestone_waiting:
+            reasons.append('milestone dependency is unfinished: ' + ', '.join(sorted(milestone_waiting[row['milestone_id']])))
         for dep in dependencies.get(row['task_key'],[]):
             target=by_key.get(dep['target_key'])
             if target is None and dep.get('target_explicit_id'):

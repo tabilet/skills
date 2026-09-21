@@ -142,8 +142,8 @@ unfinished/unknown rather than being declared successful.
 
 The runner remains installable as one file when auditing is disabled. The toolkit
 is Python standard library only. Legacy snapshot-capture options are rejected
-with an explanation before project execution. Companion UI and explorer integration
-can consume these interfaces later; no project-format migration is needed.
+with an explanation before project execution. The optional explorer consumes
+these interfaces; no project-format migration is needed.
 
 ## Install and use the optional toolkit
 
@@ -153,6 +153,9 @@ Run from a checkout containing the SQLite feature:
 mkdir -p ~/.local/bin
 install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py ~/.local/bin/
+install -m 755 harness/tabilet_explorer.py ~/.local/bin/
+install -d ~/.local/share/tabilet/explorer
+install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
 install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
 export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
@@ -170,7 +173,19 @@ tabilet-audit index search /absolute/project --milestone M01 --state pending
 tabilet-audit index show /absolute/project tabilet/docs/history/status-M01.md
 tabilet-audit index status /absolute/project
 tabilet-audit index sync /absolute/project --rebuild
+tabilet-audit explorer /absolute/project --port 8000
 ```
+
+The explorer opens Overview, Timeline, and To-do. Overview groups active
+milestones, history, archives, and evolution; Timeline drills into recorded
+runs and their selected evidence; To-do explains resume, ready, waiting,
+blocked, and review-required work. Refresh is explicit and writes only the
+external database. Follow-up buttons validate the live source and prepare text
+for copying; they do not launch an agent, edit Markdown, or create task rows.
+Use `ssh -N -L 8000:127.0.0.1:8000 user@host` for a remote server and browse to
+`http://localhost:8000/`. Missing captures, stale hashes, malformed sources,
+and unavailable indexes remain visible as diagnostics and withhold unsafe
+recommendations.
 
 `complete` describes the last refresh, not continuous observation of disk.
 Read commands report the indexed generation, source hashes, and refresh time;
@@ -277,11 +292,12 @@ merging, pushing, publication, and marketplace changes are separate actions.
 
 `python3 -B tests/benchmark_sqlite.py` creates an external disposable fixture with
 120 status files across 17 lanes and 2,400 task rows. On the development host
-(Python 3.14.4, SQLite 3.46.1), initial sync took 406.66 ms, unchanged-source sync
-265.77 ms, and the median of 100 FTS5 searches was 6.11 ms. A literal search took
-1.18 ms. These are local observations, not performance guarantees.
+(Python 3.14.4, SQLite 3.46.1), initial sync took 711.06 ms, unchanged-source sync
+513.20 ms, and the median of 100 FTS5 searches was 7.42 ms. A literal search took
+1.51 ms. These are local observations, not performance guarantees.
 
-Copied canonical templates pass indexing. Additional read-only inspection of
+The explorer's browser assets are served from the copied toolkit without a build
+step; missing assets produce a clear local error. Copied canonical templates pass indexing. Additional read-only inspection of
 neighboring projects found pre-existing unpadded milestone headings and invalid
 retirement envelopes; structured refresh correctly reports these as validation
 failures. It does not normalize IDs or rewrite frozen source records. Those

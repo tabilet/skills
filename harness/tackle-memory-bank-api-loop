@@ -1592,7 +1592,11 @@ def main() -> None:
             audit.emit(
                 "task_observed",
                 subject=observed_subject,
-                details={"summary": summary, "in_progress": in_progress},
+                details={"summary": summary, "in_progress": in_progress,
+                         "explorer": {"schema": "tabilet.audit.explorer/v1", "phase": "request",
+                                      "artifact_refs": ([{"namespace": "task", "identifier": in_progress["item"],
+                                                          "relationship": "observed", "path": f"tabilet/memory-bank/{in_progress['file']}"}]
+                                                         if in_progress else [])}},
             )
             print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
             started = time.time()
@@ -1669,7 +1673,11 @@ def main() -> None:
                         "old_state": old_state,
                         "new_state": new_state,
                     },
-                    details={"schema": "tabilet.audit.details/v1"},
+                    details={"schema": "tabilet.audit.details/v1",
+                             "explorer": {"schema": "tabilet.audit.explorer/v1", "phase": "applied",
+                                          "artifact_refs": [{"namespace": "task", "identifier": key[1],
+                                                              "relationship": "changed", "path": f"tabilet/memory-bank/{key[0]}",
+                                                              "old_state": old_state, "new_state": new_state}]}},
                 )
             audit.emit(
                 "verification_observed",

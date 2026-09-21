@@ -203,11 +203,15 @@ and archives. From a checkout containing this feature:
 mkdir -p ~/.local/bin
 install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py ~/.local/bin/
+install -m 755 harness/tabilet_explorer.py ~/.local/bin/
+install -d ~/.local/share/tabilet/explorer
+install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
 install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
 export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
 tabilet-audit index sync /absolute/project
 tabilet-audit index search /absolute/project 'authentication' --kind task
+tabilet-audit explorer /absolute/project --port 8000
 ```
 
 Setting the database path enables audit hooks in the API runner and interactive
@@ -217,6 +221,15 @@ stores current Markdown text even in metadata-only audit mode. Index results
 show the last refresh and source location; reread live Markdown before execution.
 New full-file snapshots are deferred, and existing snapshot evidence is preserved.
 The toolkit uses Python's standard library and requires no npm package.
+
+The explorer opens an Overview, Timeline, and To-do view. It reads recorded
+audit runs and the current derived index while Markdown remains authoritative.
+Refresh is explicit and writes only the external SQLite database. Follow-up
+buttons prepare copyable prompts after checking live source hashes; they never
+run an agent or edit project files. From a Chromebook, tunnel a remote server
+with `ssh -N -L 8000:127.0.0.1:8000 user@host` and open `http://localhost:8000/`.
+Missing captures and stale sources remain visible as diagnostics, and task
+recommendations are withheld until the source state is valid.
 
 See the repository's [operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)
 for host lifecycle, filters, fallback search, migration, backup, and recovery.

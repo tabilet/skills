@@ -80,3 +80,17 @@ or invoking this skill without audit configuration never creates a database.
 Logging failure never undoes work, changes status, retries a task, or changes the
 commit policy. Report gaps in the final handoff. Before execution or a planning
 write, reread the live Markdown even if an index lookup helped locate it.
+
+## Explorer
+
+The optional local explorer reads the same external database and never grants
+write or execution authority. Install the server and browser assets, then run:
+
+```bash
+tabilet-audit explorer /absolute/project --port 8000
+```
+
+It provides Overview, Timeline, and To-do views. Refresh is explicit; current
+Markdown remains authoritative. A follow-up action only prepares a prompt for
+copying after live source validation. It does not launch an agent or edit the
+project. For a remote host, tunnel with `ssh -N -L 8000:127.0.0.1:8000 user@host`.
