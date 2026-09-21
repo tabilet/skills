@@ -248,6 +248,10 @@ class SqliteAuditContractTests(unittest.TestCase):
             self.assertEqual(len(snapshots), 1)
             exported = json.loads(audit.export_json(connection, workspace_id=workspace_id))
             self.assertEqual(exported["schema"], "tabilet.audit.export/v1")
+            readonly = audit.open_readonly_database(database)
+            with self.assertRaises(sqlite3.OperationalError):
+                readonly.execute("INSERT INTO schema_meta(key, value) VALUES ('x', 'y')")
+            readonly.close()
             restored = Path(temporary) / "restored.md"
             audit.restore_snapshot(connection, snapshots[0]["snapshot_id"], restored)
             self.assertEqual(restored.read_bytes(), source.read_bytes())
