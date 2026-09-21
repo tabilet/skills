@@ -364,6 +364,8 @@ def validate_database(connection):
 def open_database(path=None, *, project_roots=()):
     """Explicit writer open. Existing databases are identified before mutation."""
     database = external_path(path if path is not None else default_database_path(), project_roots)
+    for suffix in ('-wal', '-shm', '-journal'):
+        safe_path(str(database) + suffix)
     created = not database.exists()
     if created:
         os.close(private_create(database))
@@ -535,6 +537,8 @@ def open_readonly_database(path):
     database = safe_path(path)
     if not database.is_file():
         raise AuditError('read-only audit database must already exist')
+    for suffix in ('-wal', '-shm', '-journal'):
+        safe_path(str(database) + suffix)
     connection = sqlite3.connect(f'file:{quote(str(database))}?mode=ro', uri=True)
     try:
         connection.execute('PRAGMA foreign_keys = ON')
@@ -557,6 +561,17 @@ def pagination(limit, offset):
         raise AuditValidationError('limit must be 1..10000 and offset must be nonnegative')
 
 
+def time_key(column):
+    """Compare legacy and current UTC text at Python datetime's microsecond precision."""
+    return (f"(substr({column},1,19) || '.' || substr(CASE WHEN substr({column},20,1)='.' "
+            f"THEN rtrim(substr({column},21),'Z') ELSE '' END || '000000',1,6))")
+
+
+def time_bound(value):
+    _timestamp(value, 'timestamp')
+    return _datetime.datetime.fromisoformat(value[:-1] + '+00:00').isoformat(timespec='microseconds')[:26]
+
+
 def query_runs(connection, *, workspace_id=None, operation=None, milestone_id=None, task=None,
                since=None, until=None, limit=1000, offset=0):
     pagination(limit, offset)
@@ -566,12 +581,12 @@ def query_runs(connection, *, workspace_id=None, operation=None, milestone_id=No
             clauses.append(f'r.{name}=?'); values.append(value)
     for name, value, comparison in [('started_at',since,'>='),('started_at',until,'<=')]:
         if value is not None:
-            _timestamp(value, name); clauses.append(f'r.{name}{comparison}?'); values.append(value)
+            clauses.append(f'{time_key("r." + name)}{comparison}?'); values.append(time_bound(value))
     for name,value in [('milestone_id',milestone_id),('task_label',task)]:
         if value is not None:
             clauses.append(f'EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.run_id AND e.{name}=?)'); values.append(value)
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
-    return records(connection, 'SELECT r.* FROM runs r'+where+' ORDER BY started_at,run_id LIMIT ? OFFSET ?', (*values,limit,offset))
+    return records(connection, 'SELECT r.* FROM runs r'+where+f' ORDER BY {time_key("r.started_at")},run_id LIMIT ? OFFSET ?', (*values,limit,offset))
 
 
 def query_events(connection, run_id=None, *, workspace_id=None, operation=None, milestone_id=None,
@@ -583,7 +598,7 @@ def query_events(connection, run_id=None, *, workspace_id=None, operation=None, 
             clauses.append(f'{name}=?'); values.append(value)
     for value,comparison in [(since,'>='),(until,'<=')]:
         if value is not None:
-            _timestamp(value,'recorded_at'); clauses.append(f'e.recorded_at{comparison}?'); values.append(value)
+            clauses.append(f'{time_key("e.recorded_at")}{comparison}?'); values.append(time_bound(value))
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
     return records(connection, 'SELECT e.* FROM events e JOIN runs r USING(run_id)'+where+' ORDER BY r.started_at,e.run_id,e.sequence LIMIT ? OFFSET ?', (*values,limit,offset))
 

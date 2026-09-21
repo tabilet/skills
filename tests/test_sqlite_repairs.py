@@ -35,6 +35,7 @@ class StorageTests(unittest.TestCase):
             c.execute('CREATE TABLE schema_meta(key TEXT,value TEXT)')
             c.execute("INSERT INTO schema_meta VALUES ('schema','other/v1')")
             c.execute('PRAGMA user_version=1')
+        c.close()
         for data in [foreign.read_bytes(), b'not a database']:
             foreign.write_bytes(data)
             self.root.chmod(0o755)
@@ -142,3 +143,47 @@ class StorageTests(unittest.TestCase):
             self.assertEqual((self.root/'recovered.md').read_bytes(),data)
             with self.assertRaises(a.AuditError):a.capture_snapshots(c,w,run,self.root)
         finally:c.close()
+
+    def test_time_filter_accepts_legacy_precision_without_changing_evidence(self):
+        first=a.start_run(self.c,self.w,'next',started_at='2026-09-21T12:00:00Z')
+        second=a.start_run(self.c,self.w,'next',started_at='2026-09-21T12:00:00.000001Z')
+        self.assertEqual([r['run_id'] for r in a.query_runs(self.c,since='2026-09-21T12:00:00Z')],[first,second])
+        self.assertEqual([r['run_id'] for r in a.query_runs(self.c,until='2026-09-21T12:00:00Z')],[first])
+        self.assertEqual([r['run_id'] for r in a.query_runs(self.c,since='2026-09-21T12:00:00.000001Z')],[second])
+
+    def test_wal_symlinks_are_rejected_before_open(self):
+        target=self.root/'target';target.write_text('preserve')
+        fake=self.root/'fake.db'
+        Path(str(fake)+'-wal').symlink_to(target)
+        with self.assertRaises(a.AuditError):a.open_database(fake)
+        self.assertFalse(fake.exists())
+        self.assertEqual(target.read_text(),'preserve')
+
+    def test_interrupted_schema_migration_rolls_back_and_retries(self):
+        from unittest import mock
+        legacy=self.root/'migration.db'
+        c=sqlite3.connect(legacy)
+        c.executescript(a.SCHEMA_SQL)
+        c.execute("INSERT INTO schema_meta VALUES ('schema','tabilet.audit/v1')")
+        c.execute('PRAGMA user_version=1')
+        c.commit();c.close()
+        original=sqlite3.connect
+        class Interrupted(sqlite3.Connection):
+            def execute(self,sql,*args,**kwargs):
+                if sql.strip().startswith('CREATE TABLE IF NOT EXISTS index_sections'):
+                    raise sqlite3.OperationalError('injected migration interruption')
+                return super().execute(sql,*args,**kwargs)
+        def connect(path,*args,**kwargs):
+            if str(path)==str(legacy):kwargs['factory']=Interrupted
+            return original(path,*args,**kwargs)
+        with mock.patch.object(a.sqlite3,'connect',side_effect=connect),self.assertRaises(sqlite3.OperationalError):
+            a.open_database(legacy)
+        c=original(legacy)
+        try:
+            self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],1)
+            self.assertNotIn('index_state',a.schema_tables(c))
+            self.assertEqual(c.execute("SELECT value FROM schema_meta WHERE key='schema'").fetchone()[0],'tabilet.audit/v1')
+        finally:c.close()
+        c=a.open_database(legacy)
+        self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],2)
+        c.close()

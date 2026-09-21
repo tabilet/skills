@@ -49,6 +49,7 @@ def event(**overrides: object) -> dict:
 class SqliteAuditContractTests(unittest.TestCase):
     def test_schema_creates_frozen_v1_tables_and_indexes(self) -> None:
         connection = sqlite3.connect(":memory:")
+        self.addCleanup(connection.close)
         connection.executescript(audit.SCHEMA_SQL)
         self.assertEqual(
             audit.schema_tables(connection),
@@ -99,6 +100,7 @@ class SqliteAuditContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "state" / "tabilet" / "audit.sqlite3"
             connection = audit.open_database(database)
+            self.addCleanup(connection.close)
             self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
             self.assertEqual(
@@ -124,6 +126,7 @@ class SqliteAuditContractTests(unittest.TestCase):
 
             newer = root / "newer.sqlite3"
             connection = sqlite3.connect(newer)
+            self.addCleanup(connection.close)
             connection.execute("PRAGMA user_version = 99")
             connection.commit()
             connection.close()
@@ -133,6 +136,7 @@ class SqliteAuditContractTests(unittest.TestCase):
     def test_workspaces_keep_separate_checkout_and_unversioned_provenance(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
             first = audit.ensure_workspace(connection, Path(temporary) / "one")
             second = audit.ensure_workspace(connection, Path(temporary) / "two")
             self.assertNotEqual(first, second)
@@ -164,6 +168,7 @@ class SqliteAuditContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "audit.sqlite3"
             connection = audit.open_database(database)
+            self.addCleanup(connection.close)
             workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
             run_id = audit.start_run(connection, workspace_id, "archive", run_id="run-1")
             connection.close()
@@ -185,6 +190,7 @@ class SqliteAuditContractTests(unittest.TestCase):
     def test_workspace_run_event_message_and_finish_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
             workspace_id = audit.ensure_workspace(
                 connection, Path(temporary) / "project", repository_id="repo", branch="sqlite"
             )
@@ -223,6 +229,7 @@ class SqliteAuditContractTests(unittest.TestCase):
 
     def test_foreign_keys_reject_unknown_run_and_workspace(self) -> None:
         connection = sqlite3.connect(":memory:")
+        self.addCleanup(connection.close)
         connection.execute("PRAGMA foreign_keys = ON")
         connection.executescript(audit.SCHEMA_SQL)
         with self.assertRaises(audit.AuditValidationError):
@@ -233,6 +240,7 @@ class SqliteAuditContractTests(unittest.TestCase):
     def test_event_message_and_run_delivery_are_idempotent_but_conflicts_fail(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
             workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
             run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1", capture_mode="relevant")
             original = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
@@ -264,6 +272,7 @@ class SqliteAuditContractTests(unittest.TestCase):
     def test_event_keeps_observed_task_details_independent_of_later_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
             workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
             run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1", capture_mode="relevant")
             observed = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
