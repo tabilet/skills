@@ -149,6 +149,50 @@ class IndexTests(unittest.TestCase):
         state=ix.sync(self.c,copied)
         self.assertTrue(state['complete'])
 
+    def test_explorer_projection_and_readiness_explain_explicit_dependencies(self):
+        self.source.write_text(
+            '# Tasks\n\n'
+            '| ID | State | Notes |\n|---|---|---|\n'
+            '| TASK-A | `[+]` | prerequisite |\n'
+            '| TASK-B | `[ ]` | Depends on: TASK-A |\n'
+        )
+        milestone=self.root/'tabilet/memory-bank/milestone.md'
+        milestone.write_text('# Milestone\n\n## M01 - Delivery\n\nSummary of the milestone.\n**Acceptance.** Review the evidence.\n')
+        state=self.sync();w=state['workspace_id']
+        projection=a.records(self.c,'SELECT milestone_id,display_order,summary,acceptance_text FROM index_milestone_projection')
+        self.assertEqual(projection[0]['milestone_id'],'M01')
+        self.assertIn('Summary of the milestone.',projection[0]['summary'])
+        dependencies=a.records(self.c,'SELECT source_key,target_key,relationship FROM index_task_dependencies')
+        self.assertEqual(dependencies,[{'source_key':'TASK-B','target_key':'TASK-A','relationship':'depends_on'}])
+        ready=ix.readiness(self.c,w,self.root)
+        self.assertEqual([row['task']['task_key'] for row in ready['ready']],['TASK-B'])
+        self.source.write_text(
+            '# Tasks\n\n| ID | State | Notes |\n|---|---|---|\n'
+            '| TASK-A | `[ ]` | prerequisite |\n'
+            '| TASK-B | `[ ]` | Depends on: TASK-A |\n'
+        )
+        self.sync()
+        ready=ix.readiness(self.c,w,self.root)
+        self.assertEqual([row['task']['task_key'] for row in ready['ready']],['TASK-A'])
+        self.assertEqual(ready['waiting'][0]['task']['task_key'],'TASK-B')
+        self.assertIn('dependency is pending',ready['waiting'][0]['reason'])
+
+    def test_readiness_withholds_recommendations_for_stale_sources_or_multiple_in_progress(self):
+        state=self.sync();w=state['workspace_id']
+        self.source.write_text(self.source.read_text().replace('`[ ]`','`[~]`'))
+        stale=ix.readiness(self.c,w,self.root)
+        self.assertEqual(stale['source_freshness'],'stale')
+        self.assertEqual(stale['recommendations'],[])
+        self.sync()
+        self.source.write_text(
+            '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
+            '| First | `[~]` | one |\n| Second | `[~]` | two |\n'
+        )
+        self.sync()
+        multiple=ix.readiness(self.c,w,self.root)
+        self.assertEqual(multiple['recommendations'],[])
+        self.assertTrue(any('multiple in-progress' in item['reason'] for item in multiple['needs_review']))
+
     def test_retirement_fenced_heading_does_not_change_task_or_relation_locations(self):
         self.source.write_text('| Old attempt | `[-]` | successor: M02 |\n')
         retired=h.retire_fixture(self.root)

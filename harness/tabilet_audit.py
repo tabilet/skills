@@ -23,9 +23,9 @@ import uuid
 from urllib.parse import quote
 
 
-SCHEMA_NAME = "tabilet.audit/v2"
-SCHEMA_VERSION = 2
-RECORDER_VERSION = "tabilet-audit/2"
+SCHEMA_NAME = "tabilet.audit/v3"
+SCHEMA_VERSION = 3
+RECORDER_VERSION = "tabilet-audit/3"
 
 OPERATIONS = frozenset({"init", "archive", "propose", "reconcile", "next", "goal", "upgrade"})
 RUN_RESULTS = frozenset({"completed", "blocked", "failed", "cancelled", "interrupted", "unknown"})
@@ -49,6 +49,11 @@ SNAPSHOT_MAX_BYTES = 4 * 1024 * 1024
 STATES = frozenset({"pending", "in_progress", "completed", "blocked", "cancelled", "historical"})
 FIDELITIES = frozenset({"exact", "redacted", "summarized", "incomplete"})
 CAPTURE_SOURCES = frozenset({"host", "agent", "import"})
+EXPLORER_DETAILS_SCHEMA = "tabilet.audit.explorer/v1"
+EXPLORER_PHASES = frozenset({"request", "proposal", "approval", "applied"})
+MESSAGE_PURPOSES = frozenset({"request", "clarification", "approval", "output"})
+ARTIFACT_NAMESPACES = frozenset({"milestone", "task", "archive", "evolution", "document"})
+ARTIFACT_RELATIONSHIPS = frozenset({"observed", "proposed", "created", "changed", "retired", "referenced"})
 UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
 
@@ -217,9 +222,74 @@ def validate_event(event: dict[str, Any]) -> dict[str, Any]:
         raise AuditValidationError("details must be a JSON object")
     if details.get("schema") != "tabilet.audit.details/v1":
         raise AuditValidationError("details schema must be tabilet.audit.details/v1")
+    explorer = details.get("explorer")
+    if explorer is not None:
+        validate_explorer_details(explorer)
     normalized["subject"] = subject
     normalized["details"] = details
     return normalized
+
+
+def validate_explorer_details(value: Any) -> dict[str, Any]:
+    """Validate the optional, versioned explorer evidence extension.
+
+    The event envelope remains v1 so older readers can safely ignore this
+    object.  The extension contains observations only; it never asserts that
+    a proposed artifact was actually written.
+    """
+    if not isinstance(value, dict) or value.get("schema") != EXPLORER_DETAILS_SCHEMA:
+        raise AuditValidationError(f"explorer details schema must be {EXPLORER_DETAILS_SCHEMA}")
+    phase = value.get("phase")
+    if phase not in EXPLORER_PHASES:
+        raise AuditValidationError("explorer phase must be request, proposal, approval, or applied")
+    summary = value.get("summary")
+    if summary is not None:
+        _text(summary, "explorer.summary")
+    messages = value.get("message_refs", [])
+    artifacts = value.get("artifact_refs", [])
+    if not isinstance(messages, list) or not isinstance(artifacts, list):
+        raise AuditValidationError("explorer message_refs and artifact_refs must be arrays")
+    seen_messages = set()
+    for ref in messages:
+        if not isinstance(ref, dict):
+            raise AuditValidationError("explorer message reference must be an object")
+        message_id = _text(ref.get("message_id"), "explorer.message_refs.message_id")
+        purpose = ref.get("purpose")
+        if purpose not in MESSAGE_PURPOSES:
+            raise AuditValidationError("unknown explorer message purpose")
+        if message_id in seen_messages:
+            raise AuditValidationError("duplicate explorer message reference")
+        seen_messages.add(message_id)
+    seen_artifacts = set()
+    for ref in artifacts:
+        if not isinstance(ref, dict):
+            raise AuditValidationError("explorer artifact reference must be an object")
+        namespace = ref.get("namespace")
+        if namespace not in ARTIFACT_NAMESPACES:
+            raise AuditValidationError("unknown explorer artifact namespace")
+        identifier = _text(ref.get("identifier"), "explorer.artifact_refs.identifier")
+        relationship = ref.get("relationship")
+        if relationship not in ARTIFACT_RELATIONSHIPS:
+            raise AuditValidationError("unknown explorer artifact relationship")
+        path = ref.get("path")
+        if path is not None:
+            _text(path, "explorer.artifact_refs.path")
+            if pathlib.PurePosixPath(path).is_absolute() or ".." in pathlib.PurePosixPath(path).parts:
+                raise AuditValidationError("explorer artifact path must be project-relative")
+        for field in ("line",):
+            if ref.get(field) is not None and (type(ref[field]) is not int or ref[field] < 1):
+                raise AuditValidationError(f"explorer artifact {field} must be a positive integer")
+        for field in ("sha256",):
+            if ref.get(field) is not None and not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(ref[field])):
+                raise AuditValidationError(f"explorer artifact {field} must be a hex digest")
+        for field in ("old_state", "new_state"):
+            if ref.get(field) is not None and ref[field] not in STATES:
+                raise AuditValidationError(f"unknown explorer artifact state: {ref[field]}")
+        key = (namespace, identifier, relationship, path)
+        if key in seen_artifacts:
+            raise AuditValidationError("duplicate explorer artifact reference")
+        seen_artifacts.add(key)
+    return value
 
 
 def schema_tables(connection: sqlite3.Connection) -> set[str]:
@@ -272,6 +342,51 @@ CREATE TABLE IF NOT EXISTS index_search (
  search_id INTEGER PRIMARY KEY, workspace_id TEXT NOT NULL, path TEXT NOT NULL,
  line INTEGER NOT NULL, kind TEXT NOT NULL, milestone_id TEXT, state TEXT, text TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS index_search_workspace ON index_search(workspace_id,path);
+"""
+
+# SQL9 additions deliberately live in a separate script.  SCHEMA_SQL and
+# INDEX_SQL remain the v1/v2 fixtures used to validate older databases.  These
+# tables are either durable evidence references or disposable projections; no
+# audit row has an inbound reference to a projection table.
+EXPLORER_SQL = """
+CREATE TABLE IF NOT EXISTS event_explorer (
+ event_id TEXT PRIMARY KEY REFERENCES events(event_id),
+ run_id TEXT NOT NULL REFERENCES runs(run_id),
+ phase TEXT NOT NULL, summary TEXT, details_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS event_message_refs (
+ event_id TEXT NOT NULL REFERENCES event_explorer(event_id),
+ message_id TEXT NOT NULL REFERENCES captured_messages(message_id),
+ purpose TEXT NOT NULL,
+ PRIMARY KEY(event_id,message_id,purpose)
+);
+CREATE TABLE IF NOT EXISTS event_artifacts (
+ event_id TEXT NOT NULL REFERENCES event_explorer(event_id),
+ run_id TEXT NOT NULL REFERENCES runs(run_id),
+ namespace TEXT NOT NULL, identifier TEXT NOT NULL,
+ relationship TEXT NOT NULL, path TEXT, line INTEGER, sha256 TEXT,
+ label TEXT, old_state TEXT, new_state TEXT, details_json TEXT NOT NULL,
+ PRIMARY KEY(event_id,namespace,identifier,relationship,path)
+);
+CREATE INDEX IF NOT EXISTS event_explorer_run ON event_explorer(run_id);
+CREATE INDEX IF NOT EXISTS event_artifacts_run ON event_artifacts(run_id,namespace,identifier);
+CREATE TABLE IF NOT EXISTS index_milestone_projection (
+ workspace_id TEXT NOT NULL REFERENCES workspaces,
+ milestone_id TEXT NOT NULL, display_order INTEGER, summary TEXT,
+ acceptance_text TEXT, review_evidence TEXT, closure_state TEXT,
+ path TEXT NOT NULL, source_line INTEGER NOT NULL, source_sha256 TEXT NOT NULL,
+ PRIMARY KEY(workspace_id,milestone_id)
+);
+CREATE TABLE IF NOT EXISTS index_task_dependencies (
+ workspace_id TEXT NOT NULL REFERENCES workspaces,
+ source_key TEXT NOT NULL, path TEXT NOT NULL, source_sha256 TEXT NOT NULL,
+ source_line INTEGER NOT NULL, milestone_id TEXT NOT NULL,
+ target_key TEXT NOT NULL, target_milestone_id TEXT, target_explicit_id TEXT,
+ relationship TEXT NOT NULL, reason TEXT NOT NULL,
+ PRIMARY KEY(workspace_id,source_key,target_key,relationship)
+);
+CREATE INDEX IF NOT EXISTS index_task_dependencies_target
+ ON index_task_dependencies(workspace_id,target_key);
 """
 
 
@@ -335,7 +450,7 @@ def database_path(connection):
 
 def validate_database(connection):
     version = connection.execute('PRAGMA user_version').fetchone()[0]
-    if version not in (1, SCHEMA_VERSION):
+    if version not in (1, 2, SCHEMA_VERSION):
         raise AuditError(f"unsupported audit database version: {version}")
     try:
         marker = connection.execute("SELECT value FROM schema_meta WHERE key='schema'").fetchone()
@@ -344,7 +459,11 @@ def validate_database(connection):
         # Verify every required table/column before any schema or permission mutation.
         expected = sqlite3.connect(':memory:')
         try:
-            expected.executescript(SCHEMA_SQL + (INDEX_SQL if version == 2 else ''))
+            expected.executescript(
+                SCHEMA_SQL
+                + (INDEX_SQL if version >= 2 else '')
+                + (EXPLORER_SQL if version >= SCHEMA_VERSION else '')
+            )
             for table in schema_tables(expected):
                 columns = {r[1] for r in expected.execute(f'PRAGMA table_info({table})')}
                 actual = {r[1] for r in connection.execute(f'PRAGMA table_info({table})')}
@@ -387,7 +506,8 @@ def open_database(path=None, *, project_roots=()):
         if version < SCHEMA_VERSION:
             connection.execute('BEGIN IMMEDIATE')
             try:
-                for statement in (SCHEMA_SQL + INDEX_SQL).split(';'):
+                migration_sql = SCHEMA_SQL + INDEX_SQL + EXPLORER_SQL
+                for statement in migration_sql.split(';'):
                     if statement.strip():
                         connection.execute(statement)
                 connection.execute("INSERT OR REPLACE INTO schema_meta VALUES ('schema', ?)", (SCHEMA_NAME,))
@@ -449,6 +569,38 @@ def start_run(connection, workspace_id, operation, *, run_id=None, capture_mode=
     return run_id
 
 
+def _store_explorer_details(connection, normalized):
+    """Persist normalized explorer references after an event has been inserted."""
+    explorer = normalized["details"].get("explorer")
+    if explorer is None:
+        return
+    event_id = normalized["event_id"]
+    run_id = normalized["run_id"]
+    connection.execute(
+        "INSERT INTO event_explorer(event_id,run_id,phase,summary,details_json) VALUES (?,?,?,?,?)",
+        (event_id, run_id, explorer["phase"], explorer.get("summary"), canonical_json(explorer)),
+    )
+    for ref in explorer.get("message_refs", []):
+        row = connection.execute(
+            "SELECT run_id FROM captured_messages WHERE message_id=?", (ref["message_id"],)
+        ).fetchone()
+        if row != (run_id,):
+            raise AuditValidationError("explorer message reference must belong to the event run")
+        connection.execute(
+            "INSERT INTO event_message_refs(event_id,message_id,purpose) VALUES (?,?,?)",
+            (event_id, ref["message_id"], ref["purpose"]),
+        )
+    for ref in explorer.get("artifact_refs", []):
+        connection.execute(
+            "INSERT INTO event_artifacts(event_id,run_id,namespace,identifier,relationship,path,line,sha256,label,old_state,new_state,details_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                event_id, run_id, ref["namespace"], ref["identifier"], ref["relationship"],
+                ref.get("path"), ref.get("line"), ref.get("sha256"), ref.get("label"),
+                ref.get("old_state"), ref.get("new_state"), canonical_json(ref),
+            ),
+        )
+
+
 @atomic
 def append_event(connection, event, *, sequence=None):
     normalized = validate_event(event)
@@ -474,6 +626,7 @@ def append_event(connection, event, *, sequence=None):
              canonical_json(details['verification']) if 'verification' in details else None,
              canonical_json(details['file_actions']) if 'file_actions' in details else None,
              details.get('commit_sha'), canonical_json(details), payload))
+        _store_explorer_details(connection, normalized)
     except sqlite3.IntegrityError as exc:
         raise AuditConflict('event sequence conflict') from exc
     return sequence
@@ -623,6 +776,18 @@ def export_json(connection, *, workspace_id=None, include_content=False):
         runs = records(connection, 'SELECT * FROM runs'+where+' ORDER BY started_at,run_id',values)
         for run in runs:
             run['events'] = records(connection,'SELECT * FROM events WHERE run_id=? ORDER BY sequence',(run['run_id'],))
+            for observed in run['events']:
+                explorer = records(connection, 'SELECT * FROM event_explorer WHERE event_id=?', (observed['event_id'],))
+                observed['explorer'] = explorer[0] if explorer else None
+                if observed['explorer'] is not None:
+                    observed['explorer']['message_refs'] = records(
+                        connection, 'SELECT * FROM event_message_refs WHERE event_id=? ORDER BY message_id',
+                        (observed['event_id'],),
+                    )
+                    observed['explorer']['artifact_refs'] = records(
+                        connection, 'SELECT * FROM event_artifacts WHERE event_id=? ORDER BY namespace,identifier',
+                        (observed['event_id'],),
+                    )
             run['snapshot_observations'] = records(connection,'SELECT * FROM run_snapshots WHERE run_id=? ORDER BY source_path',(run['run_id'],))
             if include_content:
                 run['messages'] = records(connection,'SELECT * FROM captured_messages WHERE run_id=? ORDER BY sequence',(run['run_id'],))

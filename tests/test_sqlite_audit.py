@@ -96,13 +96,13 @@ class SqliteAuditContractTests(unittest.TestCase):
         with self.assertRaisesRegex(audit.AuditValidationError, "subject must"):
             audit.validate_event(event(subject="task"))
 
-    def test_open_database_creates_secure_v1_database(self) -> None:
+    def test_open_database_creates_secure_v3_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "state" / "tabilet" / "audit.sqlite3"
             connection = audit.open_database(database)
             self.addCleanup(connection.close)
             self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
             self.assertEqual(
                 connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()[0],
                 audit.SCHEMA_NAME,
@@ -226,6 +226,58 @@ class SqliteAuditContractTests(unittest.TestCase):
                 connection.execute("SELECT text FROM captured_messages WHERE message_id = ?", (message_id,)).fetchone()[0],
                 "Completed the recorder task.",
             )
+
+    def test_explorer_event_references_are_versioned_and_workspace_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "propose", capture_mode="relevant")
+            message_id = audit.capture_message(
+                connection, run_id, "user", "Add the explorer", capture_source="host", fidelity="exact",
+                message_id="request-1",
+            )
+            self.assertEqual(message_id, "request-1")
+            details = {
+                "schema": "tabilet.audit.details/v1",
+                "explorer": {
+                    "schema": "tabilet.audit.explorer/v1",
+                    "phase": "request",
+                    "message_refs": [{"message_id": "request-1", "purpose": "request"}],
+                    "artifact_refs": [{
+                        "namespace": "milestone", "identifier": "M01", "relationship": "proposed",
+                        "path": "tabilet/memory-bank/status-M01.md", "line": 4,
+                    }],
+                },
+            }
+            payload = event(
+                event_id="explorer-1", run_id=run_id, workspace_id=workspace_id,
+                operation="propose", details=details,
+            )
+            self.assertEqual(audit.append_event(connection, payload), 1)
+            self.assertEqual(
+                connection.execute("SELECT phase FROM event_explorer WHERE event_id='explorer-1'").fetchone()[0],
+                "request",
+            )
+            self.assertEqual(
+                connection.execute("SELECT purpose FROM event_message_refs WHERE event_id='explorer-1'").fetchone()[0],
+                "request",
+            )
+            self.assertEqual(
+                connection.execute("SELECT namespace,identifier FROM event_artifacts WHERE event_id='explorer-1'").fetchone(),
+                ("milestone", "M01"),
+            )
+            with self.assertRaises(audit.AuditValidationError):
+                audit.append_event(connection, event(
+                    event_id="explorer-2", run_id=run_id, workspace_id=workspace_id,
+                    operation="propose", details={
+                        "schema": "tabilet.audit.details/v1",
+                        "explorer": {
+                            "schema": "tabilet.audit.explorer/v1", "phase": "proposal",
+                            "message_refs": [{"message_id": "missing", "purpose": "output"}],
+                        },
+                    },
+                ))
 
     def test_foreign_keys_reject_unknown_run_and_workspace(self) -> None:
         connection = sqlite3.connect(":memory:")

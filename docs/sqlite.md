@@ -25,10 +25,13 @@ uses `TABILET_AUDIT_DB` or `--audit-db`. Installation and read commands never
 create a database. Database, WAL, and shared-memory files stay outside projects.
 New storage directories are private; existing parent permissions are unchanged.
 
-The database identity is `tabilet.audit/v2`, with SQLite `user_version=2`.
+The database identity is `tabilet.audit/v3`, with SQLite `user_version=3`.
 Writers validate identity, version, required columns, integrity, and foreign
-keys before changing existing storage. The transactional v1-to-v2 migration
-adds derived tables while preserving durable records and snapshot bytes.
+keys before changing existing storage. The transactional v1/v2-to-v3 migration
+adds explorer evidence references and derived tables while preserving durable
+records and snapshot bytes. Readers can open v1 and v2 databases without
+writing; an explicit writer open performs the transactional migration. A failed
+migration rolls back the schema marker and leaves the earlier database readable.
 Unknown or newer databases are rejected. Backups and recovery use new external
 destinations and never overwrite existing files. Take an explicit backup before
 upgrading an existing database when independent rollback is required.
@@ -64,6 +67,18 @@ host, not cryptographic proof. Do not submit credentials or unrelated private te
 Export excludes captured messages and snapshot bytes unless explicitly requested.
 Event summaries may themselves contain private material; review exports before sharing.
 
+Events may carry an optional `details.explorer` object with schema
+`tabilet.audit.explorer/v1`. Its `phase` is one of `request`, `proposal`,
+`approval`, or `applied`; `message_refs` names selected messages from the same
+run with purpose `request`, `clarification`, `approval`, or `output`; and
+`artifact_refs` names observed or proposed milestones, tasks, archives,
+evolution records, or documents. Artifact paths are project-relative and each
+reference may include a source line, hash, label, and before/after state. The
+recorder validates workspace/run ownership before storing normalized references
+in `event_explorer`, `event_message_refs`, and `event_artifacts`. Missing
+captures remain missing; the extension never fabricates a request or treats a
+proposal as proof of a file write.
+
 ## Rebuildable index
 
 | Table | Current derived content |
@@ -75,6 +90,8 @@ Event summaries may themselves contain private material; review exports before s
 | `index_tasks` | Milestone, label/state/notes, document hash and line, existing explicit ID |
 | `index_relationships` | Explicit dependencies/successors, archive lineage, evolution pairs |
 | `index_search` | Searchable document, section, and task entries |
+| `index_milestone_projection` | Display order, summary, acceptance, review/closure evidence, and source hash |
+| `index_task_dependencies` | Explicit task dependencies with source location and unresolved targets |
 
 Index only declared v2 Markdown under `tabilet/`: current memory-bank documents,
 active statuses, retired records/indexes, knowledge history, evolution pairs,
@@ -96,6 +113,16 @@ FTS5 provides text search when available; otherwise use a labelled literal-text
 fallback. Results include workspace, path, line, indexed hash, and refresh time.
 Read commands never refresh implicitly. Execution always rereads the live ledger.
 Rebuild deletes derived data only, preserving audit and old snapshot evidence.
+
+The read-only `tabilet_index.readiness(connection, workspace_id, project_root)`
+projection validates the live declared inventory and hashes before ordering work.
+It returns `resume`, `ready`, `waiting`, `blocked`, and `needs_review` groups,
+with source references and reasons. Multiple in-progress rows, stale or
+unavailable sources, unresolved dependencies, or index diagnostics withhold
+`recommendations`; the function never edits Markdown or grants execution
+authority. A pending task is ready only when its explicit dependencies are
+completed and no sole in-progress row owns the ledger. Terminal rows do not
+establish milestone acceptance.
 
 ## Interfaces and failures
 
@@ -227,10 +254,10 @@ tabilet-audit restore /absolute/recovered-record.md --snapshot-id SNAPSHOT_ID
 All destinations must be new external files, with no symlink components. Database
 backups include messages and old snapshot bytes; keep them private. Restoration
 never edits original project Markdown. Inspect recovered legacy records separately.
-Read commands accept known v1 audit databases without migrating them; index queries
-require the explicit writer migration and sync. Writer opens migrate known v1
-storage transactionally. Older writers reject v2 databases, so retain a backup if
-rolling back the toolkit. The obsolete `--audit-archives` option and
+Read commands accept known v1 and v2 audit databases without migrating them;
+index queries require the explicit writer migration and sync. Writer opens
+migrate known v1/v2 storage transactionally. Older writers reject v3 databases,
+so retain a backup if rolling back the toolkit. The obsolete `--audit-archives` option and
 `TABILET_AUDIT_ARCHIVES=1` stop before execution with a replacement instruction.
 
 ## Acceptance

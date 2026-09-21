@@ -136,7 +136,7 @@ class StorageTests(unittest.TestCase):
         c.commit();c.close()
         c=a.open_database(legacy)
         try:
-            self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],2)
+            self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],3)
             self.assertEqual(c.execute('SELECT content FROM snapshots').fetchone()[0],data)
             self.assertEqual(len(json.loads(a.export_json(c))['snapshots']),1)
             a.restore_snapshot(c,'snapshot',self.root/'recovered.md')
@@ -185,5 +185,5 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(c.execute("SELECT value FROM schema_meta WHERE key='schema'").fetchone()[0],'tabilet.audit/v1')
         finally:c.close()
         c=a.open_database(legacy)
-        self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],2)
+        self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],3)
         c.close()

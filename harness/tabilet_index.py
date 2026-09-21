@@ -21,6 +21,8 @@ STATUS = re.compile(r'status-([A-Z](?:0[1-9]|[1-9][0-9]))\.md$')
 ARCHIVE = re.compile(r'archive-([A-Z](?:0[1-9]|[1-9][0-9]))\.md$')
 EVOLUTION = re.compile(r'(prompt|result)-v([1-9][0-9]*)\.md$')
 TABLES = ('index_documents','index_sections','index_milestones','index_tasks','index_relationships','index_search')
+EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
+DERIVED_TABLES = TABLES + EXPLORER_TABLES
 
 
 @functools.lru_cache(maxsize=1)
@@ -135,7 +137,7 @@ def headings(text):
 
 def parse_document(path,kind,text,digest):
     p=parser()
-    parsed={table:[] for table in TABLES if table!='index_documents'}
+    parsed={table:[] for table in DERIVED_TABLES if table!='index_documents'}
     parsed['index_sections']=list(headings(text))
     parsed['index_search'].append(dict(line=1,kind=kind,milestone_id=None,state=None,text=text))
     for section in parsed['index_sections']:
@@ -165,6 +167,11 @@ def parse_document(path,kind,text,digest):
         if problems or not rows:raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
         parsed['index_milestones'].append(dict(milestone_id=identity,lifecycle='retired' if meta else 'active',
             line=1,specification=specification,outcome=meta.get('Outcome'),review=meta.get('Review')))
+        parsed['index_milestone_projection'].append(dict(
+            milestone_id=identity, display_order=None, summary=None,
+            acceptance_text=specification, review_evidence=meta.get('Review'),
+            closure_state=meta.get('Outcome'), source_line=1, source_sha256=digest,
+        ))
         all_rows=p.table_rows(status)
         for row in rows:
             headers=next((r['cells'] for r in reversed(all_rows) if r['line']<row['line'] and r['cells'][1].lower()=='state'),[])
@@ -175,6 +182,30 @@ def parse_document(path,kind,text,digest):
                 label=row['item'],state=row['state'],notes=' | '.join(row['cells'][2:]),explicit_id=explicit))
             parsed['index_search'].append(dict(line=row['line']+offset,kind='task',milestone_id=identity,
                 state=row['state'],text=' | '.join(row['cells'])))
+            task_key=explicit or f'{path}#{row["line"]+offset}'
+            notes=' | '.join(row['cells'][2:])
+            for target,reason in task_dependencies(notes):
+                target_milestone, target_id = dependency_target(target)
+                parsed['index_task_dependencies'].append(dict(
+                    source_key=task_key, source_sha256=digest, source_line=row['line']+offset,
+                    milestone_id=identity, target_key=target,
+                    target_milestone_id=target_milestone, target_explicit_id=target_id,
+                    relationship='depends_on', reason=reason,
+                ))
+    if kind == 'milestone':
+        order=0
+        for section in parsed['index_sections']:
+            match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)',section['heading'])
+            if not match:continue
+            order += 1
+            body=section['text'].splitlines()[1:]
+            summary=next((line.strip() for line in body if line.strip() and not line.lstrip().startswith('#')), None)
+            acceptance=next((line.strip() for line in body if re.match(r'\*\*(?:Acceptance|Accept)\b',line,re.I)), None)
+            parsed['index_milestone_projection'].append(dict(
+                milestone_id=match[1], display_order=order, summary=summary,
+                acceptance_text=acceptance, review_evidence=None, closure_state=None,
+                source_line=section['line'], source_sha256=digest,
+            ))
     relation_lines = list(p.unfenced_lines(text))
     if kind == 'history_status':
         relation_lines = [(n + specification_offset, value) for n, value in p.unfenced_lines(specification)]
@@ -195,6 +226,24 @@ def parse_document(path,kind,text,digest):
         counterpart = 'result' if match[1] == 'prompt' else 'prompt'
         parsed['index_relationships'].append(dict(line=1,source=path,relation='evolution_pair',target=f'tabilet/evolution/{counterpart}-v{match[2]}.md'))
     return parsed
+
+
+def dependency_target(value):
+    """Return an explicit target ID without treating ordinary prose as a relation."""
+    value=value.strip().strip('`[]()')
+    match=re.fullmatch(r'([A-Z](?:0[1-9]|[1-9][0-9]))/([A-Za-z0-9][A-Za-z0-9_.:-]*)',value)
+    if match:return match[1],match[2]
+    return None,value
+
+
+def task_dependencies(notes):
+    """Read only labelled dependency clauses from a task row's notes."""
+    found=[]
+    for match in re.finditer(r'(?i)\b(?:depends on|dependency|blocked by)\s*:\s*([^|;]+)',notes):
+        reason=match.group(0).split(':',1)[0].strip().lower()
+        values=re.findall(r'\[?([A-Z](?:0[1-9]|[1-9][0-9])/[A-Za-z0-9][A-Za-z0-9_.:-]*|[A-Za-z][A-Za-z0-9_.:-]*)\]?',match.group(1))
+        found.extend((value,reason) for value in dict.fromkeys(values))
+    return found
 
 
 def validate_projection(documents, parsed):
@@ -231,6 +280,23 @@ def validate_projection(documents, parsed):
             meta=p.retired_record(documents[path]['text'],pathlib.Path(path).name)['metadata']
             if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\(status-'+identity+r'\.md\)',cells[3]):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
+    # A current milestone specification is the maintained source for display
+    # order, summary, and acceptance.  Status records still own task state and
+    # retired envelopes still own closure evidence, so discard the duplicate
+    # status-side projection when a specification exists.
+    for path,parts in parsed.items():
+        if path not in parsed or not isinstance(parts, dict):
+            continue
+        if path.endswith('/milestone.md'):
+            continue
+        parts['index_milestone_projection']=[
+            row for row in parts['index_milestone_projection'] if row['milestone_id'] not in specs
+        ]
+    for path,parts in parsed.items():
+        if path.endswith('/milestone.md'):
+            continue
+        for row in parts['index_milestone_projection']:
+            row['closure_state']=row.get('closure_state') or milestones[row['milestone_id']].get('lifecycle')
     for identity in set(specs)|set(history_rows):
         if identity not in milestones:raise AuditError(f'milestone has no status record: {identity}')
     for path,doc in documents.items():
@@ -271,7 +337,7 @@ def publish(connection, workspace, documents, parsed, generation, context, attem
     old_fts=connection.execute("SELECT 1 FROM sqlite_master WHERE name='index_fts'").fetchone()
     if old_fts:
         connection.execute('DELETE FROM index_fts WHERE rowid IN (SELECT search_id FROM index_search WHERE workspace_id=?)',(workspace,))
-    for table in TABLES:connection.execute(f'DELETE FROM {table} WHERE workspace_id=?',(workspace,))
+    for table in DERIVED_TABLES:connection.execute(f'DELETE FROM {table} WHERE workspace_id=?',(workspace,))
     for path,doc in documents.items():
         connection.execute('INSERT INTO index_documents VALUES (?,?,?,?,?,?,?)',(workspace,path,doc['kind'],doc['sha256'],doc['mtime_ns'],doc['size'],doc['text']))
         for table,items in parsed[path].items():
@@ -305,7 +371,7 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
                 diagnostics.append(f'{path}: frozen source changed since indexed observation')
             if old and old['sha256']==digest and not rebuild:
                 parts={}
-                for table in TABLES[1:]:
+                for table in DERIVED_TABLES[1:]:
                     parts[table]=[{k:v for k,v in row.items() if k not in ('workspace_id','path','search_id')} for row in records(connection,f'SELECT * FROM {table} WHERE workspace_id=? AND path=?',(workspace,path))]
                 parsed[path]=parts
             else:parsed[path]=parse_document(path,kind,text,digest)
@@ -329,6 +395,100 @@ def status(connection, workspace):
     result['diagnostics']=json.loads(result.pop('diagnostics_json'))
     result['complete']=bool(result['complete'])
     result['source_freshness']='not_checked'
+    return result
+
+
+def _current_source_state(connection, workspace, root):
+    """Compare the published inventory with live Markdown without writing."""
+    if root is None:
+        return 'not_checked', ['live project root is required for readiness']
+    try:
+        paths=inventory(root)
+        indexed={row['path']:row['sha256'] for row in records(
+            connection,'SELECT path,sha256 FROM index_documents WHERE workspace_id=?',(workspace,))}
+        if set(paths) != set(indexed):
+            return 'stale', ['declared Markdown inventory changed since refresh']
+        for path in paths:
+            _,digest,_=read_document(root,path)
+            if digest != indexed[path]:
+                return 'stale', [f'{path}: source changed since refresh']
+    except (AuditError,OSError,UnicodeError) as exc:
+        return 'unavailable', [f'live source validation failed: {exc}']
+    return 'current', []
+
+
+def readiness(connection, workspace, project_root=None):
+    """Return explained, read-only task readiness for the explorer To-do view.
+
+    This function never chooses an execution owner and never changes source or
+    audit data.  It intentionally withholds recommendations when the current
+    projection cannot be trusted.
+    """
+    info=status(connection,workspace)
+    result={
+        'workspace_id':workspace, 'index':info,
+        'source_freshness':'not_checked', 'freshness_diagnostics':[],
+        'resume':[], 'ready':[], 'waiting':[], 'blocked':[], 'needs_review':[],
+        'recommendations':[],
+    }
+    if not info.get('generation'):
+        result['needs_review'].append({'reason':info.get('diagnostic','index has no published generation')})
+        return result
+    freshness,problems=_current_source_state(connection,workspace,project_root)
+    result['source_freshness']=freshness;result['freshness_diagnostics']=problems
+    diagnostics=list(info.get('diagnostics') or [])+problems
+    milestones={row['milestone_id']:row for row in records(
+        connection,'SELECT * FROM index_milestones WHERE workspace_id=?',(workspace,))}
+    tasks=records(connection,'SELECT * FROM index_tasks WHERE workspace_id=? ORDER BY path,line',(workspace,))
+    active={key for key,value in milestones.items() if value['lifecycle']=='active'}
+    tasks=[row for row in tasks if row['milestone_id'] in active]
+    for row in tasks:
+        row['task_key']=row.get('explicit_id') or f"{row['path']}#{row['line']}"
+        row['source']={'path':row['path'],'line':row['line'],'sha256':row['sha256']}
+    by_key={row['task_key']:row for row in tasks}
+    completed={row['task_key'] for row in tasks if row['state']=='completed'}
+    dependency_rows=records(connection,'SELECT * FROM index_task_dependencies WHERE workspace_id=?',(workspace,))
+    dependencies={}
+    for dep in dependency_rows:
+        dependencies.setdefault(dep['source_key'],[]).append(dep)
+    in_progress=[row for row in tasks if row['state']=='in_progress']
+    if len(in_progress)>1:
+        result['needs_review'].append({'reason':'multiple in-progress tasks own the ledger',
+                                       'tasks':[row['task_key'] for row in in_progress]})
+    elif in_progress:
+        result['resume'].append({'task':in_progress[0],'reason':'resume the sole in-progress task'})
+    for row in tasks:
+        if row['state']=='blocked':
+            result['blocked'].append({'task':row,'reason':row['notes'] or 'status row is explicitly blocked'})
+    for milestone_id in active:
+        milestone_tasks=[row for row in tasks if row['milestone_id']==milestone_id]
+        if milestone_tasks and all(row['state'] in {'completed','cancelled','historical'} for row in milestone_tasks):
+            result['needs_review'].append({'milestone_id':milestone_id,
+                'reason':'all task rows are terminal; milestone acceptance and closure review are still required'})
+    for row in tasks:
+        if row['state']!='pending':
+            continue
+        reasons=[]
+        if in_progress:
+            reasons.append('another task is already in progress')
+        for dep in dependencies.get(row['task_key'],[]):
+            target=by_key.get(dep['target_key'])
+            if target is None and dep.get('target_explicit_id'):
+                target=next((item for item in tasks if item.get('explicit_id')==dep['target_explicit_id']),None)
+            if target is None:
+                reasons.append(f"unresolved dependency: {dep['target_key']}")
+            elif target['state']!='completed':
+                reasons.append(f"dependency is {target['state']}: {dep['target_key']}")
+        if reasons:
+            result['waiting'].append({'task':row,'reason':'; '.join(reasons)})
+        else:
+            result['ready'].append({'task':row,'reason':'pending row has no unsatisfied explicit dependency'})
+    if diagnostics or freshness!='current' or len(in_progress)>1:
+        if diagnostics:
+            result['needs_review'].append({'reason':'projection or source diagnostics prevent safe ordering', 'diagnostics':diagnostics})
+        result['recommendations']=[]
+    else:
+        result['recommendations']=result['resume'] or result['ready']
     return result
 
 
@@ -360,4 +520,4 @@ def show(connection, workspace, path):
     info=status(connection,workspace)
     rows=records(connection,'SELECT * FROM index_documents WHERE workspace_id=? AND path=?',(workspace,path)) if info.get('generation') else []
     if not rows:raise AuditError('document is not in the published index')
-    return {'index':info,'document':rows[0],**{table.removeprefix('index_'):records(connection,f'SELECT * FROM {table} WHERE workspace_id=? AND path=?',(workspace,path)) for table in TABLES[1:-1]}}
+    return {'index':info,'document':rows[0],**{table.removeprefix('index_'):records(connection,f'SELECT * FROM {table} WHERE workspace_id=? AND path=?',(workspace,path)) for table in DERIVED_TABLES[1:] if table != 'index_search'}}
