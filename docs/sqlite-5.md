@@ -1,6 +1,6 @@
 # SQLite 5 — Audit storage and runner repairs
 
-Plan state: [ ]
+Plan state: [+]
 
 Depends on: review of SQLite 1–4
 
@@ -13,7 +13,7 @@ establish acceptance of the revised design. Markdown remains authoritative.
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
 | SQL5-T01 | [+] | Harden storage, migration, identity, capture, and export | Storage regression tests preserve existing evidence and reject unsafe destinations. |
-| SQL5-T02 | [ ] | Repair optional runner integration and terminal outcomes | Standalone runner and every audited exit retain existing workflow gates. |
+| SQL5-T02 | [+] | Repair optional runner integration and terminal outcomes | Standalone runner and every audited exit retain existing workflow gates. |
 
 ## Verification and review
 
@@ -22,5 +22,8 @@ foreign databases, retry identity, capture enforcement, complete export, and
 v1 snapshot preservation.
 
 Execute one row at a time, commit each verified row, and record evidence here.
-Review iteration: 0. The initial whole-milestone review is iteration 1; verify and
+SQL5-T02: runner suite and new copied-install, blocked-transition, internal-DB,
+commit-before-failure, and unexpected-exception regressions pass.
+
+Review iteration: 1 (passed). The initial whole-milestone review is iteration 1; verify and
 review after fixes, with at most 10 iterations. A clean pass is required.

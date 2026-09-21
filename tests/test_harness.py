@@ -458,7 +458,7 @@ class ShellToolTests(unittest.TestCase):
 
 
 class ProviderTests(unittest.TestCase):
-    def test_archive_snapshot_capture_is_explicitly_opt_in(self) -> None:
+    def test_obsolete_archive_snapshot_capture_stops_before_execution(self) -> None:
         with mock.patch.object(sys, "argv", [str(HARNESS), "--model", "test"]), mock.patch.dict(
             os.environ, {}, clear=True
         ):
@@ -467,8 +467,9 @@ class ProviderTests(unittest.TestCase):
         with mock.patch.object(sys, "argv", [str(HARNESS), "--model", "test"]), mock.patch.dict(
             os.environ, {"TABILET_AUDIT_ARCHIVES": "1"}, clear=True
         ):
-            args = harness.parse_args()
-        self.assertTrue(args.audit_archives)
+            with self.assertRaises(SystemExit) as stopped:
+                harness.parse_args()
+            self.assertEqual(stopped.exception.code, 2)
 
     def test_openai_retries_transient_response_and_reports_usage(self) -> None:
         responses = [
@@ -831,8 +832,8 @@ class HarnessIntegrationTests(unittest.TestCase):
                 [row[0] for row in connection.execute(
                     "SELECT event_type FROM events ORDER BY sequence"
                 )],
-                ["run_started", "task_observed", "task_transition", "verification_observed",
-                 "commit_observed", "snapshot_gap", "snapshot_gap", "run_finished"],
+                ["run_started", "task_observed", "commit_observed", "task_transition",
+                 "verification_observed", "run_finished"],
             )
             self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "completed")
             self.assertEqual(
@@ -853,7 +854,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "blocked")
             self.assertEqual(
                 connection.execute("SELECT event_type FROM events ORDER BY sequence").fetchall(),
-                [("run_started",), ("run_blocked",), ("snapshot_gap",), ("snapshot_gap",), ("run_finished",)],
+                [("run_started",), ("run_blocked",), ("run_finished",)],
             )
             connection.close()
 
