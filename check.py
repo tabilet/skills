@@ -1031,6 +1031,27 @@ def skill_matches_prompt():
     return []
 
 
+@check("optional audit references and packaging stay consistent")
+def sqlite_bundle_contract():
+    references = [skill.parent / "references/optional-audit.md" for skill in SKILLS_DIR.glob("*/SKILL.md")]
+    problems = []
+    if len(references) != 7 or any(not path.is_file() for path in references):
+        return ["seven standalone optional audit references are required"]
+    if len({path.read_bytes() for path in references}) != 1:
+        problems.append("optional audit references differ across skill bundles")
+    for reference in references:
+        if "references/optional-audit.md" not in (reference.parent.parent / "SKILL.md").read_text():
+            problems.append(f"{reference}: missing skill route")
+    for name in ("tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py", "tackle-memory-bank-api-loop"):
+        if not (ROOT / "harness" / name).is_file():
+            problems.append(f"missing optional toolkit payload: {name}")
+    for number in range(5, 9):
+        path = ROOT / "docs" / f"sqlite-{number}.md"
+        if not path.is_file() or f"SQL{number}-T01" not in path.read_text():
+            problems.append(f"missing SQLite follow-up ledger: {number}")
+    return problems
+
+
 @check("v2 layout and explicit v1.5 migration stay enforced")
 def v2_migration_contract():
     problems = []

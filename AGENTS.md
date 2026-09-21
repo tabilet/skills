@@ -54,7 +54,9 @@ Two consequences that matter constantly:
   workflow it describes ("tackle next pending item in memory bank") is for
   downstream projects.
 
-Two Python payload commands: `harness/tackle-memory-bank-api-loop` and
+Python payload commands include the standalone `harness/tackle-memory-bank-api-loop`,
+the optional `harness/tabilet_audit_host.py` (installed as `tabilet-audit` with
+its audit/index modules and runner parser), and
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`. `check.py` verifies this
 repository and is not payload.
 
@@ -79,7 +81,8 @@ is only worth anything if additions are argued against something:
 
 - **No second harness implementation.** A Go or Node twin doubles the surface
   where two implementations can silently disagree, and disagreement between two
-  harnesses is worse than a Python dependency. `harness/` stays one file.
+  harnesses is worse than a Python dependency. The execution runner stays one installable file when auditing is disabled;
+  optional audit/index modules do not execute tasks.
 - **No vendor-specific agent files in `template/`.** `AGENTS.md` is the open
   cross-vendor standard; tools that read another filename get a documented
   one-line bridge in the README.
@@ -283,6 +286,13 @@ that resolves only through a non-ASCII slug, and the id keeps its English
 spelling so an inbound link survives translation.
 
 ## Hard Rules
+
+- SQLite is optional external audit plus rebuildable Markdown lookup. Project
+  Markdown remains authoritative; index refresh never rewrites it or durable
+  audit records. New snapshot capture is deferred; existing evidence is preserved.
+  The seven optional audit references stay byte-identical, and disabled auditing
+  must preserve the documented single-file runner installation. The CLI package
+  and source-lifecycle tests enforce these contracts.
 
 - Keep the harness dependency-free: Python standard library only.
 - v2 project-owned files live under `tabilet/`; only `AGENTS.md` stays at the

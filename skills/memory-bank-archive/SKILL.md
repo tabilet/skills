@@ -14,6 +14,12 @@ project writes or execution. Direct the user to preview and explicitly apply
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
 Installing v2 never migrates a project automatically.
 
+For explicitly enabled interactive auditing (`TABILET_AUDIT_DB`), read the bundled
+`references/optional-audit.md` and use the optional installed `tabilet-audit`
+toolkit. Report unavailable logging as a gap without changing workflow approvals
+or outcomes. Inside the API runner, its recorder owns the lifecycle; do not start
+a duplicate audit run.
+
 Map one coherent product, ownership, and verification boundary breadth-first.
 Produce repository facts, not a roadmap: archive files never contain executable
 task state and never enter a status or goal order.
