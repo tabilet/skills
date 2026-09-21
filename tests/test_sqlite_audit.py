@@ -3,8 +3,11 @@ from __future__ import annotations
 import importlib.machinery
 import importlib.util
 import json
+import os
+import stat
 import sqlite3
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -88,6 +91,41 @@ class SqliteAuditContractTests(unittest.TestCase):
             )
         with self.assertRaisesRegex(audit.AuditValidationError, "subject must"):
             audit.validate_event(event(subject="task"))
+
+    def test_open_database_creates_secure_v1_database(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "state" / "tabilet" / "audit.sqlite3"
+            connection = audit.open_database(database)
+            self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 1)
+            self.assertEqual(
+                connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()[0],
+                audit.SCHEMA_NAME,
+            )
+            connection.close()
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(database.parent.stat().st_mode), 0o700)
+                self.assertEqual(stat.S_IMODE(database.stat().st_mode), 0o600)
+            reopened = audit.open_database(database)
+            reopened.close()
+
+    def test_open_database_rejects_symlinks_and_newer_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target.sqlite3"
+            target.write_bytes(b"not a database")
+            link = root / "link.sqlite3"
+            link.symlink_to(target)
+            with self.assertRaisesRegex(audit.AuditError, "symlink"):
+                audit.open_database(link)
+
+            newer = root / "newer.sqlite3"
+            connection = sqlite3.connect(newer)
+            connection.execute("PRAGMA user_version = 99")
+            connection.commit()
+            connection.close()
+            with self.assertRaisesRegex(audit.AuditError, "newer"):
+                audit.open_database(newer)
 
 
 if __name__ == "__main__":
