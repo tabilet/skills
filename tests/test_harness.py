@@ -458,6 +458,18 @@ class ShellToolTests(unittest.TestCase):
 
 
 class ProviderTests(unittest.TestCase):
+    def test_archive_snapshot_capture_is_explicitly_opt_in(self) -> None:
+        with mock.patch.object(sys, "argv", [str(HARNESS), "--model", "test"]), mock.patch.dict(
+            os.environ, {}, clear=True
+        ):
+            args = harness.parse_args()
+        self.assertFalse(args.audit_archives)
+        with mock.patch.object(sys, "argv", [str(HARNESS), "--model", "test"]), mock.patch.dict(
+            os.environ, {"TABILET_AUDIT_ARCHIVES": "1"}, clear=True
+        ):
+            args = harness.parse_args()
+        self.assertTrue(args.audit_archives)
+
     def test_openai_retries_transient_response_and_reports_usage(self) -> None:
         responses = [
             (429, {"Retry-After": "0"}, {"error": "busy"}),
@@ -633,6 +645,36 @@ class HarnessIntegrationTests(unittest.TestCase):
             proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
         self.assertEqual(proc.returncode, 14)
         self.assertIn("ALLOW_UNSANDBOXED_SHELL", proc.stderr)
+
+    def test_audited_no_commit_failure_keeps_runner_exit_and_records_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database)]), \
+                    mock.patch.dict(os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True), \
+                    mock.patch.object(harness, "one_agent_run", return_value={"final": "No commit."}), \
+                    self.assertRaises(SystemExit) as stopped:
+                harness.main()
+            self.assertEqual(stopped.exception.code, 6)
+            connection = sqlite3.connect(database)
+            self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "failed")
+            self.assertIn(
+                "run_failed",
+                [row[0] for row in connection.execute("SELECT event_type FROM events")],
+            )
+            connection.close()
+
+    def test_unavailable_audit_database_leaves_runner_gate_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+            database_directory = pathlib.Path(tmp) / "audit.sqlite3"
+            database_directory.mkdir()
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database_directory)]), \
+                    mock.patch.dict(os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True), \
+                    mock.patch.object(harness, "one_agent_run", return_value={"final": "No commit."}), \
+                    self.assertRaises(SystemExit) as stopped:
+                harness.main()
+            self.assertEqual(stopped.exception.code, 6)
 
     def test_all_retired_project_exits_without_api_or_shell_acknowledgment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

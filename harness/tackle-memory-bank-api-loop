@@ -1190,6 +1190,7 @@ class AuditRun:
         self.repo = repo
         self.git_ref = git_ref
         self.worktree_state = worktree_state
+        self.include_archives = getattr(args, "audit_archives", False)
         self.failure = None
         if not args.audit_db:
             return
@@ -1264,7 +1265,7 @@ class AuditRun:
                     self.repo,
                     source_commit=self.git_ref,
                     worktree_state=self.worktree_state,
-                    include_archives=True,
+                    include_archives=self.include_archives,
                 )
                 for gap in snapshot_result["gaps"]:
                     self.emit("snapshot_gap", details={"source": gap})
@@ -1389,6 +1390,7 @@ def parse_args() -> argparse.Namespace:
               ALLOW_DANGEROUS_COMMANDS=1         Disable the command guardrail.
               TABILET_AUDIT_DB                  Opt-in external SQLite audit database path.
               TABILET_AUDIT_CAPTURE             'metadata' (default) or 'relevant'.
+              TABILET_AUDIT_ARCHIVES            '1' to include optional context archive snapshots.
             """
         ),
     )
@@ -1424,6 +1426,12 @@ def parse_args() -> argparse.Namespace:
         choices=["metadata", "relevant"],
         default=os.environ.get("TABILET_AUDIT_CAPTURE", "metadata"),
         help="Message capture mode when auditing is enabled.",
+    )
+    parser.add_argument(
+        "--audit-archives",
+        action="store_true",
+        default=os.environ.get("TABILET_AUDIT_ARCHIVES") == "1",
+        help="Include optional tabilet/docs/archive-*.md snapshots.",
     )
     args = parser.parse_args()
 

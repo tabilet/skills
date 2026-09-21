@@ -30,7 +30,8 @@ and explorers. Queries and exports cannot rewrite the database, project
 Markdown, status markers, or history.
 
 Context archive snapshots use a separate kind after independent preservation
-tests. Active milestone/task indexing is not added here. First measure a named
+tests and are opt-in with `--audit-archives` or `TABILET_AUDIT_ARCHIVES=1`.
+Active milestone/task indexing is not added here. First measure a named
 repeated-query consumer and document stale-data behavior, identity rules, and
 latency before proposing any active projection.
 

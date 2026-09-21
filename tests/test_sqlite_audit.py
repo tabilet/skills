@@ -359,6 +359,24 @@ class SqliteAuditContractTests(unittest.TestCase):
             with self.assertRaises(audit.AuditConflict):
                 audit.finish_run(connection, run_id, "failed", completed_at=captured_at)
 
+    def test_event_keeps_observed_task_details_independent_of_later_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1")
+            observed = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
+            audit.append_event(connection, observed)
+            connection.execute("CREATE TABLE unrelated_rows(name TEXT)")
+            connection.execute("INSERT INTO unrelated_rows VALUES ('renamed later')")
+            connection.commit()
+            stored = connection.execute(
+                "SELECT milestone_id, task_label, status_path, old_state, new_state FROM events WHERE event_id = 'event-1'"
+            ).fetchone()
+            self.assertEqual(
+                stored,
+                ("M01", "Implement recorder", "tabilet/memory-bank/status-M01.md", "in_progress", "completed"),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
