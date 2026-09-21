@@ -55,6 +55,11 @@ def arguments(argv=None):
     for name in ('backup','restore'):
         command=groups.add_parser(name);command.add_argument('destination')
         if name=='restore':command.add_argument('--snapshot-id',help='Recover one legacy snapshot instead of the whole database.')
+    explorer=groups.add_parser('explorer', help='serve the local Tabilet Explorer')
+    explorer.add_argument('project')
+    explorer.add_argument('--host', default='127.0.0.1')
+    explorer.add_argument('--port', type=int, default=8000)
+    explorer.add_argument('--database', dest='explorer_database', help='external database (defaults to --audit-db)')
     args=parser.parse_args(argv)
     if args.event is not None:
         if args.group:parser.error('--event cannot be combined with a command group')
@@ -113,6 +118,9 @@ def submit_event(connection, event):
 
 def dispatch(args):
     action=getattr(args,'action',None)
+    if args.group == 'explorer':
+        from tabilet_explorer import serve
+        return serve(args.project, args.explorer_database or args.audit_db, args.host, args.port)
     project=getattr(args,'project',None)
     root=pathlib.Path(project).expanduser().resolve() if project else None
     write=(args.group=='audit' and action in ('begin','event','message','finish')) or (args.group=='index' and action=='sync')
