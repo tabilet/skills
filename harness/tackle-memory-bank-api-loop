@@ -1251,6 +1251,10 @@ class AuditRun:
             return
         try:
             try:
+                self.worktree_state = "clean" if git_clean(self.repo) else "dirty"
+            except Exception:
+                self.worktree_state = "unversioned"
+            try:
                 snapshot_result = capture_snapshots(
                     self.connection,
                     self.workspace_id,
