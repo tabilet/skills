@@ -37,6 +37,22 @@ import textwrap
 import time
 import urllib.error
 import urllib.request
+import uuid
+
+
+sys.dont_write_bytecode = True
+HARNESS_DIR = pathlib.Path(__file__).resolve().parent
+if str(HARNESS_DIR) not in sys.path:
+    sys.path.insert(0, str(HARNESS_DIR))
+from tabilet_audit import (  # noqa: E402
+    append_event,
+    capture_message,
+    ensure_workspace,
+    finish_run,
+    open_database,
+    start_run,
+    utc_now,
+)
 
 
 EMBEDDED_TASK = """\
@@ -1066,7 +1082,7 @@ def one_agent_run(
     run: int,
     summary: list[dict],
     in_progress: dict | None,
-) -> None:
+) -> dict[str, object]:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {
@@ -1130,7 +1146,7 @@ def one_agent_run(
 
         if isinstance(command.get("final"), str):
             print(command["final"])
-            return
+            return {"final": command["final"]}
 
         if command.get("tool") != "run_shell" or not isinstance(command.get("cmd"), str):
             messages.append(
@@ -1160,6 +1176,82 @@ def one_agent_run(
         )
 
     fail(f"Model exceeded max turns ({args.max_turns}) without finishing.", 30)
+
+
+class AuditRun:
+    """Best-effort lifecycle recorder; audit failures never change runner gates."""
+
+    def __init__(self, args: argparse.Namespace, repo: pathlib.Path, operation: str, git_ref: str, worktree_state: str):
+        self.connection = None
+        self.run_id = None
+        self.workspace_id = None
+        self.operation = operation
+        self.failure = None
+        if not args.audit_db:
+            return
+        try:
+            self.connection = open_database(args.audit_db)
+            self.workspace_id = ensure_workspace(self.connection, repo, branch=git_branch(repo))
+            self.run_id = start_run(
+                self.connection,
+                self.workspace_id,
+                operation,
+                capture_mode=args.audit_capture,
+                git_head=git_ref,
+                worktree_state=worktree_state,
+            )
+            self.emit("run_started", details={"git_head": git_ref, "worktree_state": worktree_state})
+        except Exception as exc:
+            self.failure = str(exc)
+            print(f"Audit gap: unable to initialize SQLite recorder: {exc}", file=sys.stderr)
+
+    def emit(self, event_type: str, *, subject: dict | None = None, details: dict | None = None) -> None:
+        if self.connection is None or self.run_id is None or self.workspace_id is None:
+            return
+        event = {
+            "schema": "tabilet.audit.event/v1",
+            "event_id": str(uuid.uuid4()),
+            "run_id": self.run_id,
+            "workspace_id": self.workspace_id,
+            "operation": self.operation,
+            "event_type": event_type,
+            "recorded_at": utc_now(),
+            "occurred_at": utc_now(),
+            "subject": subject or {},
+            "details": details or {"schema": "tabilet.audit.details/v1"},
+        }
+        try:
+            append_event(self.connection, event)
+        except Exception as exc:
+            self.failure = str(exc)
+            print(f"Audit gap: {event_type} was not recorded: {exc}", file=sys.stderr)
+
+    def message(self, role: str, text: str, *, source: str, fidelity: str) -> None:
+        if self.connection is None or self.run_id is None:
+            return
+        try:
+            capture_message(
+                self.connection,
+                self.run_id,
+                role,
+                text,
+                capture_source=source,
+                fidelity=fidelity,
+            )
+        except Exception as exc:
+            self.failure = str(exc)
+            print(f"Audit gap: message was not recorded: {exc}", file=sys.stderr)
+
+    def finish(self, result: str) -> None:
+        if self.connection is None or self.run_id is None:
+            return
+        try:
+            finish_run(self.connection, self.run_id, result)
+        except Exception as exc:
+            self.failure = str(exc)
+            print(f"Audit gap: run result was not recorded: {exc}", file=sys.stderr)
+        finally:
+            self.connection.close()
 
 
 def positive_int(value: str) -> int:
@@ -1267,6 +1359,8 @@ def parse_args() -> argparse.Namespace:
               TOOL_ENV_ALLOW                     Comma-separated extra variables for shell tools.
               ALLOW_UNSANDBOXED_SHELL=1          Acknowledge model-controlled host shell access.
               ALLOW_DANGEROUS_COMMANDS=1         Disable the command guardrail.
+              TABILET_AUDIT_DB                  Opt-in external SQLite audit database path.
+              TABILET_AUDIT_CAPTURE             'metadata' (default) or 'relevant'.
             """
         ),
     )
@@ -1292,6 +1386,17 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("ALLOW_UNSANDBOXED_SHELL") == "1",
     )
     parser.add_argument("--allow-dangerous", action="store_true", default=os.environ.get("ALLOW_DANGEROUS_COMMANDS") == "1")
+    parser.add_argument(
+        "--audit-db",
+        default=os.environ.get("TABILET_AUDIT_DB") or None,
+        help="Enable the external SQLite audit recorder at this path.",
+    )
+    parser.add_argument(
+        "--audit-capture",
+        choices=["metadata", "relevant"],
+        default=os.environ.get("TABILET_AUDIT_CAPTURE", "metadata"),
+        help="Message capture mode when auditing is enabled.",
+    )
     args = parser.parse_args()
 
     if args.provider not in {"openai", "anthropic"}:
@@ -1379,6 +1484,19 @@ def main() -> None:
 
         if not actionable:
             if blocked:
+                audit = AuditRun(
+                    args,
+                    repo,
+                    "next",
+                    git_head(repo),
+                    "clean" if git_clean(repo) else "dirty",
+                )
+                audit.emit(
+                    "run_blocked",
+                    details={"reason": "only blocked memory-bank rows remain", "blocked": blocked},
+                )
+                audit.emit("run_finished", details={"result": "blocked"})
+                audit.finish("blocked")
                 print("Only blocked memory-bank rows remain. Stopping for human review.", file=sys.stderr)
                 for lane in blocked_lanes:
                     print(f"  tabilet/memory-bank/{lane['file']}: {lane['blocked']} blocked row(s)", file=sys.stderr)
@@ -1409,21 +1527,66 @@ def main() -> None:
 
         before = git_head(repo)
         before_branch = git_branch(repo)
+        audit = AuditRun(
+            args,
+            repo,
+            "next",
+            before,
+            "clean" if git_clean(repo) else "dirty",
+        )
+        observed_subject = {}
+        if in_progress:
+            observed_subject = {
+                "milestone_id": re.match(r"[A-Z]+[0-9]+", in_progress["item"]).group(0)
+                if re.match(r"[A-Z]+[0-9]+", in_progress["item"])
+                else None,
+                "task_label": in_progress["item"],
+                "status_path": f"tabilet/memory-bank/{in_progress['file']}",
+                "old_state": "in_progress",
+            }
+        audit.emit(
+            "task_observed",
+            subject=observed_subject,
+            details={"summary": summary, "in_progress": in_progress},
+        )
         print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
         started = time.time()
-        one_agent_run(args, repo, run, summary, in_progress)
+        try:
+            run_result = one_agent_run(args, repo, run, summary, in_progress)
+        except KeyboardInterrupt:
+            audit.emit("run_interrupted", details={"reason": "keyboard interrupt"})
+            audit.emit("run_finished", details={"result": "interrupted"})
+            audit.finish("interrupted")
+            raise
+        except SystemExit as exc:
+            audit.emit("run_failed", details={"exit_code": exc.code})
+            audit.emit("run_finished", details={"result": "failed", "exit_code": exc.code})
+            audit.finish("failed")
+            raise
         print(f"Run duration: {time.time() - started:.1f}s")
 
         if not git_clean(repo):
+            audit.emit("verification_observed", details={"checks": ["git_clean"], "success": False})
+            audit.emit("run_failed", details={"reason": "uncommitted changes after model run"})
+            audit.emit("run_finished", details={"result": "failed"})
+            audit.finish("failed")
             print("LLM left uncommitted changes. Stopping.", file=sys.stderr)
             print(git_status_short(repo), file=sys.stderr)
             raise SystemExit(5)
 
         after = git_head(repo)
         if before == after:
+            audit.emit("verification_observed", details={"checks": ["new_commit"], "success": False})
+            audit.emit("run_failed", details={"reason": "model made no commit"})
+            audit.emit("run_finished", details={"result": "failed"})
+            audit.finish("failed")
             print("LLM made no commit. Stopping to avoid a spin loop.", file=sys.stderr)
             raise SystemExit(6)
         if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
+            audit.emit("verification_observed", details={"checks": ["commit_ancestry"], "success": False})
+            audit.emit("run_failed", details={"reason": "history rewrite or branch change"})
+            audit.emit("run_finished", details={"result": "failed"})
+            audit.finish("failed")
             print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
             raise SystemExit(9)
         try:
@@ -1434,10 +1597,56 @@ def main() -> None:
             before_rows, after_rows, in_progress["key"] if in_progress else None,
         )
         if row_problems:
+            audit.emit(
+                "verification_observed",
+                details={"checks": ["row_transition"], "success": False, "problems": row_problems},
+            )
+            audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
+            audit.emit("run_finished", details={"result": "failed"})
+            audit.finish("failed")
             print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
             for problem in row_problems:
                 print(f"  {problem}", file=sys.stderr)
             raise SystemExit(8)
+        transition = next(
+            (
+                (key, before_rows["states"][key], after_rows["states"][key])
+                for key in before_rows["states"]
+                if before_rows["states"][key] != after_rows["states"].get(key)
+            ),
+            None,
+        )
+        if transition:
+            key, old_state, new_state = transition
+            audit.emit(
+                "task_transition",
+                subject={
+                    "milestone_id": re.match(r"[A-Z]+[0-9]+", key[1]).group(0)
+                    if re.match(r"[A-Z]+[0-9]+", key[1])
+                    else None,
+                    "task_label": key[1],
+                    "status_path": f"tabilet/memory-bank/{key[0]}",
+                    "old_state": old_state,
+                    "new_state": new_state,
+                },
+                details={"schema": "tabilet.audit.details/v1"},
+            )
+        audit.emit(
+            "verification_observed",
+            details={"checks": ["git_clean", "commit_ancestry", "row_transition"], "success": True},
+        )
+        audit.emit("commit_observed", details={"commit_sha": after})
+        if args.audit_capture == "relevant":
+            audit.message(
+                "host",
+                f"operation=next repository={repo} run={run}/{args.max_runs}",
+                source="host",
+                fidelity="summarized",
+            )
+            if isinstance(run_result, dict) and isinstance(run_result.get("final"), str):
+                audit.message("assistant", run_result["final"], source="agent", fidelity="exact")
+        audit.emit("run_finished", details={"result": "completed", "commit_sha": after})
+        audit.finish("completed")
         if not status_files(repo):
             print("All milestones are retired. No actionable memory-bank rows remain.")
             return

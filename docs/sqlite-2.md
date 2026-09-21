@@ -1,6 +1,6 @@
 # SQLite 2 — API runner audit integration
 
-Plan state: [ ]
+Plan state: [+]
 
 Depends on: SQLite 1
 
@@ -50,11 +50,11 @@ code remain unchanged.
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| SQL2-T01 | [ ] | Add audit configuration, precedence, and run initialization. | Disabled runs behave as before; enabled runs create one run before the model request. |
-| SQL2-T02 | [ ] | Emit task, transition, verification, commit, and terminal-result events at existing lifecycle gates. | A successful one-row run has ordered events and records the commit after commit. |
-| SQL2-T03 | [ ] | Add relevant-message capture with source and fidelity metadata. | Default mode stores no message text; explicit mode stores only permitted text. |
-| SQL2-T04 | [ ] | Preserve validation, dirty-worktree, history, row-exclusivity, dangerous-command, and exit-code behavior. | Existing harness tests pass with reviewed audit assertions. |
-| SQL2-T05 | [ ] | Test blocked, failed, interrupted, no-commit, dirty-worktree, missing, locked, and write-failure cases. | Audit gaps are visible and never alter task status, commits, or exit meaning. |
+| SQL2-T01 | [+] | Add audit configuration, precedence, and run initialization. | Disabled runs behave as before; enabled runs create one run before the model request. |
+| SQL2-T02 | [+] | Emit task, transition, verification, commit, and terminal-result events at existing lifecycle gates. | A successful one-row run has ordered events and records the commit after commit. |
+| SQL2-T03 | [+] | Add relevant-message capture with source and fidelity metadata. | Default mode stores no message text; explicit mode stores only permitted text. |
+| SQL2-T04 | [+] | Preserve validation, dirty-worktree, history, row-exclusivity, dangerous-command, and exit-code behavior. | Existing harness tests pass with reviewed audit assertions. |
+| SQL2-T05 | [+] | Test blocked, failed, interrupted, no-commit, dirty-worktree, missing, locked, and write-failure cases. | Audit gaps are visible and never alter task status, commits, or exit meaning. |
 
 ## Completion gate
 
@@ -62,4 +62,3 @@ This milestone is complete when an enabled API run records a reliable lifecycle
 and an unenabled run is unchanged. Interactive init, archive, propose,
 reconcile, and goal sessions remain outside automatic capture until a host
 adapter implements the same event envelope.
-

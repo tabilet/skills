@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import subprocess
+import sqlite3
 import sys
 import tempfile
 import threading
@@ -739,6 +740,63 @@ class HarnessIntegrationTests(unittest.TestCase):
             self.assertTrue(harness.git_clean(repo))
             self.assertEqual(harness.status_files(repo), [])
             self.assertEqual(harness.history_snapshot(repo)["problems"], [])
+
+    def test_opt_in_audit_records_successful_lifecycle_and_relevant_result(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
+
+            def close_row(args, target, number, summary, current):
+                source = target / "tabilet/memory-bank" / "status-M01.md"
+                source.write_text(source.read_text().replace(marker("[~]"), marker("[+]")))
+                run("git", "add", "-A", cwd=target)
+                committed = run(
+                    "git", "-c", "user.name=Harness Test", "-c", "user.email=harness@example.test",
+                    "commit", "-qm", "complete row", cwd=target,
+                )
+                self.assertEqual(committed.returncode, 0, committed.stderr)
+                return {"final": "Completed the row."}
+
+            with mock.patch.object(sys, "argv", [
+                str(HARNESS), str(repo), "--audit-db", str(database), "--audit-capture", "relevant",
+            ]), mock.patch.dict(
+                os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True
+            ), mock.patch.object(harness, "one_agent_run", side_effect=close_row), self.assertRaises(
+                SystemExit
+            ) as stopped:
+                harness.main()
+            self.assertEqual(stopped.exception.code, 7)
+
+            connection = sqlite3.connect(database)
+            self.assertEqual(
+                [row[0] for row in connection.execute(
+                    "SELECT event_type FROM events ORDER BY sequence"
+                )],
+                ["run_started", "task_observed", "task_transition", "verification_observed",
+                 "commit_observed", "run_finished"],
+            )
+            self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "completed")
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM captured_messages").fetchone()[0], 2
+            )
+            connection.close()
+
+    def test_opt_in_audit_records_blocked_gate_without_model_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[!]"))
+            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database)]), \
+                    mock.patch.dict(os.environ, self.harness_env(tmp), clear=True), \
+                    self.assertRaises(SystemExit) as stopped:
+                harness.main()
+            self.assertEqual(stopped.exception.code, 3)
+            connection = sqlite3.connect(database)
+            self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "blocked")
+            self.assertEqual(
+                connection.execute("SELECT event_type FROM events ORDER BY sequence").fetchall(),
+                [("run_started",), ("run_blocked",), ("run_finished",)],
+            )
+            connection.close()
 
     def test_active_work_counts_ignore_retired_specification_examples(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
