@@ -1212,6 +1212,8 @@ class AuditRun:
     def emit(self, event_type: str, *, subject: dict | None = None, details: dict | None = None) -> None:
         if self.connection is None or self.run_id is None or self.workspace_id is None:
             return
+        event_details = dict(details or {})
+        event_details["schema"] = "tabilet.audit.details/v1"
         event = {
             "schema": "tabilet.audit.event/v1",
             "event_id": str(uuid.uuid4()),
@@ -1222,7 +1224,7 @@ class AuditRun:
             "recorded_at": utc_now(),
             "occurred_at": utc_now(),
             "subject": subject or {},
-            "details": details or {"schema": "tabilet.audit.details/v1"},
+            "details": event_details,
         }
         try:
             append_event(self.connection, event)

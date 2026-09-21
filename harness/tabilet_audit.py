@@ -211,6 +211,8 @@ def validate_event(event: dict[str, Any]) -> dict[str, Any]:
     details = normalized.get("details", {})
     if not isinstance(details, dict):
         raise AuditValidationError("details must be a JSON object")
+    if details.get("schema") != "tabilet.audit.details/v1":
+        raise AuditValidationError("details schema must be tabilet.audit.details/v1")
     normalized["subject"] = subject
     normalized["details"] = details
     return normalized

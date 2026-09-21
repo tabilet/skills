@@ -80,6 +80,7 @@ class SqliteAuditContractTests(unittest.TestCase):
             ("event_type", "unknown"),
             ("recorded_at", "2026-09-21 12:00:00"),
             ("details", []),
+            ("details", {"changed": True}),
         ]
         for field, value in cases:
             with self.subTest(field=field):
@@ -336,7 +337,7 @@ class SqliteAuditContractTests(unittest.TestCase):
             self.assertEqual(audit.append_event(connection, original), 1)
             self.assertEqual(audit.append_event(connection, original, sequence=99), 1)
             with self.assertRaises(audit.AuditConflict):
-                audit.append_event(connection, {**original, "details": {"changed": True}})
+                audit.append_event(connection, {**original, "details": {"schema": "tabilet.audit.details/v1", "changed": True}})
 
             captured_at = "2026-09-21T12:00:00Z"
             message = dict(
