@@ -1,58 +1,166 @@
 #!/usr/bin/env python3
-"""Submit one structured host event to the opt-in Tabilet audit database.
-
-This is an adapter boundary, not an execution harness. It accepts a JSON event
-from an interactive host and records only the already-observed summary.
-"""
-
+"""Optional audit and Markdown lookup CLI; install this file as tabilet-audit."""
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import os
 import pathlib
+import sqlite3
 import sys
 import uuid
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from tabilet_audit import append_event, open_database, validate_event, AuditError, CAPTURE_SOURCES, FIDELITIES  # noqa: E402
+import tabilet_audit as audit
+import tabilet_index as index
 
 
-HOST_OPERATIONS = {"init", "archive", "propose", "reconcile", "goal"}
+def arguments(argv=None):
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--audit-db',default=os.environ.get('TABILET_AUDIT_DB') or str(audit.default_database_path()),help='External database; only write commands create or migrate it.')
+    parser.add_argument('--event',help='Compatibility alias for audit event with inline JSON.')
+    groups=parser.add_subparsers(dest='group')
+    audits=groups.add_parser('audit').add_subparsers(dest='action',required=True)
+    begin=audits.add_parser('begin')
+    begin.add_argument('project');begin.add_argument('operation',choices=sorted(audit.OPERATIONS))
+    begin.add_argument('--run-id');begin.add_argument('--parent-run-id')
+    begin.add_argument('--capture',choices=['metadata','relevant'],default=os.environ.get('TABILET_AUDIT_CAPTURE','metadata'))
+    for name in ('event','message'):
+        command=audits.add_parser(name)
+        command.add_argument('--input',default='-',help='JSON file, or - for stdin; never interpreted as instructions.')
+    finish=audits.add_parser('finish');finish.add_argument('run_id');finish.add_argument('result',choices=sorted(audit.RUN_RESULTS))
+    finish.add_argument('--completed-at')
+    for name in ('runs','events'):
+        command=audits.add_parser(name)
+        command.add_argument('--project');command.add_argument('--workspace-id')
+        command.add_argument('--operation',choices=sorted(audit.OPERATIONS))
+        command.add_argument('--milestone',dest='milestone_id');command.add_argument('--task')
+        command.add_argument('--since');command.add_argument('--until')
+        command.add_argument('--limit',type=int,default=100);command.add_argument('--offset',type=int,default=0)
+        if name=='events':command.add_argument('--run-id')
+    export=audits.add_parser('export');export.add_argument('--project');export.add_argument('--workspace-id')
+    export.add_argument('--include-content',action='store_true',help='Include selected messages and legacy snapshot bytes; may contain private material.')
+    indexes=groups.add_parser('index').add_subparsers(dest='action',required=True)
+    for name in ('sync','status','search','show'):
+        command=indexes.add_parser(name);command.add_argument('project')
+        if name=='sync':
+            command.add_argument('--rebuild',action='store_true');command.add_argument('--literal',action='store_true',help='Use literal-text search even if FTS5 is available.')
+        if name=='search':
+            command.add_argument('query',nargs='?',default='');command.add_argument('--kind')
+            command.add_argument('--milestone',dest='milestone_id');command.add_argument('--state',choices=sorted(audit.STATES))
+            command.add_argument('--limit',type=int,default=50);command.add_argument('--offset',type=int,default=0)
+        if name=='show':command.add_argument('path')
+    for name in ('backup','restore'):
+        command=groups.add_parser(name);command.add_argument('destination')
+        if name=='restore':command.add_argument('--snapshot-id',help='Recover one legacy snapshot instead of the whole database.')
+    args=parser.parse_args(argv)
+    if args.event is not None:
+        if args.group:parser.error('--event cannot be combined with a command group')
+        args.group='audit';args.action='event';args.input='-'
+    if not args.group:parser.error('a command group is required')
+    if getattr(args,'capture','metadata') not in ('metadata','relevant'):
+        parser.error('TABILET_AUDIT_CAPTURE must be metadata or relevant')
+    if getattr(args,'project',None) and getattr(args,'workspace_id',None):
+        parser.error('choose --project or --workspace-id')
+    return args
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Record one structured Tabilet host audit event.")
-    parser.add_argument("--audit-db", required=True, help="External SQLite audit database path.")
-    parser.add_argument("--event", help="JSON event; if omitted, read one object from stdin.")
-    args = parser.parse_args()
+def submission(args):
+    text=args.event if args.event is not None else sys.stdin.read() if args.input=='-' else pathlib.Path(args.input).read_text(encoding='utf-8')
+    result=json.loads(text)
+    if not isinstance(result,dict):raise audit.AuditError('submission must be a JSON object')
+    return result
+
+
+def refresh(connection, root):
+    try:return index.sync(connection,root)
+    except (audit.AuditError,sqlite3.Error,OSError) as exc:
+        print(f'Index gap: {exc}',file=sys.stderr)
+        return {'complete':False,'error':str(exc)}
+
+
+@audit.atomic
+def begin_run(connection, root, args):
+    context=index.git_context(root)
+    workspace=audit.ensure_workspace(connection,root,branch=context['branch'])
+    dirty=index.subprocess.run(['git','status','--porcelain'],cwd=root,capture_output=True,text=True) if context['git_head'] else None
+    run_id=audit.start_run(connection,workspace,args.operation,run_id=args.run_id,capture_mode=args.capture,
+        parent_run_id=args.parent_run_id,git_head=context['git_head'],worktree_state='unversioned' if dirty is None else 'dirty' if dirty.stdout else 'clean')
+    started=connection.execute('SELECT started_at FROM runs WHERE run_id=?',(run_id,)).fetchone()[0]
+    audit.append_event(connection,{'schema':'tabilet.audit.event/v1','event_id':run_id+':started','run_id':run_id,
+        'workspace_id':workspace,'operation':args.operation,'event_type':'run_started','recorded_at':started,
+        'occurred_at':started,'subject':{},'details':{'schema':'tabilet.audit.details/v1','branch':context['branch']}})
+    return {'run_id':run_id,'workspace_id':workspace,'started_at':started}
+
+
+@audit.atomic
+def submit_event(connection, event):
+    event=dict(event)
+    event.setdefault('event_id',str(uuid.uuid4()))
+    prior=connection.execute('SELECT payload_json FROM events WHERE event_id=?',(event['event_id'],)).fetchone()
+    timestamp=json.loads(prior[0])['recorded_at'] if prior else audit.utc_now()
+    event.setdefault('recorded_at',timestamp)
+    event.setdefault('occurred_at',None)
+    details=event.get('details',{})
+    if not isinstance(details,dict):raise audit.AuditError('event details must be an object')
+    if details.get('capture_source') not in audit.CAPTURE_SOURCES or details.get('fidelity') not in audit.FIDELITIES:
+        raise audit.AuditError('host events require details.capture_source and details.fidelity')
+    sequence=audit.append_event(connection,event)
+    return {'event_id':event['event_id'],'sequence':sequence,'recorded_at':event['recorded_at']}
+
+
+def dispatch(args):
+    action=getattr(args,'action',None)
+    project=getattr(args,'project',None)
+    root=pathlib.Path(project).expanduser().resolve() if project else None
+    write=(args.group=='audit' and action in ('begin','event','message','finish')) or (args.group=='index' and action=='sync')
+    if root and write:
+        if not root.is_dir():raise audit.AuditError('project must be an existing directory')
+        index.layout_check(root)
+    if write and action in ('event','message','finish') and not pathlib.Path(args.audit_db).expanduser().exists():
+        raise audit.AuditError('no audit database; start with audit begin PROJECT OPERATION')
+    connection=audit.open_database(args.audit_db,project_roots=[root] if root else []) if write else audit.open_readonly_database(args.audit_db)
+    with contextlib.closing(connection):
+        if args.group=='backup':
+            audit.backup_database(connection,args.destination)
+            return {'backup':str(pathlib.Path(args.destination).absolute())}
+        if args.group=='restore':
+            if args.snapshot_id:audit.restore_snapshot(connection,args.snapshot_id,args.destination)
+            else:audit.backup_database(connection,args.destination)
+            return {'restored':str(pathlib.Path(args.destination).absolute())}
+        if args.group=='index':
+            if action=='sync':return index.sync(connection,root,rebuild=args.rebuild,force_literal=args.literal)
+            workspace=index.workspace_id(connection,root)
+            if action=='status':return index.status(connection,workspace)
+            if action=='show':return index.show(connection,workspace,args.path)
+            return index.search(connection,workspace,args.query,kind=args.kind,milestone_id=args.milestone_id,state=args.state,limit=args.limit,offset=args.offset)
+        if action=='begin':return begin_run(connection,root,args)
+        if action=='event':return submit_event(connection,submission(args))
+        if action=='message':return {'message_id':audit.capture_message(connection,**submission(args))}
+        if action=='finish':
+            audit.finish_run(connection,args.run_id,args.result,completed_at=args.completed_at)
+            root=connection.execute('SELECT w.project_root FROM runs r JOIN workspaces w USING(workspace_id) WHERE r.run_id=?',(args.run_id,)).fetchone()[0]
+            return {'run_id':args.run_id,'result':args.result,'index':refresh(connection,root)}
+        workspace=index.workspace_id(connection,root) if root else getattr(args,'workspace_id',None)
+        if action=='export':return json.loads(audit.export_json(connection,workspace_id=workspace,include_content=args.include_content))
+        kwargs={key:getattr(args,key) for key in ('operation','milestone_id','task','since','until','limit','offset')}
+        kwargs['workspace_id']=workspace
+        if action=='events':kwargs['run_id']=args.run_id
+        results=(audit.query_runs if action=='runs' else audit.query_events)(connection,**kwargs)
+        return {'limit':args.limit,'offset':args.offset,'results':results}
+
+
+def main(argv=None):
+    args=arguments(argv)
     try:
-        raw = args.event if args.event is not None else sys.stdin.read()
-        event = json.loads(raw)
-        if not isinstance(event, dict):
-            raise AuditError("event must be a JSON object")
-        if event.get("operation") not in HOST_OPERATIONS:
-            raise AuditError("host adapter accepts init, archive, propose, reconcile, or goal")
-        details = event.get("details")
-        if not isinstance(details, dict) or details.get("capture_source") not in CAPTURE_SOURCES:
-            raise AuditError("host events require details.capture_source provenance")
-        if details.get("fidelity") not in FIDELITIES:
-            raise AuditError("host events require details.fidelity provenance")
-        event.setdefault("event_id", str(uuid.uuid4()))
-        event.setdefault("recorded_at", __import__("tabilet_audit").utc_now())
-        event.setdefault("occurred_at", event["recorded_at"])
-        event = validate_event(event)
-        connection = open_database(args.audit_db)
-        try:
-            sequence = append_event(connection, event)
-        finally:
-            connection.close()
-        print(json.dumps({"event_id": event["event_id"], "sequence": sequence}, sort_keys=True))
+        print(audit.canonical_json(dispatch(args)))
         return 0
-    except (AuditError, ValueError, OSError, json.JSONDecodeError) as exc:
-        print(f"audit event rejected: {exc}", file=sys.stderr)
+    except (audit.AuditError,sqlite3.Error,OSError,ValueError,TypeError) as exc:
+        print(f'tabilet-audit: {exc}',file=sys.stderr)
         return 2
 
 
-if __name__ == "__main__":
+if __name__=='__main__':
     raise SystemExit(main())

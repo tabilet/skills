@@ -1268,6 +1268,11 @@ class AuditRun:
                 if self.failure:
                     self.emit("audit_gap", details={"error": self.failure})
                 self.recorder.finish_run(self.connection, self.run_id, result)
+                try:
+                    import tabilet_index
+                    tabilet_index.sync(self.connection, self.repo)
+                except Exception as exc:
+                    print(f"Index gap: {exc}", file=sys.stderr)
         except Exception as exc:
             self.gap("record run result", exc)
         finally:

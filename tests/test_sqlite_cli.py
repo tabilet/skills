@@ -1,0 +1,93 @@
+import json
+import os
+from pathlib import Path
+import shutil
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+import test_harness as h
+
+CLI=Path(__file__).resolve().parents[1]/'harness/tabilet_audit_host.py'
+
+
+class CliTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.base=Path(self.tmp.name)
+        self.repo=h.make_repo(self.base/'project')
+        self.db=self.base/'state/audit.db'
+        self.cli=CLI
+
+    def command(self,*arguments,data=None,ok=True):
+        env=dict(os.environ)
+        env.pop('TABILET_AUDIT_CAPTURE',None)
+        result=subprocess.run([sys.executable,'-B',str(self.cli),'--audit-db',str(self.db),*map(str,arguments)],input=json.dumps(data) if data is not None else None,text=True,capture_output=True,env=env)
+        self.assertEqual(result.returncode,0 if ok else 2,result.stderr)
+        self.assertNotIn('Traceback',result.stderr)
+        return json.loads(result.stdout) if ok else result.stderr
+
+    def test_fresh_complete_lifecycle_retries_queries_and_capture(self):
+        started=self.command('audit','begin',self.repo,'goal','--run-id','parent','--capture','relevant')
+        self.assertEqual(started,self.command('audit','begin',self.repo,'goal','--run-id','parent','--capture','relevant'))
+        child=self.command('audit','begin',self.repo,'next','--parent-run-id','parent','--run-id','child')
+        event={'schema':'tabilet.audit.event/v1','event_id':'event1','run_id':'child','workspace_id':child['workspace_id'],'operation':'next','event_type':'task_observed','subject':{'milestone_id':'M01','task_label':'Implement feature'},'details':{'schema':'tabilet.audit.details/v1','capture_source':'agent','fidelity':'summarized'}}
+        first=self.command('audit','event',data=event)
+        self.assertEqual(first,self.command('audit','event',data=event))
+        message=dict(run_id='parent',role='user',text='Selected request',capture_source='host',fidelity='exact',message_id='request1')
+        self.command('audit','message',data=message)
+        self.command('audit','message',data=message)
+        self.command('audit','message',data={**message,'run_id':'child','message_id':'denied'},ok=False)
+        self.command('audit','finish','child','blocked')
+        self.command('audit','finish','parent','blocked')
+        results=self.command('audit','runs','--project',self.repo,'--milestone','M01','--task','Implement feature')['results']
+        self.assertEqual([r['run_id'] for r in results],['child'])
+        events=self.command('audit','events','--run-id','child','--limit','1','--offset','1')['results']
+        self.assertEqual(events[0]['event_id'],'event1')
+        exported=self.command('audit','export')
+        self.assertNotIn('messages',exported['runs'][0])
+        exported=self.command('audit','export','--include-content')
+        self.assertEqual(sum(len(r['messages']) for r in exported['runs']),1)
+        indexed=self.command('index','status',self.repo)
+        self.assertTrue(indexed['complete'])
+        self.assertEqual(len(self.command('index','search',self.repo,'feature','--kind','task')['results']),1)
+        self.assertEqual(self.command('index','show',self.repo,'tabilet/memory-bank/status-M01.md')['tasks'][0]['milestone_id'],'M01')
+        self.command('backup',self.base/'backup.db')
+        self.command('backup',self.base/'backup.db',ok=False)
+        self.command('restore',self.base/'restored.db')
+
+    def test_all_operations_no_capture_and_read_commands_never_create(self):
+        self.command('index','status',self.repo,ok=False)
+        self.assertFalse(self.db.exists())
+        for operation in ('init','archive','propose','reconcile','next','goal','upgrade'):
+            result=self.command('audit','begin',self.repo,operation)
+            self.command('audit','finish',result['run_id'],'completed')
+        c=sqlite3.connect(self.db)
+        try:
+            self.assertEqual(c.execute('SELECT COUNT(*) FROM captured_messages').fetchone()[0],0)
+            self.assertEqual(c.execute('SELECT COUNT(*) FROM runs').fetchone()[0],7)
+        finally:c.close()
+
+    def test_packaged_toolkit_works_and_rebuild_preserves_audit(self):
+        installation=self.base/'bin';installation.mkdir()
+        for name in ('tabilet_audit.py','tabilet_index.py','tackle-memory-bank-api-loop'):
+            shutil.copy(CLI.with_name(name),installation/name)
+        self.cli=installation/'tabilet-audit';shutil.copy(CLI,self.cli)
+        start=self.command('audit','begin',self.repo,'propose')
+        self.command('audit','finish',start['run_id'],'completed')
+        prior=self.command('audit','export')
+        self.command('index','sync',self.repo,'--rebuild','--literal')
+        self.assertEqual(self.command('audit','export'),prior)
+        self.assertEqual(self.command('index','search',self.repo,'feature')['index']['search_mode'],'literal')
+        self.assertFalse(list(installation.rglob('__pycache__')))
+
+    def test_internal_database_and_legacy_project_stop_before_writes(self):
+        self.db=self.repo/'audit.db'
+        self.command('audit','begin',self.repo,'init',ok=False)
+        self.assertFalse(self.db.exists())
+        self.db=self.base/'elsewhere.db'
+        (self.repo/'memory-bank').mkdir()
+        self.command('audit','begin',self.repo,'upgrade',ok=False)
+        self.command('index','sync',self.repo,ok=False)
+        self.assertFalse(self.db.exists())
