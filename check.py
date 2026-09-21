@@ -257,7 +257,7 @@ def init_skill_text() -> str:
 @check("harness parses, and leaves no bytecode behind")
 def harness_parses():
     problems = []
-    for path in (HARNESS, AUDIT_MODULE, AUDIT_HOST):
+    for path in (HARNESS, AUDIT_MODULE, AUDIT_HOST, ROOT / "harness/tabilet_index.py"):
         try:
             ast.parse(path.read_text())
         except SyntaxError as exc:

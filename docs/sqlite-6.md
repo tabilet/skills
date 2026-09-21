@@ -1,6 +1,6 @@
 # SQLite 6 — Rebuildable Markdown index
 
-Plan state: [ ]
+Plan state: [+]
 
 Depends on: SQLite 5
 
@@ -12,10 +12,15 @@ establish acceptance of the revised design. Markdown remains authoritative.
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| SQL6-T01 | [ ] | Implement atomic current-source indexing and search | Source lifecycle, parser, identity, search, and rebuild tests pass without Markdown writes. |
+| SQL6-T01 | [+] | Implement atomic current-source indexing and search | Source lifecycle, parser, identity, search, and rebuild tests pass without Markdown writes. |
 
 ## Verification and review
 
-Pending. Execute one row at a time, commit each verified row, and record evidence here.
-Review iteration: 0. The initial whole-milestone review is iteration 1; verify and
+Seven index regression tests pass: real task rename/duplicate/retirement,
+failed-generation preservation, transactional rollback, branch context, source
+races, symlinks, all-retired/archive-only layouts, explicit IDs, and both search modes.
+Project hashes and original audit evidence remain unchanged.
+
+Execute one row at a time, commit each verified row, and record evidence here.
+Review iteration: 1 (passed). The initial whole-milestone review is iteration 1; verify and
 review after fixes, with at most 10 iterations. A clean pass is required.
