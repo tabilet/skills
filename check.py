@@ -31,6 +31,7 @@ import unicodedata
 
 ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
+AUDIT_MODULE = ROOT / "harness" / "tabilet_audit.py"
 PROMPT_COPY = ROOT / "harness" / "prompts" / "tackle-next-memory-bank-todo.md"
 SKILLS_DIR = ROOT / "skills"
 ARCHIVE_SKILL = SKILLS_DIR / "memory-bank-archive" / "SKILL.md"
@@ -254,12 +255,15 @@ def init_skill_text() -> str:
 # --------------------------------------------------------------------------
 @check("harness parses, and leaves no bytecode behind")
 def harness_parses():
-    try:
-        ast.parse(HARNESS.read_text())
-    except SyntaxError as exc:
-        return [f"syntax error: {exc}"]
+    problems = []
+    for path in (HARNESS, AUDIT_MODULE):
+        try:
+            ast.parse(path.read_text())
+        except SyntaxError as exc:
+            problems.append(f"{path.relative_to(ROOT)} syntax error: {exc}")
     stray = [str(p.relative_to(ROOT)) for p in ROOT.rglob("__pycache__") if ".git" not in p.parts]
-    return [f"stray bytecode directory: {p}" for p in stray]
+    problems.extend(f"stray bytecode directory: {p}" for p in stray)
+    return problems
 
 
 # --------------------------------------------------------------------------
@@ -1416,6 +1420,8 @@ def english_only_docs():
     # else in docs/, a language-suffixed copy of a canonical file is rejected.
     for path in sorted((ROOT / "docs").rglob("*.md")):
         canonical = suffixed_doc_sibling(path)
+        if canonical is not None and canonical.name == "sqlite.md" and re.fullmatch(r"sqlite-[1-4]", path.stem):
+            continue
         if canonical is not None:
             problems.append(
                 f"{path.relative_to(ROOT)}: suffixed copy of "

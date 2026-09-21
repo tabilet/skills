@@ -127,6 +127,36 @@ class SqliteAuditContractTests(unittest.TestCase):
             with self.assertRaisesRegex(audit.AuditError, "newer"):
                 audit.open_database(newer)
 
+    def test_workspaces_keep_separate_checkout_and_unversioned_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            first = audit.ensure_workspace(connection, Path(temporary) / "one")
+            second = audit.ensure_workspace(connection, Path(temporary) / "two")
+            self.assertNotEqual(first, second)
+            run_id = audit.start_run(
+                connection,
+                second,
+                "goal",
+                worktree_state="unversioned",
+                git_head=None,
+            )
+            row = connection.execute(
+                "SELECT git_head, worktree_state, result FROM runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
+            self.assertEqual(row, (None, "unversioned", None))
+            audit.finish_run(connection, run_id, "interrupted", completed_at="2026-09-21T12:00:00Z")
+            self.assertEqual(
+                connection.execute("SELECT result FROM runs WHERE run_id = ?", (run_id,)).fetchone()[0],
+                "interrupted",
+            )
+
+    def test_database_path_must_be_regular_and_owner_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "audit.sqlite3"
+            directory.mkdir()
+            with self.assertRaises(audit.AuditError):
+                audit.open_database(directory)
+
     def test_workspace_run_event_message_and_finish_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")
