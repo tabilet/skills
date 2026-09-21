@@ -143,6 +143,7 @@ def parse_document(path,kind,text,digest):
     identity=None
     status=text
     offset=0
+    specification_offset=0
     if kind in ('active_status','history_status'):
         identity=STATUS.fullmatch(pathlib.Path(path).name)[1]
         meta={}
@@ -150,10 +151,15 @@ def parse_document(path,kind,text,digest):
         if kind=='history_status':
             record=p.retired_record(text,pathlib.Path(path).name)
             meta=record['metadata'];status=record['status'];specification=record['specification']
-            start=text.index('## Status record')
-            # The validated envelope's opening fence follows its Status record heading.
-            relative_start=re.search(r'(?m)^\s*(?:`{3,}|~{3,})markdown\s*\n',text[start:]).end()+start
-            offset=text[:relative_start].count('\n')
+            envelope = dict((value, line) for line, value in p.unfenced_lines(text)
+                            if value in ('## Status record', '## Milestone specification'))
+            source_lines = text.splitlines(keepends=True)
+            def body_offset(heading):
+                start = envelope[heading]
+                return next(n + 1 for n in range(start, len(source_lines))
+                            if re.fullmatch(r'(?:`{3,}|~{3,})markdown', source_lines[n].strip()))
+            offset = body_offset('## Status record')
+            specification_offset = body_offset('## Milestone specification')
         problems=p.status_marker_problems(status)
         rows=p.status_rows(status)
         if problems or not rows:raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
@@ -169,9 +175,12 @@ def parse_document(path,kind,text,digest):
                 label=row['item'],state=row['state'],notes=' | '.join(row['cells'][2:]),explicit_id=explicit))
             parsed['index_search'].append(dict(line=row['line']+offset,kind='task',milestone_id=identity,
                 state=row['state'],text=' | '.join(row['cells'])))
-    relation_text=text if kind!='history_status' else specification+'\n'+status
+    relation_lines = list(p.unfenced_lines(text))
+    if kind == 'history_status':
+        relation_lines = [(n + specification_offset, value) for n, value in p.unfenced_lines(specification)]
+        relation_lines += [(n + offset, value) for n, value in p.unfenced_lines(status)]
     current_identity=identity
-    for line,value in p.unfenced_lines(relation_text):
+    for line,value in relation_lines:
         section_id=re.match(r'## ([A-Z][0-9]{2})(?:\s|$)',value)
         if kind=='milestone' and section_id:current_identity=section_id[1]
         dependency=re.search(r'(?:\*\*)?(?:Dependencies|Depends on|Successor|Supersedes)[.:]*(?:\*\*)?\s*:?\s*(.+)',value,re.I)
@@ -179,11 +188,12 @@ def parse_document(path,kind,text,digest):
             relation='depends_on' if dependency[0].lower().startswith(('depend','**depend')) else 'supersedes' if 'supersedes' in dependency[0].lower() else 'successor'
             source=('milestone:'+current_identity) if current_identity else path
             if kind=='context_archive':source='archive:'+ARCHIVE.fullmatch(pathlib.Path(path).name)[1]
-            for target in re.findall(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[1]):
-                parsed['index_relationships'].append(dict(line=line+offset,source=source,relation=relation,target=('archive:' if kind=='context_archive' else 'milestone:')+target))
+            for target in dict.fromkeys(re.findall(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[1])):
+                parsed['index_relationships'].append(dict(line=line,source=source,relation=relation,target=('archive:' if kind=='context_archive' else 'milestone:')+target))
     if kind.startswith('evolution_'):
         match=EVOLUTION.fullmatch(pathlib.Path(path).name)
-        if match[1]=='prompt':parsed['index_relationships'].append(dict(line=1,source=path,relation='evolution_pair',target=f'tabilet/evolution/result-v{match[2]}.md'))
+        counterpart = 'result' if match[1] == 'prompt' else 'prompt'
+        parsed['index_relationships'].append(dict(line=1,source=path,relation='evolution_pair',target=f'tabilet/evolution/{counterpart}-v{match[2]}.md'))
     return parsed
 
 
@@ -223,6 +233,13 @@ def validate_projection(documents, parsed):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
     for identity in set(specs)|set(history_rows):
         if identity not in milestones:raise AuditError(f'milestone has no status record: {identity}')
+    for path,doc in documents.items():
+        if doc['kind'] == 'context_archive':
+            fields = dict(re.findall(r'^\*\*(Context|Baseline|Coverage)\.\*\* (.+)$', doc['text'], re.M))
+            baseline = fields.get('Baseline', '').strip('`')
+            if (not fields.get('Context') or fields.get('Coverage') != 'verified'
+                    or not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64}|unversioned)', baseline)):
+                diagnostics.append(f'{path}: archive provenance is incomplete or unverified; text lookup only')
     for path,parts in parsed.items():
         for relation in parts['index_relationships']:
             target=relation['target']
@@ -311,6 +328,7 @@ def status(connection, workspace):
     result=rows[0]
     result['diagnostics']=json.loads(result.pop('diagnostics_json'))
     result['complete']=bool(result['complete'])
+    result['source_freshness']='not_checked'
     return result
 
 

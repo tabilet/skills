@@ -137,3 +137,31 @@ class IndexTests(unittest.TestCase):
         second=self.sync()
         self.assertEqual(second['branch'],'another')
         self.assertNotEqual(first['generation'],second['generation'])
+
+    def test_template_copy_and_linked_dependencies(self):
+        import shutil
+        copied=self.base/'template-project'
+        shutil.copytree(Path(__file__).resolve().parents[1]/'template',copied)
+        state=ix.sync(self.c,copied)
+        self.assertTrue(state['complete'])
+        milestone=copied/'tabilet/memory-bank/milestone.md'
+        milestone.write_text(milestone.read_text()+'\n**Dependencies.** [M01](status-M01.md)\n')
+        state=ix.sync(self.c,copied)
+        self.assertTrue(state['complete'])
+
+    def test_retirement_fenced_heading_does_not_change_task_or_relation_locations(self):
+        self.source.write_text('| Old attempt | `[-]` | successor: M02 |\n')
+        retired=h.retire_fixture(self.root)
+        text=retired.read_text()
+        # An inner Markdown example includes a fake envelope heading and fence.
+        text=text.replace('Example only:', '````text\n## Status record\n```markdown\nfake\n```\n````\nExample only:')
+        retired.write_text(text)
+        state=self.sync()
+        task=self.c.execute('SELECT line FROM index_tasks').fetchone()[0]
+        self.assertIn('Old attempt',text.splitlines()[task-1])
+        relation=self.c.execute("SELECT line FROM index_relationships WHERE relation='successor'").fetchone()[0]
+        self.assertIn('successor: M02',text.splitlines()[relation-1])
+        stable=state['generation']
+        retired.write_text(text.replace('**Review.** passed','**Review.** failed'))
+        with self.assertRaises(a.AuditError):self.sync()
+        self.assertEqual(ix.status(self.c,state['workspace_id'])['generation'],stable)

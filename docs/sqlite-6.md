@@ -22,7 +22,11 @@ races, symlinks, all-retired/archive-only layouts, explicit IDs, and both search
 Project hashes and original audit evidence remain unchanged.
 
 Execute one row at a time, commit each verified row, and record evidence here.
-Review iteration: 2 (passed). Installed-CLI testing found refresh changed durable
+Review iteration: 3 (passed). Installed-CLI testing found refresh changed durable
 workspace timestamps; refresh now reuses workspace identity without changing
 audit metadata. Complete audit exports remain identical across rebuild. The initial whole-milestone review is iteration 1; verify and
 review after fixes, with at most 10 iterations. A clean pass is required.
+
+Final review corrected source offsets around fenced envelope examples, deduplicated
+linked dependency IDs, exposed unchecked source freshness, and diagnosed incomplete
+archive provenance. Canonical template and malformed-retirement tests pass.
