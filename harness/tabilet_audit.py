@@ -9,6 +9,9 @@ commands or decide whether a project change is authorized.
 from __future__ import annotations
 
 import datetime as _datetime
+import contextlib
+import functools
+import base64
 import json
 import hashlib
 import os
@@ -20,9 +23,9 @@ import uuid
 from urllib.parse import quote
 
 
-SCHEMA_NAME = "tabilet.audit/v1"
-SCHEMA_VERSION = 1
-RECORDER_VERSION = "tabilet-audit/1"
+SCHEMA_NAME = "tabilet.audit/v2"
+SCHEMA_VERSION = 2
+RECORDER_VERSION = "tabilet-audit/2"
 
 OPERATIONS = frozenset({"init", "archive", "propose", "reconcile", "next", "goal", "upgrade"})
 RUN_RESULTS = frozenset({"completed", "blocked", "failed", "cancelled", "interrupted", "unknown"})
@@ -39,6 +42,7 @@ EVENT_TYPES = frozenset({
     "run_interrupted",
     "audit_gap",
     "snapshot_gap",
+    "milestone_accepted", "milestone_retired", "cancelled", "superseded",
 })
 SNAPSHOT_KINDS = frozenset({"history_status", "history_index", "knowledge_history", "evolution_prompt", "evolution_result", "context_archive"})
 SNAPSHOT_MAX_BYTES = 4 * 1024 * 1024
@@ -238,588 +242,413 @@ def default_database_path(environment: dict[str, str] | None = None) -> pathlib.
     return (base / "tabilet" / "audit.sqlite3").resolve()
 
 
-def _owner_only(path: pathlib.Path, mode: int) -> None:
-    """Create or tighten a local audit path's permissions."""
+# Derived tables have no inbound references from durable audit records.
+INDEX_SQL = """
+CREATE TABLE IF NOT EXISTS index_state (
+ workspace_id TEXT PRIMARY KEY REFERENCES workspaces, generation TEXT,
+ refreshed_at TEXT, git_head TEXT, branch TEXT, complete INTEGER NOT NULL DEFAULT 0,
+ last_attempt TEXT, diagnostics_json TEXT NOT NULL DEFAULT '[]', search_mode TEXT);
+CREATE TABLE IF NOT EXISTS index_documents (
+ workspace_id TEXT NOT NULL REFERENCES workspaces, path TEXT NOT NULL, kind TEXT NOT NULL,
+ sha256 TEXT NOT NULL, mtime_ns INTEGER NOT NULL, size INTEGER NOT NULL, text TEXT NOT NULL,
+ PRIMARY KEY(workspace_id,path));
+CREATE TABLE IF NOT EXISTS index_sections (
+ workspace_id TEXT NOT NULL, path TEXT NOT NULL, line INTEGER NOT NULL, end_line INTEGER NOT NULL,
+ heading TEXT NOT NULL, anchor TEXT NOT NULL, text TEXT NOT NULL,
+ PRIMARY KEY(workspace_id,path,line));
+CREATE TABLE IF NOT EXISTS index_milestones (
+ workspace_id TEXT NOT NULL, milestone_id TEXT NOT NULL, lifecycle TEXT NOT NULL,
+ path TEXT NOT NULL, line INTEGER NOT NULL, specification TEXT, outcome TEXT,
+ review TEXT, PRIMARY KEY(workspace_id,milestone_id));
+CREATE TABLE IF NOT EXISTS index_tasks (
+ workspace_id TEXT NOT NULL, path TEXT NOT NULL, sha256 TEXT NOT NULL, line INTEGER NOT NULL,
+ milestone_id TEXT NOT NULL, label TEXT NOT NULL, state TEXT NOT NULL, notes TEXT NOT NULL,
+ explicit_id TEXT, PRIMARY KEY(workspace_id,path,sha256,line));
+CREATE TABLE IF NOT EXISTS index_relationships (
+ workspace_id TEXT NOT NULL, path TEXT NOT NULL, line INTEGER NOT NULL,
+ source TEXT NOT NULL, relation TEXT NOT NULL, target TEXT NOT NULL,
+ PRIMARY KEY(workspace_id,path,line,source,relation,target));
+CREATE TABLE IF NOT EXISTS index_search (
+ search_id INTEGER PRIMARY KEY, workspace_id TEXT NOT NULL, path TEXT NOT NULL,
+ line INTEGER NOT NULL, kind TEXT NOT NULL, milestone_id TEXT, state TEXT, text TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS index_search_workspace ON index_search(workspace_id,path);
+"""
 
+
+def atomic(function):
+    """Serialize read/modify/write sequences and compose them in one transaction."""
+    @functools.wraps(function)
+    def wrapped(connection, *args, **kwargs):
+        owner = not connection.in_transaction
+        if owner:
+            connection.execute("BEGIN IMMEDIATE")
+        try:
+            result = function(connection, *args, **kwargs)
+            if owner:
+                connection.commit()
+            return result
+        except BaseException:
+            if owner:
+                connection.rollback()
+            raise
+    return wrapped
+
+
+def safe_path(path):
+    path = pathlib.Path(os.path.abspath(pathlib.Path(path).expanduser()))
+    for parent in (path, *path.parents):
+        if parent.is_symlink():
+            raise AuditError(f"symlink destination rejected: {parent}")
+    return path
+
+
+def external_path(path, roots=()):
+    path = safe_path(path)
+    for root in roots:
+        if path.is_relative_to(pathlib.Path(root).expanduser().resolve()):
+            raise AuditError(f"database or recovery destination is inside project: {root}")
+    return path
+
+
+def private_create(path):
+    """Create exclusively; do not chmod an existing parent."""
+    missing = []
+    parent = path.parent
+    while not parent.exists():
+        missing.append(parent)
+        parent = parent.parent
+    for directory in reversed(missing):
+        try:
+            directory.mkdir(mode=0o700)
+        except FileExistsError:
+            safe_path(directory)
+    return os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+
+
+def database_roots(connection):
+    return [row[0] for row in connection.execute('SELECT project_root FROM workspaces')]
+
+
+def database_path(connection):
+    return next((row[2] for row in connection.execute('PRAGMA database_list') if row[1] == 'main'), '')
+
+
+def validate_database(connection):
+    version = connection.execute('PRAGMA user_version').fetchone()[0]
+    if version not in (1, SCHEMA_VERSION):
+        raise AuditError(f"unsupported audit database version: {version}")
     try:
-        path.chmod(mode)
-    except OSError as exc:
-        raise AuditError(f"unable to set owner-only permissions on {path}: {exc}") from exc
+        marker = connection.execute("SELECT value FROM schema_meta WHERE key='schema'").fetchone()
+        if marker != (f'tabilet.audit/v{version}',):
+            raise AuditError('unsupported audit database identity')
+        # Verify every required table/column before any schema or permission mutation.
+        expected = sqlite3.connect(':memory:')
+        try:
+            expected.executescript(SCHEMA_SQL + (INDEX_SQL if version == 2 else ''))
+            for table in schema_tables(expected):
+                columns = {r[1] for r in expected.execute(f'PRAGMA table_info({table})')}
+                actual = {r[1] for r in connection.execute(f'PRAGMA table_info({table})')}
+                if not columns.issubset(actual):
+                    raise AuditError(f'incomplete audit schema: {table}')
+        finally:
+            expected.close()
+        if connection.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
+            raise AuditError('corrupt audit database')
+        if connection.execute('PRAGMA foreign_key_check').fetchone():
+            raise AuditError('audit database has invalid foreign keys')
+    except sqlite3.DatabaseError as exc:
+        raise AuditError(f'invalid audit database: {exc}') from exc
+    return version
 
 
-def open_database(path: str | os.PathLike[str] | None = None) -> sqlite3.Connection:
-    """Open and validate a v1 audit database at an external path."""
-
-    database = pathlib.Path(path).expanduser() if path is not None else default_database_path()
-    if database.exists() and database.is_symlink():
-        raise AuditError(f"audit database may not be a symlink: {database}")
-    parent = database.parent
-    if parent.exists() and parent.is_symlink():
-        raise AuditError(f"audit database parent may not be a symlink: {parent}")
-    database = database.absolute()
-    parent = database.parent
-    parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    _owner_only(parent, 0o700)
-    if database.exists() and not database.is_file():
-        raise AuditError(f"audit database is not a regular file: {database}")
-
-    connection = sqlite3.connect(str(database), timeout=5.0)
+def open_database(path=None, *, project_roots=()):
+    """Explicit writer open. Existing databases are identified before mutation."""
+    database = external_path(path if path is not None else default_database_path(), project_roots)
+    created = not database.exists()
+    if created:
+        os.close(private_create(database))
+    elif not database.is_file():
+        raise AuditError('audit database must be a regular file')
+    connection = sqlite3.connect(str(database), timeout=5)
     try:
-        connection.execute("PRAGMA foreign_keys = ON")
-        if connection.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
-            raise AuditError("SQLite foreign-key enforcement could not be enabled")
-        connection.execute("PRAGMA busy_timeout = 5000")
-        connection.execute("PRAGMA journal_mode = WAL")
-        connection.execute("PRAGMA synchronous = NORMAL")
-        current = int(connection.execute("PRAGMA user_version").fetchone()[0])
-        if current > SCHEMA_VERSION:
-            raise AuditError(
-                f"audit database schema {current} is newer than supported {SCHEMA_VERSION}"
-            )
-        connection.executescript(SCHEMA_SQL)
-        connection.execute(
-            "INSERT INTO schema_meta(key, value) VALUES('schema', ?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (SCHEMA_NAME,),
-        )
-        connection.execute(
-            "INSERT INTO schema_meta(key, value) VALUES('recorder_version', ?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (RECORDER_VERSION,),
-        )
-        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-        connection.commit()
-        stored_schema = connection.execute(
-            "SELECT value FROM schema_meta WHERE key = 'schema'"
-        ).fetchone()[0]
-        if stored_schema != SCHEMA_NAME:
-            raise AuditError(f"unsupported audit schema: {stored_schema}")
-        _owner_only(database, 0o600)
+        connection.execute('PRAGMA foreign_keys = ON')
+        connection.execute('PRAGMA busy_timeout = 5000')
+        version = 0 if created else validate_database(connection)
+        if not created:
+            external_path(database, database_roots(connection))
+        # New files were private before connect; only validated owned files are tightened.
+        database.chmod(0o600)
+        for suffix in ('-wal', '-shm'):
+            sidecar = safe_path(str(database) + suffix)
+            if sidecar.exists():
+                sidecar.chmod(0o600)
+        if version < SCHEMA_VERSION:
+            connection.execute('BEGIN IMMEDIATE')
+            try:
+                for statement in (SCHEMA_SQL + INDEX_SQL).split(';'):
+                    if statement.strip():
+                        connection.execute(statement)
+                connection.execute("INSERT OR REPLACE INTO schema_meta VALUES ('schema', ?)", (SCHEMA_NAME,))
+                connection.execute("INSERT OR REPLACE INTO schema_meta VALUES ('recorder_version', ?)", (RECORDER_VERSION,))
+                connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+                connection.commit()
+            except BaseException:
+                connection.rollback()
+                raise
+        connection.execute('PRAGMA journal_mode = WAL')
+        connection.execute('PRAGMA synchronous = NORMAL')
         return connection
-    except Exception:
+    except BaseException:
         connection.close()
         raise
 
 
-def ensure_workspace(
-    connection: sqlite3.Connection,
-    project_root: str | os.PathLike[str],
-    *,
-    repository_id: str | None = None,
-    branch: str | None = None,
-    observed_at: str | None = None,
-) -> str:
-    """Return the stable workspace ID for one local checkout."""
-
-    root = pathlib.Path(project_root).expanduser().absolute()
-    root_text = str(root)
+@atomic
+def ensure_workspace(connection, project_root, *, repository_id=None, branch=None, observed_at=None):
+    root = str(pathlib.Path(project_root).expanduser().resolve())
+    location = database_path(connection)
+    if location:
+        external_path(location, [root])
     timestamp = observed_at or utc_now()
-    _timestamp(timestamp, "observed_at")
-    with connection:
-        row = connection.execute(
-            "SELECT workspace_id FROM workspaces WHERE project_root = ?", (root_text,)
-        ).fetchone()
-        if row:
-            connection.execute(
-                "UPDATE workspaces SET repository_id = COALESCE(?, repository_id), "
-                "branch = COALESCE(?, branch), last_seen_at = ? WHERE workspace_id = ?",
-                (repository_id, branch, timestamp, row[0]),
-            )
-            return row[0]
-        workspace_id = str(uuid.uuid4())
-        connection.execute(
-            "INSERT INTO workspaces(workspace_id, project_root, repository_id, branch, created_at, last_seen_at) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (workspace_id, root_text, repository_id, branch, timestamp, timestamp),
-        )
-        return workspace_id
+    _timestamp(timestamp, 'observed_at')
+    row = connection.execute('SELECT workspace_id FROM workspaces WHERE project_root=?', (root,)).fetchone()
+    if row:
+        connection.execute('UPDATE workspaces SET repository_id=COALESCE(?,repository_id), branch=?, last_seen_at=? WHERE workspace_id=?',
+                           (repository_id, branch, timestamp, row[0]))
+        return row[0]
+    identity = str(uuid.uuid4())
+    connection.execute('INSERT INTO workspaces VALUES (?,?,?,?,?,?)', (identity, root, repository_id, branch, timestamp, timestamp))
+    return identity
 
 
-def start_run(
-    connection: sqlite3.Connection,
-    workspace_id: str,
-    operation: str,
-    *,
-    run_id: str | None = None,
-    capture_mode: str = "metadata",
-    parent_run_id: str | None = None,
-    git_head: str | None = None,
-    worktree_state: str = "unversioned",
-    started_at: str | None = None,
-) -> str:
-    """Create one run record and return its ID."""
-
-    if operation not in OPERATIONS:
-        raise AuditValidationError(f"unknown operation: {operation}")
-    if capture_mode not in {"metadata", "relevant"}:
-        raise AuditValidationError(f"unknown capture mode: {capture_mode}")
-    if worktree_state not in WORKTREE_STATES:
-        raise AuditValidationError(f"unknown worktree state: {worktree_state}")
+@atomic
+def start_run(connection, workspace_id, operation, *, run_id=None, capture_mode='metadata',
+              parent_run_id=None, git_head=None, worktree_state='unversioned', started_at=None):
+    if operation not in OPERATIONS or capture_mode not in {'metadata', 'relevant'} or worktree_state not in WORKTREE_STATES:
+        raise AuditValidationError('invalid operation, capture mode, or worktree state')
     run_id = run_id or str(uuid.uuid4())
-    timestamp = started_at or utc_now()
-    _text(workspace_id, "workspace_id")
-    _text(run_id, "run_id")
-    _timestamp(timestamp, "started_at")
-    with connection:
-        if not connection.execute(
-            "SELECT 1 FROM workspaces WHERE workspace_id = ?", (workspace_id,)
-        ).fetchone():
-            raise AuditValidationError(f"unknown workspace: {workspace_id}")
-        connection.execute(
-            "INSERT INTO runs(run_id, workspace_id, operation, started_at, recorder_version, "
-            "capture_mode, parent_run_id, git_head, worktree_state) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (run_id, workspace_id, operation, timestamp, RECORDER_VERSION, capture_mode,
-             parent_run_id, git_head, worktree_state),
-        )
+    _text(run_id, 'run_id')
+    previous = connection.execute('SELECT workspace_id,operation,capture_mode,parent_run_id,git_head,worktree_state,started_at FROM runs WHERE run_id=?', (run_id,)).fetchone()
+    timestamp = started_at or (previous[6] if previous else utc_now())
+    _timestamp(timestamp, 'started_at')
+    values = (workspace_id, operation, capture_mode, parent_run_id, git_head, worktree_state, timestamp)
+    if previous:
+        if tuple(previous) != values:
+            raise AuditConflict('run ID reused with a different payload')
+        return run_id
+    if not connection.execute('SELECT 1 FROM workspaces WHERE workspace_id=?', (workspace_id,)).fetchone():
+        raise AuditValidationError(f'unknown workspace: {workspace_id}')
+    if parent_run_id:
+        parent = connection.execute('SELECT workspace_id FROM runs WHERE run_id=?', (parent_run_id,)).fetchone()
+        if parent != (workspace_id,):
+            raise AuditValidationError('parent run must belong to the same workspace')
+    connection.execute('INSERT INTO runs(run_id,workspace_id,operation,capture_mode,parent_run_id,git_head,worktree_state,started_at,recorder_version) VALUES (?,?,?,?,?,?,?,?,?)',
+                       (run_id, *values, RECORDER_VERSION))
     return run_id
 
 
-def _event_payload(event: dict[str, Any]) -> str:
-    return canonical_json(event)
-
-
-def append_event(
-    connection: sqlite3.Connection,
-    event: dict[str, Any],
-    *,
-    sequence: int | None = None,
-) -> int:
-    """Append one validated event and return its run-local sequence."""
-
+@atomic
+def append_event(connection, event, *, sequence=None):
     normalized = validate_event(event)
-    event_id = normalized["event_id"]
-    run_id = normalized["run_id"]
-    payload = _event_payload(normalized)
-    existing = connection.execute(
-        "SELECT sequence, payload_json FROM events WHERE event_id = ?", (event_id,)
-    ).fetchone()
-    if existing:
-        if existing[1] != payload:
-            raise AuditConflict(f"event ID reused with a different payload: {event_id}")
-        return int(existing[0])
-    run = connection.execute(
-        "SELECT workspace_id, operation FROM runs WHERE run_id = ?", (run_id,)
-    ).fetchone()
-    if not run:
-        raise AuditValidationError(f"unknown run: {run_id}")
-    if run[1] != normalized["operation"]:
-        raise AuditValidationError("event operation does not match its run")
-    if run[0] != normalized["workspace_id"]:
-        raise AuditValidationError("event workspace does not match its run")
-    if sequence is None:
-        sequence = connection.execute(
-            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM events WHERE run_id = ?", (run_id,)
-        ).fetchone()[0]
-    if not isinstance(sequence, int) or sequence < 1:
-        raise AuditValidationError("event sequence must be a positive integer")
-    subject = normalized["subject"]
-    details = normalized["details"]
-    verification = details.get("verification")
-    file_actions = details.get("file_actions")
-    commit_sha = details.get("commit_sha")
-    with connection:
-        try:
-            connection.execute(
-                "INSERT INTO events(event_id, run_id, sequence, recorded_at, occurred_at, operation, "
-                "event_type, milestone_id, task_label, status_path, old_state, new_state, "
-                "verification_json, file_actions_json, commit_sha, details_json, payload_json) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (event_id, run_id, sequence, normalized["recorded_at"], normalized.get("occurred_at"),
-                 normalized["operation"], normalized["event_type"], subject.get("milestone_id"),
-                 subject.get("task_label"), subject.get("status_path"), subject.get("old_state"),
-                 subject.get("new_state"), canonical_json(verification) if verification is not None else None,
-                 canonical_json(file_actions) if file_actions is not None else None, commit_sha,
-                 canonical_json(details), payload),
-            )
-        except sqlite3.IntegrityError as exc:
-            raise AuditConflict(f"event sequence or ID conflict: {event_id}") from exc
+    payload = canonical_json(normalized)
+    prior = connection.execute('SELECT sequence,payload_json FROM events WHERE event_id=?', (normalized['event_id'],)).fetchone()
+    if prior:
+        if prior[1] != payload:
+            raise AuditConflict('event ID reused with a different payload')
+        return prior[0]
+    run = connection.execute('SELECT workspace_id,operation FROM runs WHERE run_id=?', (normalized['run_id'],)).fetchone()
+    if run != (normalized['workspace_id'], normalized['operation']):
+        raise AuditValidationError('unknown run or event workspace/operation mismatch')
+    sequence = sequence if sequence is not None else connection.execute('SELECT COALESCE(MAX(sequence),0)+1 FROM events WHERE run_id=?', (normalized['run_id'],)).fetchone()[0]
+    if type(sequence) is not int or sequence < 1:
+        raise AuditValidationError('event sequence must be a positive integer')
+    subject, details = normalized['subject'], normalized['details']
+    if details.get('capture_source') == 'agent' and details.get('fidelity') == 'exact':
+        raise AuditValidationError('agent summaries cannot claim exact host capture')
+    try:
+        connection.execute('INSERT INTO events VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            (normalized['event_id'], normalized['run_id'], sequence, normalized['recorded_at'], normalized.get('occurred_at'),
+             normalized['operation'], normalized['event_type'], *(subject.get(k) for k in ('milestone_id','task_label','status_path','old_state','new_state')),
+             canonical_json(details['verification']) if 'verification' in details else None,
+             canonical_json(details['file_actions']) if 'file_actions' in details else None,
+             details.get('commit_sha'), canonical_json(details), payload))
+    except sqlite3.IntegrityError as exc:
+        raise AuditConflict('event sequence conflict') from exc
     return sequence
 
 
-def capture_message(
-    connection: sqlite3.Connection,
-    run_id: str,
-    role: str,
-    text: str,
-    *,
-    capture_source: str,
-    fidelity: str,
-    message_id: str | None = None,
-    sequence: int | None = None,
-    captured_at: str | None = None,
-    redaction_note: str | None = None,
-) -> str:
-    """Store one explicitly selected visible message."""
-
-    if capture_source not in CAPTURE_SOURCES:
-        raise AuditValidationError(f"unknown capture source: {capture_source}")
-    if fidelity not in FIDELITIES:
-        raise AuditValidationError(f"unknown message fidelity: {fidelity}")
-    if not isinstance(run_id, str) or not run_id.strip():
-        raise AuditValidationError("run_id must be a non-empty string")
-    _text(role, "role")
-    _text(text, "text")
-    captured_at = captured_at or utc_now()
-    _timestamp(captured_at, "captured_at")
-    if not connection.execute("SELECT 1 FROM runs WHERE run_id = ?", (run_id,)).fetchone():
-        raise AuditValidationError(f"unknown run: {run_id}")
+@atomic
+def capture_message(connection, run_id, role, text, *, capture_source, fidelity, message_id=None,
+                    sequence=None, captured_at=None, redaction_note=None):
+    if capture_source not in CAPTURE_SOURCES or fidelity not in FIDELITIES:
+        raise AuditValidationError('invalid capture source or fidelity')
+    if fidelity == 'exact' and capture_source != 'host':
+        raise AuditValidationError('exact capture requires host provenance')
+    if connection.execute('SELECT capture_mode FROM runs WHERE run_id=?', (run_id,)).fetchone() != ('relevant',):
+        raise AuditValidationError('message capture requires a relevant-capture run')
+    _text(role, 'role'); _text(text, 'text')
     message_id = message_id or str(uuid.uuid4())
+    prior = connection.execute('SELECT run_id,sequence,role,captured_at,text,capture_source,fidelity,redaction_note FROM captured_messages WHERE message_id=?', (message_id,)).fetchone()
+    timestamp = captured_at or (prior[3] if prior else utc_now())
+    _timestamp(timestamp, 'captured_at')
     if sequence is None:
-        sequence = connection.execute(
-            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM captured_messages WHERE run_id = ?", (run_id,)
-        ).fetchone()[0]
-    if not isinstance(sequence, int) or sequence < 1:
-        raise AuditValidationError("message sequence must be a positive integer")
-    existing = connection.execute(
-        "SELECT run_id, sequence, role, captured_at, text, capture_source, fidelity, redaction_note "
-        "FROM captured_messages WHERE message_id = ?", (message_id,)
-    ).fetchone()
-    values = (run_id, sequence, role, captured_at, text, capture_source, fidelity, redaction_note)
-    if existing:
-        if tuple(existing) != values:
-            raise AuditConflict(f"message ID reused with a different payload: {message_id}")
+        sequence = prior[1] if prior else connection.execute('SELECT COALESCE(MAX(sequence),0)+1 FROM captured_messages WHERE run_id=?', (run_id,)).fetchone()[0]
+    if type(sequence) is not int or sequence < 1:
+        raise AuditValidationError('message sequence must be a positive integer')
+    values = (run_id, sequence, role, timestamp, text, capture_source, fidelity, redaction_note)
+    if prior:
+        if prior != values:
+            raise AuditConflict('message ID reused with a different payload')
         return message_id
-    with connection:
-        try:
-            connection.execute(
-                "INSERT INTO captured_messages(message_id, run_id, sequence, role, captured_at, text, "
-                "capture_source, fidelity, redaction_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (message_id, *values),
-            )
-        except sqlite3.IntegrityError as exc:
-            raise AuditConflict(f"message sequence or ID conflict: {message_id}") from exc
+    try:
+        connection.execute('INSERT INTO captured_messages VALUES (?,?,?,?,?,?,?,?,?)', (message_id, *values))
+    except sqlite3.IntegrityError as exc:
+        raise AuditConflict('message sequence conflict') from exc
     return message_id
 
 
-def finish_run(
-    connection: sqlite3.Connection,
-    run_id: str,
-    result: str,
-    *,
-    completed_at: str | None = None,
-) -> None:
-    """Set a run's terminal result once evidence is available."""
-
+@atomic
+def finish_run(connection, run_id, result, *, completed_at=None):
     if result not in RUN_RESULTS:
-        raise AuditValidationError(f"unknown run result: {result}")
-    completed_at = completed_at or utc_now()
-    _timestamp(completed_at, "completed_at")
-    row = connection.execute(
-        "SELECT completed_at, result FROM runs WHERE run_id = ?", (run_id,)
-    ).fetchone()
-    if not row:
-        raise AuditValidationError(f"unknown run: {run_id}")
-    if row[0] is not None or row[1] is not None:
-        if row[0] == completed_at and row[1] == result:
-            return
-        raise AuditConflict(f"run already has a different terminal result: {run_id}")
-    with connection:
-        connection.execute(
-            "UPDATE runs SET completed_at = ?, result = ? WHERE run_id = ?",
-            (completed_at, result, run_id),
-        )
+        raise AuditValidationError(f'unknown run result: {result}')
+    prior = connection.execute('SELECT completed_at,result,workspace_id,operation FROM runs WHERE run_id=?', (run_id,)).fetchone()
+    if not prior:
+        raise AuditValidationError(f'unknown run: {run_id}')
+    timestamp = completed_at or prior[0] or utc_now()
+    _timestamp(timestamp, 'completed_at')
+    if prior[1] is not None:
+        if prior[:2] != (timestamp, result):
+            raise AuditConflict('run already has a different terminal result')
+        return
+    append_event(connection, {'schema':'tabilet.audit.event/v1', 'event_id':f'{run_id}:finished',
+        'run_id':run_id, 'workspace_id':prior[2], 'operation':prior[3], 'event_type':'run_finished',
+        'recorded_at':timestamp, 'occurred_at':timestamp, 'subject':{},
+        'details':{'schema':'tabilet.audit.details/v1','result':result}})
+    connection.execute('UPDATE runs SET completed_at=?,result=? WHERE run_id=?', (timestamp,result,run_id))
 
 
-def _safe_project_path(project_root: str | os.PathLike[str], relative: str) -> pathlib.Path:
-    root = pathlib.Path(project_root).expanduser().absolute()
-    candidate = root / relative
+def capture_snapshots(*args, **kwargs):
+    raise AuditError('new snapshot capture is deferred; use index sync for Markdown lookup')
+
+
+def open_readonly_database(path):
+    database = safe_path(path)
+    if not database.is_file():
+        raise AuditError('read-only audit database must already exist')
+    connection = sqlite3.connect(f'file:{quote(str(database))}?mode=ro', uri=True)
     try:
-        candidate.relative_to(root)
-    except ValueError as exc:
-        raise AuditValidationError(f"snapshot path escapes project root: {relative}") from exc
-    return candidate
-
-
-def declared_snapshot_paths(project_root: str | os.PathLike[str]) -> list[tuple[str, pathlib.Path]]:
-    """Return only the declared v2 history/evolution files, including missing fixed files."""
-
-    root = pathlib.Path(project_root).expanduser().absolute()
-    history = root / "tabilet" / "docs" / "history"
-    evolution = root / "tabilet" / "evolution"
-    found: list[tuple[str, pathlib.Path]] = [
-        ("history_index", history / "index.md"),
-        ("knowledge_history", history / "knowledge.md"),
-    ]
-    if history.is_dir() and not history.is_symlink():
-        found.extend(("history_status", path) for path in sorted(history.glob("status-*.md")))
-    if evolution.is_dir() and not evolution.is_symlink():
-        found.extend(("evolution_prompt", path) for path in sorted(evolution.glob("prompt-v*.md")))
-        found.extend(("evolution_result", path) for path in sorted(evolution.glob("result-v*.md")))
-    return found
-
-
-def declared_archive_paths(project_root: str | os.PathLike[str]) -> list[tuple[str, pathlib.Path]]:
-    root = pathlib.Path(project_root).expanduser().absolute()
-    archive_root = root / "tabilet" / "docs"
-    if archive_root.is_symlink() or not archive_root.is_dir():
-        return []
-    return [("context_archive", path) for path in sorted(archive_root.glob("archive-*.md"))]
-
-
-def _read_snapshot(path: pathlib.Path, project_root: pathlib.Path) -> tuple[bytes | None, str | None]:
-    try:
-        path.relative_to(project_root)
-    except ValueError:
-        return None, "path outside project root"
-    cursor = path
-    while cursor != project_root:
-        if cursor.is_symlink():
-            return None, "symlink source rejected"
-        cursor = cursor.parent
-    if path.is_symlink():
-        return None, "symlink source rejected"
-    if not path.exists():
-        return None, "source is missing"
-    if not path.is_file():
-        return None, "source is not a regular file"
-    try:
-        data = path.read_bytes()
-        if len(data) > SNAPSHOT_MAX_BYTES:
-            return None, f"source exceeds {SNAPSHOT_MAX_BYTES} bytes"
-        data.decode("utf-8")
-    except (OSError, UnicodeError) as exc:
-        return None, f"source unreadable: {exc}"
-    return data, None
-
-
-def capture_snapshots(
-    connection: sqlite3.Connection,
-    workspace_id: str,
-    run_id: str,
-    project_root: str | os.PathLike[str],
-    *,
-    source_commit: str | None,
-    worktree_state: str,
-    captured_at: str | None = None,
-    include_archives: bool = False,
-) -> dict[str, list[str]]:
-    """Capture declared history/evolution files without modifying the project."""
-
-    _text(workspace_id, "workspace_id")
-    _text(run_id, "run_id")
-    if worktree_state not in WORKTREE_STATES:
-        raise AuditValidationError(f"unknown worktree state: {worktree_state}")
-    timestamp = captured_at or utc_now()
-    _timestamp(timestamp, "captured_at")
-    if not connection.execute("SELECT 1 FROM workspaces WHERE workspace_id = ?", (workspace_id,)).fetchone():
-        raise AuditValidationError(f"unknown workspace: {workspace_id}")
-    if not connection.execute("SELECT 1 FROM runs WHERE run_id = ?", (run_id,)).fetchone():
-        raise AuditValidationError(f"unknown run: {run_id}")
-    root = pathlib.Path(project_root).expanduser().absolute()
-    result = {"snapshots": [], "gaps": [], "drift": []}
-    declarations = declared_snapshot_paths(root)
-    if include_archives:
-        declarations.extend(declared_archive_paths(root))
-    for kind, path in declarations:
-        relative = str(path.relative_to(root))
-        data, diagnostic = _read_snapshot(path, root)
-        if diagnostic:
-            result["gaps"].append(f"{relative}: {diagnostic}")
-            with connection:
-                connection.execute(
-                    "INSERT OR REPLACE INTO run_snapshots(run_id, snapshot_id, observed_at, observation_state, source_path, diagnostic) "
-                    "VALUES (?, NULL, ?, 'gap', ?, ?)",
-                    (run_id, timestamp, relative, diagnostic),
-                )
-            continue
-        digest = hashlib.sha256(data).hexdigest()
-        previous = connection.execute(
-            "SELECT snapshot_id FROM snapshots WHERE workspace_id = ? AND kind = ? AND source_path = ? "
-            "ORDER BY captured_at DESC LIMIT 1",
-            (workspace_id, kind, relative),
-        ).fetchone()
-        if previous:
-            previous_digest = connection.execute(
-                "SELECT sha256 FROM snapshots WHERE snapshot_id = ?", (previous[0],)
-            ).fetchone()[0]
-            if previous_digest != digest:
-                result["drift"].append(f"{relative}: bytes changed since the previous observation")
-        row = connection.execute(
-            "SELECT snapshot_id FROM snapshots WHERE workspace_id = ? AND kind = ? AND source_path = ? AND sha256 = ?",
-            (workspace_id, kind, relative, digest),
-        ).fetchone()
-        snapshot_id = row[0] if row else str(uuid.uuid4())
-        with connection:
-            if not row:
-                connection.execute(
-                    "INSERT INTO snapshots(snapshot_id, workspace_id, kind, source_path, content, sha256, captured_at, "
-                    "source_commit, worktree_state, source_run_id, predecessor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (snapshot_id, workspace_id, kind, relative, data, digest, timestamp, source_commit,
-                     worktree_state, run_id, previous[0] if previous else None),
-                )
-            connection.execute(
-                "INSERT OR REPLACE INTO run_snapshots(run_id, snapshot_id, observed_at, observation_state, source_path, diagnostic) "
-                "VALUES (?, ?, ?, 'observed', ?, NULL)",
-                (run_id, snapshot_id, timestamp, relative),
-            )
-        result["snapshots"].append(snapshot_id)
-    return result
-
-
-def open_readonly_database(path: str | os.PathLike[str]) -> sqlite3.Connection:
-    """Open an existing audit database without creating or changing it."""
-
-    database = pathlib.Path(path).expanduser().absolute()
-    if database.is_symlink() or not database.is_file():
-        raise AuditError("read-only audit database must be a regular non-symlink file")
-    connection = sqlite3.connect(f"file:{quote(str(database))}?mode=ro", uri=True)
-    connection.execute("PRAGMA foreign_keys = ON")
-    connection.execute("PRAGMA query_only = ON")
-    if int(connection.execute("PRAGMA user_version").fetchone()[0]) > SCHEMA_VERSION:
+        connection.execute('PRAGMA foreign_keys = ON')
+        connection.execute('PRAGMA query_only = ON')
+        validate_database(connection)
+        return connection
+    except BaseException:
         connection.close()
-        raise AuditError("audit database schema is newer than supported")
-    schema_row = connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()
-    if not schema_row or schema_row[0] != SCHEMA_NAME:
-        connection.close()
-        raise AuditError("unsupported audit schema")
-    return connection
+        raise
 
 
-def query_runs(
-    connection: sqlite3.Connection,
-    *,
-    workspace_id: str | None = None,
-    operation: str | None = None,
-    limit: int = 1000,
-) -> list[dict[str, Any]]:
-    if not isinstance(limit, int) or limit < 1 or limit > 10000:
-        raise AuditValidationError("query limit must be between 1 and 10000")
+def records(connection, sql, values=()):
+    cursor = connection.execute(sql, values)
+    names = [item[0] for item in cursor.description]
+    return [dict(zip(names,row)) for row in cursor]
+
+
+def pagination(limit, offset):
+    if type(limit) is not int or not 1 <= limit <= 10000 or type(offset) is not int or offset < 0:
+        raise AuditValidationError('limit must be 1..10000 and offset must be nonnegative')
+
+
+def query_runs(connection, *, workspace_id=None, operation=None, milestone_id=None, task=None,
+               since=None, until=None, limit=1000, offset=0):
+    pagination(limit, offset)
     clauses, values = [], []
-    if workspace_id:
-        clauses.append("workspace_id = ?")
-        values.append(workspace_id)
-    if operation:
-        if operation not in OPERATIONS:
-            raise AuditValidationError(f"unknown operation: {operation}")
-        clauses.append("operation = ?")
-        values.append(operation)
-    where = " WHERE " + " AND ".join(clauses) if clauses else ""
-    rows = connection.execute(
-        f"SELECT run_id, workspace_id, operation, started_at, completed_at, recorder_version, "
-        f"capture_mode, parent_run_id, git_head, worktree_state, result FROM runs{where} "
-        "ORDER BY started_at, run_id LIMIT ?",
-        (*values, limit),
-    )
-    columns = [column[0] for column in rows.description]
-    return [dict(zip(columns, row)) for row in rows.fetchall()]
+    for name, value in [('workspace_id',workspace_id),('operation',operation)]:
+        if value is not None:
+            clauses.append(f'r.{name}=?'); values.append(value)
+    for name, value, comparison in [('started_at',since,'>='),('started_at',until,'<=')]:
+        if value is not None:
+            _timestamp(value, name); clauses.append(f'r.{name}{comparison}?'); values.append(value)
+    for name,value in [('milestone_id',milestone_id),('task_label',task)]:
+        if value is not None:
+            clauses.append(f'EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.run_id AND e.{name}=?)'); values.append(value)
+    where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
+    return records(connection, 'SELECT r.* FROM runs r'+where+' ORDER BY started_at,run_id LIMIT ? OFFSET ?', (*values,limit,offset))
 
 
-def query_events(
-    connection: sqlite3.Connection,
-    run_id: str,
-    *,
-    milestone_id: str | None = None,
-    limit: int = 10000,
-) -> list[dict[str, Any]]:
-    if not isinstance(limit, int) or limit < 1 or limit > 10000:
-        raise AuditValidationError("query limit must be between 1 and 10000")
-    clauses, values = ["run_id = ?"], [run_id]
-    if milestone_id:
-        clauses.append("milestone_id = ?")
-        values.append(milestone_id)
-    rows = connection.execute(
-        "SELECT event_id, run_id, sequence, recorded_at, occurred_at, operation, event_type, "
-        "milestone_id, task_label, status_path, old_state, new_state, verification_json, "
-        "file_actions_json, commit_sha, details_json, payload_json FROM events WHERE "
-        + " AND ".join(clauses) + " ORDER BY sequence LIMIT ?",
-        (*values, limit),
-    )
-    columns = [column[0] for column in rows.description]
-    return [dict(zip(columns, row)) for row in rows.fetchall()]
+def query_events(connection, run_id=None, *, workspace_id=None, operation=None, milestone_id=None,
+                 task=None, since=None, until=None, limit=10000, offset=0):
+    pagination(limit, offset)
+    clauses, values = [], []
+    for name,value in [('e.run_id',run_id),('r.workspace_id',workspace_id),('e.operation',operation),('e.milestone_id',milestone_id),('e.task_label',task)]:
+        if value is not None:
+            clauses.append(f'{name}=?'); values.append(value)
+    for value,comparison in [(since,'>='),(until,'<=')]:
+        if value is not None:
+            _timestamp(value,'recorded_at'); clauses.append(f'e.recorded_at{comparison}?'); values.append(value)
+    where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
+    return records(connection, 'SELECT e.* FROM events e JOIN runs r USING(run_id)'+where+' ORDER BY r.started_at,e.run_id,e.sequence LIMIT ? OFFSET ?', (*values,limit,offset))
 
 
-def query_snapshots(
-    connection: sqlite3.Connection,
-    workspace_id: str,
-    *,
-    kind: str | None = None,
-    limit: int = 10000,
-) -> list[dict[str, Any]]:
-    if kind is not None and kind not in SNAPSHOT_KINDS:
-        raise AuditValidationError(f"unknown snapshot kind: {kind}")
-    clauses, values = ["workspace_id = ?"], [workspace_id]
-    if kind:
-        clauses.append("kind = ?")
-        values.append(kind)
-    rows = connection.execute(
-        "SELECT snapshot_id, workspace_id, kind, source_path, sha256, captured_at, source_commit, "
-        "worktree_state, source_run_id, predecessor_id, length(content) AS byte_length FROM snapshots WHERE "
-        + " AND ".join(clauses) + " ORDER BY captured_at, snapshot_id LIMIT ?",
-        (*values, limit),
-    )
-    columns = [column[0] for column in rows.description]
-    return [dict(zip(columns, row)) for row in rows.fetchall()]
+def query_snapshots(connection, workspace_id=None, *, kind=None, limit=10000, offset=0):
+    pagination(limit, offset)
+    clauses, values = [], []
+    for key,value in [('workspace_id',workspace_id),('kind',kind)]:
+        if value is not None:
+            clauses.append(f'{key}=?'); values.append(value)
+    where = ' WHERE '+' AND '.join(clauses) if clauses else ''
+    return records(connection, 'SELECT snapshot_id,workspace_id,kind,source_path,sha256,captured_at,source_commit,worktree_state,source_run_id,predecessor_id,length(content) AS byte_length FROM snapshots'+where+' ORDER BY captured_at,snapshot_id LIMIT ? OFFSET ?', (*values,limit,offset))
 
 
-def export_json(connection: sqlite3.Connection, *, workspace_id: str | None = None) -> str:
-    """Export metadata and timelines without including captured bytes or text by default."""
-
-    runs = query_runs(connection, workspace_id=workspace_id)
-    payload = {
-        "schema": "tabilet.audit.export/v1",
-        "runs": [
-            {**run, "events": query_events(connection, run["run_id"])}
-            for run in runs
-        ],
-        "snapshots": query_snapshots(connection, workspace_id) if workspace_id else [],
-    }
-    return canonical_json(payload)
-
-
-def restore_snapshot(connection: sqlite3.Connection, snapshot_id: str, destination: str | os.PathLike[str]) -> None:
-    """Restore exact snapshot bytes to a separate destination without overwriting."""
-
-    row = connection.execute("SELECT content, sha256 FROM snapshots WHERE snapshot_id = ?", (snapshot_id,)).fetchone()
-    if not row:
-        raise AuditValidationError(f"unknown snapshot: {snapshot_id}")
-    if hashlib.sha256(row[0]).hexdigest() != row[1]:
-        raise AuditError(f"snapshot content hash mismatch: {snapshot_id}")
-    path = pathlib.Path(destination).expanduser().absolute()
-    if path.exists() or path.is_symlink():
-        raise AuditError(f"restore destination already exists: {path}")
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    _owner_only(path.parent, 0o700)
-    path.write_bytes(row[0])
-    _owner_only(path, 0o600)
+def export_json(connection, *, workspace_id=None, include_content=False):
+    """Complete durable export; private messages/bytes require explicit inclusion."""
+    owner = not connection.in_transaction
+    if owner:
+        connection.execute('BEGIN')
+    try:
+        where, values = (' WHERE workspace_id=?',(workspace_id,)) if workspace_id else ('',())
+        runs = records(connection, 'SELECT * FROM runs'+where+' ORDER BY started_at,run_id',values)
+        for run in runs:
+            run['events'] = records(connection,'SELECT * FROM events WHERE run_id=? ORDER BY sequence',(run['run_id'],))
+            run['snapshot_observations'] = records(connection,'SELECT * FROM run_snapshots WHERE run_id=? ORDER BY source_path',(run['run_id'],))
+            if include_content:
+                run['messages'] = records(connection,'SELECT * FROM captured_messages WHERE run_id=? ORDER BY sequence',(run['run_id'],))
+        snapshots = records(connection,'SELECT * FROM snapshots'+where+' ORDER BY captured_at,snapshot_id',values)
+        for snapshot in snapshots:
+            data = snapshot.pop('content')
+            snapshot['byte_length'] = len(data)
+            if include_content:
+                snapshot['content_base64'] = base64.b64encode(data).decode('ascii')
+        return canonical_json({'schema':'tabilet.audit.export/v2','includes_content':include_content,
+            'workspaces':records(connection,'SELECT * FROM workspaces'+where,values), 'runs':runs,'snapshots':snapshots})
+    finally:
+        if owner:
+            connection.rollback()
 
 
-def backup_database(connection: sqlite3.Connection, destination: str | os.PathLike[str]) -> None:
-    """Create a consistent SQLite backup at a separate owner-only destination."""
+def restore_snapshot(connection, snapshot_id, destination):
+    row = connection.execute('SELECT content,sha256 FROM snapshots WHERE snapshot_id=?',(snapshot_id,)).fetchone()
+    if not row or hashlib.sha256(row[0]).hexdigest() != row[1]:
+        raise AuditError('missing snapshot or content hash mismatch')
+    path = external_path(destination, database_roots(connection))
+    with os.fdopen(private_create(path),'wb') as output:
+        output.write(row[0])
 
-    path = pathlib.Path(destination).expanduser().absolute()
-    if path.exists() and path.is_symlink():
-        raise AuditError(f"backup destination may not be a symlink: {path}")
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    _owner_only(path.parent, 0o700)
+
+def backup_database(connection, destination):
+    validate_database(connection)
+    path = external_path(destination, database_roots(connection))
+    os.close(private_create(path))
     target = sqlite3.connect(str(path))
     try:
         connection.backup(target)
-        target.commit()
+        validate_database(target)
+    except BaseException:
+        target.close()
+        path.unlink()
+        raise
     finally:
         target.close()
-    _owner_only(path, 0o600)
 
 
-def restore_database(source: str | os.PathLike[str], destination: str | os.PathLike[str]) -> None:
-    """Restore a database into a separate destination using SQLite's backup API."""
-
-    source_path = pathlib.Path(source).expanduser().absolute()
-    if source_path.is_symlink() or not source_path.is_file():
-        raise AuditError("restore source must be a regular non-symlink file")
-    source_connection = sqlite3.connect(str(source_path))
-    try:
-        destination_path = pathlib.Path(destination).expanduser().absolute()
-        if destination_path.exists() and destination_path.is_symlink():
-            raise AuditError("restore destination may not be a symlink")
-        destination_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        _owner_only(destination_path.parent, 0o700)
-        target = sqlite3.connect(str(destination_path))
-        try:
-            source_connection.backup(target)
-            target.commit()
-        finally:
-            target.close()
-        _owner_only(destination_path, 0o600)
-    finally:
-        source_connection.close()
+def restore_database(source, destination):
+    with contextlib.closing(open_readonly_database(source)) as connection:
+        backup_database(connection, destination)

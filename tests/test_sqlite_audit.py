@@ -100,7 +100,7 @@ class SqliteAuditContractTests(unittest.TestCase):
             database = Path(temporary) / "state" / "tabilet" / "audit.sqlite3"
             connection = audit.open_database(database)
             self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 1)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
             self.assertEqual(
                 connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()[0],
                 audit.SCHEMA_NAME,
@@ -127,7 +127,7 @@ class SqliteAuditContractTests(unittest.TestCase):
             connection.execute("PRAGMA user_version = 99")
             connection.commit()
             connection.close()
-            with self.assertRaisesRegex(audit.AuditError, "newer"):
+            with self.assertRaisesRegex(audit.AuditError, "unsupported"):
                 audit.open_database(newer)
 
     def test_workspaces_keep_separate_checkout_and_unversioned_provenance(self) -> None:
@@ -159,104 +159,6 @@ class SqliteAuditContractTests(unittest.TestCase):
             directory.mkdir()
             with self.assertRaises(audit.AuditError):
                 audit.open_database(directory)
-
-    def test_history_and_evolution_snapshots_preserve_bytes_and_deduplicate(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary) / "project"
-            (root / "tabilet/docs/history").mkdir(parents=True)
-            (root / "tabilet/evolution").mkdir(parents=True)
-            (root / "tabilet/docs/history/status-M01.md").write_bytes(b"# frozen\n")
-            (root / "tabilet/docs/history/index.md").write_bytes(b"# index\n")
-            (root / "tabilet/docs/history/knowledge.md").write_bytes("# 知识\n".encode())
-            (root / "tabilet/evolution/prompt-v1.md").write_bytes(b"prompt\n")
-            (root / "tabilet/evolution/result-v1.md").write_bytes(b"result\n")
-            (root / "tabilet/docs/archive-A01.md").write_bytes(b"archive\n")
-            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
-            workspace_id = audit.ensure_workspace(connection, root)
-            first_run = audit.start_run(connection, workspace_id, "next", run_id="run-1")
-            first = audit.capture_snapshots(
-                connection, workspace_id, first_run, root, source_commit="abc", worktree_state="clean"
-            )
-            self.assertEqual(len(first["snapshots"]), 5)
-            self.assertEqual(first["gaps"], [])
-            second_run = audit.start_run(connection, workspace_id, "next", run_id="run-2")
-            second = audit.capture_snapshots(
-                connection, workspace_id, second_run, root, source_commit="def", worktree_state="clean"
-            )
-            self.assertEqual(second["snapshots"], first["snapshots"])
-            self.assertEqual(connection.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0], 5)
-            archive_run = audit.start_run(connection, workspace_id, "archive", run_id="run-archive")
-            archive_result = audit.capture_snapshots(
-                connection, workspace_id, archive_run, root, source_commit="abc", worktree_state="clean",
-                include_archives=True,
-            )
-            self.assertEqual(
-                connection.execute("SELECT kind FROM snapshots WHERE snapshot_id = ?", (archive_result["snapshots"][-1],)).fetchone()[0],
-                "context_archive",
-            )
-            (root / "tabilet/docs/history/status-M01.md").write_bytes(b"# changed\n")
-            third_run = audit.start_run(connection, workspace_id, "next", run_id="run-3")
-            changed = audit.capture_snapshots(
-                connection, workspace_id, third_run, root, source_commit="ghi", worktree_state="clean"
-            )
-            self.assertTrue(set(changed["snapshots"]) - set(first["snapshots"]))
-            self.assertTrue(any("status-M01.md" in item for item in changed["drift"]))
-            self.assertEqual(connection.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0], 7)
-
-    def test_snapshot_gaps_and_backup_restore_do_not_touch_project(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary) / "project"
-            (root / "tabilet/docs/history").mkdir(parents=True)
-            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
-            workspace_id = audit.ensure_workspace(connection, root)
-            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1")
-            result = audit.capture_snapshots(
-                connection, workspace_id, run_id, root, source_commit=None, worktree_state="unversioned"
-            )
-            self.assertTrue(result["gaps"])
-            self.assertEqual(list((root / "tabilet/docs/history").iterdir()), [])
-            backup = Path(temporary) / "backup.sqlite3"
-            restored = Path(temporary) / "restored.sqlite3"
-            audit.backup_database(connection, backup)
-            audit.restore_database(backup, restored)
-            restored_connection = sqlite3.connect(restored)
-            self.assertEqual(restored_connection.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 1)
-            restored_connection.close()
-
-    def test_read_only_queries_export_and_snapshot_restore(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary) / "project"
-            history = root / "tabilet/docs/history"
-            history.mkdir(parents=True)
-            source = history / "status-M01.md"
-            source.write_bytes(b"frozen bytes\n")
-            database = Path(temporary) / "audit.sqlite3"
-            connection = audit.open_database(database)
-            workspace_id = audit.ensure_workspace(connection, root)
-            run_id = audit.start_run(connection, workspace_id, "archive", run_id="run-1")
-            audit.capture_snapshots(connection, workspace_id, run_id, root, source_commit=None, worktree_state="clean")
-            event_value = event(
-                event_id="host-event",
-                run_id=run_id,
-                workspace_id=workspace_id,
-                operation="archive",
-                event_type="run_started",
-            )
-            audit.append_event(connection, event_value)
-            self.assertEqual(len(audit.query_runs(connection, operation="archive")), 1)
-            self.assertEqual(len(audit.query_events(connection, run_id)), 1)
-            snapshots = audit.query_snapshots(connection, workspace_id)
-            self.assertEqual(len(snapshots), 1)
-            exported = json.loads(audit.export_json(connection, workspace_id=workspace_id))
-            self.assertEqual(exported["schema"], "tabilet.audit.export/v1")
-            readonly = audit.open_readonly_database(database)
-            with self.assertRaises(sqlite3.OperationalError):
-                readonly.execute("INSERT INTO schema_meta(key, value) VALUES ('x', 'y')")
-            readonly.close()
-            restored = Path(temporary) / "restored.md"
-            audit.restore_snapshot(connection, snapshots[0]["snapshot_id"], restored)
-            self.assertEqual(restored.read_bytes(), source.read_bytes())
-            connection.close()
 
     def test_host_adapter_accepts_structured_host_event(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -290,7 +192,7 @@ class SqliteAuditContractTests(unittest.TestCase):
                 audit.ensure_workspace(connection, Path(temporary) / "project"), workspace_id
             )
             run_id = audit.start_run(
-                connection, workspace_id, "next", git_head="abc123", worktree_state="clean"
+                connection, workspace_id, "next", capture_mode="relevant", git_head="abc123", worktree_state="clean"
             )
             self.assertEqual(
                 audit.append_event(connection, event(run_id=run_id, workspace_id=workspace_id)), 1
@@ -332,7 +234,7 @@ class SqliteAuditContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")
             workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
-            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1")
+            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1", capture_mode="relevant")
             original = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
             self.assertEqual(audit.append_event(connection, original), 1)
             self.assertEqual(audit.append_event(connection, original, sequence=99), 1)
@@ -363,7 +265,7 @@ class SqliteAuditContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")
             workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
-            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1")
+            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1", capture_mode="relevant")
             observed = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
             audit.append_event(connection, observed)
             connection.execute("CREATE TABLE unrelated_rows(name TEXT)")

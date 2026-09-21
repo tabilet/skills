@@ -1421,7 +1421,7 @@ def english_only_docs():
     # else in docs/, a language-suffixed copy of a canonical file is rejected.
     for path in sorted((ROOT / "docs").rglob("*.md")):
         canonical = suffixed_doc_sibling(path)
-        if canonical is not None and canonical.name == "sqlite.md" and re.fullmatch(r"sqlite-[1-4]", path.stem):
+        if canonical is not None and canonical.name == "sqlite.md" and re.fullmatch(r"sqlite-[1-8]", path.stem):
             continue
         if canonical is not None:
             problems.append(
