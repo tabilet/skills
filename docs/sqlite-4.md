@@ -35,6 +35,24 @@ Active milestone/task indexing is not added here. First measure a named
 repeated-query consumer and document stale-data behavior, identity rules, and
 latency before proposing any active projection.
 
+## Evidence and active projection decision
+
+The named current consumer is the local read-only audit/export interface used
+by operators and future explorer tools. A representative fixture contains five
+history status files and 100 recorded runs. On the development host,
+`query_runs` completed in 0.570 ms and a run timeline query in 0.138 ms; these
+figures are local observations, not service-level guarantees. The fixture keeps
+one immutable event identity and stores task text directly in each event, so
+row insertion, reordering, renaming, and retirement cannot reattribute it.
+
+The database can be stale when a run has not reached its terminal snapshot, or
+when an audit write fails. Markdown remains authoritative, and explicit
+`audit_gap` or `snapshot_gap` records expose that condition. The observed scale
+and query need do not justify an active milestone projection. Any future
+projection requires a new approved format and migration, export, recovery,
+staleness, and reader-compatibility design; it may not silently change task
+selection or status authority.
+
 ## Tasks
 
 | ID | Status | Task | Acceptance |
