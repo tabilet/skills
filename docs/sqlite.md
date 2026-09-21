@@ -115,7 +115,8 @@ Store exact bytes, SHA-256, original path, kind, source commit, worktree state,
 capture time, and the observing run. Deduplicate identical bytes while keeping
 separate run observations. Changed bytes create new observations. Missing,
 unreadable, symlinked, or drifted frozen files create diagnostics and never
-overwrite prior records. Context archives are deferred to a later milestone.
+overwrite prior records. Context archives use a separate `context_archive`
+kind and remain independent of status IDs.
 
 ## Compatibility and failure behavior
 
