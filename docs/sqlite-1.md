@@ -54,7 +54,7 @@ The public event envelope is JSON with schema tabilet.audit.event/v1:
     "old_state": "in_progress or null",
     "new_state": "completed or null"
   },
-  "details": {}
+  "details": {"schema": "tabilet.audit.details/v1"}
 }
 ~~~
 

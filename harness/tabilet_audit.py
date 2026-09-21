@@ -665,10 +665,12 @@ def open_readonly_database(path: str | os.PathLike[str]) -> sqlite3.Connection:
         raise AuditError("read-only audit database must be a regular non-symlink file")
     connection = sqlite3.connect(f"file:{quote(str(database))}?mode=ro", uri=True)
     connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute("PRAGMA query_only = ON")
     if int(connection.execute("PRAGMA user_version").fetchone()[0]) > SCHEMA_VERSION:
         connection.close()
         raise AuditError("audit database schema is newer than supported")
-    if connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()[0] != SCHEMA_NAME:
+    schema_row = connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()
+    if not schema_row or schema_row[0] != SCHEMA_NAME:
         connection.close()
         raise AuditError("unsupported audit schema")
     return connection
@@ -768,9 +770,11 @@ def export_json(connection: sqlite3.Connection, *, workspace_id: str | None = No
 def restore_snapshot(connection: sqlite3.Connection, snapshot_id: str, destination: str | os.PathLike[str]) -> None:
     """Restore exact snapshot bytes to a separate destination without overwriting."""
 
-    row = connection.execute("SELECT content FROM snapshots WHERE snapshot_id = ?", (snapshot_id,)).fetchone()
+    row = connection.execute("SELECT content, sha256 FROM snapshots WHERE snapshot_id = ?", (snapshot_id,)).fetchone()
     if not row:
         raise AuditValidationError(f"unknown snapshot: {snapshot_id}")
+    if hashlib.sha256(row[0]).hexdigest() != row[1]:
+        raise AuditError(f"snapshot content hash mismatch: {snapshot_id}")
     path = pathlib.Path(destination).expanduser().absolute()
     if path.exists() or path.is_symlink():
         raise AuditError(f"restore destination already exists: {path}")

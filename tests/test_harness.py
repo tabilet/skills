@@ -664,6 +664,23 @@ class HarnessIntegrationTests(unittest.TestCase):
             )
             connection.close()
 
+    def test_audited_interrupt_records_interrupted_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database)]), \
+                    mock.patch.dict(os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True), \
+                    mock.patch.object(harness, "one_agent_run", side_effect=KeyboardInterrupt), \
+                    self.assertRaises(KeyboardInterrupt):
+                harness.main()
+            connection = sqlite3.connect(database)
+            self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "interrupted")
+            self.assertIn(
+                "run_interrupted",
+                [row[0] for row in connection.execute("SELECT event_type FROM events")],
+            )
+            connection.close()
+
     def test_unavailable_audit_database_leaves_runner_gate_unchanged(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
