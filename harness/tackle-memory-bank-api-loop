@@ -1651,6 +1651,7 @@ def main() -> None:
             details={"checks": ["git_clean", "commit_ancestry", "row_transition"], "success": True},
         )
         audit.emit("commit_observed", details={"commit_sha": after})
+        audit.git_ref = after
         if args.audit_capture == "relevant":
             audit.message(
                 "host",
