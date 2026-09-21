@@ -175,6 +175,37 @@ class SqliteAuditContractTests(unittest.TestCase):
         with self.assertRaises(audit.AuditValidationError):
             audit.append_event(connection, event())
 
+    def test_event_message_and_run_delivery_are_idempotent_but_conflicts_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1")
+            original = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
+            self.assertEqual(audit.append_event(connection, original), 1)
+            self.assertEqual(audit.append_event(connection, original, sequence=99), 1)
+            with self.assertRaises(audit.AuditConflict):
+                audit.append_event(connection, {**original, "details": {"changed": True}})
+
+            captured_at = "2026-09-21T12:00:00Z"
+            message = dict(
+                run_id=run_id,
+                role="user",
+                text="Run the next task.",
+                capture_source="host",
+                fidelity="exact",
+                message_id="message-1",
+                captured_at=captured_at,
+            )
+            self.assertEqual(audit.capture_message(connection, **message), "message-1")
+            self.assertEqual(audit.capture_message(connection, **message, sequence=1), "message-1")
+            with self.assertRaises(audit.AuditConflict):
+                audit.capture_message(connection, **{**message, "text": "Changed."})
+
+            audit.finish_run(connection, run_id, "completed", completed_at=captured_at)
+            audit.finish_run(connection, run_id, "completed", completed_at=captured_at)
+            with self.assertRaises(audit.AuditConflict):
+                audit.finish_run(connection, run_id, "failed", completed_at=captured_at)
+
 
 if __name__ == "__main__":
     unittest.main()

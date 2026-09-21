@@ -105,7 +105,7 @@ sorted keys and UTF-8 output. Schema migrations are numbered from user_version
 | SQL1-T01 | [+] | Freeze v1 schema, constraints, indexes, event vocabulary, and migration rules. | One schema and migration test establish an unambiguous v1 database. |
 | SQL1-T02 | [+] | Implement owner-only database creation, connection setup, foreign-key enforcement, and short transactions using Python sqlite3. | Creation, reopen, permission, and schema-version tests pass without project writes. |
 | SQL1-T03 | [~] | Implement workspace, run, event, and captured-message persistence. | Records round-trip with UTC timestamps, nullable Git provenance, and result states. |
-| SQL1-T04 | [ ] | Implement event-envelope validation and idempotent insertion. | Identical delivery is safe; conflicting payloads fail; malformed events are rejected. |
+| SQL1-T04 | [+] | Implement event-envelope validation and idempotent insertion. | Identical delivery is safe; conflicting payloads fail; malformed events are rejected. |
 | SQL1-T05 | [ ] | Test interruption, database errors, separate worktrees, no-Git provenance, and owner-only storage. | Failures leave no false completion event and all tests pass without network access. |
 
 ## Completion gate
