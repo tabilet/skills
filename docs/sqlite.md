@@ -130,10 +130,26 @@ failure is reported as a gap and does not undo work, alter status, repeat a task
 or claim that logging succeeded. Enable foreign keys on every connection and
 use a single database so cross-database transaction assumptions are unnecessary.
 
-The first release is external audit plus history/evolution snapshots. A future
-version may add read-only queries, host adapters, archive snapshots, and then
-consider active milestone indexing after a measured consumer need. Making
+The first release is external audit plus history/evolution snapshots, with a
+generic host submission boundary and read-only export helpers. A future version
+may add richer archive consumers and then consider active milestone indexing
+after a measured consumer need. Making
 SQLite authoritative for any project layer requires a separate versioned format,
 migration, export, recovery, and reader-compatibility design.
+
+The implemented host boundary is `harness/tabilet_audit_host.py`. It accepts
+one structured `tabilet.audit.event/v1` object for `init`, `archive`, `propose`,
+`reconcile`, or `goal`; it records an observed summary and never authorizes the
+operation. Read-only consumers use `open_readonly_database`, the query helpers,
+`export_json`, and `restore_snapshot` to inspect or restore into a separate
+destination. Context archives are optional snapshots with their own
+`context_archive` kind, while status IDs and archive IDs remain independent.
+
+Observed first-release fixtures are small (single digit history/evolution files)
+and metadata queries complete within the local SQLite transaction time. The
+database can lag Markdown when an audit write is unavailable; gaps are explicit
+and Markdown remains authoritative. No repeated consumer need or scale evidence
+justifies an active milestone projection yet, so the active projection decision
+is deferred to a separately approved format and migration proposal.
 
 See the staged implementation work in docs/sqlite-1.md through docs/sqlite-4.md.

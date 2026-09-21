@@ -6,6 +6,7 @@ import json
 import os
 import stat
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -51,7 +52,7 @@ class SqliteAuditContractTests(unittest.TestCase):
         connection.executescript(audit.SCHEMA_SQL)
         self.assertEqual(
             audit.schema_tables(connection),
-            {"schema_meta", "workspaces", "runs", "events", "captured_messages"},
+            {"schema_meta", "workspaces", "runs", "events", "captured_messages", "snapshots", "run_snapshots"},
         )
         indexes = {
             row[0]
@@ -62,6 +63,7 @@ class SqliteAuditContractTests(unittest.TestCase):
         self.assertIn("events_run_sequence", indexes)
         self.assertIn("events_milestone", indexes)
         self.assertIn("runs_workspace_started", indexes)
+        self.assertIn("snapshots_source", indexes)
 
     def test_valid_event_is_normalized_without_reassigning_subject_details(self) -> None:
         original = event()
@@ -156,6 +158,122 @@ class SqliteAuditContractTests(unittest.TestCase):
             directory.mkdir()
             with self.assertRaises(audit.AuditError):
                 audit.open_database(directory)
+
+    def test_history_and_evolution_snapshots_preserve_bytes_and_deduplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "project"
+            (root / "tabilet/docs/history").mkdir(parents=True)
+            (root / "tabilet/evolution").mkdir(parents=True)
+            (root / "tabilet/docs/history/status-M01.md").write_bytes(b"# frozen\n")
+            (root / "tabilet/docs/history/index.md").write_bytes(b"# index\n")
+            (root / "tabilet/docs/history/knowledge.md").write_bytes("# 知识\n".encode())
+            (root / "tabilet/evolution/prompt-v1.md").write_bytes(b"prompt\n")
+            (root / "tabilet/evolution/result-v1.md").write_bytes(b"result\n")
+            (root / "tabilet/docs/archive-A01.md").write_bytes(b"archive\n")
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            workspace_id = audit.ensure_workspace(connection, root)
+            first_run = audit.start_run(connection, workspace_id, "next", run_id="run-1")
+            first = audit.capture_snapshots(
+                connection, workspace_id, first_run, root, source_commit="abc", worktree_state="clean"
+            )
+            self.assertEqual(len(first["snapshots"]), 5)
+            self.assertEqual(first["gaps"], [])
+            second_run = audit.start_run(connection, workspace_id, "next", run_id="run-2")
+            second = audit.capture_snapshots(
+                connection, workspace_id, second_run, root, source_commit="def", worktree_state="clean"
+            )
+            self.assertEqual(second["snapshots"], first["snapshots"])
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0], 5)
+            archive_run = audit.start_run(connection, workspace_id, "archive", run_id="run-archive")
+            archive_result = audit.capture_snapshots(
+                connection, workspace_id, archive_run, root, source_commit="abc", worktree_state="clean",
+                include_archives=True,
+            )
+            self.assertEqual(
+                connection.execute("SELECT kind FROM snapshots WHERE snapshot_id = ?", (archive_result["snapshots"][-1],)).fetchone()[0],
+                "context_archive",
+            )
+            (root / "tabilet/docs/history/status-M01.md").write_bytes(b"# changed\n")
+            third_run = audit.start_run(connection, workspace_id, "next", run_id="run-3")
+            changed = audit.capture_snapshots(
+                connection, workspace_id, third_run, root, source_commit="ghi", worktree_state="clean"
+            )
+            self.assertTrue(set(changed["snapshots"]) - set(first["snapshots"]))
+            self.assertTrue(any("status-M01.md" in item for item in changed["drift"]))
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0], 7)
+
+    def test_snapshot_gaps_and_backup_restore_do_not_touch_project(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "project"
+            (root / "tabilet/docs/history").mkdir(parents=True)
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            workspace_id = audit.ensure_workspace(connection, root)
+            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1")
+            result = audit.capture_snapshots(
+                connection, workspace_id, run_id, root, source_commit=None, worktree_state="unversioned"
+            )
+            self.assertTrue(result["gaps"])
+            self.assertEqual(list((root / "tabilet/docs/history").iterdir()), [])
+            backup = Path(temporary) / "backup.sqlite3"
+            restored = Path(temporary) / "restored.sqlite3"
+            audit.backup_database(connection, backup)
+            audit.restore_database(backup, restored)
+            restored_connection = sqlite3.connect(restored)
+            self.assertEqual(restored_connection.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 1)
+            restored_connection.close()
+
+    def test_read_only_queries_export_and_snapshot_restore(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "project"
+            history = root / "tabilet/docs/history"
+            history.mkdir(parents=True)
+            source = history / "status-M01.md"
+            source.write_bytes(b"frozen bytes\n")
+            database = Path(temporary) / "audit.sqlite3"
+            connection = audit.open_database(database)
+            workspace_id = audit.ensure_workspace(connection, root)
+            run_id = audit.start_run(connection, workspace_id, "archive", run_id="run-1")
+            audit.capture_snapshots(connection, workspace_id, run_id, root, source_commit=None, worktree_state="clean")
+            event_value = event(
+                event_id="host-event",
+                run_id=run_id,
+                workspace_id=workspace_id,
+                operation="archive",
+                event_type="run_started",
+            )
+            audit.append_event(connection, event_value)
+            self.assertEqual(len(audit.query_runs(connection, operation="archive")), 1)
+            self.assertEqual(len(audit.query_events(connection, run_id)), 1)
+            snapshots = audit.query_snapshots(connection, workspace_id)
+            self.assertEqual(len(snapshots), 1)
+            exported = json.loads(audit.export_json(connection, workspace_id=workspace_id))
+            self.assertEqual(exported["schema"], "tabilet.audit.export/v1")
+            restored = Path(temporary) / "restored.md"
+            audit.restore_snapshot(connection, snapshots[0]["snapshot_id"], restored)
+            self.assertEqual(restored.read_bytes(), source.read_bytes())
+            connection.close()
+
+    def test_host_adapter_accepts_structured_host_event(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "audit.sqlite3"
+            connection = audit.open_database(database)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "archive", run_id="run-1")
+            connection.close()
+            payload = json.dumps({
+                "schema": "tabilet.audit.event/v1",
+                "run_id": run_id,
+                "workspace_id": workspace_id,
+                "operation": "archive",
+                "event_type": "verification_observed",
+                "subject": {},
+                "details": {"schema": "tabilet.audit.details/v1", "capture_source": "host", "fidelity": "summarized"},
+            })
+            process = subprocess.run(
+                [sys.executable, str(ROOT / "harness/tabilet_audit_host.py"), "--audit-db", str(database), "--event", payload],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(process.returncode, 0, process.stderr)
 
     def test_workspace_run_event_message_and_finish_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

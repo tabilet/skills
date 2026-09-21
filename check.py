@@ -32,6 +32,7 @@ import unicodedata
 ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
 AUDIT_MODULE = ROOT / "harness" / "tabilet_audit.py"
+AUDIT_HOST = ROOT / "harness" / "tabilet_audit_host.py"
 PROMPT_COPY = ROOT / "harness" / "prompts" / "tackle-next-memory-bank-todo.md"
 SKILLS_DIR = ROOT / "skills"
 ARCHIVE_SKILL = SKILLS_DIR / "memory-bank-archive" / "SKILL.md"
@@ -256,7 +257,7 @@ def init_skill_text() -> str:
 @check("harness parses, and leaves no bytecode behind")
 def harness_parses():
     problems = []
-    for path in (HARNESS, AUDIT_MODULE):
+    for path in (HARNESS, AUDIT_MODULE, AUDIT_HOST):
         try:
             ast.parse(path.read_text())
         except SyntaxError as exc:

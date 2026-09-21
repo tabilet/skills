@@ -1,6 +1,6 @@
 # SQLite 3 — history and evolution snapshots
 
-Plan state: [ ]
+Plan state: [+]
 
 Depends on: SQLite 1 and SQLite 2
 
@@ -44,16 +44,15 @@ status.
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| SQL3-T01 | [ ] | Add snapshot and run_snapshots migrations and exact-byte storage. | Bytes, hash, kind, path, provenance, and run association round-trip. |
-| SQL3-T02 | [ ] | Implement safe history/evolution discovery with symlink, root, encoding, and size validation. | Only declared v2 files are scanned; unrelated and archive files are ignored. |
-| SQL3-T03 | [ ] | Capture snapshots after every audited terminal API run. | Completed, blocked, failed, and cancelled runs produce observations when readable. |
-| SQL3-T04 | [ ] | Implement deduplication, immutable changed observations, and drift/missing-source events. | Repeated bytes deduplicate; changed or missing files preserve earlier evidence and produce diagnostics. |
-| SQL3-T05 | [ ] | Add backup and restore verification to a separate destination. | A live backup restores all records without touching the project. |
-| SQL3-T06 | [ ] | Test ordinary, all-retired, knowledge-history, evolution-version, customized, no-Git, drift, and interrupted cases. | Exact hashes and run associations remain correct in every fixture. |
+| SQL3-T01 | [+] | Add snapshot and run_snapshots migrations and exact-byte storage. | Bytes, hash, kind, path, provenance, and run association round-trip. |
+| SQL3-T02 | [+] | Implement safe history/evolution discovery with symlink, root, encoding, and size validation. | Only declared v2 files are scanned; unrelated and archive files are ignored. |
+| SQL3-T03 | [+] | Capture snapshots after every audited terminal API run. | Completed, blocked, failed, and cancelled runs produce observations when readable. |
+| SQL3-T04 | [+] | Implement deduplication, immutable changed observations, and drift/missing-source events. | Repeated bytes deduplicate; changed or missing files preserve earlier evidence and produce diagnostics. |
+| SQL3-T05 | [+] | Add backup and restore verification to a separate destination. | A live backup restores all records without touching the project. |
+| SQL3-T06 | [+] | Test ordinary, all-retired, knowledge-history, evolution-version, customized, no-Git, drift, and interrupted cases. | Exact hashes and run associations remain correct in every fixture. |
 
 ## Completion gate
 
 This milestone is complete when an audited API run retains history/evolution
 observations without replacing or modifying project Markdown. Milestones 1–3
 then constitute the first SQLite release.
-

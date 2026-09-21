@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import datetime as _datetime
 import json
+import hashlib
 import os
 import pathlib
 import re
 import sqlite3
 from typing import Any
 import uuid
+from urllib.parse import quote
 
 
 SCHEMA_NAME = "tabilet.audit/v1"
@@ -38,6 +40,8 @@ EVENT_TYPES = frozenset({
     "audit_gap",
     "snapshot_gap",
 })
+SNAPSHOT_KINDS = frozenset({"history_status", "history_index", "knowledge_history", "evolution_prompt", "evolution_result", "context_archive"})
+SNAPSHOT_MAX_BYTES = 4 * 1024 * 1024
 STATES = frozenset({"pending", "in_progress", "completed", "blocked", "cancelled", "historical"})
 FIDELITIES = frozenset({"exact", "redacted", "summarized", "incomplete"})
 CAPTURE_SOURCES = frozenset({"host", "agent", "import"})
@@ -117,6 +121,31 @@ CREATE TABLE IF NOT EXISTS captured_messages (
 CREATE INDEX IF NOT EXISTS events_run_sequence ON events(run_id, sequence);
 CREATE INDEX IF NOT EXISTS events_milestone ON events(milestone_id);
 CREATE INDEX IF NOT EXISTS runs_workspace_started ON runs(workspace_id, started_at);
+CREATE TABLE IF NOT EXISTS snapshots (
+    snapshot_id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(workspace_id),
+    kind TEXT NOT NULL,
+    source_path TEXT NOT NULL,
+    content BLOB NOT NULL,
+    sha256 TEXT NOT NULL,
+    captured_at TEXT NOT NULL,
+    source_commit TEXT,
+    worktree_state TEXT NOT NULL,
+    source_run_id TEXT NOT NULL REFERENCES runs(run_id),
+    predecessor_id TEXT REFERENCES snapshots(snapshot_id),
+    UNIQUE(workspace_id, kind, source_path, sha256)
+);
+CREATE TABLE IF NOT EXISTS run_snapshots (
+    run_id TEXT NOT NULL REFERENCES runs(run_id),
+    snapshot_id TEXT REFERENCES snapshots(snapshot_id),
+    observed_at TEXT NOT NULL,
+    observation_state TEXT NOT NULL,
+    source_path TEXT NOT NULL,
+    diagnostic TEXT,
+    PRIMARY KEY(run_id, source_path)
+);
+CREATE INDEX IF NOT EXISTS snapshots_source ON snapshots(workspace_id, kind, source_path, captured_at);
+CREATE INDEX IF NOT EXISTS run_snapshots_snapshot ON run_snapshots(snapshot_id);
 """
 
 
@@ -488,3 +517,303 @@ def finish_run(
             "UPDATE runs SET completed_at = ?, result = ? WHERE run_id = ?",
             (completed_at, result, run_id),
         )
+
+
+def _safe_project_path(project_root: str | os.PathLike[str], relative: str) -> pathlib.Path:
+    root = pathlib.Path(project_root).expanduser().absolute()
+    candidate = root / relative
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise AuditValidationError(f"snapshot path escapes project root: {relative}") from exc
+    return candidate
+
+
+def declared_snapshot_paths(project_root: str | os.PathLike[str]) -> list[tuple[str, pathlib.Path]]:
+    """Return only the declared v2 history/evolution files, including missing fixed files."""
+
+    root = pathlib.Path(project_root).expanduser().absolute()
+    history = root / "tabilet" / "docs" / "history"
+    evolution = root / "tabilet" / "evolution"
+    found: list[tuple[str, pathlib.Path]] = [
+        ("history_index", history / "index.md"),
+        ("knowledge_history", history / "knowledge.md"),
+    ]
+    if history.is_dir() and not history.is_symlink():
+        found.extend(("history_status", path) for path in sorted(history.glob("status-*.md")))
+    if evolution.is_dir() and not evolution.is_symlink():
+        found.extend(("evolution_prompt", path) for path in sorted(evolution.glob("prompt-v*.md")))
+        found.extend(("evolution_result", path) for path in sorted(evolution.glob("result-v*.md")))
+    return found
+
+
+def declared_archive_paths(project_root: str | os.PathLike[str]) -> list[tuple[str, pathlib.Path]]:
+    root = pathlib.Path(project_root).expanduser().absolute()
+    archive_root = root / "tabilet" / "docs"
+    if archive_root.is_symlink() or not archive_root.is_dir():
+        return []
+    return [("context_archive", path) for path in sorted(archive_root.glob("archive-*.md"))]
+
+
+def _read_snapshot(path: pathlib.Path, project_root: pathlib.Path) -> tuple[bytes | None, str | None]:
+    try:
+        path.relative_to(project_root)
+    except ValueError:
+        return None, "path outside project root"
+    cursor = path
+    while cursor != project_root:
+        if cursor.is_symlink():
+            return None, "symlink source rejected"
+        cursor = cursor.parent
+    if path.is_symlink():
+        return None, "symlink source rejected"
+    if not path.exists():
+        return None, "source is missing"
+    if not path.is_file():
+        return None, "source is not a regular file"
+    try:
+        data = path.read_bytes()
+        if len(data) > SNAPSHOT_MAX_BYTES:
+            return None, f"source exceeds {SNAPSHOT_MAX_BYTES} bytes"
+        data.decode("utf-8")
+    except (OSError, UnicodeError) as exc:
+        return None, f"source unreadable: {exc}"
+    return data, None
+
+
+def capture_snapshots(
+    connection: sqlite3.Connection,
+    workspace_id: str,
+    run_id: str,
+    project_root: str | os.PathLike[str],
+    *,
+    source_commit: str | None,
+    worktree_state: str,
+    captured_at: str | None = None,
+    include_archives: bool = False,
+) -> dict[str, list[str]]:
+    """Capture declared history/evolution files without modifying the project."""
+
+    _text(workspace_id, "workspace_id")
+    _text(run_id, "run_id")
+    if worktree_state not in WORKTREE_STATES:
+        raise AuditValidationError(f"unknown worktree state: {worktree_state}")
+    timestamp = captured_at or utc_now()
+    _timestamp(timestamp, "captured_at")
+    if not connection.execute("SELECT 1 FROM workspaces WHERE workspace_id = ?", (workspace_id,)).fetchone():
+        raise AuditValidationError(f"unknown workspace: {workspace_id}")
+    if not connection.execute("SELECT 1 FROM runs WHERE run_id = ?", (run_id,)).fetchone():
+        raise AuditValidationError(f"unknown run: {run_id}")
+    root = pathlib.Path(project_root).expanduser().absolute()
+    result = {"snapshots": [], "gaps": [], "drift": []}
+    declarations = declared_snapshot_paths(root)
+    if include_archives:
+        declarations.extend(declared_archive_paths(root))
+    for kind, path in declarations:
+        relative = str(path.relative_to(root))
+        data, diagnostic = _read_snapshot(path, root)
+        if diagnostic:
+            result["gaps"].append(f"{relative}: {diagnostic}")
+            with connection:
+                connection.execute(
+                    "INSERT OR REPLACE INTO run_snapshots(run_id, snapshot_id, observed_at, observation_state, source_path, diagnostic) "
+                    "VALUES (?, NULL, ?, 'gap', ?, ?)",
+                    (run_id, timestamp, relative, diagnostic),
+                )
+            continue
+        digest = hashlib.sha256(data).hexdigest()
+        previous = connection.execute(
+            "SELECT snapshot_id FROM snapshots WHERE workspace_id = ? AND kind = ? AND source_path = ? "
+            "ORDER BY captured_at DESC LIMIT 1",
+            (workspace_id, kind, relative),
+        ).fetchone()
+        if previous:
+            previous_digest = connection.execute(
+                "SELECT sha256 FROM snapshots WHERE snapshot_id = ?", (previous[0],)
+            ).fetchone()[0]
+            if previous_digest != digest:
+                result["drift"].append(f"{relative}: bytes changed since the previous observation")
+        row = connection.execute(
+            "SELECT snapshot_id FROM snapshots WHERE workspace_id = ? AND kind = ? AND source_path = ? AND sha256 = ?",
+            (workspace_id, kind, relative, digest),
+        ).fetchone()
+        snapshot_id = row[0] if row else str(uuid.uuid4())
+        with connection:
+            if not row:
+                connection.execute(
+                    "INSERT INTO snapshots(snapshot_id, workspace_id, kind, source_path, content, sha256, captured_at, "
+                    "source_commit, worktree_state, source_run_id, predecessor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (snapshot_id, workspace_id, kind, relative, data, digest, timestamp, source_commit,
+                     worktree_state, run_id, previous[0] if previous else None),
+                )
+            connection.execute(
+                "INSERT OR REPLACE INTO run_snapshots(run_id, snapshot_id, observed_at, observation_state, source_path, diagnostic) "
+                "VALUES (?, ?, ?, 'observed', ?, NULL)",
+                (run_id, snapshot_id, timestamp, relative),
+            )
+        result["snapshots"].append(snapshot_id)
+    return result
+
+
+def open_readonly_database(path: str | os.PathLike[str]) -> sqlite3.Connection:
+    """Open an existing audit database without creating or changing it."""
+
+    database = pathlib.Path(path).expanduser().absolute()
+    if database.is_symlink() or not database.is_file():
+        raise AuditError("read-only audit database must be a regular non-symlink file")
+    connection = sqlite3.connect(f"file:{quote(str(database))}?mode=ro", uri=True)
+    connection.execute("PRAGMA foreign_keys = ON")
+    if int(connection.execute("PRAGMA user_version").fetchone()[0]) > SCHEMA_VERSION:
+        connection.close()
+        raise AuditError("audit database schema is newer than supported")
+    if connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()[0] != SCHEMA_NAME:
+        connection.close()
+        raise AuditError("unsupported audit schema")
+    return connection
+
+
+def query_runs(
+    connection: sqlite3.Connection,
+    *,
+    workspace_id: str | None = None,
+    operation: str | None = None,
+    limit: int = 1000,
+) -> list[dict[str, Any]]:
+    if not isinstance(limit, int) or limit < 1 or limit > 10000:
+        raise AuditValidationError("query limit must be between 1 and 10000")
+    clauses, values = [], []
+    if workspace_id:
+        clauses.append("workspace_id = ?")
+        values.append(workspace_id)
+    if operation:
+        if operation not in OPERATIONS:
+            raise AuditValidationError(f"unknown operation: {operation}")
+        clauses.append("operation = ?")
+        values.append(operation)
+    where = " WHERE " + " AND ".join(clauses) if clauses else ""
+    rows = connection.execute(
+        f"SELECT run_id, workspace_id, operation, started_at, completed_at, recorder_version, "
+        f"capture_mode, parent_run_id, git_head, worktree_state, result FROM runs{where} "
+        "ORDER BY started_at, run_id LIMIT ?",
+        (*values, limit),
+    )
+    columns = [column[0] for column in rows.description]
+    return [dict(zip(columns, row)) for row in rows.fetchall()]
+
+
+def query_events(
+    connection: sqlite3.Connection,
+    run_id: str,
+    *,
+    milestone_id: str | None = None,
+    limit: int = 10000,
+) -> list[dict[str, Any]]:
+    if not isinstance(limit, int) or limit < 1 or limit > 10000:
+        raise AuditValidationError("query limit must be between 1 and 10000")
+    clauses, values = ["run_id = ?"], [run_id]
+    if milestone_id:
+        clauses.append("milestone_id = ?")
+        values.append(milestone_id)
+    rows = connection.execute(
+        "SELECT event_id, run_id, sequence, recorded_at, occurred_at, operation, event_type, "
+        "milestone_id, task_label, status_path, old_state, new_state, verification_json, "
+        "file_actions_json, commit_sha, details_json, payload_json FROM events WHERE "
+        + " AND ".join(clauses) + " ORDER BY sequence LIMIT ?",
+        (*values, limit),
+    )
+    columns = [column[0] for column in rows.description]
+    return [dict(zip(columns, row)) for row in rows.fetchall()]
+
+
+def query_snapshots(
+    connection: sqlite3.Connection,
+    workspace_id: str,
+    *,
+    kind: str | None = None,
+    limit: int = 10000,
+) -> list[dict[str, Any]]:
+    if kind is not None and kind not in SNAPSHOT_KINDS:
+        raise AuditValidationError(f"unknown snapshot kind: {kind}")
+    clauses, values = ["workspace_id = ?"], [workspace_id]
+    if kind:
+        clauses.append("kind = ?")
+        values.append(kind)
+    rows = connection.execute(
+        "SELECT snapshot_id, workspace_id, kind, source_path, sha256, captured_at, source_commit, "
+        "worktree_state, source_run_id, predecessor_id, length(content) AS byte_length FROM snapshots WHERE "
+        + " AND ".join(clauses) + " ORDER BY captured_at, snapshot_id LIMIT ?",
+        (*values, limit),
+    )
+    columns = [column[0] for column in rows.description]
+    return [dict(zip(columns, row)) for row in rows.fetchall()]
+
+
+def export_json(connection: sqlite3.Connection, *, workspace_id: str | None = None) -> str:
+    """Export metadata and timelines without including captured bytes or text by default."""
+
+    runs = query_runs(connection, workspace_id=workspace_id)
+    payload = {
+        "schema": "tabilet.audit.export/v1",
+        "runs": [
+            {**run, "events": query_events(connection, run["run_id"])}
+            for run in runs
+        ],
+        "snapshots": query_snapshots(connection, workspace_id) if workspace_id else [],
+    }
+    return canonical_json(payload)
+
+
+def restore_snapshot(connection: sqlite3.Connection, snapshot_id: str, destination: str | os.PathLike[str]) -> None:
+    """Restore exact snapshot bytes to a separate destination without overwriting."""
+
+    row = connection.execute("SELECT content FROM snapshots WHERE snapshot_id = ?", (snapshot_id,)).fetchone()
+    if not row:
+        raise AuditValidationError(f"unknown snapshot: {snapshot_id}")
+    path = pathlib.Path(destination).expanduser().absolute()
+    if path.exists() or path.is_symlink():
+        raise AuditError(f"restore destination already exists: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _owner_only(path.parent, 0o700)
+    path.write_bytes(row[0])
+    _owner_only(path, 0o600)
+
+
+def backup_database(connection: sqlite3.Connection, destination: str | os.PathLike[str]) -> None:
+    """Create a consistent SQLite backup at a separate owner-only destination."""
+
+    path = pathlib.Path(destination).expanduser().absolute()
+    if path.exists() and path.is_symlink():
+        raise AuditError(f"backup destination may not be a symlink: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _owner_only(path.parent, 0o700)
+    target = sqlite3.connect(str(path))
+    try:
+        connection.backup(target)
+        target.commit()
+    finally:
+        target.close()
+    _owner_only(path, 0o600)
+
+
+def restore_database(source: str | os.PathLike[str], destination: str | os.PathLike[str]) -> None:
+    """Restore a database into a separate destination using SQLite's backup API."""
+
+    source_path = pathlib.Path(source).expanduser().absolute()
+    if source_path.is_symlink() or not source_path.is_file():
+        raise AuditError("restore source must be a regular non-symlink file")
+    source_connection = sqlite3.connect(str(source_path))
+    try:
+        destination_path = pathlib.Path(destination).expanduser().absolute()
+        if destination_path.exists() and destination_path.is_symlink():
+            raise AuditError("restore destination may not be a symlink")
+        destination_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        _owner_only(destination_path.parent, 0o700)
+        target = sqlite3.connect(str(destination_path))
+        try:
+            source_connection.backup(target)
+            target.commit()
+        finally:
+            target.close()
+        _owner_only(destination_path, 0o600)
+    finally:
+        source_connection.close()

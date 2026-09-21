@@ -49,6 +49,7 @@ from tabilet_audit import (  # noqa: E402
     capture_message,
     ensure_workspace,
     finish_run,
+    capture_snapshots,
     open_database,
     start_run,
     utc_now,
@@ -1186,6 +1187,9 @@ class AuditRun:
         self.run_id = None
         self.workspace_id = None
         self.operation = operation
+        self.repo = repo
+        self.git_ref = git_ref
+        self.worktree_state = worktree_state
         self.failure = None
         if not args.audit_db:
             return
@@ -1246,6 +1250,24 @@ class AuditRun:
         if self.connection is None or self.run_id is None:
             return
         try:
+            try:
+                snapshot_result = capture_snapshots(
+                    self.connection,
+                    self.workspace_id,
+                    self.run_id,
+                    self.repo,
+                    source_commit=self.git_ref,
+                    worktree_state=self.worktree_state,
+                    include_archives=True,
+                )
+                for gap in snapshot_result["gaps"]:
+                    self.emit("snapshot_gap", details={"source": gap})
+                for drift in snapshot_result.get("drift", []):
+                    self.emit("snapshot_gap", details={"source": drift, "kind": "drift"})
+            except Exception as exc:
+                self.emit("audit_gap", details={"stage": "snapshot", "error": str(exc)})
+                print(f"Audit gap: snapshots were not recorded: {exc}", file=sys.stderr)
+            self.emit("run_finished", details={"result": result})
             finish_run(self.connection, self.run_id, result)
         except Exception as exc:
             self.failure = str(exc)
@@ -1495,7 +1517,6 @@ def main() -> None:
                     "run_blocked",
                     details={"reason": "only blocked memory-bank rows remain", "blocked": blocked},
                 )
-                audit.emit("run_finished", details={"result": "blocked"})
                 audit.finish("blocked")
                 print("Only blocked memory-bank rows remain. Stopping for human review.", file=sys.stderr)
                 for lane in blocked_lanes:
@@ -1555,12 +1576,10 @@ def main() -> None:
             run_result = one_agent_run(args, repo, run, summary, in_progress)
         except KeyboardInterrupt:
             audit.emit("run_interrupted", details={"reason": "keyboard interrupt"})
-            audit.emit("run_finished", details={"result": "interrupted"})
             audit.finish("interrupted")
             raise
         except SystemExit as exc:
             audit.emit("run_failed", details={"exit_code": exc.code})
-            audit.emit("run_finished", details={"result": "failed", "exit_code": exc.code})
             audit.finish("failed")
             raise
         print(f"Run duration: {time.time() - started:.1f}s")
@@ -1568,7 +1587,6 @@ def main() -> None:
         if not git_clean(repo):
             audit.emit("verification_observed", details={"checks": ["git_clean"], "success": False})
             audit.emit("run_failed", details={"reason": "uncommitted changes after model run"})
-            audit.emit("run_finished", details={"result": "failed"})
             audit.finish("failed")
             print("LLM left uncommitted changes. Stopping.", file=sys.stderr)
             print(git_status_short(repo), file=sys.stderr)
@@ -1578,14 +1596,12 @@ def main() -> None:
         if before == after:
             audit.emit("verification_observed", details={"checks": ["new_commit"], "success": False})
             audit.emit("run_failed", details={"reason": "model made no commit"})
-            audit.emit("run_finished", details={"result": "failed"})
             audit.finish("failed")
             print("LLM made no commit. Stopping to avoid a spin loop.", file=sys.stderr)
             raise SystemExit(6)
         if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
             audit.emit("verification_observed", details={"checks": ["commit_ancestry"], "success": False})
             audit.emit("run_failed", details={"reason": "history rewrite or branch change"})
-            audit.emit("run_finished", details={"result": "failed"})
             audit.finish("failed")
             print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
             raise SystemExit(9)
@@ -1602,7 +1618,6 @@ def main() -> None:
                 details={"checks": ["row_transition"], "success": False, "problems": row_problems},
             )
             audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
-            audit.emit("run_finished", details={"result": "failed"})
             audit.finish("failed")
             print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
             for problem in row_problems:
@@ -1645,7 +1660,6 @@ def main() -> None:
             )
             if isinstance(run_result, dict) and isinstance(run_result.get("final"), str):
                 audit.message("assistant", run_result["final"], source="agent", fidelity="exact")
-        audit.emit("run_finished", details={"result": "completed", "commit_sha": after})
         audit.finish("completed")
         if not status_files(repo):
             print("All milestones are retired. No actionable memory-bank rows remain.")

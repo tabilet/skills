@@ -773,7 +773,7 @@ class HarnessIntegrationTests(unittest.TestCase):
                     "SELECT event_type FROM events ORDER BY sequence"
                 )],
                 ["run_started", "task_observed", "task_transition", "verification_observed",
-                 "commit_observed", "run_finished"],
+                 "commit_observed", "snapshot_gap", "snapshot_gap", "run_finished"],
             )
             self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "completed")
             self.assertEqual(
@@ -794,7 +794,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "blocked")
             self.assertEqual(
                 connection.execute("SELECT event_type FROM events ORDER BY sequence").fetchall(),
-                [("run_started",), ("run_blocked",), ("run_finished",)],
+                [("run_started",), ("run_blocked",), ("snapshot_gap",), ("snapshot_gap",), ("run_finished",)],
             )
             connection.close()
 
