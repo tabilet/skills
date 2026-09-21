@@ -41,6 +41,28 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(ix.search(self.c,w,'feature',kind='task',offset=1)['results'],[])
         self.assertIn('tasks',ix.show(self.c,w,'tabilet/memory-bank/status-M01.md'))
 
+    def test_milestone_search_and_table_local_task_ids(self):
+        self.source.write_text(
+            '| ID | State | Notes |\n|---|---|---|\n| T0 | `[+]` | prior |\n\n'
+            '| Item | Status | Notes |\n|---|---|---|\n| Alpha | `[ ]` | current |\n'
+        )
+        milestone = self.root / 'tabilet/memory-bank/milestone.md'
+        milestone.write_text('# Milestone\n\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n')
+        state = self.sync(); workspace = state['workspace_id']
+        tasks = a.records(self.c, 'SELECT label,explicit_id FROM index_tasks ORDER BY line')
+        self.assertEqual(tasks, [{'label': 'T0', 'explicit_id': 'T0'}, {'label': 'Alpha', 'explicit_id': None}])
+        results = ix.search(self.c, workspace, 'Feature works', milestone_id='M01')['results']
+        self.assertTrue(any(row['kind'] == 'section' and row['milestone_id'] == 'M01' for row in results))
+
+    def test_mixed_layout_refresh_marks_previous_generation_incomplete(self):
+        state = self.sync(); workspace = state['workspace_id']
+        (self.root / 'memory-bank').mkdir()
+        with self.assertRaises(a.AuditError):
+            self.sync()
+        failed = ix.status(self.c, workspace)
+        self.assertFalse(failed['complete'])
+        self.assertTrue(failed['diagnostics'])
+
     def test_real_task_renames_duplicates_reorder_and_retirement_preserve_audit(self):
         initial=self.sync();w=initial['workspace_id']
         run=a.start_run(self.c,w,'next')

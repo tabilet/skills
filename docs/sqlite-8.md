@@ -28,10 +28,11 @@ establish acceptance of the revised design. Markdown remains authoritative.
   initial sync 406.66 ms, unchanged sync 265.77 ms, median of 100 FTS5 searches
   6.11 ms, literal search 1.18 ms (Python 3.14.4 / SQLite 3.46.1).
 
-Review iteration: 2 (passed). Review fixes are recorded in SQLite 5 and 6:
-sidecar validation, mixed timestamp precision, retired source locations,
-dependency deduplication, and source/provenance diagnostics. Index rebuild leaves
-complete audit exports identical. New snapshots remain disabled.
+Review iteration: 4 (passed). Review fixes are recorded in SQLite 5 and 6:
+sidecar validation and cleanup, interrupted-creation recovery, idempotent run
+retries, same-event filters, generation-consistent reads, milestone section
+identity, table-local task IDs, and mixed-layout diagnostics. Index rebuild
+leaves complete audit exports identical. New snapshots remain disabled.
 
 The copied canonical template indexes successfully. Read-only acceptance against
 neighboring projects found existing unpadded specification headings in golet,

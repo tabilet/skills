@@ -321,6 +321,19 @@ class SqliteAuditContractTests(unittest.TestCase):
             with self.assertRaises(audit.AuditConflict):
                 audit.finish_run(connection, run_id, "failed", completed_at=captured_at)
 
+    def test_run_filters_apply_to_one_observed_event(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next")
+            for number, milestone, task in ((1, "M01", "Alpha"), (2, "M02", "Beta")):
+                audit.append_event(connection, event(
+                    event_id=f"event-{number}", run_id=run_id, workspace_id=workspace_id,
+                    subject={"milestone_id": milestone, "task_label": task},
+                ))
+            self.assertEqual(audit.query_runs(connection, milestone_id="M01", task="Beta"), [])
+
     def test_event_keeps_observed_task_details_independent_of_later_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")

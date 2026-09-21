@@ -17,7 +17,7 @@ establish acceptance of the revised design. Markdown remains authoritative.
 
 ## Verification and review
 
-SQL7-T01: 33 SQLite tests pass, including fresh host lifecycles for seven operations,
+SQL7-T01: 58 SQLite and runner tests pass, including fresh host lifecycles for seven operations,
 retry delivery, capture policy, filtered queries, packaged installs, and rebuild
 preservation. API completion refreshes the derived index without changing outcomes.
 

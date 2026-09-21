@@ -88,6 +88,21 @@ def refresh(connection, root):
 
 @audit.atomic
 def begin_run(connection, root, args):
+    if args.run_id:
+        existing = audit.records(connection, """
+            SELECT r.run_id,r.workspace_id,r.operation,r.capture_mode,r.parent_run_id,
+                   r.started_at,w.project_root
+            FROM runs r JOIN workspaces w USING(workspace_id)
+            WHERE r.run_id=?
+        """, (args.run_id,))
+        if existing:
+            row = existing[0]
+            if (pathlib.Path(row['project_root']).resolve() != root.resolve()
+                    or row['operation'] != args.operation
+                    or row['capture_mode'] != args.capture
+                    or row['parent_run_id'] != args.parent_run_id):
+                raise audit.AuditConflict('run ID reused with a different payload')
+            return {'run_id': row['run_id'], 'workspace_id': row['workspace_id'], 'started_at': row['started_at']}
     context=index.git_context(root)
     workspace=audit.ensure_workspace(connection,root,branch=context['branch'])
     dirty=index.subprocess.run(['git','status','--porcelain'],cwd=root,capture_output=True,text=True) if context['git_head'] else None

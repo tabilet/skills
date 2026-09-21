@@ -440,6 +440,18 @@ def private_create(path):
     return os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, 'O_NOFOLLOW', 0), 0o600)
 
 
+def _new_destination(path, roots=()):
+    """Validate a new database or recovery destination and its SQLite sidecars."""
+    path = external_path(path, roots)
+    if path.exists():
+        raise FileExistsError(str(path))
+    for suffix in ('-wal', '-shm', '-journal'):
+        sidecar = safe_path(str(path) + suffix)
+        if sidecar.exists():
+            raise FileExistsError(str(sidecar))
+    return path
+
+
 def database_roots(connection):
     return [row[0] for row in connection.execute('SELECT project_root FROM workspaces')]
 
@@ -483,14 +495,21 @@ def validate_database(connection):
 def open_database(path=None, *, project_roots=()):
     """Explicit writer open. Existing databases are identified before mutation."""
     database = external_path(path if path is not None else default_database_path(), project_roots)
-    for suffix in ('-wal', '-shm', '-journal'):
-        safe_path(str(database) + suffix)
+    sidecars = {suffix: safe_path(str(database) + suffix) for suffix in ('-wal', '-shm', '-journal')}
     created = not database.exists()
     if created:
+        for sidecar in sidecars.values():
+            if sidecar.exists():
+                raise FileExistsError(str(sidecar))
         os.close(private_create(database))
     elif not database.is_file():
         raise AuditError('audit database must be a regular file')
-    connection = sqlite3.connect(str(database), timeout=5)
+    try:
+        connection = sqlite3.connect(str(database), timeout=5)
+    except BaseException:
+        if created and database.exists() and not database.is_symlink():
+            database.unlink()
+        raise
     try:
         connection.execute('PRAGMA foreign_keys = ON')
         connection.execute('PRAGMA busy_timeout = 5000')
@@ -522,6 +541,12 @@ def open_database(path=None, *, project_roots=()):
         return connection
     except BaseException:
         connection.close()
+        if created and database.exists():
+            database.unlink()
+        if created:
+            for sidecar in sidecars.values():
+                if sidecar.exists() and not sidecar.is_symlink():
+                    sidecar.unlink()
         raise
 
 
@@ -735,9 +760,14 @@ def query_runs(connection, *, workspace_id=None, operation=None, milestone_id=No
     for name, value, comparison in [('started_at',since,'>='),('started_at',until,'<=')]:
         if value is not None:
             clauses.append(f'{time_key("r." + name)}{comparison}?'); values.append(time_bound(value))
+    event_filters=[]
+    event_values=[]
     for name,value in [('milestone_id',milestone_id),('task_label',task)]:
         if value is not None:
-            clauses.append(f'EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.run_id AND e.{name}=?)'); values.append(value)
+            event_filters.append(f'e.{name}=?'); event_values.append(value)
+    if event_filters:
+        clauses.append('EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.run_id AND ' + ' AND '.join(event_filters) + ')')
+        values.extend(event_values)
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
     return records(connection, 'SELECT r.* FROM runs r'+where+f' ORDER BY {time_key("r.started_at")},run_id LIMIT ? OFFSET ?', (*values,limit,offset))
 
@@ -809,25 +839,33 @@ def restore_snapshot(connection, snapshot_id, destination):
     row = connection.execute('SELECT content,sha256 FROM snapshots WHERE snapshot_id=?',(snapshot_id,)).fetchone()
     if not row or hashlib.sha256(row[0]).hexdigest() != row[1]:
         raise AuditError('missing snapshot or content hash mismatch')
-    path = external_path(destination, database_roots(connection))
+    path = _new_destination(destination, database_roots(connection))
     with os.fdopen(private_create(path),'wb') as output:
         output.write(row[0])
 
 
 def backup_database(connection, destination):
     validate_database(connection)
-    path = external_path(destination, database_roots(connection))
+    path = _new_destination(destination, database_roots(connection))
     os.close(private_create(path))
-    target = sqlite3.connect(str(path))
+    target = None
     try:
+        target = sqlite3.connect(str(path))
         connection.backup(target)
         validate_database(target)
     except BaseException:
-        target.close()
-        path.unlink()
+        if target is not None:
+            target.close()
+        if path.exists() and not path.is_symlink():
+            path.unlink()
+        for suffix in ('-wal', '-shm', '-journal'):
+            sidecar = safe_path(str(path) + suffix)
+            if sidecar.exists() and not sidecar.is_symlink():
+                sidecar.unlink()
         raise
     finally:
-        target.close()
+        if target is not None:
+            target.close()
 
 
 def restore_database(source, destination):

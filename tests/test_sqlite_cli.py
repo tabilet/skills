@@ -91,3 +91,9 @@ class CliTests(unittest.TestCase):
         self.command('audit','begin',self.repo,'upgrade',ok=False)
         self.command('index','sync',self.repo,ok=False)
         self.assertFalse(self.db.exists())
+
+    def test_begin_retry_reuses_recorded_identity_after_project_changes(self):
+        first = self.command('audit', 'begin', self.repo, 'goal', '--run-id', 'stable-run')
+        (self.repo / 'work-started-after-begin').write_text('changed after the recorded start')
+        second = self.command('audit', 'begin', self.repo, 'goal', '--run-id', 'stable-run')
+        self.assertEqual(second, first)

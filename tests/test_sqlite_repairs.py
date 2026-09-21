@@ -159,6 +159,39 @@ class StorageTests(unittest.TestCase):
         self.assertFalse(fake.exists())
         self.assertEqual(target.read_text(),'preserve')
 
+    def test_initial_creation_failure_removes_partial_database_and_retries(self):
+        legacy = self.root / 'new.db'
+        original = sqlite3.connect
+
+        class Interrupted(sqlite3.Connection):
+            def execute(self, sql, *args, **kwargs):
+                if sql.strip().startswith('CREATE TABLE IF NOT EXISTS index_sections'):
+                    raise sqlite3.OperationalError('injected creation interruption')
+                return super().execute(sql, *args, **kwargs)
+
+        def connect(path, *args, **kwargs):
+            if str(path) == str(legacy):
+                kwargs['factory'] = Interrupted
+            return original(path, *args, **kwargs)
+
+        from unittest import mock
+        with mock.patch.object(a.sqlite3, 'connect', side_effect=connect), self.assertRaises(sqlite3.OperationalError):
+            a.open_database(legacy)
+        self.assertFalse(legacy.exists())
+        connection = a.open_database(legacy)
+        self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 3)
+        connection.close()
+
+    def test_backup_rejects_existing_sqlite_sidecars(self):
+        for suffix in ('-wal', '-shm', '-journal'):
+            with self.subTest(suffix=suffix):
+                destination = self.root / ('backup-' + suffix[1:] + '.db')
+                sidecar = Path(str(destination) + suffix)
+                sidecar.write_bytes(b'preserve')
+                with self.assertRaises(FileExistsError):
+                    a.backup_database(self.c, destination)
+                self.assertEqual(sidecar.read_bytes(), b'preserve')
+
     def test_interrupted_schema_migration_rolls_back_and_retries(self):
         from unittest import mock
         legacy=self.root/'migration.db'

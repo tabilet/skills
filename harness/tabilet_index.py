@@ -5,6 +5,7 @@ import functools
 import hashlib
 import importlib.machinery
 import importlib.util
+import contextlib
 import pathlib
 import os
 import json
@@ -141,7 +142,8 @@ def parse_document(path,kind,text,digest):
     parsed['index_sections']=list(headings(text))
     parsed['index_search'].append(dict(line=1,kind=kind,milestone_id=None,state=None,text=text))
     for section in parsed['index_sections']:
-        parsed['index_search'].append(dict(line=section['line'],kind='section',milestone_id=None,state=None,text=section['text']))
+        match = re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)', section['heading'])
+        parsed['index_search'].append(dict(line=section['line'],kind='section',milestone_id=match[1] if match else None,state=None,text=section['text']))
     identity=None
     status=text
     offset=0
@@ -174,7 +176,22 @@ def parse_document(path,kind,text,digest):
         ))
         all_rows=p.table_rows(status)
         for row in rows:
-            headers=next((r['cells'] for r in reversed(all_rows) if r['line']<row['line'] and r['cells'][1].lower()=='state'),[])
+            headers=[]
+            row_index=next((i for i,item in enumerate(all_rows) if item['line']==row['line']), None)
+            if row_index is not None:
+                table_start=row_index
+                while (table_start > 0
+                       and all_rows[table_start - 1]['line'] == all_rows[table_start]['line'] - 1):
+                    table_start -= 1
+                if table_start + 1 <= row_index:
+                    header=all_rows[table_start]
+                    separator=all_rows[table_start + 1]
+                else:
+                    header=separator=None
+                if (header and separator
+                        and separator['line'] == header['line'] + 1
+                        and all(re.fullmatch(r':?-+:?', cell) for cell in separator['cells'])):
+                    headers=header['cells']
             explicit=None
             for i,header in enumerate(headers):
                 if header.lower() in ('id','task id') and i<len(row['cells']):explicit=row['cells'][i]
@@ -356,13 +373,16 @@ def publish(connection, workspace, documents, parsed, generation, context, attem
 
 def sync(connection, project_root, *, rebuild=False, force_literal=False):
     root=pathlib.Path(project_root).expanduser().resolve()
-    # Layout/source discovery precedes registration and all index writes.
-    layout_check(root)
     context=git_context(root)
     existing=connection.execute('SELECT workspace_id FROM workspaces WHERE project_root=?',(str(root),)).fetchone()
+    # A new legacy project must fail before registering a workspace. Existing
+    # workspaces record the failed refresh while retaining their last generation.
+    if not existing:
+        layout_check(root)
     workspace=existing[0] if existing else ensure_workspace(connection,root,branch=context['branch'])
     attempted=utc_now()
     try:
+        layout_check(root)
         paths=inventory(root)
         documents={};parsed={};stats={};diagnostics=[]
         previous={r['path']:r for r in records(connection,'SELECT * FROM index_documents WHERE workspace_id=?',(workspace,))}
@@ -402,6 +422,19 @@ def status(connection, workspace):
     result['complete']=bool(result['complete'])
     result['source_freshness']='not_checked'
     return result
+
+
+@contextlib.contextmanager
+def read_snapshot(connection):
+    """Keep index metadata and rows on one SQLite read snapshot."""
+    owner = not connection.in_transaction
+    if owner:
+        connection.execute('BEGIN')
+    try:
+        yield
+    finally:
+        if owner:
+            connection.rollback()
 
 
 def _current_source_state(connection, workspace, root):
@@ -588,7 +621,7 @@ def workspace_id(connection, project_root):
     return row[0]
 
 
-def search(connection, workspace, query, *, kind=None, milestone_id=None, state=None, limit=50, offset=0):
+def _search(connection, workspace, query, *, kind=None, milestone_id=None, state=None, limit=50, offset=0):
     pagination(limit,offset)
     info=status(connection,workspace)
     if not info.get('generation'):return {'index':info,'results':[]}
@@ -605,8 +638,19 @@ def search(connection, workspace, query, *, kind=None, milestone_id=None, state=
     return {'index':info,'limit':limit,'offset':offset,'results':rows}
 
 
-def show(connection, workspace, path):
+def search(connection, workspace, query, *, kind=None, milestone_id=None, state=None, limit=50, offset=0):
+    with read_snapshot(connection):
+        return _search(connection, workspace, query, kind=kind, milestone_id=milestone_id,
+                       state=state, limit=limit, offset=offset)
+
+
+def _show(connection, workspace, path):
     info=status(connection,workspace)
     rows=records(connection,'SELECT * FROM index_documents WHERE workspace_id=? AND path=?',(workspace,path)) if info.get('generation') else []
     if not rows:raise AuditError('document is not in the published index')
     return {'index':info,'document':rows[0],**{table.removeprefix('index_'):records(connection,f'SELECT * FROM {table} WHERE workspace_id=? AND path=?',(workspace,path)) for table in DERIVED_TABLES[1:] if table != 'index_search'}}
+
+
+def show(connection, workspace, path):
+    with read_snapshot(connection):
+        return _show(connection, workspace, path)
