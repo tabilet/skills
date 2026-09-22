@@ -41,6 +41,11 @@ select the next dependency-ready `[ ]` row and mark it `[~]` before implementati
 Consult relevant maintained lessons when the project has them. Resolve retired
 prerequisites through the project's history index; never treat a stale status
 path as permission to recreate or retry a historical ID.
+Retrieve historical evidence only when a current task needs a retired dependency
+or old ID resolved, an earlier decision explained, or a related past failure
+checked and current sources do not answer the question. Stop when the evidence
+supports the task decision; report missing required evidence rather than
+expanding into unrelated history.
 
 Tackle exactly one row:
 
