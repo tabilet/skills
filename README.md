@@ -1176,7 +1176,17 @@ duplicate manual run. Keep the SQLite file outside the project.
 selected visible messages that the runner supplies. This does not capture every
 API prompt, tool result, hidden reasoning, or surrounding chat. Exact raw text
 must be supplied by the host through the selected-message procedure in
-[`docs/sqlite.md`](docs/sqlite.md#capture-selected-visible-messages).
+[`docs/sqlite.md`](docs/sqlite.md#capture-selected-visible-messages). Recorded
+message text is limited to 1,024 characters; longer interactive messages need a
+concise `summarized` record or a clearly `incomplete`/redacted extract.
+
+SQLite 13 adds optional v4 run provenance and append-only conversation coverage.
+Interactive skills report instruction-driven coverage and do not infer exact
+instruction fingerprints; the API runner records automatic provenance for its
+own harness, provider, and model. `tabilet-audit audit purge-message` performs a
+confirmed logical content purge while retaining the immutable envelope and
+tombstone. Markdown remains authoritative, and purge cannot remove copies in
+backups or exports.
 
 ## Optional SQLite audit and lookup
 

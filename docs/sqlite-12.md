@@ -4,6 +4,8 @@ Plan state: [+]
 
 Depends on: [SQLite 11 — Views and follow-up prompts](sqlite-11.md).
 
+Next: [SQLite 13 — Audit provenance, skill-chat coverage, and privacy controls](sqlite-13.md).
+
 Full dependency order: [SQLite 9](sqlite-9.md) -> [SQLite 10](sqlite-10.md) ->
 [SQLite 11](sqlite-11.md) -> SQLite 12.
 

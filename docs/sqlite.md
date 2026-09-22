@@ -27,13 +27,14 @@ uses `TABILET_AUDIT_DB` or `--audit-db`. Installation and read commands never
 create a database. Database, WAL, and shared-memory files stay outside projects.
 New storage directories are private; existing parent permissions are unchanged.
 
-The database identity is `tabilet.audit/v3`, with SQLite `user_version=3`.
+The database identity is `tabilet.audit/v4`, with SQLite `user_version=4`.
 Writers validate identity, version, required column constraints, uniqueness,
-indexes, integrity, and foreign keys before changing existing storage. The transactional v1/v2-to-v3 migration
-adds explorer evidence references and derived tables while preserving durable
-records and snapshot bytes. Readers can open v1 and v2 databases without
-writing; an explicit writer open performs the transactional migration. A failed
-migration rolls back the schema marker and leaves the earlier database readable.
+indexes, integrity, and foreign keys before changing existing storage. Transactional
+v1/v2/v3-to-v4 migration adds provenance, coverage, and separated message content
+while preserving durable records, message bytes, and snapshot bytes. Readers can
+open known older databases without writing; an explicit writer open performs the
+transactional migration. A failed migration rolls back the schema marker and
+leaves the earlier database readable.
 Unknown or newer databases are rejected. Backups and recovery use new external
 destinations and never overwrite existing files. A database backup is validated
 in private staging storage before its destination name is published. Take an explicit backup before
@@ -44,7 +45,11 @@ upgrading an existing database when independent rollback is required.
 `workspaces` identifies canonical checkout/worktree roots; `runs` identifies
 operations, parent runs, capture policy, timestamps, Git provenance, and results.
 `events` holds immutable observed task details and versioned JSON evidence.
-`captured_messages` holds explicitly selected visible text. Legacy `snapshots`
+`captured_messages` is the immutable message envelope; v4 stores its selected
+visible bytes in `captured_message_content`, with hashes and lengths retained on
+the envelope. `run_provenance` identifies the invoking instruction set and host,
+and `coverage_observations` records what conversation evidence was available.
+`message_content_tombstones` records explicit logical purges. Legacy `snapshots`
 and `run_snapshots` retain their existing data, without new automatic captures.
 
 The event envelope remains `tabilet.audit.event/v1`; details require
@@ -67,8 +72,34 @@ approvals, clarifications, and outputs; it excludes hidden reasoning and unrelat
 sessions. Exact text requires host capture. Agent-produced summaries are labelled
 summarized or incomplete. Capture source and fidelity are claims of the submitting
 host, not cryptographic proof. Do not submit credentials or unrelated private text.
-Export excludes captured messages and snapshot bytes unless explicitly requested.
+Each recorded message is limited to 1,024 characters. For longer visible text,
+write a concise agent summary of the request/decision, scope, constraints, and
+observed outcome; mark it `summarized`. A deliberately bounded extract is marked
+`incomplete`; the recorder rejects oversized text rather than silently truncating
+or relabelling it exact.
+Exports include immutable message envelopes but omit message content and snapshot
+bytes unless explicitly requested. Purged content is never returned.
 Event summaries may themselves contain private material; review exports before sharing.
+
+SQLite 13 calls the loaded-resource digest an **instruction-set fingerprint**.
+Resources are logical names and SHA-256 hashes only; the recorder never searches
+projects or installations for `SKILL.md` and never stores absolute paths. Fidelity
+is `exact`, `partial`, or `unavailable`; only a host that knows every loaded
+resource may claim exact. Coverage observations use scope
+`skill_conversation` or `api_runner_conversation`, coverage
+`not_requested`, `complete`, `partial`, or `missing`, and content state `none`,
+`available`, `partially_purged`, or `purged`.
+
+Purge is explicit and local-only:
+
+```bash
+tabilet-audit audit purge-message MESSAGE_ID --reason TEXT --confirm MESSAGE_ID
+```
+
+It retains the envelope, hash, length, references, tombstone, and purge event,
+but removes content from this database. `--include-content` never returns purged
+text. Secure deletion and WAL truncation are attempted, but purge cannot remove
+copies already present in backups, exports, replicas, or filesystem snapshots.
 
 Events may carry an optional `details.explorer` object with schema
 `tabilet.audit.explorer/v1`. Its `phase` is one of `request`, `proposal`,
@@ -256,6 +287,23 @@ using `--input FILE` or stdin. The JSON fields are `run_id`, `message_id`, `role
 `captured_at`, and `sequence`. Metadata runs reject message capture. Only
 host-provided text may claim `exact`; an agent's summary must say `summarized`
 or `incomplete`. No host integration automatically captures your whole chat.
+`text` is capped at 1,024 characters. When a visible message is longer, submit
+an agent-authored <=1,024-character summary of the evidence needed for this run,
+or a clearly `incomplete`/redacted extract. The CLI rejects oversized input.
+
+Record instruction provenance at begin and coverage afterward when an interactive
+skill is enabled:
+
+```bash
+tabilet-audit audit begin /absolute/project next --run-id RUN_ID \
+  --provenance provenance.json
+tabilet-audit audit coverage --input coverage.json
+```
+
+Interactive skills use `instruction_driven` and report unavailable fingerprints
+unless their host supplies complete resource hashes. The API runner supplies
+`automatic` provenance for its own harness, provider, and model; it does not
+record a duplicate interactive run.
 
 ## Capture selected visible messages
 
@@ -289,7 +337,9 @@ Submit the assistant's visible answer in the same way with `role` set to
 `assistant` and a different `message_id`. Use `fidelity: "summarized"` or
 `"incomplete"` for agent-produced summaries. Exact fidelity is valid only for
 host-supplied text. Keep credentials and unrelated private material out of the
-payload, and retain stable message IDs if delivery is retried.
+payload, and retain stable message IDs if delivery is retried. Every `text`
+value is limited to 1,024 characters; provide a concise `summarized` record or
+an explicitly `incomplete`/redacted extract when the source is longer.
 
 The bundled API runner owns its own run lifecycle. With
 `TABILET_AUDIT_CAPTURE=relevant`, it records only the selected visible messages
@@ -298,7 +348,9 @@ user conversation. To preserve an exact visible API conversation, let the host
 own the API call and use the explicit begin/message/finish lifecycle above, or
 add a host integration that supplies the text and the run ID to the recorder.
 If the host cannot provide the text, record a summary with `summarized` or leave
-the message absent rather than reconstructing the conversation.
+the evidence missing. When an automatically supplied runner message exceeds
+1,024 characters, it stores a clearly marked `incomplete` bounded extract
+rather than raw text beyond the limit.
 
 Retain IDs across retries. A conflicting payload fails; identical retries return
 the original record. A goal can use `--parent-run-id` for its child runs.
@@ -315,9 +367,11 @@ tabilet-audit audit export --project /absolute/project > /tmp/tabilet-audit-expo
 ```
 
 Runs and events accept workspace/project, operation, milestone, exact observed
-task label, and inclusive `--since`/`--until` UTC RFC 3339 filters. Exports are
+task label, inclusive `--since`/`--until` UTC RFC 3339 filters, and v4 run filters
+for instruction set/version, host, model, capture method, and coverage. Exports are
 complete rather than limited to one page. `--include-content` additionally includes
-captured messages and base64 legacy snapshot bytes. Exported event summaries may
+available message content and base64 legacy snapshot bytes; envelopes, provenance,
+coverage, and purge tombstones are included without that flag. Exported event summaries may
 contain private material even without that flag. CLI errors exit 2 and write a
 message to stderr; audit/index failures never change the API runner's established
 exit codes, task markers, or commit policy.
@@ -333,9 +387,9 @@ tabilet-audit restore /absolute/recovered-record.md --snapshot-id SNAPSHOT_ID
 All destinations must be new external files, with no symlink components. Database
 backups include messages and old snapshot bytes; keep them private. Restoration
 never edits original project Markdown. Inspect recovered legacy records separately.
-Read commands accept known v1 and v2 audit databases without migrating them;
+Read commands accept known v1, v2, and v3 audit databases without migrating them;
 index queries require the explicit writer migration and sync. Writer opens
-migrate known v1/v2 storage transactionally. Older writers reject v3 databases,
+migrate known v1/v2/v3 storage transactionally. Older writers reject v4 databases,
 so retain a backup if rolling back the toolkit. The obsolete `--audit-archives` option and
 `TABILET_AUDIT_ARCHIVES=1` stop before execution with a replacement instruction.
 

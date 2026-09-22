@@ -1046,7 +1046,7 @@ def sqlite_bundle_contract():
     for name in ("tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py", "tackle-memory-bank-api-loop"):
         if not (ROOT / "harness" / name).is_file():
             problems.append(f"missing optional toolkit payload: {name}")
-    for number in range(5, 13):
+    for number in range(5, 14):
         path = ROOT / "docs" / f"sqlite-{number}.md"
         if not path.is_file() or f"SQL{number}-T01" not in path.read_text():
             problems.append(f"missing SQLite follow-up ledger: {number}")
@@ -1443,7 +1443,7 @@ def english_only_docs():
     # else in docs/, a language-suffixed copy of a canonical file is rejected.
     for path in sorted((ROOT / "docs").rglob("*.md")):
         canonical = suffixed_doc_sibling(path)
-        if canonical is not None and canonical.name == "sqlite.md" and re.fullmatch(r"sqlite-(?:[1-9]|1[0-2])", path.stem):
+        if canonical is not None and canonical.name == "sqlite.md" and re.fullmatch(r"sqlite-(?:[1-9]|1[0-3])", path.stem):
             continue
         if canonical is not None:
             problems.append(
@@ -1843,11 +1843,11 @@ def dsh_contract():
     return problems
 
 
-@check("SQLite explorer milestone ledgers are present and structured")
-def sqlite_explorer_ledgers():
-    """Keep the four explorer ledgers discoverable to the repository checks."""
+@check("SQLite extension milestone ledgers are present and structured")
+def sqlite_extension_ledgers():
+    """Keep the explorer and audit-extension ledgers discoverable to checks."""
     problems = []
-    for number in range(9, 13):
+    for number in range(9, 14):
         path = ROOT / f"docs/sqlite-{number}.md"
         if not path.is_file():
             problems.append(f"missing {path.relative_to(ROOT)}")
@@ -1859,6 +1859,10 @@ def sqlite_explorer_ledgers():
             for token in ("tabilet.audit.explorer/v1", "index_milestone_projection", "readiness"):
                 if token not in text and token not in (ROOT / "docs/sqlite.md").read_text():
                     problems.append(f"{path.name}: missing explorer contract token {token!r}")
+        if number == 13:
+            for token in ("tabilet.audit/v4", "instruction-set fingerprint", "audit coverage", "purge-message"):
+                if token not in text:
+                    problems.append(f"{path.name}: missing audit v4 contract token {token!r}")
         task_ids = re.findall(rf"\|\s*(SQL{number}-T\d+)\s*\|\s*\[([ +~!X-])\]", text)
         if not task_ids:
             problems.append(f"{path.name}: no structured SQL{number} task rows")

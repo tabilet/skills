@@ -22,6 +22,20 @@ or invoking this skill without audit configuration never creates a database.
    tabilet-audit audit begin /absolute/project next --run-id RUN_ID
    ```
 
+   SQLite 13 records instruction provenance separately from the workflow
+   operation. An interactive skill may declare its logical instruction set, but
+   must not search for `SKILL.md` or installation paths. Unless the host supplies
+   every loaded-resource hash, use unavailable fingerprint fidelity. Replace
+   `INVOKED_INSTRUCTION_SET` with this invocation's logical skill name (for
+   example, `memory-bank-archive`), never with a discovered file path:
+
+   ```bash
+   tabilet-audit audit begin /absolute/project next --run-id RUN_ID \
+     --provenance - <<'JSON'
+   {"invocation_kind":"interactive_skill","instruction_set_name":"INVOKED_INSTRUCTION_SET","capture_method":"instruction_driven","fingerprint_fidelity":"unavailable"}
+   JSON
+   ```
+
    Capture defaults to metadata. Use `--capture relevant` only when selected
    message capture was explicitly enabled. A child operation in a recorded goal
    uses `--parent-run-id PARENT_RUN_ID`; both must belong to the same workspace.
@@ -89,6 +103,25 @@ credentials, or claims of a write that was not observed in this extension.
    and fidelity `summarized` or `incomplete`. Exact raw user/output text requires
    capture supplied by the host, with source `host`. Do not reconstruct a raw
    transcript, include hidden reasoning, or submit credentials and unrelated text.
+
+   Every recorded `text` value is limited to 1,024 characters. For a longer
+   visible message, first write a <=1,024-character, evidence-focused summary:
+   identify the request or decision, the relevant scope/constraint, and the
+   observed approval, block, or outcome. Submit it as agent-authored
+   `summarized` evidence. Use `incomplete` for a deliberately bounded excerpt
+   or when the omitted text could change the meaning. The recorder rejects
+   oversized text rather than silently truncating it or calling an excerpt exact.
+
+   Record the observed coverage separately, including missing evidence. Use
+   `skill_conversation` and `instruction_driven`; `complete` is valid only when
+   all permitted visible messages were supplied. A host-provided record submitted
+   afterward uses `imported` and retains its original fidelity:
+
+   ```bash
+   tabilet-audit audit coverage --input - <<'JSON'
+   {"coverage_id":"RUN_ID:coverage","run_id":"RUN_ID","scope":"skill_conversation","coverage":"missing","content_state":"none","capture_method":"instruction_driven","reason":"host did not provide visible message text"}
+   JSON
+   ```
 
 4. Finish with `tabilet-audit audit finish RUN_ID RESULT`. Results are
    `completed`, `blocked`, `failed`, `cancelled`, `interrupted`, or `unknown`.
