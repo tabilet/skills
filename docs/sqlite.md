@@ -257,6 +257,49 @@ using `--input FILE` or stdin. The JSON fields are `run_id`, `message_id`, `role
 host-provided text may claim `exact`; an agent's summary must say `summarized`
 or `incomplete`. No host integration automatically captures your whole chat.
 
+## Capture selected visible messages
+
+Raw conversation capture is deliberately host-supplied and selective. The
+recorder does not capture hidden reasoning, credentials, unrelated sessions, or
+every tool exchange. For an API host that owns the conversation, start the run
+with relevant capture enabled, then submit each permitted visible message while
+the run is open:
+
+```bash
+tabilet-audit audit begin /absolute/project next \
+  --run-id openudon-next-001 --capture relevant
+tabilet-audit audit message --input /absolute/message.json
+tabilet-audit audit finish openudon-next-001 completed
+```
+
+`/absolute/message.json` contains one selected message:
+
+```json
+{
+  "run_id": "openudon-next-001",
+  "message_id": "openudon-next-001-user-001",
+  "role": "user",
+  "text": "The visible user message supplied by the host",
+  "capture_source": "host",
+  "fidelity": "exact"
+}
+```
+
+Submit the assistant's visible answer in the same way with `role` set to
+`assistant` and a different `message_id`. Use `fidelity: "summarized"` or
+`"incomplete"` for agent-produced summaries. Exact fidelity is valid only for
+host-supplied text. Keep credentials and unrelated private material out of the
+payload, and retain stable message IDs if delivery is retried.
+
+The bundled API runner owns its own run lifecycle. With
+`TABILET_AUDIT_CAPTURE=relevant`, it records only the selected visible messages
+that it explicitly supplies; it is not a full transcript hook for the outer
+user conversation. To preserve an exact visible API conversation, let the host
+own the API call and use the explicit begin/message/finish lifecycle above, or
+add a host integration that supplies the text and the run ID to the recorder.
+If the host cannot provide the text, record a summary with `summarized` or leave
+the message absent rather than reconstructing the conversation.
+
 Retain IDs across retries. A conflicting payload fails; identical retries return
 the original record. A goal can use `--parent-run-id` for its child runs.
 Finish results are `completed`, `blocked`, `failed`, `cancelled`, `interrupted`,

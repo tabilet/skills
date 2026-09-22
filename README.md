@@ -1117,6 +1117,35 @@ check filenames and the history index. A valid project with all milestones
 retired exits `0`. The full table is in
 [Execution Harness](docs/EXECUTION.md#exit-codes).
 
+### API-only workflow
+
+An API-only setup uses the project's Markdown as authoritative memory and an
+external SQLite database for observed workflow history. The API runner rereads
+`AGENTS.md`, active milestones and tasks, current facts, retired history, and
+evolution files on each run. SQLite records its observed lifecycle, task
+transitions, verification, and commits; its index makes current and historical
+Markdown searchable without replacing it.
+
+Enable the recorder before starting the runner:
+
+```bash
+export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
+export TABILET_AUDIT_CAPTURE=metadata
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=your-model MAX_RUNS=1 \
+  tackle-memory-bank-api-loop /absolute/path/to/project
+```
+
+Run `tabilet-audit index sync /absolute/path/to/project` after Markdown changes
+and use `tabilet-audit audit runs --project /absolute/path/to/project` to review
+recorded runs. The API runner owns its own audit lifecycle; do not start a
+duplicate manual run. Keep the SQLite file outside the project.
+
+`metadata` is the safe default. Set `TABILET_AUDIT_CAPTURE=relevant` to retain
+selected visible messages that the runner supplies. This does not capture every
+API prompt, tool result, hidden reasoning, or surrounding chat. Exact raw text
+must be supplied by the host through the selected-message procedure in
+[`docs/sqlite.md`](docs/sqlite.md#capture-selected-visible-messages).
+
 ## Optional SQLite audit and lookup
 
 Markdown remains authoritative. The optional `tabilet-audit` toolkit records

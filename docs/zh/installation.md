@@ -174,6 +174,31 @@ API 运行器要求每次运行都留下一次提交。碰到脏状态、缺少�
 表示剩下的全是阻塞工作；退出码 `0` 表示没有可执行的行了，而不是每个里程碑都过了评审。
 事后请检查记录的验证和关闭证据。同一个活跃账本上，别同时再跑另一个智能体。
 
+### 仅使用 API 的工作流 {#api-only-workflow}
+
+仅使用 API 时，项目 Markdown 是权威记忆，项目外的 SQLite 数据库保存观察到的工作流历史。
+运行器每次都会重新读取 `AGENTS.md`、活跃里程碑和任务、当前事实、已退休的历史以及演进文件。
+SQLite 记录运行器观察到的生命周期、任务转换、验证和提交；它的索引让当前和历史 Markdown
+可以检索，但不会取代这些文件。
+
+启动运行器前先启用记录器：
+
+```bash
+export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
+export TABILET_AUDIT_CAPTURE=metadata
+ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
+  ~/.local/bin/tackle-memory-bank-api-loop /absolute/path/to/project
+```
+
+Markdown 改动后运行 `tabilet-audit index sync /absolute/path/to/project`，用
+`tabilet-audit audit runs --project /absolute/path/to/project` 查看已记录的运行。
+API 运行器自己负责审计运行的开始、事件和结束，不要再手动启动一个重复运行。SQLite 文件要放在项目之外。
+
+`metadata` 是默认模式。设为 `TABILET_AUDIT_CAPTURE=relevant` 后，运行器提供的部分可见消息会被保留。
+它不会捕获每个 API 提示词、工具结果、隐藏推理或会话外的聊天。要保存精确的原始文本，必须由宿主按
+[SQLite 操作指南](https://github.com/tabilet/skills/blob/main/docs/sqlite.md#capture-selected-visible-messages)
+中的方法提交选定消息。
+
 ## 可选的 SQLite 审计与检索 {#optional-sqlite}
 
 Markdown 仍是权威来源。可选工具将本地审计存储在项目外，并为里程碑、任务、

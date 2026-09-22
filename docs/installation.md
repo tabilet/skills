@@ -193,6 +193,34 @@ Exit `0` means no actionable rows remain, not that every milestone passed its
 review. Check the recorded verification and closure evidence afterward. Do not
 run another agent against the same active ledger at the same time.
 
+### API-only workflow
+
+An API-only setup uses the project's Markdown as authoritative memory and an
+external SQLite database for observed workflow history. The runner rereads
+`AGENTS.md`, active milestones and tasks, current facts, retired history, and
+evolution files on each run. SQLite records its observed lifecycle, task
+transitions, verification, and commits, while its index makes current and
+historical Markdown searchable.
+
+Enable the recorder before starting the runner:
+
+```bash
+export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
+export TABILET_AUDIT_CAPTURE=metadata
+ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
+  ~/.local/bin/tackle-memory-bank-api-loop /absolute/path/to/project
+```
+
+Run `tabilet-audit index sync /absolute/path/to/project` after Markdown changes
+and use `tabilet-audit audit runs --project /absolute/path/to/project` to review
+recorded runs. The API runner owns its own audit lifecycle; do not start a
+duplicate manual run. Keep the SQLite file outside the project.
+
+`metadata` is the default. `TABILET_AUDIT_CAPTURE=relevant` retains selected
+visible messages supplied by the runner. It does not capture every API prompt,
+tool result, hidden reasoning, or surrounding chat. Exact raw text requires the
+host to submit selected messages as described in the [SQLite operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md#capture-selected-visible-messages).
+
 ## Optional SQLite audit and lookup {#optional-sqlite}
 
 Markdown stays authoritative. The optional toolkit stores a local audit outside
