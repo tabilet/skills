@@ -51,6 +51,13 @@ status.
 | SQL3-T05 | [+] | Add backup and restore verification to a separate destination. | A live backup restores all records without touching the project. |
 | SQL3-T06 | [+] | Test ordinary, all-retired, knowledge-history, evolution-version, customized, no-Git, drift, and interrupted cases. | Exact hashes and run associations remain correct in every fixture. |
 
+## Review follow-up
+
+Legacy snapshot restoration writes to a private temporary file and publishes it
+only after the bytes and hash have been verified, so interrupted recovery does
+not leave a destination that blocks a retry. Automatic post-run snapshot
+capture remains deferred to the later index workflow.
+
 ## Completion gate
 
 This milestone is complete when an audited API run retains history/evolution

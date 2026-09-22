@@ -141,7 +141,21 @@ def dispatch(args):
     write=(args.group=='audit' and action in ('begin','event','message','finish')) or (args.group=='index' and action=='sync')
     if root and write:
         if not root.is_dir():raise audit.AuditError('project must be an existing directory')
-        index.layout_check(root)
+        if args.group == 'index' and action == 'sync':
+            try:
+                index.layout_check(root)
+            except (OSError, ValueError) as exc:
+                database = pathlib.Path(args.audit_db).expanduser()
+                registered = False
+                if database.is_file():
+                    with contextlib.closing(audit.open_readonly_database(database)) as readonly:
+                        registered = bool(readonly.execute(
+                            'SELECT 1 FROM workspaces WHERE project_root=?', (str(root),)
+                        ).fetchone())
+                if not registered:
+                    raise exc
+        else:
+            index.layout_check(root)
     if write and action in ('event','message','finish') and not pathlib.Path(args.audit_db).expanduser().exists():
         raise audit.AuditError('no audit database; start with audit begin PROJECT OPERATION')
     connection=audit.open_database(args.audit_db,project_roots=[root] if root else []) if write else audit.open_readonly_database(args.audit_db)

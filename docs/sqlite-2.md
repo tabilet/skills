@@ -56,6 +56,14 @@ code remain unchanged.
 | SQL2-T04 | [+] | Preserve validation, dirty-worktree, history, row-exclusivity, dangerous-command, and exit-code behavior. | Existing harness tests pass with reviewed audit assertions. |
 | SQL2-T05 | [+] | Test blocked, failed, interrupted, no-commit, dirty-worktree, missing, locked, and write-failure cases. | Audit gaps are visible and never alter task status, commits, or exit meaning. |
 
+## Review follow-up
+
+Audit failures remain best-effort: a Git observation timeout is recorded as an
+audit gap while the runner still records the requested terminal result. The
+runner observes a valid task transition before later commit or cleanliness
+gates fail, preserving what changed without treating the failed run as
+accepted work.
+
 ## Completion gate
 
 This milestone is complete when an enabled API run records a reliable lifecycle

@@ -1250,20 +1250,23 @@ class AuditRun:
             self.gap("record message", exc)
 
     def observe_commits(self):
-        if self.connection is None or self.closed:
+        if self.connection is None or self.closed or self.failure:
             return
-        head = run_local(["git", "rev-parse", "HEAD"], self.repo)
-        if head.returncode:
-            return
-        current = head.stdout.strip()
-        if current == self.git_ref:
-            return
-        history = run_local(["git", "rev-list", "--reverse", f"{self.git_ref}..{current}"], self.repo) if self.git_ref else None
-        commits = history.stdout.splitlines() if history and history.returncode == 0 else [current]
-        for commit in commits:
-            if commit not in self.observed_commits:
-                self.emit("commit_observed", details={"commit_sha": commit})
-                self.observed_commits.add(commit)
+        try:
+            head = run_local(["git", "rev-parse", "HEAD"], self.repo)
+            if head.returncode:
+                return
+            current = head.stdout.strip()
+            if current == self.git_ref:
+                return
+            history = run_local(["git", "rev-list", "--reverse", f"{self.git_ref}..{current}"], self.repo) if self.git_ref else None
+            commits = history.stdout.splitlines() if history and history.returncode == 0 else [current]
+            for commit in commits:
+                if commit not in self.observed_commits:
+                    self.emit("commit_observed", details={"commit_sha": commit})
+                    self.observed_commits.add(commit)
+        except Exception as exc:
+            self.gap("observe commits", exc)
 
     def finish(self, result):
         if self.closed:
@@ -1273,14 +1276,15 @@ class AuditRun:
                 self.observe_commits()
                 if self.failure:
                     self.emit("audit_gap", details={"error": self.failure})
-                self.recorder.finish_run(self.connection, self.run_id, result)
+                try:
+                    self.recorder.finish_run(self.connection, self.run_id, result)
+                except Exception as exc:
+                    self.gap("record run result", exc)
                 try:
                     import tabilet_index
                     tabilet_index.sync(self.connection, self.repo)
                 except Exception as exc:
                     print(f"Index gap: {exc}", file=sys.stderr)
-        except Exception as exc:
-            self.gap("record run result", exc)
         finally:
             self.closed = True
             if self.connection is not None:
@@ -1615,46 +1619,11 @@ def main() -> None:
                 audit.message("assistant", run_result["final"], source="host", fidelity="exact")
             print(f"Run duration: {time.time() - started:.1f}s")
 
-            if not git_clean(repo):
-                audit.emit("verification_observed", details={"checks": ["git_clean"], "success": False})
-                audit.emit("run_failed", details={"reason": "uncommitted changes after model run"})
-                audit.finish("failed")
-                print("LLM left uncommitted changes. Stopping.", file=sys.stderr)
-                print(git_status_short(repo), file=sys.stderr)
-                raise SystemExit(5)
-
-            after = git_head(repo)
-            if before == after:
-                audit.emit("verification_observed", details={"checks": ["new_commit"], "success": False})
-                audit.emit("run_failed", details={"reason": "model made no commit"})
-                audit.finish("failed")
-                print("LLM made no commit. Stopping to avoid a spin loop.", file=sys.stderr)
-                raise SystemExit(6)
-            if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
-                audit.emit("verification_observed", details={"checks": ["commit_ancestry"], "success": False})
-                audit.emit("run_failed", details={"reason": "history rewrite or branch change"})
-                audit.finish("failed")
-                print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
-                raise SystemExit(9)
             try:
                 after_rows = row_snapshot(repo)
             except (OSError, UnicodeError) as exc:
                 fail(f"Unable to read status/history after the run: {exc}", 8)
-            row_problems = validate_row_transition(
-                before_rows, after_rows, in_progress["key"] if in_progress else None,
-            )
-            if row_problems:
-                audit.emit(
-                    "verification_observed",
-                    details={"checks": ["row_transition"], "success": False, "problems": row_problems},
-                )
-                audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
-                audit.finish("failed")
-                print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
-                for problem in row_problems:
-                    print(f"  {problem}", file=sys.stderr)
-                raise SystemExit(8)
-            transition = next(
+            candidate = next(
                 (
                     (key, before_rows["states"][key], after_rows["states"][key])
                     for key in before_rows["states"]
@@ -1662,7 +1631,28 @@ def main() -> None:
                 ),
                 None,
             )
-            if transition:
+            if candidate:
+                row_problems = validate_row_transition(
+                    before_rows, after_rows, in_progress["key"] if in_progress else None,
+                )
+                if row_problems:
+                    audit.emit(
+                        "verification_observed",
+                        details={"checks": ["row_transition"], "success": False, "problems": row_problems},
+                    )
+                    audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
+                    audit.finish("failed")
+                    print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
+                    for problem in row_problems:
+                        print(f"  {problem}", file=sys.stderr)
+                    raise SystemExit(8)
+            transition = candidate
+            transition_recorded = False
+
+            def record_transition():
+                nonlocal transition_recorded
+                if not transition or transition_recorded:
+                    return
                 key, old_state, new_state = transition
                 audit.emit(
                     "task_transition",
@@ -1679,6 +1669,47 @@ def main() -> None:
                                                               "relationship": "changed", "path": f"tabilet/memory-bank/{key[0]}",
                                                               "old_state": old_state, "new_state": new_state}]}},
                 )
+                transition_recorded = True
+
+            if not git_clean(repo):
+                record_transition()
+                audit.emit("verification_observed", details={"checks": ["git_clean"], "success": False})
+                audit.emit("run_failed", details={"reason": "uncommitted changes after model run"})
+                audit.finish("failed")
+                print("LLM left uncommitted changes. Stopping.", file=sys.stderr)
+                print(git_status_short(repo), file=sys.stderr)
+                raise SystemExit(5)
+
+            after = git_head(repo)
+            if before == after:
+                audit.emit("verification_observed", details={"checks": ["new_commit"], "success": False})
+                audit.emit("run_failed", details={"reason": "model made no commit"})
+                audit.finish("failed")
+                print("LLM made no commit. Stopping to avoid a spin loop.", file=sys.stderr)
+                raise SystemExit(6)
+            if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
+                record_transition()
+                audit.emit("verification_observed", details={"checks": ["commit_ancestry"], "success": False})
+                audit.emit("run_failed", details={"reason": "history rewrite or branch change"})
+                audit.finish("failed")
+                print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
+                raise SystemExit(9)
+            if transition is None:
+                row_problems = validate_row_transition(
+                    before_rows, after_rows, in_progress["key"] if in_progress else None,
+                )
+                if row_problems:
+                    audit.emit(
+                        "verification_observed",
+                        details={"checks": ["row_transition"], "success": False, "problems": row_problems},
+                    )
+                    audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
+                    audit.finish("failed")
+                    print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
+                    for problem in row_problems:
+                        print(f"  {problem}", file=sys.stderr)
+                    raise SystemExit(8)
+            record_transition()
             audit.emit(
                 "verification_observed",
                 details={"checks": ["git_clean", "commit_ancestry", "row_transition"], "success": True},

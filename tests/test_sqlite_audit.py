@@ -334,6 +334,29 @@ class SqliteAuditContractTests(unittest.TestCase):
                 ))
             self.assertEqual(audit.query_runs(connection, milestone_id="M01", task="Beta"), [])
 
+    def test_event_queries_order_mixed_timestamp_precision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            first = audit.start_run(connection, workspace_id, "next", run_id="first", started_at="2026-09-21T12:00:00Z")
+            second = audit.start_run(connection, workspace_id, "next", run_id="second", started_at="2026-09-21T12:00:00.000001Z")
+            audit.append_event(connection, event(event_id="first-event", run_id=first, workspace_id=workspace_id))
+            audit.append_event(connection, event(event_id="second-event", run_id=second, workspace_id=workspace_id))
+            self.assertEqual([row["run_id"] for row in audit.query_events(connection)], [first, second])
+
+    def test_event_exact_fidelity_requires_host_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next")
+            with self.assertRaises(audit.AuditValidationError):
+                audit.append_event(connection, event(
+                    run_id=run_id, workspace_id=workspace_id,
+                    details={"schema": "tabilet.audit.details/v1", "capture_source": "import", "fidelity": "exact"},
+                ))
+
     def test_event_keeps_observed_task_details_independent_of_later_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             connection = audit.open_database(Path(temporary) / "audit.sqlite3")

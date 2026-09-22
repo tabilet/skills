@@ -97,3 +97,11 @@ class CliTests(unittest.TestCase):
         (self.repo / 'work-started-after-begin').write_text('changed after the recorded start')
         second = self.command('audit', 'begin', self.repo, 'goal', '--run-id', 'stable-run')
         self.assertEqual(second, first)
+
+    def test_existing_mixed_layout_refresh_records_incomplete_index_state(self):
+        self.command('index', 'sync', self.repo)
+        (self.repo / 'memory-bank').mkdir()
+        self.command('index', 'sync', self.repo, ok=False)
+        state = self.command('index', 'status', self.repo)
+        self.assertFalse(state['complete'])
+        self.assertTrue(state['diagnostics'])

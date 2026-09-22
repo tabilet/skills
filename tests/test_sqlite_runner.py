@@ -47,6 +47,8 @@ class RunnerRepairs(unittest.TestCase):
                     if outcome!='unexpected':
                         self.assertEqual(c.execute("SELECT COUNT(*) FROM events WHERE event_type='commit_observed'").fetchone()[0],1)
                         self.assertIn('Blocked',c.execute("SELECT text FROM captured_messages WHERE role='assistant'").fetchone()[0])
+                    if outcome=='dirty':
+                        self.assertEqual(c.execute("SELECT COUNT(*) FROM events WHERE event_type='task_transition'").fetchone()[0],1)
                     if outcome=='blocked':
                         self.assertEqual(c.execute("SELECT milestone_id,new_state FROM events WHERE event_type='task_transition'").fetchone(),('M01','blocked'))
                 finally:c.close()

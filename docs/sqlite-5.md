@@ -31,7 +31,7 @@ with SQLite sidecars, run retries could be tied to changed Git metadata, and
 combined milestone/task filters could match different events. Creation now
 cleans up on failure, destinations reject all sidecars, retries reuse the
 recorded identity with payload checks, and combined filters apply to one event.
-Reverification: all 58 SQLite and runner tests pass; clean review. The initial
+Reverification: all 63 focused SQLite and runner tests pass; clean review. The initial
 whole-milestone review is iteration 1; verify and review after fixes, with at
 most 10 iterations. A clean pass is required.
 

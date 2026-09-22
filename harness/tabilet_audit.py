@@ -497,18 +497,24 @@ def open_database(path=None, *, project_roots=()):
     database = external_path(path if path is not None else default_database_path(), project_roots)
     sidecars = {suffix: safe_path(str(database) + suffix) for suffix in ('-wal', '-shm', '-journal')}
     created = not database.exists()
+    staging = None
+    published = not created
     if created:
         for sidecar in sidecars.values():
             if sidecar.exists():
                 raise FileExistsError(str(sidecar))
-        os.close(private_create(database))
+        staging = safe_path(f'{database}.init-{uuid.uuid4().hex}')
+        os.close(private_create(staging))
+        connect_path = staging
     elif not database.is_file():
         raise AuditError('audit database must be a regular file')
+    else:
+        connect_path = database
     try:
-        connection = sqlite3.connect(str(database), timeout=5)
+        connection = sqlite3.connect(str(connect_path), timeout=5)
     except BaseException:
-        if created and database.exists() and not database.is_symlink():
-            database.unlink()
+        if staging is not None and staging.exists() and not staging.is_symlink():
+            staging.unlink()
         raise
     try:
         connection.execute('PRAGMA foreign_keys = ON')
@@ -516,12 +522,8 @@ def open_database(path=None, *, project_roots=()):
         version = 0 if created else validate_database(connection)
         if not created:
             external_path(database, database_roots(connection))
-        # New files were private before connect; only validated owned files are tightened.
-        database.chmod(0o600)
-        for suffix in ('-wal', '-shm'):
-            sidecar = safe_path(str(database) + suffix)
-            if sidecar.exists():
-                sidecar.chmod(0o600)
+        # New files are private before connect; only validated owned files are tightened.
+        connect_path.chmod(0o600)
         if version < SCHEMA_VERSION:
             connection.execute('BEGIN IMMEDIATE')
             try:
@@ -536,14 +538,32 @@ def open_database(path=None, *, project_roots=()):
             except BaseException:
                 connection.rollback()
                 raise
+        if created:
+            connection.close()
+            connection = None
+            try:
+                os.link(staging, database)
+            except FileExistsError:
+                raise AuditError('audit database destination appeared during creation')
+            published = True
+            staging.unlink()
+            connection = sqlite3.connect(str(database), timeout=5)
+            connection.execute('PRAGMA foreign_keys = ON')
+            connection.execute('PRAGMA busy_timeout = 5000')
         connection.execute('PRAGMA journal_mode = WAL')
         connection.execute('PRAGMA synchronous = NORMAL')
+        database.chmod(0o600)
+        for suffix in ('-wal', '-shm'):
+            sidecar = safe_path(str(database) + suffix)
+            if sidecar.exists():
+                sidecar.chmod(0o600)
         return connection
     except BaseException:
-        connection.close()
-        if created and database.exists():
-            database.unlink()
-        if created:
+        if connection is not None:
+            connection.close()
+        if staging is not None and staging.exists() and not staging.is_symlink():
+            staging.unlink()
+        if created and published:
             for sidecar in sidecars.values():
                 if sidecar.exists() and not sidecar.is_symlink():
                     sidecar.unlink()
@@ -642,8 +662,8 @@ def append_event(connection, event, *, sequence=None):
     if type(sequence) is not int or sequence < 1:
         raise AuditValidationError('event sequence must be a positive integer')
     subject, details = normalized['subject'], normalized['details']
-    if details.get('capture_source') == 'agent' and details.get('fidelity') == 'exact':
-        raise AuditValidationError('agent summaries cannot claim exact host capture')
+    if details.get('fidelity') == 'exact' and details.get('capture_source') != 'host':
+        raise AuditValidationError('exact capture requires host provenance')
     try:
         connection.execute('INSERT INTO events VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             (normalized['event_id'], normalized['run_id'], sequence, normalized['recorded_at'], normalized.get('occurred_at'),
@@ -783,7 +803,7 @@ def query_events(connection, run_id=None, *, workspace_id=None, operation=None, 
         if value is not None:
             clauses.append(f'{time_key("e.recorded_at")}{comparison}?'); values.append(time_bound(value))
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
-    return records(connection, 'SELECT e.* FROM events e JOIN runs r USING(run_id)'+where+' ORDER BY r.started_at,e.run_id,e.sequence LIMIT ? OFFSET ?', (*values,limit,offset))
+    return records(connection, 'SELECT e.* FROM events e JOIN runs r USING(run_id)'+where+' ORDER BY '+time_key('r.started_at')+',e.run_id,e.sequence LIMIT ? OFFSET ?', (*values,limit,offset))
 
 
 def query_snapshots(connection, workspace_id=None, *, kind=None, limit=10000, offset=0):
@@ -840,8 +860,19 @@ def restore_snapshot(connection, snapshot_id, destination):
     if not row or hashlib.sha256(row[0]).hexdigest() != row[1]:
         raise AuditError('missing snapshot or content hash mismatch')
     path = _new_destination(destination, database_roots(connection))
-    with os.fdopen(private_create(path),'wb') as output:
-        output.write(row[0])
+    staging = safe_path(f'{path}.restore-{uuid.uuid4().hex}')
+    try:
+        with os.fdopen(private_create(staging),'wb') as output:
+            output.write(row[0])
+            output.flush()
+            os.fsync(output.fileno())
+        try:
+            os.link(staging, path)
+        except FileExistsError:
+            raise FileExistsError(str(path))
+    finally:
+        if staging.exists() and not staging.is_symlink():
+            staging.unlink()
 
 
 def backup_database(connection, destination):

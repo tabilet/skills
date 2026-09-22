@@ -108,6 +108,14 @@ sorted keys and UTF-8 output. Schema migrations are numbered from user_version
 | SQL1-T04 | [+] | Implement event-envelope validation and idempotent insertion. | Identical delivery is safe; conflicting payloads fail; malformed events are rejected. |
 | SQL1-T05 | [+] | Test interruption, database errors, separate worktrees, no-Git provenance, and owner-only storage. | Failures leave no false completion event and all tests pass without network access. |
 
+## Review follow-up
+
+The database initializer now builds a schema-complete private staging file and
+publishes it atomically, so an interrupted first creation never exposes a
+version-zero database. Exact event fidelity follows the same provenance rule as
+message capture: only a host may claim exact text. Failed snapshot restores use
+the same complete-write-then-publish rule.
+
 ## Completion gate
 
 This milestone is complete when the v1 database can be created and reopened,

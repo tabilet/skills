@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -170,7 +171,7 @@ class StorageTests(unittest.TestCase):
                 return super().execute(sql, *args, **kwargs)
 
         def connect(path, *args, **kwargs):
-            if str(path) == str(legacy):
+            if str(path).startswith(str(legacy) + '.init-'):
                 kwargs['factory'] = Interrupted
             return original(path, *args, **kwargs)
 
@@ -179,6 +180,34 @@ class StorageTests(unittest.TestCase):
             a.open_database(legacy)
         self.assertFalse(legacy.exists())
         connection = a.open_database(legacy)
+        self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 3)
+        connection.close()
+
+    def test_abrupt_initial_creation_never_publishes_version_zero(self):
+        database = self.root / 'crashed.db'
+        script = '''
+import os, sqlite3, sys
+sys.path.insert(0, 'harness')
+import tabilet_audit as audit
+original = sqlite3.connect
+class Crash(sqlite3.Connection):
+    def execute(self, sql, *args, **kwargs):
+        if sql.strip().startswith('CREATE TABLE IF NOT EXISTS index_sections'):
+            os._exit(99)
+        return super().execute(sql, *args, **kwargs)
+def connect(path, *args, **kwargs):
+    kwargs['factory'] = Crash
+    return original(path, *args, **kwargs)
+audit.sqlite3.connect = connect
+audit.open_database(sys.argv[1])
+'''
+        process = subprocess.run(
+            [sys.executable, '-B', '-c', script, str(database)],
+            cwd=Path(__file__).resolve().parents[1],
+        )
+        self.assertEqual(process.returncode, 99)
+        self.assertFalse(database.exists())
+        connection = a.open_database(database)
         self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 3)
         connection.close()
 
@@ -191,6 +220,24 @@ class StorageTests(unittest.TestCase):
                 with self.assertRaises(FileExistsError):
                     a.backup_database(self.c, destination)
                 self.assertEqual(sidecar.read_bytes(), b'preserve')
+
+    def test_failed_snapshot_restore_does_not_publish_partial_destination(self):
+        from unittest import mock
+        run = a.start_run(self.c, self.w, 'next')
+        data = b'frozen evidence\n'
+        self.c.execute(
+            'INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+            ('snapshot', self.w, 'history_status', 'tabilet/docs/history/status-M01.md', data,
+             hashlib.sha256(data).hexdigest(), a.utc_now(), None, 'unversioned', run, None),
+        )
+        self.c.commit()
+        destination = self.root / 'restored.md'
+        with mock.patch.object(a.os, 'fsync', side_effect=OSError('simulated disk full')):
+            with self.assertRaises(OSError):
+                a.restore_snapshot(self.c, 'snapshot', destination)
+        self.assertFalse(destination.exists())
+        a.restore_snapshot(self.c, 'snapshot', destination)
+        self.assertEqual(destination.read_bytes(), data)
 
     def test_interrupted_schema_migration_rolls_back_and_retries(self):
         from unittest import mock

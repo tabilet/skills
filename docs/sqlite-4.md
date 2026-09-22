@@ -64,6 +64,13 @@ selection or status authority.
 | SQL4-T05 | [+] | Measure interactive query needs and document whether active projection is justified. | The decision includes observed scale, latency, stale-data behavior, and approval boundary. |
 | SQL4-T06 | [+] | Update compatibility, operator, privacy, backup, and release documentation. | Existing v2 projects remain usable with no database and new host behavior is documented. |
 
+## Review follow-up
+
+Event timelines normalize legacy and fractional UTC timestamp precision before
+ordering. The public index-sync command lets an already registered workspace
+record a mixed-layout failure, while a new legacy project still stops before
+database creation; the resulting incomplete state retains its diagnostics.
+
 ## Completion gate
 
 This milestone is complete when host adapters and read-only consumers use the
