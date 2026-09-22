@@ -176,7 +176,7 @@ rebuildable projection adds milestone presentation metadata and explicit task
 dependency observations. `tabilet_index.readiness` validates live source hashes
 and withholds recommendations on stale, unresolved, or contradictory state.
 
-Verification: the 80-test focused SQLite suite passes, including
+Verification: the 88-test focused SQLite suite passes, including
 v1/v2 migration, extension ownership, projection, dependency, stale-source, and
 multiple-in-progress cases. No Markdown or snapshot bytes are rewritten. The
 complete repository and website gates remain the parent milestone's final
@@ -198,3 +198,10 @@ scope, so repeated task IDs do not collide. Migrated projection readiness is
 recorded per workspace, active prerequisite milestones remain waiting until
 accepted retirement, and dependency-cycle traversal is iterative at the documented
 project scale. Focused regression fixtures cover all four cases.
+
+Review iteration: 5. Follow-up action membership now uses the same
+milestone-scoped dependency identity as readiness, so conventional IDs such as
+`T01` cannot authorize a task in another milestone. Readiness also avoids loading
+milestone specification bodies that its ordering calculation does not use and
+classifies cycles in milestone-level and explicitly scoped cross-milestone task
+dependencies as review work.

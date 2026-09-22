@@ -293,7 +293,9 @@ def validate_explorer_details(value: Any) -> dict[str, Any]:
         path = ref.get("path")
         if path is not None:
             _text(path, "explorer.artifact_refs.path")
-            if pathlib.PurePosixPath(path).is_absolute() or ".." in pathlib.PurePosixPath(path).parts:
+            parts = pathlib.PurePosixPath(path).parts
+            if ("\\" in path or pathlib.PurePosixPath(path).is_absolute()
+                    or ".." in parts or "." in parts or not parts):
                 raise AuditValidationError("explorer artifact path must be project-relative")
         for field in ("line",):
             if ref.get(field) is not None and (type(ref[field]) is not int or ref[field] < 1):
@@ -496,10 +498,38 @@ def validate_database(connection):
                 + (EXPLORER_SQL if version >= SCHEMA_VERSION else '')
             )
             for table in schema_tables(expected):
-                columns = {r[1] for r in expected.execute(f'PRAGMA table_info({table})')}
-                actual = {r[1] for r in connection.execute(f'PRAGMA table_info({table})')}
-                if not columns.issubset(actual):
+                columns = {r[1]: tuple(r[2:6]) for r in expected.execute(f'PRAGMA table_info({table})')}
+                actual = {r[1]: tuple(r[2:6]) for r in connection.execute(f'PRAGMA table_info({table})')}
+                if any(actual.get(name) != definition for name, definition in columns.items()):
                     raise AuditError(f'incomplete audit schema: {table}')
+                expected_foreign = {tuple(r[2:8]) for r in expected.execute(f'PRAGMA foreign_key_list({table})')}
+                actual_foreign = {tuple(r[2:8]) for r in connection.execute(f'PRAGMA foreign_key_list({table})')}
+                if not expected_foreign.issubset(actual_foreign):
+                    raise AuditError(f'incomplete audit foreign keys: {table}')
+                def unique_signatures(database):
+                    result = set()
+                    for item in database.execute(f'PRAGMA index_list({table})'):
+                        if item[2]:
+                            result.add(tuple(row[2] for row in database.execute(
+                                f'PRAGMA index_info({json.dumps(item[1])})')))
+                    return result
+                if not unique_signatures(expected).issubset(unique_signatures(connection)):
+                    raise AuditError(f'incomplete audit uniqueness constraints: {table}')
+            required_indexes = {
+                row[0]: tuple(item[2] for item in expected.execute(
+                    f'PRAGMA index_info({json.dumps(row[0])})'))
+                for row in expected.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' AND sql IS NOT NULL"
+                )
+            }
+            for name, columns in required_indexes.items():
+                actual_index = connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?", (name,)
+                ).fetchone()
+                actual_columns = tuple(item[2] for item in connection.execute(
+                    f'PRAGMA index_info({json.dumps(name)})')) if actual_index else ()
+                if actual_columns != columns:
+                    raise AuditError(f'incomplete audit index: {name}')
         finally:
             expected.close()
         if connection.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
@@ -904,25 +934,34 @@ def restore_snapshot(connection, snapshot_id, destination):
 def backup_database(connection, destination):
     validate_database(connection)
     path = _new_destination(destination, database_roots(connection))
-    os.close(private_create(path))
+    staging = safe_path(f'{path}.backup-{uuid.uuid4().hex}')
+    os.close(private_create(staging))
     target = None
     try:
-        target = sqlite3.connect(str(path))
+        target = sqlite3.connect(str(staging))
         connection.backup(target)
         validate_database(target)
+        target.close()
+        target = None
+        with staging.open('rb') as stored:
+            os.fsync(stored.fileno())
+        try:
+            os.link(staging, path)
+        except FileExistsError:
+            raise FileExistsError(str(path))
     except BaseException:
         if target is not None:
             target.close()
-        if path.exists() and not path.is_symlink():
-            path.unlink()
-        for suffix in ('-wal', '-shm', '-journal'):
-            sidecar = safe_path(str(path) + suffix)
-            if sidecar.exists() and not sidecar.is_symlink():
-                sidecar.unlink()
         raise
     finally:
         if target is not None:
             target.close()
+        if staging.exists() and not staging.is_symlink():
+            staging.unlink()
+        for suffix in ('-wal', '-shm', '-journal'):
+            sidecar = safe_path(str(staging) + suffix)
+            if sidecar.exists() and not sidecar.is_symlink():
+                sidecar.unlink()
 
 
 def restore_database(source, destination):

@@ -38,3 +38,10 @@ most 10 iterations. A clean pass is required.
 Final review also corrected mixed timestamp precision in date filters and rejected
 WAL/SHM/journal symlinks before SQLite opens. An injected schema-migration
 interruption rolls back completely and succeeds on retry. Storage regressions pass.
+
+Review iteration: 5. Database backup now writes and validates a private staging
+file before atomically publishing the destination. An abrupt process exit can
+leave an ignorable staging file, but cannot expose a partial file under the
+requested backup name; retrying that destination remains safe. Existing storage
+validation now verifies required column constraints, foreign keys, uniqueness,
+and named indexes as well as their names, integrity, and version marker.

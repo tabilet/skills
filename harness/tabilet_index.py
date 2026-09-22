@@ -491,7 +491,8 @@ def _readiness(connection, workspace, project_root=None):
     result['source_freshness']=freshness;result['freshness_diagnostics']=problems
     diagnostics=list(info.get('diagnostics') or [])+problems
     milestones={row['milestone_id']:row for row in records(
-        connection,'SELECT * FROM index_milestones WHERE workspace_id=?',(workspace,))}
+        connection,"""SELECT milestone_id,lifecycle,path,line,outcome,review
+                       FROM index_milestones WHERE workspace_id=?""",(workspace,))}
     tasks=records(connection,'SELECT * FROM index_tasks WHERE workspace_id=? ORDER BY path,line',(workspace,))
     active={key for key,value in milestones.items() if value['lifecycle']=='active'}
     tasks=[row for row in tasks if row['milestone_id'] in active]
@@ -546,6 +547,7 @@ def _readiness(connection, workspace, project_root=None):
     milestone_dependencies=records(connection, "SELECT source, target, path, line FROM index_relationships WHERE workspace_id=? AND relation='depends_on' AND source LIKE 'milestone:%'", (workspace,))
     milestone_waiting={}
     milestone_review={}
+    milestone_graph={}
     for relation in milestone_dependencies:
         source_id=relation['source'].removeprefix('milestone:')
         target_id=relation['target'].removeprefix('milestone:')
@@ -555,6 +557,8 @@ def _readiness(connection, workspace, project_root=None):
             diagnostics.append(f"{relation['path']}:{relation['line']}: unresolved milestone dependency: {relation['target']}")
             continue
         target = milestones[target_id]
+        if target_id in active:
+            milestone_graph.setdefault(source_id,set()).add(target_id)
         target_rows=records(connection, "SELECT state FROM index_tasks WHERE workspace_id=? AND milestone_id=?", (workspace,target_id))
         unfinished=any(row['state'] in {'pending','in_progress','blocked'} for row in target_rows)
         unsafe_terminal=any(row['state'] in {'cancelled','historical'} for row in target_rows)
@@ -563,6 +567,33 @@ def _readiness(connection, workspace, project_root=None):
             milestone_waiting.setdefault(source_id,[]).append(target_id)
             if not target_rows or unsafe_terminal or (not unfinished and target['lifecycle'] == 'active'):
                 milestone_review.setdefault(source_id, []).append(target_id)
+    milestone_cycles=[]
+    milestone_colors={}
+    for start in milestone_graph:
+        if milestone_colors.get(start,0):
+            continue
+        milestone_colors[start]=1;trail=[start];positions={start:0}
+        stack=[(start,iter(milestone_graph.get(start,())))]
+        while stack:
+            node,targets=stack[-1]
+            try:
+                target=next(targets)
+            except StopIteration:
+                stack.pop();milestone_colors[node]=2;positions.pop(node,None);trail.pop()
+                continue
+            color=milestone_colors.get(target,0)
+            if color==0:
+                milestone_colors[target]=1;positions[target]=len(trail);trail.append(target)
+                stack.append((target,iter(milestone_graph.get(target,()))))
+            elif color==1:
+                milestone_cycles.append(trail[positions[target]:]+[target])
+    if milestone_cycles:
+        cycle_values=sorted({' -> '.join(cycle) for cycle in milestone_cycles})
+        result['needs_review'].append({
+            'reason':'milestone dependency cycle requires review',
+            'cycles':cycle_values,
+            'milestone_ids':sorted({item for cycle in milestone_cycles for item in cycle}),
+        })
     in_progress=[row for row in tasks if row['state']=='in_progress']
     if len(in_progress)>1:
         result['needs_review'].append({'reason':'multiple in-progress tasks own the ledger',
@@ -615,12 +646,7 @@ def _readiness(connection, workspace, project_root=None):
             for dep in items:
                 if dep.get('milestone_id') != source_row['milestone_id']:
                     continue
-                targets=by_key.get(dep['target_key'], [])
-                if dep.get('target_milestone_id'):
-                    targets=[item for item in targets if item['milestone_id'] == dep['target_milestone_id']]
-                else:
-                    same_milestone=[item for item in targets if item['milestone_id'] == source_row['milestone_id']]
-                    targets=same_milestone or targets
+                targets=dependency_candidates(dep,source_row)
                 if len(targets) != 1:
                     continue
                 for target in targets:
@@ -687,9 +713,17 @@ def _search(connection, workspace, query, *, kind=None, milestone_id=None, state
         clauses.append('index_fts MATCH ?' if fts else 'instr(lower(s.text),lower(?))>0');values.append(query)
     join=' JOIN index_fts ON index_fts.rowid=s.search_id' if fts and query else ''
     order='bm25(index_fts),s.path,s.line' if join else 's.path,s.line'
-    rows=records(connection,'SELECT s.*,d.sha256,substr(s.text,1,240) AS snippet FROM index_search s JOIN index_documents d ON d.workspace_id=s.workspace_id AND d.path=s.path'+join+' WHERE '+' AND '.join(clauses)+f' ORDER BY {order} LIMIT ? OFFSET ?',(*values,limit,offset))
-    for row in rows:row.pop('text');row['refreshed_at']=info['refreshed_at']
-    return {'index':info,'limit':limit,'offset':offset,'results':rows}
+    rows=records(connection,"""SELECT s.search_id,s.workspace_id,s.path,s.line,
+                                      s.kind,s.milestone_id,s.state,d.sha256,
+                                      substr(s.text,1,240) AS snippet
+                               FROM index_search s
+                               JOIN index_documents d
+                                 ON d.workspace_id=s.workspace_id AND d.path=s.path"""
+                 +join+' WHERE '+' AND '.join(clauses)
+                 +f' ORDER BY {order} LIMIT ? OFFSET ?',(*values,limit + 1,offset))
+    more=len(rows)>limit;rows=rows[:limit]
+    for row in rows:row['refreshed_at']=info['refreshed_at']
+    return {'index':info,'limit':limit,'offset':offset,'more':more,'results':rows}
 
 
 def search(connection, workspace, query, *, kind=None, milestone_id=None, state=None, limit=50, offset=0):

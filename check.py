@@ -1883,6 +1883,8 @@ def sqlite_explorer_ledgers():
     if workflow_path.is_file():
         workflow = workflow_path.read_text()
         for command in ("npm ci --prefix tests/browser --ignore-scripts",
+                        "unittest discover -s tests -p 'test_sqlite_*.py'",
+                        "node --test tests/explorer_browser.test.mjs",
                         "playwright install --with-deps chromium", "npm test --prefix tests/browser"):
             if command not in workflow:
                 problems.append(f"{workflow_path.relative_to(ROOT)}: missing {command!r}")

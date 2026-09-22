@@ -151,3 +151,9 @@ runs now have bounded pages. POST fields use strict JSON types, source details a
 bookmarkable, and an absent database presents Create index. Follow-up preparation
 requires a classified task or review milestone and revalidates the complete live
 source inventory after selection.
+
+Review iteration: 5. Parent/child filters now preserve the selected workspace at
+every query boundary, same-origin POST checks require the server's HTTP scheme,
+and health reports the branch from the current index generation. Search exposes
+bounded next-page state, while Overview and timeline summaries avoid loading or
+returning unused full document and message bodies.

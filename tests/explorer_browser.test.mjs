@@ -20,6 +20,7 @@ class FakeNode {
 globalThis.Node = FakeNode;
 const ids = new Map();
 for (const id of ['todo-validation', 'todo-content', 'detail-panel', 'backdrop', 'detail-title', 'detail-content', 'close-detail', 'notice', 'diagnostics']) ids.set(id, new FakeNode('div'));
+ids.get('detail-panel').hidden = true;
 globalThis.document = {
   activeElement: null, hidden: false,
   createElement: (tag) => new FakeNode(tag),
@@ -59,6 +60,11 @@ test('degraded to-do keeps review evidence and its action visible', () => {
   assert.match(ids.get('todo-validation').textContent, /recommendations withheld/i);
   client.renderTodo({ validated: true, recommendations_available: false, resume: [], ready: [], waiting: [], needs_review: [], blocked: [{ label: 'Blocked task', reason: 'operator needed' }] });
   assert.match(ids.get('todo-content').textContent, /Investigate/);
+  client.renderTodo({ validated: true, recommendations_available: false,
+    totals: { blocked: 1, needs_review: 1 }, pagination: {},
+    resume: [], ready: [], waiting: [], needs_review: [],
+    blocked: [{ label: 'Blocked task', reason: 'review exists on another page' }] });
+  assert.doesNotMatch(ids.get('todo-content').textContent, /Investigate/);
   client.renderTodo({ validated: true, recommendations_available: true, resume: [], waiting: [], blocked: [], needs_review: [], ready: [{ label: '<script>unsafe</script>', reason: 'plain text' }] });
   assert.match(ids.get('todo-content').textContent, /<script>unsafe<\/script>/);
 });
@@ -80,10 +86,21 @@ test('filter state is written to a bookmarkable URL', () => {
   assert.match(historyCalls.at(-1)[1], /cursor=opaque/);
 });
 
+test('detail URLs have one selection and source lines open around the target', () => {
+  const values = client.detailUrl('document', 'tabilet/memory-bank/status-M01.md', { line: 20 });
+  assert.equal(values.run, null);
+  assert.equal(values.search, null);
+  assert.equal(values.document, 'tabilet/memory-bank/status-M01.md');
+  const preview = client.sourcePreview(Array.from({ length: 30 }, (_, index) => `line ${index + 1}`).join('\n'), 20);
+  assert.match(preview.textContent, /> 20 \| line 20/);
+  assert.doesNotMatch(preview.textContent, /line 1\n/);
+});
+
 test('detail close restores focus and clipboard failure keeps selectable prompt', async () => {
   const trigger = new FakeNode('button'); document.activeElement = trigger;
   client.openPanel('Details', new FakeNode('p'));
   assert.equal(ids.get('close-detail').focused, true);
+  client.openPanel('Paged details', new FakeNode('p'));
   client.closePanel(false);
   assert.equal(trigger.focused, true);
 

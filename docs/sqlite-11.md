@@ -182,3 +182,12 @@ artifact relationships, state transitions, snapshot observations, and paged goal
 children. Current task resolution uses recorded milestone scope, Overview counts
 only active task rows, and large To-do groups retain their full totals without
 rendering the entire ledger.
+
+Review iteration: 5. Search, To-do, and invocation-detail page positions are
+bookmarkable and restored by browser history. Detail URLs carry one selected
+record, source references show a numbered excerpt around their exact line, and a
+review requirement on another To-do page still withholds action buttons. Overview
+attention items now link to their source, the To-do review, or the filtered
+unfinished-run timeline instead of ending at an unlinked aggregate. The detail
+surface is an accessible modal, closes with Escape, and preserves the original
+trigger across detail pagination.

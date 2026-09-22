@@ -28,14 +28,15 @@ create a database. Database, WAL, and shared-memory files stay outside projects.
 New storage directories are private; existing parent permissions are unchanged.
 
 The database identity is `tabilet.audit/v3`, with SQLite `user_version=3`.
-Writers validate identity, version, required columns, integrity, and foreign
-keys before changing existing storage. The transactional v1/v2-to-v3 migration
+Writers validate identity, version, required column constraints, uniqueness,
+indexes, integrity, and foreign keys before changing existing storage. The transactional v1/v2-to-v3 migration
 adds explorer evidence references and derived tables while preserving durable
 records and snapshot bytes. Readers can open v1 and v2 databases without
 writing; an explicit writer open performs the transactional migration. A failed
 migration rolls back the schema marker and leaves the earlier database readable.
 Unknown or newer databases are rejected. Backups and recovery use new external
-destinations and never overwrite existing files. Take an explicit backup before
+destinations and never overwrite existing files. A database backup is validated
+in private staging storage before its destination name is published. Take an explicit backup before
 upgrading an existing database when independent rollback is required.
 
 ## Durable records
@@ -185,7 +186,9 @@ Overview groups active milestones and tasks, retired outcomes, archive lanes,
 and evolution pairs. Timeline groups goal children and drills from the captured
 request and result into recorded changes and resolved current state. Its date,
 operation, milestone, outcome, ordering, pagination, search, and selected-detail
-state is bookmarkable. To-do explains resume, ready, waiting, blocked, and
+state is bookmarkable. Search, To-do, and run-detail page positions are included
+in that URL, and each detail URL names one selected record. Source links show a
+numbered excerpt around their exact line. To-do explains resume, ready, waiting, blocked, and
 review-required work with prerequisite and dependent links. Refresh is explicit,
 migrates supported older databases, and writes only the external database.
 Recorded evidence remains visible when freshness or closure rules withhold task
@@ -313,10 +316,10 @@ merging, pushing, publication, and marketplace changes are separate actions.
 120 status files across 17 lanes and 2,400 task rows, plus retired history, an
 archive, an evolution pair, 250 parent audit runs, and 25 child runs. On the
 development host (Python 3.14.4, SQLite 3.46.1), the latest run measured a
-451.26 ms initial sync, 316.53 ms unchanged-source sync, 6.64 ms median across
-100 FTS5 searches, 123.63 ms readiness classification, 312.34 ms Overview,
-25.90 ms for a 50-entry timeline page, 14.04 ms run detail, and 131.08 ms for
-a 50-of-2,400-entry To-do page. Peak JSON response size was 179,318 bytes. These
+382.77 ms initial sync, 314.94 ms unchanged-source sync, 5.36 ms median across
+100 FTS5 searches, 119.25 ms readiness classification, 273.53 ms Overview,
+17.62 ms for a 50-entry timeline page, 9.68 ms run detail, and 107.74 ms for
+a 50-of-2,400-entry To-do page. Peak JSON response size was 170,349 bytes. These
 are local observations, not performance guarantees.
 
 The explorer's browser assets are served from the copied toolkit without a build

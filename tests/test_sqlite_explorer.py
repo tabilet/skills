@@ -182,6 +182,9 @@ class ExplorerTests(unittest.TestCase):
         status, body = self.request("POST", "/api/refresh", token=token,
                                     origin=f"http://evil.invalid:{self.port}", body={})
         self.assertEqual(status, 403)
+        status, body = self.request("POST", "/api/refresh", token=token,
+                                    origin=f"https://127.0.0.1:{self.port}", body={})
+        self.assertEqual(status, 403)
         status, body = self.request("POST", "/api/follow-up", token=token, body={})
         self.assertEqual(status, 403)
         self.app.token = "\"><script>alert(1)</script>"
@@ -269,6 +272,13 @@ class ExplorerTests(unittest.TestCase):
         self.assertEqual(len(detail['children']), 50)
         self.assertTrue(detail['pagination']['children']['more'])
 
+        first_search = self.app.search({'q': ['pending'], 'limit': ['10']})
+        self.assertEqual(len(first_search['results']), 10)
+        self.assertTrue(first_search['more'])
+        second_search = self.app.search({'q': ['pending'], 'limit': ['10'], 'offset': ['10']})
+        self.assertFalse({row['search_id'] for row in first_search['results']} &
+                         {row['search_id'] for row in second_search['results']})
+
     def test_followup_revalidates_every_source_and_requires_a_task(self):
         self.bootstrap()
         with self.assertRaisesRegex(audit.AuditError, 'needs a task'):
@@ -294,7 +304,7 @@ class ExplorerTests(unittest.TestCase):
             '## M02 - Two\n\n**Acceptance.** two\n', encoding='utf-8')
         for identity in ('M01', 'M02'):
             (bank / f'status-{identity}.md').write_text(
-                '# Status\n\n| Item | State | Notes |\n|---|---|---|\n| Shared | `[ ]` | pending |\n',
+                '# Status\n\n| ID | State | Notes |\n|---|---|---|\n| Shared | `[ ]` | pending |\n',
                 encoding='utf-8')
         self.app.refresh()
         with audit.open_database(self.database, project_roots=[self.project]) as connection:
@@ -312,6 +322,67 @@ class ExplorerTests(unittest.TestCase):
         self.assertTrue(current[0]['resolved'])
         self.assertEqual(current[0]['record']['milestone_id'], 'M01')
 
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            workspace = audit.ensure_workspace(connection, self.project)
+            run = audit.start_run(connection, workspace, 'next', run_id='explicit-artifact-run')
+            audit.append_event(connection, {
+                'schema': 'tabilet.audit.event/v1', 'event_id': 'explicit-artifact-event',
+                'run_id': run, 'workspace_id': workspace, 'operation': 'next',
+                'event_type': 'task_observed', 'recorded_at': audit.utc_now(), 'subject': {},
+                'details': {'schema': 'tabilet.audit.details/v1', 'explorer': {
+                    'schema': 'tabilet.audit.explorer/v1', 'phase': 'applied',
+                    'artifact_refs': [{'namespace': 'task', 'identifier': 'M01/Shared',
+                                       'relationship': 'observed'}],
+                }},
+            })
+        artifact_current = [item for item in self.app.run('explicit-artifact-run')['current_state']
+                            if item['kind'] == 'task']
+        self.assertEqual(len(artifact_current), 1)
+        self.assertTrue(artifact_current[0]['resolved'])
+        self.assertEqual(artifact_current[0]['record']['milestone_id'], 'M01')
+
+    def test_followup_action_membership_uses_milestone_scoped_task_identity(self):
+        self.bootstrap()
+        bank = self.project / 'tabilet/memory-bank'
+        (bank / 'milestone.md').write_text(
+            '# Milestones\n\n## M01 One\n\n**Acceptance.** one\n\n'
+            '## M02 Two\n\n**Acceptance.** two\n', encoding='utf-8')
+        (bank / 'status-M01.md').write_text(
+            '| ID | State | Notes |\n|---|---|---|\n| T01 | `[ ]` | ready |\n', encoding='utf-8')
+        (bank / 'status-M02.md').write_text(
+            '| ID | State | Notes |\n|---|---|---|\n'
+            '| T01 | `[ ]` | Dependency: M02/MISSING |\n', encoding='utf-8')
+        self.app.refresh()
+        with self.assertRaisesRegex(audit.AuditError, 'not valid for the current task state'):
+            self.app.follow_up({'action': 'continue', 'task_id': 'T01', 'milestone_id': 'M02'})
+
+    def test_timeline_child_filters_do_not_cross_workspace_boundary(self):
+        self.bootstrap()
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            workspace = audit.ensure_workspace(connection, self.project)
+            parent = audit.start_run(connection, workspace, 'goal', run_id='scoped-parent')
+            other = audit.ensure_workspace(connection, self.base / 'other-project')
+            connection.execute("""
+                INSERT INTO runs(run_id,workspace_id,operation,started_at,completed_at,
+                                 recorder_version,capture_mode,parent_run_id,git_head,
+                                 worktree_state,result)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+            """, ('foreign-child', other, 'archive', '2026-01-01T00:00:00Z', None,
+                  audit.RECORDER_VERSION, 'metadata', parent, None, 'unversioned', None))
+            connection.commit()
+        filtered = self.app.timeline({'operation': ['archive']})
+        self.assertNotIn('scoped-parent', [row['run_id'] for row in filtered['entries']])
+
+    def test_health_uses_the_branch_from_the_current_index_generation(self):
+        self.bootstrap()
+        import subprocess
+        subprocess.run(['git', 'checkout', '-q', '-b', 'explorer-current-branch'],
+                       cwd=self.project, check=True)
+        self.app.refresh()
+        health = self.app.health()
+        self.assertEqual(health['branch'], 'explorer-current-branch')
+        self.assertEqual(health['project']['branch'], 'explorer-current-branch')
+
     def test_overview_active_counts_exclude_retired_rows(self):
         history = self.project / 'tabilet/docs/history'; history.mkdir(parents=True)
         retired_status = '# Status\n\n| Item | State | Notes |\n|---|---|---|\n| Old | `[+]` | done |\n'
@@ -323,6 +394,21 @@ class ExplorerTests(unittest.TestCase):
         overview = self.app.overview()
         self.assertEqual(overview['counts']['completed'], 0)
         self.assertEqual(overview['counts']['history'], 1)
+
+    def test_overview_attention_items_link_to_their_evidence_view(self):
+        self.bootstrap()
+        status = self.project / 'tabilet/memory-bank/status-M01.md'
+        status.write_text(status.read_text().replace('`[ ]`', '`[!]`'), encoding='utf-8')
+        self.app.refresh()
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            workspace = audit.ensure_workspace(connection, self.project)
+            audit.start_run(connection, workspace, 'next', run_id='unfinished-attention')
+        overview = self.app.overview()
+        blocked = next(item for item in overview['attention'] if item['kind'] == 'blocked')
+        unfinished = next(item for item in overview['attention'] if item['kind'] == 'unfinished')
+        self.assertEqual(blocked['source']['path'], 'tabilet/memory-bank/status-M01.md')
+        self.assertEqual(unfinished['view'], 'timeline')
+        self.assertEqual(unfinished['outcome'], 'unfinished')
 
     def test_post_bodies_require_json_boolean_and_integer_types(self):
         token = self.bootstrap()

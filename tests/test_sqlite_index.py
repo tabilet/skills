@@ -259,6 +259,46 @@ class IndexTests(unittest.TestCase):
         self.assertIn('milestone dependency requires review: M01', waiting['M02'])
         self.assertNotIn('B', [item['task']['task_key'] for item in readiness['ready'] if item['task']['milestone_id'] == 'M02'])
 
+    def test_milestone_dependency_cycles_require_review(self):
+        milestone = self.root / 'tabilet/memory-bank/milestone.md'
+        milestone.write_text(
+            '# Milestones\n\n## M01 - First\n\n**Dependencies.** M02\n\n'
+            '**Acceptance.** first\n\n## M02 - Second\n\n**Dependencies.** M01\n\n'
+            '**Acceptance.** second\n'
+        )
+        for identity in ('M01', 'M02'):
+            (self.root / f'tabilet/memory-bank/status-{identity}.md').write_text(
+                '# Status\n\n| ID | State | Notes |\n|---|---|---|\n'
+                f'| {identity}-T01 | `[ ]` | pending |\n'
+            )
+        state = self.sync()
+        readiness = ix.readiness(self.c, state['workspace_id'], self.root)
+        review = next(item for item in readiness['needs_review']
+                      if item['reason'] == 'milestone dependency cycle requires review')
+        self.assertEqual(review['milestone_ids'], ['M01', 'M02'])
+        self.assertFalse(readiness['recommendations'])
+
+    def test_scoped_cross_milestone_task_cycle_requires_review(self):
+        milestone = self.root / 'tabilet/memory-bank/milestone.md'
+        milestone.write_text(
+            '# Milestones\n\n## M01 - First\n\n**Acceptance.** first\n\n'
+            '## M02 - Second\n\n**Acceptance.** second\n'
+        )
+        (self.root / 'tabilet/memory-bank/status-M01.md').write_text(
+            '| ID | State | Notes |\n|---|---|---|\n'
+            '| T01 | `[ ]` | Depends on: M02/T01 |\n'
+        )
+        (self.root / 'tabilet/memory-bank/status-M02.md').write_text(
+            '| ID | State | Notes |\n|---|---|---|\n'
+            '| T01 | `[ ]` | Depends on: M01/T01 |\n'
+        )
+        state = self.sync()
+        readiness = ix.readiness(self.c, state['workspace_id'], self.root)
+        review = next(item for item in readiness['needs_review']
+                      if item['reason'] == 'dependency cycle requires review')
+        self.assertEqual(review['milestone_ids'], ['M01', 'M02'])
+        self.assertFalse(readiness['recommendations'])
+
     def test_deep_dependency_chain_does_not_use_python_recursion(self):
         total = 1100
         rows = ['# Status\n\n| ID | State | Notes |\n|---|---|---|\n']

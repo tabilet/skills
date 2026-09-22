@@ -46,6 +46,18 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(foreign.read_bytes(),before)
             self.assertEqual(self.root.stat().st_mode & 0o777,0o755)
 
+    def test_lookalike_schema_missing_required_uniqueness_is_rejected(self):
+        lookalike = self.root / 'lookalike.db'
+        schema = a.SCHEMA_SQL.replace('UNIQUE(run_id, sequence)', 'CHECK(sequence > 0)', 1)
+        with sqlite3.connect(lookalike) as connection:
+            connection.executescript(schema)
+            connection.execute("INSERT INTO schema_meta VALUES ('schema','tabilet.audit/v1')")
+            connection.execute('PRAGMA user_version=1')
+        before = lookalike.read_bytes()
+        with self.assertRaisesRegex(a.AuditError, 'uniqueness'):
+            a.open_database(lookalike)
+        self.assertEqual(lookalike.read_bytes(), before)
+
     def test_external_paths_and_symlinks(self):
         project = self.root / 'project'
         project.mkdir()
@@ -256,6 +268,30 @@ audit.open_database(sys.argv[1])
         self.assertFalse(destination.exists())
         a.restore_snapshot(self.c, 'snapshot', destination)
         self.assertEqual(destination.read_bytes(), data)
+
+    def test_abrupt_backup_does_not_publish_partial_destination(self):
+        destination = self.root / 'abrupt-backup.db'
+        script = '''
+import os, sqlite3, sys
+sys.path.insert(0, 'harness')
+import tabilet_audit as audit
+class Crash(sqlite3.Connection):
+    def backup(self, target, *args, **kwargs):
+        target.execute('CREATE TABLE partial(value TEXT)')
+        target.commit()
+        os._exit(97)
+source = sqlite3.connect(sys.argv[1], factory=Crash)
+audit.backup_database(source, sys.argv[2])
+'''
+        process = subprocess.run(
+            [sys.executable, '-B', '-c', script, str(self.db), str(destination)],
+            cwd=Path(__file__).resolve().parents[1],
+        )
+        self.assertEqual(process.returncode, 97)
+        self.assertFalse(destination.exists())
+        a.backup_database(self.c, destination)
+        with a.open_readonly_database(destination) as restored:
+            self.assertEqual(restored.execute('PRAGMA user_version').fetchone()[0], a.SCHEMA_VERSION)
 
     def test_interrupted_schema_migration_rolls_back_and_retries(self):
         from unittest import mock

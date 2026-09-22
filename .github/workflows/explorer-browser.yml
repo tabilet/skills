@@ -18,6 +18,8 @@ jobs:
           node-version: 24.14.1
           cache: npm
           cache-dependency-path: tests/browser/package-lock.json
+      - run: python3 -B -m unittest discover -s tests -p 'test_sqlite_*.py'
+      - run: node --test tests/explorer_browser.test.mjs
       - run: npm ci --prefix tests/browser --ignore-scripts --no-audit --no-fund
       - run: npx --prefix tests/browser playwright install --with-deps chromium
       - run: npm test --prefix tests/browser

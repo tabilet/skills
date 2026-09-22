@@ -287,6 +287,13 @@ class SqliteAuditContractTests(unittest.TestCase):
                 connection.execute("SELECT namespace,identifier FROM event_artifacts WHERE event_id='explorer-1'").fetchone(),
                 ("milestone", "M01"),
             )
+            for unsafe in (".", "tabilet\\memory-bank\\status-M01.md"):
+                with self.subTest(path=unsafe), self.assertRaises(audit.AuditValidationError):
+                    audit.validate_explorer_details({
+                        "schema": "tabilet.audit.explorer/v1", "phase": "request",
+                        "artifact_refs": [{"namespace": "document", "identifier": "source",
+                                           "relationship": "observed", "path": unsafe}],
+                    })
             with self.assertRaises(audit.AuditValidationError):
                 audit.append_event(connection, event(
                     event_id="explorer-2", run_id=run_id, workspace_id=workspace_id,

@@ -109,12 +109,12 @@ class ExplorerApp:
         result = {"project_root": str(self.project), "database": str(self.database), "database_available": False,
                   "setup_required": False, "index": None, "diagnostics": [], "activity": None}
         workspace_id = workspace["workspace_id"]
-        result.update({"database_available": True, "workspace_id": workspace_id,
-                       "branch": workspace.get("branch")})
+        result.update({"database_available": True, "workspace_id": workspace_id})
         result["index"] = index.status(connection, workspace_id)
         result["diagnostics"] = result["index"].get("diagnostics", [])
+        result["branch"] = result["index"].get("branch") or workspace.get("branch")
         result["project"] = {"name": self.project.name, "project_root": str(self.project),
-                             "branch": workspace.get("branch") or result["index"].get("branch"),
+                             "branch": result["branch"],
                              "git_head": result["index"].get("git_head")}
         time = audit.time_key("value")
         latest = connection.execute(f"""
@@ -164,7 +164,8 @@ class ExplorerApp:
                                "AND p.milestone_id=m.milestone_id") if projection else ""
             projection_fields = (",p.display_order,p.summary,p.acceptance_text,p.review_evidence,p.closure_state"
                                  if projection else ",NULL AS display_order,NULL AS summary,NULL AS acceptance_text,NULL AS review_evidence,NULL AS closure_state")
-            milestones = audit.records(connection, f"SELECT m.*{projection_fields} FROM index_milestones m {projection_join} WHERE m.workspace_id=? AND m.lifecycle='active' ORDER BY COALESCE(p.display_order,2147483647),m.line,m.milestone_id" if projection else f"SELECT m.*{projection_fields} FROM index_milestones m WHERE m.workspace_id=? AND m.lifecycle='active' ORDER BY m.line,m.milestone_id", (workspace_id,))
+            milestone_fields = "m.milestone_id,m.lifecycle,m.path,m.line,m.outcome,m.review"
+            milestones = audit.records(connection, f"SELECT {milestone_fields}{projection_fields} FROM index_milestones m {projection_join} WHERE m.workspace_id=? AND m.lifecycle='active' ORDER BY COALESCE(p.display_order,2147483647),m.line,m.milestone_id" if projection else f"SELECT {milestone_fields}{projection_fields} FROM index_milestones m WHERE m.workspace_id=? AND m.lifecycle='active' ORDER BY m.line,m.milestone_id", (workspace_id,))
             tasks = audit.records(connection, """
                 SELECT t.milestone_id,t.state,COUNT(*) AS count
                 FROM index_tasks t JOIN index_milestones m
@@ -181,20 +182,26 @@ class ExplorerApp:
             for key, kind in (("history", "history_status"), ("archives", "context_archive")):
                 counts[key] = connection.execute("SELECT COUNT(*) FROM index_documents WHERE workspace_id=? AND kind=?", (workspace_id, kind)).fetchone()[0]
             counts["evolution"] = connection.execute("SELECT COUNT(*) FROM index_documents WHERE workspace_id=? AND kind LIKE 'evolution_%'", (workspace_id,)).fetchone()[0]
-            attention = [{"message": str(item), "kind": "diagnostic"} for item in state.get("diagnostics", [])]
-            attention += [{"message": f"{row['count']} blocked task(s)", "kind": "blocked"} for row in tasks if row["state"] == "blocked"]
+            attention = [{"message": str(item), "kind": "diagnostic", "view": "todo"}
+                         for item in state.get("diagnostics", [])]
             unfinished = connection.execute("SELECT COUNT(*) FROM runs WHERE workspace_id=? AND completed_at IS NULL", (workspace_id,)).fetchone()[0]
             if unfinished:
-                attention.append({"message": f"{unfinished} workflow run(s) have no terminal result", "kind": "unfinished"})
+                attention.append({"message": f"{unfinished} workflow run(s) have no terminal result",
+                                  "kind": "unfinished", "view": "timeline", "outcome": "unfinished"})
             readiness = index.readiness(connection, workspace_id, self.project)
+            for item in readiness['blocked']:
+                attention.append({'message': item['reason'], 'kind': 'blocked',
+                                  'milestone_id': item['task']['milestone_id'],
+                                  'source': item['task']['source']})
             for item in readiness['needs_review']:
                 attention.append({'message': item['reason'], 'kind': 'review',
-                                  'milestone_id': item.get('milestone_id'), 'source': item.get('source')})
+                                  'milestone_id': item.get('milestone_id'), 'source': item.get('source'),
+                                  'view': 'todo' if not item.get('source') else None})
             for item in readiness['waiting']:
                 attention.append({'message': item['reason'], 'kind': 'dependency',
                                   'milestone_id': item['task']['milestone_id'], 'source': item['task']['source']})
             documents = {row['path']: row for row in audit.records(
-                connection, "SELECT path,kind,text,sha256 FROM index_documents WHERE workspace_id=? ORDER BY path", (workspace_id,))}
+                connection, "SELECT path,kind,substr(text,1,65536) AS text,sha256 FROM index_documents WHERE workspace_id=? ORDER BY path", (workspace_id,))}
             product = documents.get('tabilet/memory-bank/product.md')
             project_summary = None
             if product:
@@ -208,7 +215,6 @@ class ExplorerApp:
                     task['source'] = {'path': task['path'], 'line': task['line'], 'sha256': task['sha256']}
                 active.append({'milestone_id': milestone['milestone_id'], 'title': milestone['milestone_id'],
                                'summary': milestone.get('summary'),
-                               'specification': milestone.get('specification') or '',
                                'acceptance': milestone.get('acceptance_text'),
                                'review_evidence': milestone.get('review_evidence'),
                                'counts': {row['state']: row['count'] for row in states},
@@ -286,15 +292,17 @@ class ExplorerApp:
             workspace_id = workspace["workspace_id"]
             clauses = ["r.workspace_id=?", "r.parent_run_id IS NULL"]; values: list[Any] = [workspace_id]
             if operation:
-                clauses.append("(r.operation=? OR EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.operation=?))")
-                values.extend([operation, operation])
+                clauses.append("(r.operation=? OR EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.workspace_id=? AND c.operation=?))")
+                values.extend([operation, workspace_id, operation])
             if outcome and outcome != "unfinished":
-                clauses.append("(r.result=? OR EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.result=?))")
-                values.extend([outcome, outcome])
-            if outcome == "unfinished": clauses.append("(r.completed_at IS NULL OR EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.completed_at IS NULL))")
+                clauses.append("(r.result=? OR EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.workspace_id=? AND c.result=?))")
+                values.extend([outcome, workspace_id, outcome])
+            if outcome == "unfinished":
+                clauses.append("(r.completed_at IS NULL OR EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.workspace_id=? AND c.completed_at IS NULL))")
+                values.append(workspace_id)
             if milestone:
-                clauses.append("EXISTS (SELECT 1 FROM events e JOIN runs er ON er.run_id=e.run_id WHERE (er.run_id=r.run_id OR er.parent_run_id=r.run_id) AND e.milestone_id=?)")
-                values.append(milestone)
+                clauses.append("EXISTS (SELECT 1 FROM events e JOIN runs er ON er.run_id=e.run_id WHERE er.workspace_id=? AND (er.run_id=r.run_id OR er.parent_run_id=r.run_id) AND e.milestone_id=?)")
+                values.extend([workspace_id, milestone])
             if since: clauses.append(f"{audit.time_key('r.started_at')} >= ?"); values.append(audit.time_bound(since))
             if until: clauses.append(f"{audit.time_key('r.started_at')} <= ?"); values.append(audit.time_bound(until))
             if search:
@@ -305,9 +313,9 @@ class ExplorerApp:
                     "instr(lower(coalesce(r.worktree_state,'')),?)>0",
                     "EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.run_id AND (instr(lower(coalesce(e.event_type,'')),?)>0 OR instr(lower(coalesce(e.task_label,'')),?)>0 OR instr(lower(coalesce(e.details_json,'')),?)>0 OR instr(lower(coalesce(e.payload_json,'')),?)>0))",
                     "EXISTS (SELECT 1 FROM captured_messages m WHERE m.run_id=r.run_id AND (instr(lower(coalesce(m.role,'')),?)>0 OR instr(lower(m.text),?)>0))",
-                    "EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND (instr(lower(c.operation),?)>0 OR instr(lower(coalesce(c.result,'')),?)>0 OR EXISTS (SELECT 1 FROM events ce WHERE ce.run_id=c.run_id AND (instr(lower(coalesce(ce.event_type,'')),?)>0 OR instr(lower(coalesce(ce.task_label,'')),?)>0 OR instr(lower(coalesce(ce.details_json,'')),?)>0 OR instr(lower(coalesce(ce.payload_json,'')),?)>0)) OR EXISTS (SELECT 1 FROM captured_messages cm WHERE cm.run_id=c.run_id AND (instr(lower(coalesce(cm.role,'')),?)>0 OR instr(lower(cm.text),?)>0))))",
+                    "EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.workspace_id=? AND (instr(lower(c.operation),?)>0 OR instr(lower(coalesce(c.result,'')),?)>0 OR EXISTS (SELECT 1 FROM events ce WHERE ce.run_id=c.run_id AND (instr(lower(coalesce(ce.event_type,'')),?)>0 OR instr(lower(coalesce(ce.task_label,'')),?)>0 OR instr(lower(coalesce(ce.details_json,'')),?)>0 OR instr(lower(coalesce(ce.payload_json,'')),?)>0)) OR EXISTS (SELECT 1 FROM captured_messages cm WHERE cm.run_id=c.run_id AND (instr(lower(coalesce(cm.role,'')),?)>0 OR instr(lower(cm.text),?)>0))))",
                 ]) + ")")
-                values.extend([search] * 18)
+                values.extend([search] * 10 + [workspace_id] + [search] * 8)
             direction = cursor.get('direction', 'next') if cursor else None
             newest = order == 'newest'
             query_desc = newest
@@ -329,7 +337,16 @@ class ExplorerApp:
                 def compact(value, limit=500):
                     if value is None: return None
                     return value if len(value) <= limit else value[:limit - 1] + '…'
-                messages = audit.records(connection, "SELECT role,text,fidelity FROM captured_messages WHERE run_id=? ORDER BY sequence", (row['run_id'],))
+                messages = audit.records(connection, """
+                    SELECT role,substr(text,1,501) AS text,fidelity FROM captured_messages
+                    WHERE message_id IN (
+                      SELECT message_id FROM captured_messages
+                      WHERE run_id=? AND role IN ('user','request') ORDER BY sequence LIMIT 1
+                    ) OR message_id IN (
+                      SELECT message_id FROM captured_messages
+                      WHERE run_id=? AND role IN ('assistant','output') ORDER BY sequence DESC LIMIT 1
+                    ) ORDER BY sequence
+                """, (row['run_id'], row['run_id']))
                 request = next((message for message in messages if message['role'] in {'user', 'request'}), None)
                 output = next((message for message in reversed(messages) if message['role'] in {'assistant', 'output'}), None)
                 summary = None
@@ -402,14 +419,21 @@ class ExplorerApp:
                             if len(artifact['details_json']) > 65536:
                                 artifact['details_json'] = artifact['details_json'][:65535] + '…'
                                 artifact['details_truncated'] = True
-            result["messages"] = audit.records(connection, "SELECT * FROM captured_messages WHERE run_id=? ORDER BY sequence LIMIT ? OFFSET ?", (run_id, message_limit + 1, message_offset))
+            result["messages"] = audit.records(connection, """
+                SELECT message_id,run_id,sequence,role,captured_at,
+                       substr(text,1,65535) AS text,length(text) AS original_characters,
+                       capture_source,fidelity,redaction_note
+                FROM captured_messages WHERE run_id=? ORDER BY sequence LIMIT ? OFFSET ?
+            """, (run_id, message_limit + 1, message_offset))
             more_messages = len(result['messages']) > message_limit; result['messages'] = result['messages'][:message_limit]
             for message in result['messages']:
-                if len(message['text']) > 65536:
-                    message['original_characters'] = len(message['text'])
-                    message['text'] = message['text'][:65535] + '…'; message['truncated'] = True
+                if message['original_characters'] > len(message['text']):
+                    message['text'] += '…'; message['truncated'] = True
             summary_messages = audit.records(connection, """
-                SELECT * FROM captured_messages WHERE message_id IN (
+                SELECT message_id,run_id,sequence,role,captured_at,
+                       substr(text,1,65535) AS text,length(text) AS original_characters,
+                       capture_source,fidelity,redaction_note
+                FROM captured_messages WHERE message_id IN (
                   SELECT message_id FROM captured_messages
                   WHERE run_id=? AND role IN ('user','request') ORDER BY sequence LIMIT 1
                 ) OR message_id IN (
@@ -418,9 +442,8 @@ class ExplorerApp:
                 ) ORDER BY sequence
             """, (run_id, run_id))
             for message in summary_messages:
-                if len(message['text']) > 65536:
-                    message['original_characters'] = len(message['text'])
-                    message['text'] = message['text'][:65535] + '…'; message['truncated'] = True
+                if message['original_characters'] > len(message['text']):
+                    message['text'] += '…'; message['truncated'] = True
             request_message = next((message for message in summary_messages if message['role'] in {'user','request'}), None)
             output_message = next((message for message in reversed(summary_messages) if message['role'] in {'assistant','output'}), None)
             result["snapshot_observations"] = audit.records(connection, "SELECT * FROM run_snapshots WHERE run_id=? ORDER BY source_path", (run_id,))
@@ -439,12 +462,13 @@ class ExplorerApp:
             if 'index_tasks' in tables:
                 observations = audit.records(connection, """
                     SELECT DISTINCT task_label AS identifier,task_label AS label,
-                                    milestone_id,status_path AS path
+                                    milestone_id,status_path AS path,'label' AS identity_kind
                     FROM events WHERE run_id=? AND task_label IS NOT NULL
                 """, (run_id,))
                 if 'event_artifacts' in tables:
                     observations += audit.records(connection, """
-                        SELECT DISTINCT a.identifier,a.label,e.milestone_id,a.path
+                        SELECT DISTINCT a.identifier,a.label,e.milestone_id,a.path,
+                                        'identifier' AS identity_kind
                         FROM event_artifacts a JOIN events e USING(event_id)
                         WHERE a.run_id=? AND a.namespace='task' AND a.relationship!='proposed'
                     """, (run_id,))
@@ -454,17 +478,19 @@ class ExplorerApp:
                     scoped = re.fullmatch(r'([A-Z][0-9]{2})/(.+)', identifier)
                     if scoped:
                         milestone_id, identifier = scoped.groups()
-                    key = ('task', milestone_id,
+                    key = ('task', observation['identity_kind'], milestone_id,
                            None if milestone_id else observation.get('path'), identifier)
                     if key in seen: continue
                     source_path = None if milestone_id else observation.get('path')
+                    identity_clause = ('explicit_id=?' if observation['identity_kind'] == 'identifier'
+                                       else 'label=?')
                     rows = audit.records(connection, """
                         SELECT milestone_id,explicit_id,label,state,notes,path,line,sha256
                         FROM index_tasks
-                        WHERE workspace_id=? AND (explicit_id=? OR label=?)
+                        WHERE workspace_id=? AND """ + identity_clause + """
                           AND (? IS NULL OR milestone_id=?)
                           AND (? IS NULL OR path=?)
-                    """, (workspace['workspace_id'], identifier, label, milestone_id, milestone_id,
+                    """, (workspace['workspace_id'], identifier, milestone_id, milestone_id,
                             source_path, source_path))
                     current.append({'kind': 'task', 'identifier': identifier, 'resolved': len(rows) == 1,
                                     'reason': None if len(rows) == 1 else 'current task location is missing or ambiguous',
@@ -573,11 +599,12 @@ class ExplorerApp:
             if source_ref is not None and not isinstance(source_ref, dict):
                 raise audit.AuditError('follow-up source must be an object')
             if item.get('milestone_id'):
-                task_key = item.get('explicit_id') or f"{item['path']}#{item['line']}"
+                task_key = (f"{item['milestone_id']}/{item['explicit_id']}"
+                            if item.get('explicit_id') else f"{item['path']}#{item['line']}")
                 buckets = {
-                    'continue': {x['task']['task_key'] for x in readiness['resume'] + readiness['ready']},
-                    'investigate': {x['task']['task_key'] for x in readiness['blocked']},
-                    'clarify': {x['task']['task_key'] for x in readiness['waiting']},
+                    'continue': {x['task']['dependency_key'] for x in readiness['resume'] + readiness['ready']},
+                    'investigate': {x['task']['dependency_key'] for x in readiness['blocked']},
+                    'clarify': {x['task']['dependency_key'] for x in readiness['waiting']},
                     'review': set(),
                 }
                 if action != 'review' and task_key not in buckets[action]:
@@ -698,8 +725,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin:
             parsed = urllib.parse.urlsplit(origin)
-            expected = f"{parsed.scheme}://{self.headers.get('Host')}"
-            if parsed.hostname not in allowed or origin.rstrip("/") != expected.rstrip("/"): return False
+            expected = f"http://{self.headers.get('Host')}"
+            if (parsed.scheme != 'http' or parsed.hostname not in allowed
+                    or origin.rstrip("/") != expected.rstrip("/")): return False
         return True
 
     def _auth(self, api=False, post=False):
