@@ -157,3 +157,5 @@ every query boundary, same-origin POST checks require the server's HTTP scheme,
 and health reports the branch from the current index generation. Search exposes
 bounded next-page state, while Overview and timeline summaries avoid loading or
 returning unused full document and message bodies.
+Follow-up requests now reject unknown fields and validate nested source paths,
+line numbers, and SHA-256 values with strict JSON types before task selection.

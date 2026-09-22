@@ -94,6 +94,7 @@ test('detail URLs have one selection and source lines open around the target', (
   const preview = client.sourcePreview(Array.from({ length: 30 }, (_, index) => `line ${index + 1}`).join('\n'), 20);
   assert.match(preview.textContent, /> 20 \| line 20/);
   assert.doesNotMatch(preview.textContent, /line 1\n/);
+  assert.match(client.sourcePreview('one\ntwo', 20).textContent, /outside the current 2-line document/);
 });
 
 test('detail close restores focus and clipboard failure keeps selectable prompt', async () => {

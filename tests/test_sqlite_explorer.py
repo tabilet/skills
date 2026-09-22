@@ -418,7 +418,12 @@ class ExplorerTests(unittest.TestCase):
         self.assertEqual(status, 400); self.assertIn('boolean', body['error'])
         status, body = self.request('POST', '/api/follow-up', token=token, origin=origin,
                                     body={'line': True})
-        self.assertEqual(status, 400); self.assertIn('integer', body['error'])
+        self.assertEqual(status, 400); self.assertIn('unknown follow-up fields', body['error'])
+        status, body = self.request('POST', '/api/follow-up', token=token, origin=origin,
+                                    body={'task_label': 'Implement feature', 'milestone_id': 'M01',
+                                          'source': {'path': 'tabilet/memory-bank/status-M01.md',
+                                                     'line': True}})
+        self.assertEqual(status, 400); self.assertIn('positive integer', body['error'])
         with audit.open_database(self.database, project_roots=[self.project]) as connection:
             workspace = audit.ensure_workspace(connection, self.project)
             run = audit.start_run(connection, workspace, "goal", run_id="large-message", capture_mode="relevant")

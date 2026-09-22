@@ -571,6 +571,9 @@ class ExplorerApp:
         action = payload.get('action', 'continue')
         if action not in {'continue', 'investigate', 'review', 'clarify'}:
             raise audit.AuditError('unknown follow-up action')
+        for field in ('milestone_id', 'task_id', 'task_label'):
+            if payload.get(field) is not None and not isinstance(payload[field], str):
+                raise audit.AuditError(f'{field} must be a string')
         with self.read() as (connection, workspace):
             workspace_id = workspace['workspace_id']
             readiness = index.readiness(connection, workspace_id, self.project)
@@ -598,6 +601,18 @@ class ExplorerApp:
             source_ref = payload.get('source')
             if source_ref is not None and not isinstance(source_ref, dict):
                 raise audit.AuditError('follow-up source must be an object')
+            if source_ref:
+                unknown_source = set(source_ref) - {'path', 'line', 'sha256'}
+                if unknown_source:
+                    raise audit.AuditError('unknown follow-up source fields: ' + ', '.join(sorted(unknown_source)))
+                if not isinstance(source_ref.get('path'), str):
+                    raise audit.AuditError('follow-up source path must be a string')
+                if source_ref.get('line') is not None and (type(source_ref['line']) is not int
+                                                            or source_ref['line'] < 1):
+                    raise audit.AuditError('follow-up source line must be a positive integer')
+                if source_ref.get('sha256') is not None and not re.fullmatch(
+                        r'[0-9a-f]{64}', str(source_ref['sha256'])):
+                    raise audit.AuditError('follow-up source hash must be a SHA-256 digest')
             if item.get('milestone_id'):
                 task_key = (f"{item['milestone_id']}/{item['explicit_id']}"
                             if item.get('explicit_id') else f"{item['path']}#{item['line']}")
@@ -796,9 +811,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         raise audit.AuditError(f'{field} must be a boolean')
                 self._send(200, self.app.refresh(payload.get("rebuild", False), payload.get("literal", False)))
             else:
-                line = payload.get("line")
-                if line is not None and type(line) is not int: raise audit.AuditError("line must be an integer")
-                if line is not None: payload['line'] = line
+                unknown = set(payload) - {'action', 'milestone_id', 'task_id', 'task_label', 'source'}
+                if unknown: raise audit.AuditError('unknown follow-up fields: ' + ', '.join(sorted(unknown)))
                 self._send(200, self.app.follow_up(payload))
         except (audit.AuditError, sqlite3.Error, OSError, ValueError, TypeError, json.JSONDecodeError) as exc: self._error(400, exc)
 

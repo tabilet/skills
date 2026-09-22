@@ -133,8 +133,8 @@ benchmark now includes 120 statuses, 17 lanes, 2,400 tasks, retired history,
 archive/evolution groups, 250 parent runs, 25 child runs, timeline/detail queries,
 and peak response size; its latest run reported a bounded 50-of-2,400-entry
 To-do page and a 170,349-byte peak response.
-`python3 check.py` (36 checks), the full credential-free Python suite (162 tests),
-the focused SQLite suite (88 tests), DSH tests (13), `mkdocs build --strict`, six
+`python3 check.py` (36 checks), the full credential-free Python suite (164 tests),
+the focused SQLite suite (90 tests), DSH tests (13), `mkdocs build --strict`, six
 isolated DOM journeys, two real Chromium journeys, copied-toolkit launch and
 missing-asset tests, and the representative benchmark pass. Browser tooling is
 repository-only under `tests/browser`; the shipped runtime remains Python
@@ -154,3 +154,7 @@ current branch reporting, bounded search pages, hidden review pages, exclusive
 detail URLs, restored page positions, exact-line source excerpts, and abrupt
 backup interruption before publication. Hosted explorer CI runs the focused
 Python contracts and isolated DOM suite before its real Chromium journeys.
+The same review also verifies the complete target schema before a migration
+commits its version marker, keeps API-runner audit ownership self-contained,
+rejects malformed nested follow-up source references, and reports stale source
+line locations without substituting unrelated current text.

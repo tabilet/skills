@@ -176,7 +176,7 @@ rebuildable projection adds milestone presentation metadata and explicit task
 dependency observations. `tabilet_index.readiness` validates live source hashes
 and withholds recommendations on stale, unresolved, or contradictory state.
 
-Verification: the 88-test focused SQLite suite passes, including
+Verification: the 90-test focused SQLite suite passes, including
 v1/v2 migration, extension ownership, projection, dependency, stale-source, and
 multiple-in-progress cases. No Markdown or snapshot bytes are rewritten. The
 complete repository and website gates remain the parent milestone's final

@@ -584,6 +584,10 @@ def open_database(path=None, *, project_roots=()):
                 connection.execute("INSERT OR REPLACE INTO schema_meta VALUES ('schema', ?)", (SCHEMA_NAME,))
                 connection.execute("INSERT OR REPLACE INTO schema_meta VALUES ('recorder_version', ?)", (RECORDER_VERSION,))
                 connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+                # CREATE IF NOT EXISTS must not bless a conflicting future table
+                # that happened to exist in an older database. Validate the
+                # complete target schema while the migration is still rollbackable.
+                validate_database(connection)
                 connection.commit()
             except BaseException:
                 connection.rollback()

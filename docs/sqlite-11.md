@@ -190,4 +190,6 @@ review requirement on another To-do page still withholds action buttons. Overvie
 attention items now link to their source, the To-do review, or the filtered
 unfinished-run timeline instead of ending at an unlinked aggregate. The detail
 surface is an accessible modal, closes with Escape, and preserves the original
-trigger across detail pagination.
+trigger across detail pagination. A historical source line outside the current
+document is reported as stale location evidence instead of being clamped to a
+different line.

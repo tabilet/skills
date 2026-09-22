@@ -5,11 +5,13 @@ project writes or execution. Direct the user to preview and explicitly apply
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
 Installing v2 never migrates a project automatically.
 
-For explicitly enabled interactive auditing (`TABILET_AUDIT_DB`), read the bundled
-`references/optional-audit.md` and use the optional installed `tabilet-audit`
-toolkit. Report unavailable logging as a gap without changing workflow approvals
-or outcomes. Inside the API runner, its recorder owns the lifecycle; do not start
-a duplicate audit run.
+When `TABILET_AUDIT_DB` explicitly enables auditing, use exactly one recorder
+owner. Inside the API runner, the runner owns the audit lifecycle: do not look
+for an interactive skill's `references/optional-audit.md`, invoke
+`tabilet-audit`, or start a duplicate run. In an interactive skill run, read the
+bundled `references/optional-audit.md` and use the optional installed
+`tabilet-audit` toolkit. Report recorder failures as gaps without changing
+workflow approvals or outcomes.
 
 Resolve missing information through safe inspection first. If required files,
 bundled resources, verification commands, permissions, or user answers are unavailable,

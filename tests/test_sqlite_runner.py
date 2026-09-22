@@ -11,6 +11,11 @@ import test_harness as h
 
 
 class RunnerRepairs(unittest.TestCase):
+    def test_embedded_task_keeps_runner_audit_ownership_self_contained(self):
+        self.assertIn('Inside the API runner, the runner owns the audit lifecycle: do not look',
+                      h.harness.EMBEDDED_TASK)
+        self.assertIn('In an interactive skill run, read the\nbundled', h.harness.EMBEDDED_TASK)
+
     def test_single_file_install_works_without_optional_modules(self):
         with tempfile.TemporaryDirectory() as tmp:
             target=Path(tmp)/'tackle-memory-bank-api-loop'

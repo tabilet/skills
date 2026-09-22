@@ -322,6 +322,26 @@ audit.backup_database(source, sys.argv[2])
         self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],3)
         c.close()
 
+    def test_migration_rejects_conflicting_future_table_before_version_commit(self):
+        legacy = self.root / 'conflicting-future.db'
+        connection = sqlite3.connect(legacy)
+        connection.executescript(a.SCHEMA_SQL)
+        connection.execute("CREATE TABLE event_explorer(wrong TEXT)")
+        connection.execute("INSERT INTO schema_meta VALUES ('schema','tabilet.audit/v1')")
+        connection.execute('PRAGMA user_version=1')
+        connection.commit(); connection.close()
+        with self.assertRaises((a.AuditError, sqlite3.Error)):
+            a.open_database(legacy)
+        connection = sqlite3.connect(legacy)
+        try:
+            self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 1)
+            self.assertEqual(connection.execute(
+                "SELECT value FROM schema_meta WHERE key='schema'").fetchone()[0], 'tabilet.audit/v1')
+            self.assertEqual([row[1] for row in connection.execute(
+                'PRAGMA table_info(event_explorer)')], ['wrong'])
+        finally:
+            connection.close()
+
     def test_each_migrated_workspace_rebuilds_its_explorer_projection(self):
         import tabilet_index as index
         import test_harness as harness

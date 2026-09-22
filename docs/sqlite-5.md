@@ -44,4 +44,11 @@ file before atomically publishing the destination. An abrupt process exit can
 leave an ignorable staging file, but cannot expose a partial file under the
 requested backup name; retrying that destination remains safe. Existing storage
 validation now verifies required column constraints, foreign keys, uniqueness,
-and named indexes as well as their names, integrity, and version marker.
+and named indexes as well as their names, integrity, and version marker. A
+migration validates the complete target schema before committing its new version,
+so a conflicting preexisting future table cannot be silently blessed.
+
+The API runner's embedded instruction also makes recorder ownership explicit: an
+audited runner turn does not search for an interactive skill reference or invoke
+the host CLI, preventing a missing bundle path or duplicate run from stopping the
+task loop.
