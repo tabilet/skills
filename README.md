@@ -832,6 +832,38 @@ paraphrase of it.
 | `memory-bank-next` | Execute or resume one row, verify, and commit under the governing policy. |
 | `memory-bank-goal` | When you want several milestones run in order. |
 
+### Suggested models
+
+The skills do not require, select, or bundle a particular language model. Each
+skill runs with the model chosen by its host agent, and the project files remain
+portable across providers. Model capability still matters because the skills do
+different kinds of work. The names below are current Codex examples, not names
+the skills recognize or require; Codex may rename or replace them, and other
+providers have their own model names.
+
+| Work shape | Skills | Capability profile | Current Codex example |
+|---|---|---|---|
+| Open-ended discovery and planning | `memory-bank-init`, `memory-bank-propose`, `memory-bank-reconcile` | Deep model with strong judgment | Sol with high reasoning |
+| Bounded evidence, rule analysis, and combined implementation-review runs | `memory-bank-archive`, `memory-bank-upgrade`, `memory-bank-goal` | Balanced model with strong reasoning and tool use | Terra with high reasoning |
+| One explicit task from an approved plan | `memory-bank-next` | Fast model for clear, repeatable work | Luna with high reasoning, followed by a manual balanced-model review such as Terra |
+
+Choose the closest equivalent available in the host agent: a deeper model for ambiguous planning and
+high-consequence review, a balanced model for evidence-heavy analysis, and a
+fast model for clear tasks with explicit acceptance and verification. Escalate
+from Luna to Terra or Sol when implementation exposes an unclear dependency,
+changes architecture, or fails verification repeatedly. Use Sol for a
+release-critical, security-sensitive, or unusually broad final review.
+
+A skill cannot change its parent session's model. In Codex, choose the model
+with `/model` or start the session with a model profile. A Goal run contains
+both implementation and the bounded milestone review, so a balanced model such
+as Terra is the practical default for the whole run. Next can use a fast model
+such as Luna for a clear row and then receive a manual review from a balanced
+model such as Terra. If that row will close its milestone and trigger the
+closing review inside Next, use the balanced model for the Next run as well. Task state,
+review counters, and acceptance evidence remain in the project files across a
+separate review handoff.
+
 `memory-bank-init` is the one that changes the experience most: it maps one
 delivery boundary as a design tree, asks each dependency-ready frontier as a
 numbered round with recommended answers, and looks up repository facts instead
