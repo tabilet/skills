@@ -48,7 +48,7 @@ class CliTests(unittest.TestCase):
         events=self.command('audit','events','--run-id','child','--limit','1','--offset','1')['results']
         self.assertEqual(events[0]['event_id'],'event1')
         exported=self.command('audit','export')
-        self.assertNotIn('messages',exported['runs'][0])
+        self.assertIn('messages',exported['runs'][0])
         exported=self.command('audit','export','--include-content')
         self.assertEqual(sum(len(r['messages']) for r in exported['runs']),1)
         indexed=self.command('index','status',self.repo)
@@ -70,6 +70,18 @@ class CliTests(unittest.TestCase):
             self.assertEqual(c.execute('SELECT COUNT(*) FROM captured_messages').fetchone()[0],0)
             self.assertEqual(c.execute('SELECT COUNT(*) FROM runs').fetchone()[0],7)
         finally:c.close()
+
+    def test_relevant_message_capture_rejects_oversized_text(self):
+        self.command('audit','begin',self.repo,'next','--run-id','bounded','--capture','relevant')
+        oversized={
+            'run_id':'bounded','message_id':'too-long','role':'user',
+            'text':'x' * 1025,'capture_source':'host','fidelity':'exact',
+        }
+        error=self.command('audit','message',data=oversized,ok=False)
+        self.assertIn('exceeds 1024 characters',error)
+        summary={**oversized,'message_id':'summary','text':'User requested the next task with the stated constraints.',
+                 'capture_source':'agent','fidelity':'summarized'}
+        self.command('audit','message',data=summary)
 
     def test_packaged_toolkit_works_and_rebuild_preserves_audit(self):
         installation=self.base/'bin';installation.mkdir()

@@ -116,13 +116,13 @@ class SqliteAuditContractTests(unittest.TestCase):
         with self.assertRaisesRegex(audit.AuditValidationError, "subject must"):
             audit.validate_event(event(subject="task"))
 
-    def test_open_database_creates_secure_v3_database(self) -> None:
+    def test_open_database_creates_secure_v4_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "state" / "tabilet" / "audit.sqlite3"
             connection = audit.open_database(database)
             self.addCleanup(connection.close)
             self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
             self.assertEqual(
                 connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()[0],
                 audit.SCHEMA_NAME,
@@ -244,6 +244,10 @@ class SqliteAuditContractTests(unittest.TestCase):
             )
             self.assertEqual(
                 connection.execute("SELECT text FROM captured_messages WHERE message_id = ?", (message_id,)).fetchone()[0],
+                "",
+            )
+            self.assertEqual(
+                audit.query_messages(connection, run_id, include_content=True)[0]["text"],
                 "Completed the recorder task.",
             )
 

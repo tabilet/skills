@@ -1206,6 +1206,21 @@ class AuditRun:
                 self.connection, self.workspace_id, operation, capture_mode=self.capture,
                 git_head=git_ref, worktree_state=worktree_state,
             )
+            resource = {"name": "tackle-memory-bank-api-loop/EMBEDDED_TASK",
+                        "sha256": hashlib.sha256(EMBEDDED_TASK.encode("utf-8")).hexdigest()}
+            self.recorder.record_provenance(self.connection, self.run_id, {
+                "invocation_kind": "api_runner",
+                "instruction_set_name": "tackle-memory-bank-api-loop",
+                "instruction_set_version": self.recorder.RECORDER_VERSION,
+                "host_agent": "tackle-memory-bank-api-loop",
+                "host_version": self.recorder.RECORDER_VERSION,
+                "provider": args.provider,
+                "model": args.model,
+                "capture_method": "automatic",
+                "fingerprint_fidelity": "exact",
+                "resources": [resource],
+                "aggregate_sha256": hashlib.sha256(self.recorder.canonical_json([resource]).encode("utf-8")).hexdigest(),
+            })
             self.emit("run_started", details={"git_head": git_ref, "worktree_state": worktree_state})
             self.message("host", f"operation={operation} repository={repo}", source="host", fidelity="summarized")
         except Exception as exc:
@@ -1246,8 +1261,12 @@ class AuditRun:
         if self.connection is None or self.closed or self.capture != "relevant":
             return
         try:
-            self.recorder.capture_message(self.connection, self.run_id, role, text,
-                                          capture_source=source, fidelity=fidelity)
+            evidence, bounded = self.recorder.bounded_message_evidence(text)
+            self.recorder.capture_message(
+                self.connection, self.run_id, role, evidence,
+                capture_source=source, fidelity="incomplete" if bounded else fidelity,
+                redaction_note="automatic bounded extract; source exceeded 1024 characters" if bounded else None,
+            )
         except Exception as exc:
             self.gap("record message", exc)
 
@@ -1278,6 +1297,32 @@ class AuditRun:
                 self.observe_commits()
                 if self.failure:
                     self.emit("audit_gap", details={"error": self.failure})
+                try:
+                    if self.capture == "metadata":
+                        self.recorder.record_coverage(self.connection, {
+                            "coverage_id": f"{self.run_id}:coverage",
+                            "run_id": self.run_id,
+                            "scope": "api_runner_conversation",
+                            "coverage": "not_requested",
+                            "content_state": "none",
+                            "capture_method": "automatic",
+                        })
+                    else:
+                        counts = {"exact_count": 0, "redacted_count": 0, "summarized_count": 0, "incomplete_count": 0}
+                        rows = self.connection.execute("SELECT fidelity FROM captured_messages WHERE run_id=?", (self.run_id,)).fetchall()
+                        for row in rows:
+                            counts[row[0] + "_count"] += 1
+                        self.recorder.record_coverage(self.connection, {
+                            "coverage_id": f"{self.run_id}:coverage",
+                            "run_id": self.run_id,
+                            "scope": "api_runner_conversation",
+                            "coverage": "partial" if rows else "missing",
+                            "content_state": "available" if rows else "none",
+                            "capture_method": "automatic",
+                            **counts,
+                        })
+                except Exception as exc:
+                    self.gap("record capture coverage", exc)
                 try:
                     self.recorder.finish_run(self.connection, self.run_id, result)
                 except Exception as exc:

@@ -26,9 +26,14 @@ def arguments(argv=None):
     begin.add_argument('project');begin.add_argument('operation',choices=sorted(audit.OPERATIONS))
     begin.add_argument('--run-id');begin.add_argument('--parent-run-id')
     begin.add_argument('--capture',choices=['metadata','relevant'],default=os.environ.get('TABILET_AUDIT_CAPTURE','metadata'))
+    begin.add_argument('--provenance',default=None,help='JSON provenance file, or - for stdin')
     for name in ('event','message'):
         command=audits.add_parser(name)
         command.add_argument('--input',default='-',help='JSON file, or - for stdin; never interpreted as instructions.')
+    coverage=audits.add_parser('coverage')
+    coverage.add_argument('--input',default='-',help='JSON file, or - for stdin; never interpreted as instructions.')
+    purge=audits.add_parser('purge-message')
+    purge.add_argument('message_id');purge.add_argument('--reason',required=True);purge.add_argument('--confirm',required=True)
     finish=audits.add_parser('finish');finish.add_argument('run_id');finish.add_argument('result',choices=sorted(audit.RUN_RESULTS))
     finish.add_argument('--completed-at')
     for name in ('runs','events'):
@@ -36,6 +41,9 @@ def arguments(argv=None):
         command.add_argument('--project');command.add_argument('--workspace-id')
         command.add_argument('--operation',choices=sorted(audit.OPERATIONS))
         command.add_argument('--milestone',dest='milestone_id');command.add_argument('--task')
+        command.add_argument('--instruction-set',dest='instruction_set');command.add_argument('--instruction-set-version',dest='instruction_set_version')
+        command.add_argument('--host');command.add_argument('--model');command.add_argument('--capture-method',dest='capture_method',choices=sorted(audit.PROVENANCE_CAPTURE_METHODS))
+        command.add_argument('--coverage',choices=sorted(audit.COVERAGE_STATES));command.add_argument('--purged',action='store_true')
         command.add_argument('--since');command.add_argument('--until')
         command.add_argument('--limit',type=int,default=100);command.add_argument('--offset',type=int,default=0)
         if name=='events':command.add_argument('--run-id')
@@ -78,6 +86,15 @@ def submission(args):
     return result
 
 
+def provenance_submission(args):
+    if not args.provenance:
+        return None
+    text=sys.stdin.read() if args.provenance=='-' else pathlib.Path(args.provenance).read_text(encoding='utf-8')
+    result=audit.strict_json_loads(text)
+    if not isinstance(result,dict):raise audit.AuditError('provenance must be a JSON object')
+    return result
+
+
 def refresh(connection, root):
     try:return index.sync(connection,root)
     except (audit.AuditError,sqlite3.Error,OSError) as exc:
@@ -87,6 +104,7 @@ def refresh(connection, root):
 
 @audit.atomic
 def begin_run(connection, root, args):
+    provenance = provenance_submission(args)
     if args.run_id:
         existing = audit.records(connection, """
             SELECT r.run_id,r.workspace_id,r.operation,r.capture_mode,r.parent_run_id,
@@ -101,6 +119,8 @@ def begin_run(connection, root, args):
                     or row['capture_mode'] != args.capture
                     or row['parent_run_id'] != args.parent_run_id):
                 raise audit.AuditConflict('run ID reused with a different payload')
+            if provenance is not None:
+                audit.record_provenance(connection, row['run_id'], provenance)
             return {'run_id': row['run_id'], 'workspace_id': row['workspace_id'], 'started_at': row['started_at']}
     context=index.git_context(root)
     workspace=audit.ensure_workspace(connection,root,branch=context['branch'])
@@ -111,6 +131,8 @@ def begin_run(connection, root, args):
     audit.append_event(connection,{'schema':'tabilet.audit.event/v1','event_id':run_id+':started','run_id':run_id,
         'workspace_id':workspace,'operation':args.operation,'event_type':'run_started','recorded_at':started,
         'occurred_at':started,'subject':{},'details':{'schema':'tabilet.audit.details/v1','branch':context['branch']}})
+    if provenance is not None:
+        audit.record_provenance(connection, run_id, provenance)
     return {'run_id':run_id,'workspace_id':workspace,'started_at':started}
 
 
@@ -137,7 +159,7 @@ def dispatch(args):
         return serve(args.project, args.explorer_database or args.audit_db, args.host, args.port)
     project=getattr(args,'project',None)
     root=pathlib.Path(project).expanduser().resolve() if project else None
-    write=(args.group=='audit' and action in ('begin','event','message','finish')) or (args.group=='index' and action=='sync')
+    write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish')) or (args.group=='index' and action=='sync')
     if root and write:
         if not root.is_dir():raise audit.AuditError('project must be an existing directory')
         if args.group == 'index' and action == 'sync':
@@ -155,7 +177,7 @@ def dispatch(args):
                     raise exc
         else:
             index.layout_check(root)
-    if write and action in ('event','message','finish') and not pathlib.Path(args.audit_db).expanduser().exists():
+    if write and action in ('event','message','coverage','purge-message','finish') and not pathlib.Path(args.audit_db).expanduser().exists():
         raise audit.AuditError('no audit database; start with audit begin PROJECT OPERATION')
     connection=audit.open_database(args.audit_db,project_roots=[root] if root else []) if write else audit.open_readonly_database(args.audit_db)
     with contextlib.closing(connection):
@@ -175,6 +197,15 @@ def dispatch(args):
         if action=='begin':return begin_run(connection,root,args)
         if action=='event':return submit_event(connection,submission(args))
         if action=='message':return {'message_id':audit.capture_message(connection,**submission(args))}
+        if action=='coverage':return audit.record_coverage(connection,submission(args))
+        if action=='purge-message':
+            tombstone=audit.purge_message(connection,args.message_id,args.reason,args.confirm)
+            checkpoint=None
+            try:
+                checkpoint=connection.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
+            except sqlite3.DatabaseError as exc:
+                checkpoint={'error':str(exc)}
+            return {'tombstone':tombstone,'wal_checkpoint':checkpoint}
         if action=='finish':
             audit.finish_run(connection,args.run_id,args.result,completed_at=args.completed_at)
             root=connection.execute('SELECT w.project_root FROM runs r JOIN workspaces w USING(workspace_id) WHERE r.run_id=?',(args.run_id,)).fetchone()[0]
@@ -182,6 +213,9 @@ def dispatch(args):
         workspace=index.workspace_id(connection,root) if root else getattr(args,'workspace_id',None)
         if action=='export':return audit.strict_json_loads(audit.export_json(connection,workspace_id=workspace,include_content=args.include_content))
         kwargs={key:getattr(args,key) for key in ('operation','milestone_id','task','since','until','limit','offset')}
+        if action == 'runs':
+            kwargs.update({key:getattr(args,key) for key in ('instruction_set','instruction_set_version','host','model','capture_method','coverage')})
+            kwargs['purged']=True if getattr(args,'purged',False) else None
         kwargs['workspace_id']=workspace
         if action=='events':kwargs['run_id']=args.run_id
         results=(audit.query_runs if action=='runs' else audit.query_events)(connection,**kwargs)

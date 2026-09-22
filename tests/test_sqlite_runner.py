@@ -24,7 +24,7 @@ class RunnerRepairs(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stderr)
 
     def test_blocked_transition_and_commit_before_failed_gate(self):
-        for outcome in ('blocked','dirty','unexpected','inside'):
+        for outcome in ('blocked','dirty','unexpected','inside','long'):
             with self.subTest(outcome=outcome),tempfile.TemporaryDirectory() as tmp:
                 repo=h.make_repo(Path(tmp)/'repo',h.marker('[~]'))
                 database=(repo if outcome=='inside' else Path(tmp))/'audit.db'
@@ -37,7 +37,7 @@ class RunnerRepairs(unittest.TestCase):
                     commit=h.run('git','-c','user.name=Test','-c','user.email=test@example.test','commit','-qm','blocked',cwd=repo)
                     self.assertEqual(commit.returncode,0,commit.stderr)
                     if outcome=='dirty':(repo/'uncommitted').write_text('changed')
-                    return {'final':'Blocked by a missing prerequisite.'}
+                    return {'final':'x' * 1025 if outcome=='long' else 'Blocked by a missing prerequisite.'}
                 env=h.HarnessIntegrationTests().harness_env(tmp,ALLOW_UNSANDBOXED_SHELL='1')
                 with mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo),'--audit-db',str(database),'--audit-capture','relevant']),mock.patch.dict(os.environ,env,clear=True),mock.patch.object(h.harness,'one_agent_run',side_effect=model):
                     with self.assertRaises((SystemExit,RuntimeError)) as stopped:h.harness.main()
@@ -47,11 +47,18 @@ class RunnerRepairs(unittest.TestCase):
                     continue
                 c=sqlite3.connect(database)
                 try:
-                    expected={'blocked':'blocked','dirty':'failed','unexpected':'failed'}[outcome]
+                    expected={'blocked':'blocked','dirty':'failed','unexpected':'failed','long':'blocked'}[outcome]
                     self.assertEqual(c.execute('SELECT result FROM runs').fetchone()[0],expected)
                     if outcome!='unexpected':
                         self.assertEqual(c.execute("SELECT COUNT(*) FROM events WHERE event_type='commit_observed'").fetchone()[0],1)
-                        self.assertIn('Blocked',c.execute("SELECT text FROM captured_messages WHERE role='assistant'").fetchone()[0])
+                        message=c.execute(
+                            "SELECT c.content,m.fidelity,m.redaction_note FROM captured_message_content c JOIN captured_messages m USING(message_id) WHERE m.role='assistant'"
+                        ).fetchone()
+                        if outcome=='long':
+                            self.assertLessEqual(len(message[0].decode('utf-8')),1024)
+                            self.assertEqual(message[1:],('incomplete','automatic bounded extract; source exceeded 1024 characters'))
+                        else:
+                            self.assertIn(b'Blocked',message[0])
                     if outcome=='dirty':
                         self.assertEqual(c.execute("SELECT COUNT(*) FROM events WHERE event_type='task_transition'").fetchone()[0],1)
                     if outcome=='blocked':
