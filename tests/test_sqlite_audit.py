@@ -74,6 +74,12 @@ class SqliteAuditContractTests(unittest.TestCase):
         self.assertEqual(normalized["details"], {"schema": "tabilet.audit.details/v1"})
         self.assertEqual(json.loads(audit.canonical_json(normalized))["event_id"], "event-1")
 
+    def test_json_rejects_non_finite_numbers_and_constants(self) -> None:
+        with self.assertRaisesRegex(audit.AuditValidationError, "finite"):
+            audit.canonical_json({"duration": float("nan")})
+        with self.assertRaisesRegex(audit.AuditValidationError, "constant"):
+            audit.strict_json_loads('{"duration":NaN}')
+
     def test_invalid_event_contracts_are_rejected(self) -> None:
         cases = [
             ("schema", "wrong"),

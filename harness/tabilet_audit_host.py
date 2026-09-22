@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import json
 import os
 import pathlib
 import sqlite3
@@ -74,7 +73,7 @@ def arguments(argv=None):
 
 def submission(args):
     text=args.event if args.event is not None else sys.stdin.read() if args.input=='-' else pathlib.Path(args.input).read_text(encoding='utf-8')
-    result=json.loads(text)
+    result=audit.strict_json_loads(text)
     if not isinstance(result,dict):raise audit.AuditError('submission must be a JSON object')
     return result
 
@@ -120,7 +119,7 @@ def submit_event(connection, event):
     event=dict(event)
     event.setdefault('event_id',str(uuid.uuid4()))
     prior=connection.execute('SELECT payload_json FROM events WHERE event_id=?',(event['event_id'],)).fetchone()
-    timestamp=json.loads(prior[0])['recorded_at'] if prior else audit.utc_now()
+    timestamp=audit.strict_json_loads(prior[0])['recorded_at'] if prior else audit.utc_now()
     event.setdefault('recorded_at',timestamp)
     event.setdefault('occurred_at',None)
     details=event.get('details',{})
@@ -181,7 +180,7 @@ def dispatch(args):
             root=connection.execute('SELECT w.project_root FROM runs r JOIN workspaces w USING(workspace_id) WHERE r.run_id=?',(args.run_id,)).fetchone()[0]
             return {'run_id':args.run_id,'result':args.result,'index':refresh(connection,root)}
         workspace=index.workspace_id(connection,root) if root else getattr(args,'workspace_id',None)
-        if action=='export':return json.loads(audit.export_json(connection,workspace_id=workspace,include_content=args.include_content))
+        if action=='export':return audit.strict_json_loads(audit.export_json(connection,workspace_id=workspace,include_content=args.include_content))
         kwargs={key:getattr(args,key) for key in ('operation','milestone_id','task','since','until','limit','offset')}
         kwargs['workspace_id']=workspace
         if action=='events':kwargs['run_id']=args.run_id

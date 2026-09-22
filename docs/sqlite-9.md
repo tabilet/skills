@@ -6,8 +6,8 @@ Depends on: [SQLite 8 — SQLite foundation acceptance](sqlite-8.md).
 
 Next: [SQLite 10 — Local server, API, and navigation](sqlite-10.md).
 
-This is a planning document. Every implementation task below is pending.
-Creating these plans does not start implementation or authorize a release.
+This implementation ledger preserves the accepted contract and completion
+evidence. Its completion does not authorize a release.
 
 ## Explorer objective and delivery order
 
@@ -173,16 +173,19 @@ rebuildable projection adds milestone presentation metadata and explicit task
 dependency observations. `tabilet_index.readiness` validates live source hashes
 and withholds recommendations on stale, unresolved, or contradictory state.
 
-Verification: 36 focused SQLite audit, repair, and index tests pass, including
+Verification: the 70-test focused SQLite suite passes, including
 v1/v2 migration, extension ownership, projection, dependency, stale-source, and
 multiple-in-progress cases. No Markdown or snapshot bytes are rewritten. The
 complete repository and website gates remain the parent milestone's final
 acceptance check before SQLite 10 starts.
 
-Review iteration: 2 (deep review fixes applied). Projection publication now
+Review iteration: 3 (cross-milestone deep review fixes applied). Projection publication now
 rebuilds SQL9 tables when a v2 index is first upgraded; readiness resolves
 duplicate IDs in milestone scope, reports dependency cycles, preserves
 maintained milestone order, and withholds downstream work for cancelled,
 historical, missing, or unreviewed prerequisites. The parent goal
-must run the complete repository, DSH, and strict website gates before treating
-this milestone as accepted downstream.
+must run the complete repository, DSH, browser, and strict website gates before
+treating this milestone as accepted downstream. Strict JSON now rejects
+non-finite values, readiness exposes linked prerequisites and dependents under a
+single read snapshot, and live prompt preparation rejects a hash change after
+classification.

@@ -167,7 +167,22 @@ def utc_now() -> str:
 def canonical_json(value: Any) -> str:
     """Serialize JSON details deterministically for idempotency comparisons."""
 
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    try:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    except ValueError as exc:
+        raise AuditValidationError("JSON values must be finite") from exc
+
+
+def strict_json_loads(value: str | bytes | bytearray) -> Any:
+    """Parse interoperable JSON and reject Python's non-standard constants."""
+
+    def reject_constant(constant: str) -> Any:
+        raise AuditValidationError(f"invalid JSON constant: {constant}")
+
+    try:
+        return json.loads(value, parse_constant=reject_constant)
+    except json.JSONDecodeError as exc:
+        raise AuditValidationError(f"invalid JSON: {exc}") from exc
 
 
 def _timestamp(value: Any, field: str, *, optional: bool = False) -> str | None:

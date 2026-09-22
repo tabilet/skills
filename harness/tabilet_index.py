@@ -8,14 +8,13 @@ import importlib.util
 import contextlib
 import pathlib
 import os
-import json
 import re
 import sqlite3
 import stat
 import subprocess
 import uuid
 
-from tabilet_audit import AuditError, atomic, canonical_json, ensure_workspace, records, utc_now, pagination
+from tabilet_audit import AuditError, atomic, canonical_json, ensure_workspace, records, strict_json_loads, utc_now, pagination
 
 MAX_BYTES = 4 * 1024 * 1024
 STATUS = re.compile(r'status-([A-Z](?:0[1-9]|[1-9][0-9]))\.md$')
@@ -418,7 +417,7 @@ def status(connection, workspace):
     rows=records(connection,'SELECT * FROM index_state WHERE workspace_id=?',(workspace,))
     if not rows:return {'workspace_id':workspace,'generation':None,'complete':False}
     result=rows[0]
-    result['diagnostics']=json.loads(result.pop('diagnostics_json'))
+    result['diagnostics']=strict_json_loads(result.pop('diagnostics_json'))
     result['complete']=bool(result['complete'])
     result['source_freshness']='not_checked'
     return result
@@ -456,7 +455,7 @@ def _current_source_state(connection, workspace, root):
     return 'current', []
 
 
-def readiness(connection, workspace, project_root=None):
+def _readiness(connection, workspace, project_root=None):
     """Return explained, read-only task readiness for the explorer To-do view.
 
     This function never chooses an execution owner and never changes source or
@@ -494,6 +493,8 @@ def readiness(connection, workspace, project_root=None):
     for row in tasks:
         row['task_key']=row.get('explicit_id') or f"{row['path']}#{row['line']}"
         row['source']={'path':row['path'],'line':row['line'],'sha256':row['sha256']}
+        row['prerequisites']=[]
+        row['dependents']=[]
     by_key={}
     for row in tasks:
         by_key.setdefault(row['task_key'], []).append(row)
@@ -501,6 +502,31 @@ def readiness(connection, workspace, project_root=None):
     dependencies={}
     for dep in dependency_rows:
         dependencies.setdefault(dep['source_key'],[]).append(dep)
+
+    def dependency_candidates(dep, source_row):
+        if dep.get('target_milestone_id'):
+            return [item for item in by_key.get(dep['target_explicit_id'], [])
+                    if item['milestone_id'] == dep['target_milestone_id']]
+        candidates = [item for item in by_key.get(dep['target_key'], [])
+                      if item['milestone_id'] == source_row['milestone_id']]
+        return candidates or by_key.get(dep['target_key'], [])
+
+    for source_row in tasks:
+        for dep in (item for item in dependencies.get(source_row['task_key'], [])
+                    if item.get('milestone_id') == source_row['milestone_id']):
+            candidates = dependency_candidates(dep, source_row)
+            reference = {'task_key': dep['target_key'], 'milestone_id': dep.get('target_milestone_id'),
+                         'relationship': dep['relationship'], 'reason': dep.get('reason'),
+                         'resolved': len(candidates) == 1}
+            if len(candidates) == 1:
+                target = candidates[0]
+                reference.update({'task_key': target['task_key'], 'milestone_id': target['milestone_id'],
+                                  'label': target['label'], 'state': target['state'], 'source': target['source']})
+                target['dependents'].append({'task_key': source_row['task_key'],
+                                             'milestone_id': source_row['milestone_id'],
+                                             'label': source_row['label'], 'state': source_row['state'],
+                                             'source': source_row['source']})
+            source_row['prerequisites'].append(reference)
     # Milestone-level dependencies are an explicit ordering constraint for all
     # tasks in the dependent milestone. Preserve the reason in the same
     # explained waiting bucket instead of treating display order as priority.
@@ -525,7 +551,8 @@ def readiness(connection, workspace, project_root=None):
     in_progress=[row for row in tasks if row['state']=='in_progress']
     if len(in_progress)>1:
         result['needs_review'].append({'reason':'multiple in-progress tasks own the ledger',
-                                       'tasks':[row['task_key'] for row in in_progress]})
+                                       'tasks':[row['task_key'] for row in in_progress],
+                                       'milestone_ids': sorted({row['milestone_id'] for row in in_progress})})
     elif in_progress:
         result['resume'].append({'task':in_progress[0],'reason':'resume the sole in-progress task'})
     for row in tasks:
@@ -534,7 +561,9 @@ def readiness(connection, workspace, project_root=None):
     for milestone_id in active:
         milestone_tasks=[row for row in tasks if row['milestone_id']==milestone_id]
         if milestone_tasks and all(row['state'] in {'completed','cancelled','historical'} for row in milestone_tasks):
+            milestone = milestones[milestone_id]
             result['needs_review'].append({'milestone_id':milestone_id,
+                'source': {'path': milestone['path'], 'line': milestone['line']},
                 'reason':'all task rows are terminal; milestone acceptance and closure review are still required'})
     for row in tasks:
         if row['state']!='pending':
@@ -548,13 +577,7 @@ def readiness(connection, workspace, project_root=None):
                 reason = 'milestone dependency requires review: '
             reasons.append(reason + ', '.join(sorted(milestone_waiting[row['milestone_id']])))
         for dep in (item for item in dependencies.get(row['task_key'], []) if item.get('milestone_id') == row['milestone_id']):
-            candidates = []
-            if dep.get('target_milestone_id'):
-                candidates = [item for item in by_key.get(dep['target_explicit_id'], []) if item['milestone_id'] == dep['target_milestone_id']]
-            else:
-                candidates = [item for item in by_key.get(dep['target_key'], []) if item['milestone_id'] == row['milestone_id']]
-                if not candidates:
-                    candidates = by_key.get(dep['target_key'], [])
+            candidates = dependency_candidates(dep, row)
             if len(candidates) != 1:
                 reasons.append(f"unresolved dependency: {dep['target_key']}")
                 continue
@@ -612,6 +635,11 @@ def readiness(connection, workspace, project_root=None):
     else:
         result['recommendations']=result['resume'] or result['ready']
     return result
+
+
+def readiness(connection, workspace, project_root=None):
+    with read_snapshot(connection):
+        return _readiness(connection, workspace, project_root)
 
 
 def workspace_id(connection, project_root):

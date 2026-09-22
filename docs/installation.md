@@ -222,14 +222,18 @@ show the last refresh and source location; reread live Markdown before execution
 New full-file snapshots are deferred, and existing snapshot evidence is preserved.
 The toolkit uses Python's standard library and requires no npm package.
 
-The explorer opens an Overview, Timeline, and To-do view. It reads recorded
+The loopback-only explorer opens Overview, Timeline, and To-do. It reads recorded
 audit runs and the current derived index while Markdown remains authoritative.
-Refresh is explicit and writes only the external SQLite database. Follow-up
-buttons prepare copyable prompts after checking live source hashes; they never
-run an agent or edit project files. From a Chromebook, tunnel a remote server
+Timeline groups goal children and keeps its filters and selected detail in the
+URL. To-do keeps blockers, dependencies, and closure evidence visible even when
+it withholds an execution recommendation. Refresh is explicit, migrates supported
+older databases, and writes only the external SQLite database. Follow-up buttons
+prepare copyable prompts after rechecking live source hashes; they never run an
+agent or edit project files. From a Chromebook, tunnel a remote server
 with `ssh -N -L 8000:127.0.0.1:8000 user@host` and open `http://localhost:8000/`.
 Missing captures and stale sources remain visible as diagnostics, and task
-recommendations are withheld until the source state is valid.
+recommendations are withheld until the source state is valid. Non-loopback
+`--host` values are rejected.
 
 See the repository's [operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)
 for host lifecycle, filters, fallback search, migration, backup, and recovery.

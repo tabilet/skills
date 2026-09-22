@@ -65,6 +65,16 @@ class ExplorerAssetTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
+    def test_client_behaviors_in_isolated_dom(self) -> None:
+        if shutil.which("node") is None:
+            self.skipTest("Node is optional for the credential-free Python suite")
+        completed = subprocess.run(
+            ["node", "--test", str(ROOT / "tests" / "explorer_browser.test.mjs")],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

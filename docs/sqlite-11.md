@@ -6,7 +6,7 @@ Depends on: [SQLite 10 — Local server, API, and navigation](sqlite-10.md).
 
 Next: [SQLite 12 — Acceptance, packaging, and documentation](sqlite-12.md).
 
-This is a planning document. Every implementation task below is pending.
+This implementation ledger preserves the accepted contract and completion evidence.
 
 ## User experience
 
@@ -166,11 +166,12 @@ Check that viewing/copying creates no project writes, audit execution runs,
 model calls, or inferred approvals. Run focused browser/service tests and
 `python3 check.py` before the milestone review.
 
-Review iteration: 2 (deep review fixes applied). Run details now render captured
+Review iteration: 3 (cross-milestone deep review fixes applied). Run details now render captured
 request/output messages and structured event/artifact references; source buttons
 open live declared documents, global search opens indexed source matches, and
 browser history does not push duplicate entries while restoring a deep link. The
-static browser asset suite, Node syntax check, and credential-free service tests cover the three
-views, safe text rendering, filters, pagination, follow-up actions, polling, and
-degraded states. The client uses text nodes for untrusted values and has a
-manual selection fallback when clipboard access is unavailable.
+credential-free service, isolated DOM, and Chromium suites cover the three views,
+goal-child grouping, recorded/current navigation, dependency links, URL filters,
+forward/back pagination, focus restoration, follow-up actions, polling, narrow
+screens, clipboard fallback, and degraded states. Review requirements and stale
+evidence remain visible while unsafe execution recommendations are withheld.

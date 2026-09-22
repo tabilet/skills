@@ -176,16 +176,27 @@ tabilet-audit index sync /absolute/project --rebuild
 tabilet-audit explorer /absolute/project --port 8000
 ```
 
-The explorer opens Overview, Timeline, and To-do. Overview groups active
-milestones, history, archives, and evolution; Timeline drills into recorded
-runs and their selected evidence; To-do explains resume, ready, waiting,
-blocked, and review-required work. Refresh is explicit and writes only the
-external database. Follow-up buttons validate the live source and prepare text
+The explorer opens Overview, Timeline, and To-do on a loopback-only server.
+Overview groups active milestones and tasks, retired outcomes, archive lanes,
+and evolution pairs. Timeline groups goal children and drills from the captured
+request and result into recorded changes and resolved current state. Its date,
+operation, milestone, outcome, ordering, pagination, search, and selected-detail
+state is bookmarkable. To-do explains resume, ready, waiting, blocked, and
+review-required work with prerequisite and dependent links. Refresh is explicit,
+migrates supported older databases, and writes only the external database.
+Recorded evidence remains visible when freshness or closure rules withhold task
+recommendations. Follow-up buttons revalidate the live source and prepare text
 for copying; they do not launch an agent, edit Markdown, or create task rows.
 Use `ssh -N -L 8000:127.0.0.1:8000 user@host` for a remote server and browse to
 `http://localhost:8000/`. Missing captures, stale hashes, malformed sources,
 and unavailable indexes remain visible as diagnostics and withhold unsafe
 recommendations.
+
+The server rejects non-loopback `--host` values. An existing v1 or v2 database
+can show recorded audit runs before migration; Overview explains that its project
+projection needs refresh. API collections use bounded pagination, and timestamps
+are compared at normalized UTC microsecond precision even when older records omit
+fractional seconds.
 
 `complete` describes the last refresh, not continuous observation of disk.
 Read commands report the indexed generation, source hashes, and refresh time;
@@ -284,20 +295,27 @@ exercise real Markdown edits, deletion, reorder/rename/duplicates, retirement,
 branch switching, interrupted reads, malformed records, all-retired and archive-only
 projects, and fallback search. Record scale evidence around 120 status files.
 
-Required final gates: `python3 check.py`, credential-free DSH tests,
+Required final gates: `python3 check.py`, credential-free DSH tests, the
+repository-only Playwright Chromium suite in `tests/browser`,
 `mkdocs build --strict`, and `git diff --check`. Implementation remains on `sqlite`;
 merging, pushing, publication, and marketplace changes are separate actions.
 
 ### Measured acceptance fixture
 
 `python3 -B tests/benchmark_sqlite.py` creates an external disposable fixture with
-120 status files across 17 lanes and 2,400 task rows. On the development host
-(Python 3.14.4, SQLite 3.46.1), initial sync took 711.06 ms, unchanged-source sync
-513.20 ms, and the median of 100 FTS5 searches was 7.42 ms. A literal search took
-1.51 ms. These are local observations, not performance guarantees.
+120 status files across 17 lanes and 2,400 task rows, plus retired history, an
+archive, an evolution pair, 250 parent audit runs, and 25 child runs. On the
+development host (Python 3.14.4, SQLite 3.46.1), the latest run measured a
+412.40 ms initial sync, 297.34 ms unchanged-source sync, 6.36 ms median across
+100 FTS5 searches, 102.94 ms readiness classification, 281.35 ms Overview,
+16.37 ms for a 50-entry timeline page, 9.83 ms run detail, and a 179,318-byte
+peak JSON response. These are local observations, not performance guarantees.
 
 The explorer's browser assets are served from the copied toolkit without a build
-step; missing assets produce a clear local error. Copied canonical templates pass indexing. Additional read-only inspection of
+step; missing assets produce a clear local error. Isolated DOM tests and real
+Chromium journeys cover desktop and narrow navigation, filtering, details,
+follow-up prompts, clipboard fallback, focus restoration, and polling. Copied
+canonical templates pass indexing. Additional read-only inspection of
 neighboring projects found pre-existing unpadded milestone headings and invalid
 retirement envelopes; structured refresh correctly reports these as validation
 failures. It does not normalize IDs or rewrite frozen source records. Those

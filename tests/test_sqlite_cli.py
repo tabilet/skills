@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.error
+import urllib.request
 import test_harness as h
 
 CLI=Path(__file__).resolve().parents[1]/'harness/tabilet_audit_host.py'
@@ -71,8 +73,9 @@ class CliTests(unittest.TestCase):
 
     def test_packaged_toolkit_works_and_rebuild_preserves_audit(self):
         installation=self.base/'bin';installation.mkdir()
-        for name in ('tabilet_audit.py','tabilet_index.py','tackle-memory-bank-api-loop'):
+        for name in ('tabilet_audit.py','tabilet_index.py','tabilet_explorer.py','tackle-memory-bank-api-loop'):
             shutil.copy(CLI.with_name(name),installation/name)
+        shutil.copytree(CLI.with_name('explorer'), installation/'explorer')
         self.cli=installation/'tabilet-audit';shutil.copy(CLI,self.cli)
         start=self.command('audit','begin',self.repo,'propose')
         self.command('audit','finish',start['run_id'],'completed')
@@ -80,6 +83,36 @@ class CliTests(unittest.TestCase):
         self.command('index','sync',self.repo,'--rebuild','--literal')
         self.assertEqual(self.command('audit','export'),prior)
         self.assertEqual(self.command('index','search',self.repo,'feature')['index']['search_mode'],'literal')
+        environment=dict(os.environ);environment['HOME']=str(self.base/'home');Path(environment['HOME']).mkdir()
+        process=subprocess.Popen(
+            [sys.executable,'-B',str(self.cli),'--audit-db',str(self.db),'explorer',str(self.repo),'--port','0'],
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=environment,
+        )
+        try:
+            url=process.stdout.readline().strip().removeprefix('Tabilet Explorer: ')
+            self.assertTrue(url.startswith('http://localhost:'), process.stderr.read() if process.poll() is not None else url)
+            with urllib.request.urlopen(url,timeout=5) as response:
+                self.assertIn('Tabilet Explorer',response.read().decode())
+            with urllib.request.urlopen(url+'assets/explorer.js',timeout=5) as response:
+                self.assertIn('Recorded then',response.read().decode())
+        finally:
+            process.terminate();process.wait(timeout=5)
+            process.stdout.close();process.stderr.close()
+        (installation/'explorer/index.html').unlink()
+        process=subprocess.Popen(
+            [sys.executable,'-B',str(self.cli),'--audit-db',str(self.db),'explorer',str(self.repo),'--port','0'],
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=environment,
+        )
+        try:
+            url=process.stdout.readline().strip().removeprefix('Tabilet Explorer: ')
+            with self.assertRaises(urllib.error.HTTPError) as failure:
+                urllib.request.urlopen(url,timeout=5)
+            self.assertEqual(failure.exception.code,400)
+            self.assertIn('missing explorer asset',failure.exception.read().decode())
+            failure.exception.close()
+        finally:
+            process.terminate();process.wait(timeout=5)
+            process.stdout.close();process.stderr.close()
         self.assertFalse(list(installation.rglob('__pycache__')))
 
     def test_internal_database_and_legacy_project_stop_before_writes(self):

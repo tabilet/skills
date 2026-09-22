@@ -104,6 +104,11 @@ python3 check.py
 npm ci --prefix tests/dsh --ignore-scripts --no-audit --no-fund
 npm test --prefix tests/dsh
 
+# Repository-only Chromium acceptance for the optional SQLite explorer.
+npm ci --prefix tests/browser --ignore-scripts --no-audit --no-fund
+npx --prefix tests/browser playwright install chromium
+npm test --prefix tests/browser
+
 # Verify the published guides and links before claiming a website change is done.
 mkdocs build --strict
 

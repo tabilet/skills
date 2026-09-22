@@ -1132,11 +1132,14 @@ Installing skills alone never creates a database. Existing
 snapshot evidence stays readable; new full-file snapshot capture is deferred.
 
 The optional `tabilet-audit explorer PROJECT --port 8000` serves a local
-browser explorer. Overview summarizes active milestones, history, archives, and
-evolution; Timeline opens recorded runs; To-do groups resume, ready, waiting,
-blocked, and review-required work. It checks live source hashes before
-recommendations and prepares follow-up text for copying only. It does not launch
-an agent, change Markdown, or create task rows. From a remote server, use
+browser explorer bound to a loopback address. Overview summarizes active
+milestones, history, archives, and evolution; Timeline groups goal children and
+opens the recorded request, output, changes, and resolved current state; To-do
+groups resume, ready, waiting, blocked, and review-required work with dependency
+links. Filters and selected details stay in the URL. The explorer keeps recorded
+evidence visible when it withholds recommendations, rechecks live source hashes,
+and prepares follow-up text for copying only. It does not launch an agent, change
+Markdown, or create task rows. From a remote server, use
 `ssh -N -L 8000:127.0.0.1:8000 user@host` and browse to `http://localhost:8000/`.
 
 ## What The Harness Is

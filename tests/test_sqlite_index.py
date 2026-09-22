@@ -198,6 +198,9 @@ class IndexTests(unittest.TestCase):
         self.assertEqual([row['task']['task_key'] for row in ready['ready']],['TASK-A'])
         self.assertEqual(ready['waiting'][0]['task']['task_key'],'TASK-B')
         self.assertIn('dependency is pending',ready['waiting'][0]['reason'])
+        self.assertEqual(ready['waiting'][0]['task']['prerequisites'][0]['label'], 'TASK-A')
+        self.assertEqual(ready['ready'][0]['task']['dependents'][0]['label'], 'TASK-B')
+        self.assertTrue(ready['waiting'][0]['task']['prerequisites'][0]['resolved'])
 
     def test_readiness_withholds_recommendations_for_stale_sources_or_multiple_in_progress(self):
         state=self.sync();w=state['workspace_id']

@@ -20,6 +20,7 @@ from __future__ import annotations
 import ast
 import importlib.machinery
 import importlib.util
+import json
 import pathlib
 import re
 import shutil
@@ -1866,6 +1867,25 @@ def sqlite_explorer_ledgers():
                 problems.append(f"{path.name}: malformed task ID {task_id}")
             if marker not in {" ", "+", "~", "!", "X", "-"}:
                 problems.append(f"{path.name}: invalid task marker for {task_id}")
+    browser = ROOT / "tests/browser"
+    required = (browser / "package.json", browser / "package-lock.json",
+                browser / "explorer.spec.mjs", ROOT / ".github/workflows/explorer-browser.yml")
+    for path in required:
+        if not path.is_file():
+            problems.append(f"missing {path.relative_to(ROOT)}")
+    if (browser / "package.json").is_file():
+        package = json.loads((browser / "package.json").read_text())
+        if package.get("scripts", {}).get("test") != "playwright test":
+            problems.append("tests/browser/package.json: test script must run Playwright")
+        if not package.get("devDependencies", {}).get("@playwright/test"):
+            problems.append("tests/browser/package.json: @playwright/test must be pinned")
+    workflow_path = ROOT / ".github/workflows/explorer-browser.yml"
+    if workflow_path.is_file():
+        workflow = workflow_path.read_text()
+        for command in ("npm ci --prefix tests/browser --ignore-scripts",
+                        "playwright install --with-deps chromium", "npm test --prefix tests/browser"):
+            if command not in workflow:
+                problems.append(f"{workflow_path.relative_to(ROOT)}: missing {command!r}")
     return problems
 
 

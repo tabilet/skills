@@ -7,8 +7,8 @@ Depends on: [SQLite 11 — Views and follow-up prompts](sqlite-11.md).
 Full dependency order: [SQLite 9](sqlite-9.md) -> [SQLite 10](sqlite-10.md) ->
 [SQLite 11](sqlite-11.md) -> SQLite 12.
 
-This is a planning document. Every implementation task below is pending.
-This milestone prepares a reviewable explorer; publishing, merging, pushing,
+This implementation ledger records the reviewable explorer and its acceptance
+evidence. Publishing, merging, pushing,
 marketplace changes, and agent execution are separate actions.
 
 ## Acceptance objective
@@ -111,6 +111,9 @@ Run:
 ```bash
 python3 check.py
 npm test --prefix tests/dsh
+npm ci --prefix tests/browser --ignore-scripts --no-audit --no-fund
+npx --prefix tests/browser playwright install chromium
+npm test --prefix tests/browser
 mkdocs build --strict
 git diff --check
 ```
@@ -125,11 +128,14 @@ The final handoff identifies the implemented commands, test evidence, supported
 data states, and outstanding limitations. Stop at the completed local work unless
 a separate instruction authorizes a merge, push, or release.
 
-Review iteration: 2 (deep review fixes applied). The benchmark now measures
-readiness classification in addition to index search and refresh. `python3 check.py`
-(36 checks), the full credential-free Python suite (126 tests), DSH tests (13),
-`mkdocs build --strict`, explorer asset tests, copied-toolkit smoke testing, and
-the 120-status/2,400-task benchmark passed. No merge, push, publication, or
-release action was performed. A full browser automation dependency remains
-repository-optional; the shipped client is tested with static assertions and
-Node syntax validation, while HTTP behavior is tested without credentials.
+Review iteration: 3 (cross-milestone deep review fixes applied). The disposable
+benchmark now includes 120 statuses, 17 lanes, 2,400 tasks, retired history,
+archive/evolution groups, 250 parent runs, 25 child runs, timeline/detail queries,
+and peak response size; its latest run reported a 179,318-byte peak response.
+`python3 check.py` (36 checks), the full credential-free Python suite (144 tests),
+the focused SQLite suite (70 tests), DSH tests (13), `mkdocs build --strict`, five
+isolated DOM journeys, two real Chromium journeys, copied-toolkit launch and
+missing-asset tests, and the representative benchmark pass. Browser tooling is
+repository-only under `tests/browser`; the shipped runtime remains Python
+standard-library code and local static assets. No merge, push, publication, or
+release action was performed.
