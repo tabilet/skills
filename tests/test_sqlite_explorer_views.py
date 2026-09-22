@@ -35,6 +35,9 @@ class ExplorerAssetTests(unittest.TestCase):
             "/api/refresh",
         ):
             self.assertIn(endpoint, self.js)
+        self.assertIn('Create index', self.js)
+        self.assertIn('Recorded clarifications and approvals', self.js)
+        self.assertIn('Message reference:', self.js)
 
     def test_client_has_all_todo_groups_and_followup_actions(self) -> None:
         for group in ("resume", "ready", "waiting", "blocked", "needs_review"):

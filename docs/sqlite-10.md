@@ -145,3 +145,9 @@ normalizes mixed-precision activity timestamps, bounds timeline/run-detail
 collections, records failed mixed-layout refreshes, and returns each Overview
 from one read transaction. No project writes occur during reads or follow-up
 preparation.
+
+Review iteration: 4. To-do groups, goal children, run events, messages, and child
+runs now have bounded pages. POST fields use strict JSON types, source details are
+bookmarkable, and an absent database presents Create index. Follow-up preparation
+requires a classified task or review milestone and revalidates the complete live
+source inventory after selection.

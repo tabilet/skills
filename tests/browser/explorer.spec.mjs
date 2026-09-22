@@ -50,6 +50,11 @@ test('desktop workflow preserves filters, history, detail, and follow-up evidenc
   await page.goto(baseURL);
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   await expect(page.getByText('Browser milestone summary.')).toBeVisible();
+  await page.locator('.source-button').first().click();
+  await expect(page).toHaveURL(/document=tabilet%2F/);
+  await expect(page.locator('#detail-panel')).toBeVisible();
+  await page.goBack();
+  await expect(page.locator('#detail-panel')).toBeHidden();
 
   await page.getByRole('link', { name: 'Timeline' }).click();
   await expect(page.getByText('Please prepare the browser milestone')).toBeVisible();

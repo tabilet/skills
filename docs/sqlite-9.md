@@ -69,6 +69,9 @@ Validate supplied references against the run's operation and workspace. Referenc
 to proposed allocations remain proposals; they must not be treated as proof that
 files or permanent task identities were created. Artifact links can be absent
 when no source file exists yet.
+The `created`, `changed`, and `retired` relationships are restricted to the
+`applied` phase. Proposal and approval events use `proposed`, so the explorer
+cannot present intended work as an observed mutation.
 
 Store enough selected structured output to explain what was recorded at that time.
 Do not substitute today's task text for an older output, or restore automatic
@@ -173,7 +176,7 @@ rebuildable projection adds milestone presentation metadata and explicit task
 dependency observations. `tabilet_index.readiness` validates live source hashes
 and withholds recommendations on stale, unresolved, or contradictory state.
 
-Verification: the 70-test focused SQLite suite passes, including
+Verification: the 80-test focused SQLite suite passes, including
 v1/v2 migration, extension ownership, projection, dependency, stale-source, and
 multiple-in-progress cases. No Markdown or snapshot bytes are rewritten. The
 complete repository and website gates remain the parent milestone's final
@@ -189,3 +192,9 @@ treating this milestone as accepted downstream. Strict JSON now rejects
 non-finite values, readiness exposes linked prerequisites and dependents under a
 single read snapshot, and live prompt preparation rejects a hash change after
 classification.
+
+Review iteration: 4. Cross-milestone dependency source keys now retain milestone
+scope, so repeated task IDs do not collide. Migrated projection readiness is
+recorded per workspace, active prerequisite milestones remain waiting until
+accepted retirement, and dependency-cycle traversal is iterative at the documented
+project scale. Focused regression fixtures cover all four cases.

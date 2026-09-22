@@ -7,7 +7,9 @@ knowledge history, evolution, and optional context archives. SQLite contains
 an opt-in durable audit and a disposable current-source index. It never selects
 or authorizes a task, changes a marker, or replaces milestone acceptance.
 
-The original SQLite 1–4 implementation was reviewed before merge. Follow-up
+The original SQLite 1–4 implementation was reviewed before merge. SQLite 3 and
+4 are now marked superseded because their automatic snapshot rows were cancelled.
+Follow-up
 milestones [5](sqlite-5.md), [6](sqlite-6.md), [7](sqlite-7.md), and
 [8](sqlite-8.md) repair its storage and runner defects and implement this revised
 contract, in that order. Earlier task IDs and completion records are historical;
@@ -74,6 +76,8 @@ run with purpose `request`, `clarification`, `approval`, or `output`; and
 `artifact_refs` names observed or proposed milestones, tasks, archives,
 evolution records, or documents. Artifact paths are project-relative and each
 reference may include a source line, hash, label, and before/after state. The
+relationships `created`, `changed`, and `retired` are valid only in the
+`applied` phase; earlier phases use `proposed`, which never proves a mutation. The
 recorder validates workspace/run ownership before storing normalized references
 in `event_explorer`, `event_message_refs`, and `event_artifacts`. Missing
 captures remain missing; the extension never fabricates a request or treats a
@@ -196,7 +200,10 @@ The server rejects non-loopback `--host` values. An existing v1 or v2 database
 can show recorded audit runs before migration; Overview explains that its project
 projection needs refresh. API collections use bounded pagination, and timestamps
 are compared at normalized UTC microsecond precision even when older records omit
-fractional seconds.
+fractional seconds. To-do groups have independent offsets and totals. Timeline
+goal children are bounded, with the complete child list paged through run detail.
+Each migrated workspace publishes its own projection-version marker before
+unchanged source rows may be reused.
 
 `complete` describes the last refresh, not continuous observation of disk.
 Read commands report the indexed generation, source hashes, and refresh time;
@@ -306,10 +313,11 @@ merging, pushing, publication, and marketplace changes are separate actions.
 120 status files across 17 lanes and 2,400 task rows, plus retired history, an
 archive, an evolution pair, 250 parent audit runs, and 25 child runs. On the
 development host (Python 3.14.4, SQLite 3.46.1), the latest run measured a
-412.40 ms initial sync, 297.34 ms unchanged-source sync, 6.36 ms median across
-100 FTS5 searches, 102.94 ms readiness classification, 281.35 ms Overview,
-16.37 ms for a 50-entry timeline page, 9.83 ms run detail, and a 179,318-byte
-peak JSON response. These are local observations, not performance guarantees.
+451.26 ms initial sync, 316.53 ms unchanged-source sync, 6.64 ms median across
+100 FTS5 searches, 123.63 ms readiness classification, 312.34 ms Overview,
+25.90 ms for a 50-entry timeline page, 14.04 ms run detail, and 131.08 ms for
+a 50-of-2,400-entry To-do page. Peak JSON response size was 179,318 bytes. These
+are local observations, not performance guarantees.
 
 The explorer's browser assets are served from the copied toolkit without a build
 step; missing assets produce a clear local error. Isolated DOM tests and real

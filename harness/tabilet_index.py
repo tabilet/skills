@@ -198,7 +198,10 @@ def parse_document(path,kind,text,digest):
                 label=row['item'],state=row['state'],notes=' | '.join(row['cells'][2:]),explicit_id=explicit))
             parsed['index_search'].append(dict(line=row['line']+offset,kind='task',milestone_id=identity,
                 state=row['state'],text=' | '.join(row['cells'])))
-            task_key=explicit or f'{path}#{row["line"]+offset}'
+            # Explicit task IDs are scoped by their milestone. Keep that scope
+            # in the disposable dependency key so two milestones may both use
+            # conventional IDs such as T01 without colliding in SQLite.
+            task_key=f'{identity}/{explicit}' if explicit else f'{path}#{row["line"]+offset}'
             notes=' | '.join(row['cells'][2:])
             for target,reason in task_dependencies(notes):
                 target_milestone, target_id = dependency_target(target)
@@ -367,7 +370,10 @@ def publish(connection, workspace, documents, parsed, generation, context, attem
     # A v2 database may already contain index_documents but none of the SQL9
     # explorer projections. Record readiness only after this publish has filled
     # the complete derived projection.
-    connection.execute("INSERT OR REPLACE INTO schema_meta(key,value) VALUES ('index_projection','v1')")
+    connection.execute(
+        "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, 'v2')",
+        (f'index_projection:{workspace}',),
+    )
 
 
 def sync(connection, project_root, *, rebuild=False, force_literal=False):
@@ -385,8 +391,11 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
         paths=inventory(root)
         documents={};parsed={};stats={};diagnostics=[]
         previous={r['path']:r for r in records(connection,'SELECT * FROM index_documents WHERE workspace_id=?',(workspace,))}
-        projection = connection.execute("SELECT value FROM schema_meta WHERE key='index_projection'").fetchone()
-        projection_ready = projection == ('v1',)
+        projection = connection.execute(
+            "SELECT value FROM schema_meta WHERE key=?",
+            (f'index_projection:{workspace}',),
+        ).fetchone()
+        projection_ready = projection == ('v2',)
         for path,kind in paths.items():
             text,digest,info=read_document(root,path)
             stats[path]=signature(info)
@@ -492,12 +501,16 @@ def _readiness(connection, workspace, project_root=None):
     tasks.sort(key=lambda row: (projection_order.get(row['milestone_id'], 2147483647), row['path'], row['line']))
     for row in tasks:
         row['task_key']=row.get('explicit_id') or f"{row['path']}#{row['line']}"
+        row['dependency_key']=(f"{row['milestone_id']}/{row['explicit_id']}"
+                               if row.get('explicit_id') else row['task_key'])
         row['source']={'path':row['path'],'line':row['line'],'sha256':row['sha256']}
         row['prerequisites']=[]
         row['dependents']=[]
     by_key={}
+    by_dependency_key={}
     for row in tasks:
         by_key.setdefault(row['task_key'], []).append(row)
+        by_dependency_key.setdefault(row['dependency_key'], []).append(row)
     dependency_rows=records(connection,'SELECT * FROM index_task_dependencies WHERE workspace_id=?',(workspace,))
     dependencies={}
     for dep in dependency_rows:
@@ -512,7 +525,7 @@ def _readiness(connection, workspace, project_root=None):
         return candidates or by_key.get(dep['target_key'], [])
 
     for source_row in tasks:
-        for dep in (item for item in dependencies.get(source_row['task_key'], [])
+        for dep in (item for item in dependencies.get(source_row['dependency_key'], [])
                     if item.get('milestone_id') == source_row['milestone_id']):
             candidates = dependency_candidates(dep, source_row)
             reference = {'task_key': dep['target_key'], 'milestone_id': dep.get('target_milestone_id'),
@@ -541,12 +554,14 @@ def _readiness(connection, workspace, project_root=None):
         if target_id not in milestones:
             diagnostics.append(f"{relation['path']}:{relation['line']}: unresolved milestone dependency: {relation['target']}")
             continue
+        target = milestones[target_id]
         target_rows=records(connection, "SELECT state FROM index_tasks WHERE workspace_id=? AND milestone_id=?", (workspace,target_id))
         unfinished=any(row['state'] in {'pending','in_progress','blocked'} for row in target_rows)
         unsafe_terminal=any(row['state'] in {'cancelled','historical'} for row in target_rows)
-        if not target_rows or unfinished or unsafe_terminal:
+        accepted = target['lifecycle'] == 'retired' and target.get('outcome') == 'completed'
+        if not accepted:
             milestone_waiting.setdefault(source_id,[]).append(target_id)
-            if not target_rows or unsafe_terminal:
+            if not target_rows or unsafe_terminal or (not unfinished and target['lifecycle'] == 'active'):
                 milestone_review.setdefault(source_id, []).append(target_id)
     in_progress=[row for row in tasks if row['state']=='in_progress']
     if len(in_progress)>1:
@@ -576,7 +591,7 @@ def _readiness(connection, workspace, project_root=None):
             if row['milestone_id'] in milestone_review:
                 reason = 'milestone dependency requires review: '
             reasons.append(reason + ', '.join(sorted(milestone_waiting[row['milestone_id']])))
-        for dep in (item for item in dependencies.get(row['task_key'], []) if item.get('milestone_id') == row['milestone_id']):
+        for dep in (item for item in dependencies.get(row['dependency_key'], []) if item.get('milestone_id') == row['milestone_id']):
             candidates = dependency_candidates(dep, row)
             if len(candidates) != 1:
                 reasons.append(f"unresolved dependency: {dep['target_key']}")
@@ -594,7 +609,7 @@ def _readiness(connection, workspace, project_root=None):
     # another independent task could technically be selected.
     graph={}
     for source, items in dependencies.items():
-        source_rows=by_key.get(source, [])
+        source_rows=by_dependency_key.get(source, [])
         for source_row in source_rows:
             node=(source_row['milestone_id'], source_row['task_key'])
             for dep in items:
@@ -610,19 +625,30 @@ def _readiness(connection, workspace, project_root=None):
                     continue
                 for target in targets:
                     graph.setdefault(node, set()).add((target['milestone_id'], target['task_key']))
-    visiting=set(); visited=set(); cycles=[]
-    def visit(node, trail):
-        if node in visiting:
-            cycles.append(' -> '.join(f'{mid}/{key}' for mid,key in trail[trail.index(node):] + [node]))
-            return
-        if node in visited:
-            return
-        visiting.add(node)
-        for target in graph.get(node, ()):
-            visit(target, trail + [node])
-        visiting.remove(node); visited.add(node)
-    for node in graph:
-        visit(node, [])
+    # Iterative DFS keeps readiness safe for projects whose dependency depth is
+    # greater than Python's recursion limit.
+    colors={}; cycles=[]
+    for start in graph:
+        if colors.get(start, 0):
+            continue
+        colors[start]=1
+        trail=[start]
+        positions={start:0}
+        stack=[(start, iter(graph.get(start, ())))]
+        while stack:
+            node, targets = stack[-1]
+            try:
+                target=next(targets)
+            except StopIteration:
+                stack.pop(); colors[node]=2; positions.pop(node, None); trail.pop()
+                continue
+            color=colors.get(target, 0)
+            if color == 0:
+                colors[target]=1; positions[target]=len(trail); trail.append(target)
+                stack.append((target, iter(graph.get(target, ()))))
+            elif color == 1:
+                cycle=trail[positions[target]:] + [target]
+                cycles.append(' -> '.join(f'{mid}/{key}' for mid,key in cycle))
     if cycles:
         cycle_values = sorted(set(cycles))
         cycle_milestones = sorted({node[0] for node in graph if any(f'{node[0]}/' in cycle for cycle in cycle_values)})

@@ -286,6 +286,10 @@ def validate_explorer_details(value: Any) -> dict[str, Any]:
         relationship = ref.get("relationship")
         if relationship not in ARTIFACT_RELATIONSHIPS:
             raise AuditValidationError("unknown explorer artifact relationship")
+        if relationship in {"created", "changed", "retired"} and phase != "applied":
+            raise AuditValidationError(
+                f"explorer relationship {relationship} requires the applied phase"
+            )
         path = ref.get("path")
         if path is not None:
             _text(path, "explorer.artifact_refs.path")
@@ -514,6 +518,7 @@ def open_database(path=None, *, project_roots=()):
     created = not database.exists()
     staging = None
     published = not created
+    published_identity = None
     if created:
         for sidecar in sidecars.values():
             if sidecar.exists():
@@ -556,11 +561,13 @@ def open_database(path=None, *, project_roots=()):
         if created:
             connection.close()
             connection = None
+            staged = staging.stat()
             try:
                 os.link(staging, database)
             except FileExistsError:
                 raise AuditError('audit database destination appeared during creation')
             published = True
+            published_identity = (staged.st_dev, staged.st_ino)
             staging.unlink()
             connection = sqlite3.connect(str(database), timeout=5)
             connection.execute('PRAGMA foreign_keys = ON')
@@ -582,6 +589,10 @@ def open_database(path=None, *, project_roots=()):
             for sidecar in sidecars.values():
                 if sidecar.exists() and not sidecar.is_symlink():
                     sidecar.unlink()
+            if published_identity is not None and database.exists() and not database.is_symlink():
+                current = database.stat()
+                if (current.st_dev, current.st_ino) == published_identity:
+                    database.unlink()
         raise
 
 

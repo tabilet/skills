@@ -185,7 +185,7 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(projection[0]['milestone_id'],'M01')
         self.assertIn('Summary of the milestone.',projection[0]['summary'])
         dependencies=a.records(self.c,'SELECT source_key,target_key,relationship FROM index_task_dependencies')
-        self.assertEqual(dependencies,[{'source_key':'TASK-B','target_key':'TASK-A','relationship':'depends_on'}])
+        self.assertEqual(dependencies,[{'source_key':'M01/TASK-B','target_key':'TASK-A','relationship':'depends_on'}])
         ready=ix.readiness(self.c,w,self.root)
         self.assertEqual([row['task']['task_key'] for row in ready['ready']],['TASK-B'])
         self.source.write_text(
@@ -239,6 +239,37 @@ class IndexTests(unittest.TestCase):
         self.assertFalse(ready['recommendations'])
         self.assertTrue(any(item['reason'] == 'dependency cycle requires review' for item in ready['needs_review']))
         self.assertTrue(any('requires review' in item['reason'] for item in ready['waiting']))
+
+    def test_dependencies_are_scoped_by_milestone_and_wait_for_closure(self):
+        milestone = self.root / 'tabilet/memory-bank/milestone.md'
+        milestone.write_text(
+            '# Milestones\n\n## M01 - First\n\n**Acceptance.** first\n\n'
+            '## M02 - Second\n\n**Dependencies.** M01\n\n**Acceptance.** second\n'
+        )
+        for identity in ('M01', 'M02'):
+            state_marker = '[+]' if identity == 'M01' else '[ ]'
+            (self.root / f'tabilet/memory-bank/status-{identity}.md').write_text(
+                '# Status\n\n| ID | State | Notes |\n|---|---|---|\n'
+                f'| A | `[+]` | prerequisite |\n| B | `[{state_marker[1]}]` | Depends on: A |\n'
+            )
+        state = self.sync(); workspace = state['workspace_id']
+        self.assertEqual(self.c.execute('SELECT COUNT(*) FROM index_task_dependencies').fetchone()[0], 2)
+        readiness = ix.readiness(self.c, workspace, self.root)
+        waiting = {item['task']['milestone_id']: item['reason'] for item in readiness['waiting']}
+        self.assertIn('milestone dependency requires review: M01', waiting['M02'])
+        self.assertNotIn('B', [item['task']['task_key'] for item in readiness['ready'] if item['task']['milestone_id'] == 'M02'])
+
+    def test_deep_dependency_chain_does_not_use_python_recursion(self):
+        total = 1100
+        rows = ['# Status\n\n| ID | State | Notes |\n|---|---|---|\n']
+        for number in range(total):
+            dependency = f' Depends on: T{number + 1:04} ' if number + 1 < total else ' root '
+            rows.append(f'| T{number:04} | `[ ]` |{dependency}|\n')
+        self.source.write_text(''.join(rows))
+        state = self.sync()
+        readiness = ix.readiness(self.c, state['workspace_id'], self.root)
+        self.assertEqual(len(readiness['waiting']), total - 1)
+        self.assertFalse(any('cycle' in item['reason'] for item in readiness['needs_review']))
 
     def test_retirement_fenced_heading_does_not_change_task_or_relation_locations(self):
         self.source.write_text('| Old attempt | `[-]` | successor: M02 |\n')

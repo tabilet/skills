@@ -175,3 +175,10 @@ goal-child grouping, recorded/current navigation, dependency links, URL filters,
 forward/back pagination, focus restoration, follow-up actions, polling, narrow
 screens, clipboard fallback, and degraded states. Review requirements and stale
 evidence remain visible while unsafe execution recommendations are withheld.
+
+Review iteration: 4. Run detail exposes first-request and final-output summaries
+independently of message pages, renders captured clarifications, approvals,
+artifact relationships, state transitions, snapshot observations, and paged goal
+children. Current task resolution uses recorded milestone scope, Overview counts
+only active task rows, and large To-do groups retain their full totals without
+rendering the entire ledger.

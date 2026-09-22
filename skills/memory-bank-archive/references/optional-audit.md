@@ -66,6 +66,9 @@ same event. It is a typed observation extension, not an authorization signal:
 ```
 
 Use `request`, `proposal`, `approval`, and `applied` for the observed phase.
+Artifact relationships `created`, `changed`, and `retired` describe completed
+effects and are valid only in the `applied` phase. Use `proposed` before then;
+a proposal is never evidence that a file or task changed.
 Message references must belong to the same run; artifact references name only
 observed or explicitly proposed files and rows. Do not put hidden reasoning,
 credentials, or claims of a write that was not observed in this extension.

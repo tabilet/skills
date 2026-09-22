@@ -92,19 +92,22 @@ class ExplorerTests(unittest.TestCase):
         self.assertIn("Implement feature", document["document"]["text"])
         status, follow = self.request("POST", "/api/follow-up", token=token,
                                       origin=f"http://127.0.0.1:{self.port}",
-                                      body={"path": "tabilet/memory-bank/status-M01.md", "line": 5})
+                                      body={"task_label": "Implement feature", "milestone_id": "M01",
+                                            "source": {"path": "tabilet/memory-bank/status-M01.md", "line": 5}})
         self.assertEqual(status, 200, follow)
         self.assertIn("status-M01.md:5", follow["prompt"])
         status, rejected = self.request("POST", "/api/follow-up", token=token,
                                         origin=f"http://127.0.0.1:{self.port}",
-                                        body={"path": "private.txt", "line": 1})
+                                        body={"task_label": "Implement feature", "milestone_id": "M01",
+                                              "source": {"path": "private.txt", "line": 1}})
         self.assertEqual(status, 400)
-        self.assertIn("declared indexed", rejected["error"])
+        self.assertIn("selected task source", rejected["error"])
         status, rejected = self.request("POST", "/api/follow-up", token=token,
                                         origin=f"http://127.0.0.1:{self.port}",
-                                        body={"path": "tabilet/memory-bank/status-M01.md", "line": 999})
+                                        body={"task_label": "Implement feature", "milestone_id": "M01",
+                                              "source": {"path": "tabilet/memory-bank/status-M01.md", "line": 999}})
         self.assertEqual(status, 400)
-        self.assertIn("outside", rejected["error"])
+        self.assertIn("selected task line", rejected["error"])
         self.project.joinpath("tabilet/memory-bank/status-M01.md").write_text(
             "| Item | State | Notes |\n|---|---|---|\n| Changed | `[ ]` | now different |\n",
             encoding="utf-8")
@@ -228,6 +231,108 @@ class ExplorerTests(unittest.TestCase):
         status, error = self.request("GET", "/api/timeline?limit=-2", token=token)
         self.assertEqual(status, 400)
         self.assertIn("limit", error["error"])
+
+    def test_todo_goal_children_and_run_details_are_paginated(self):
+        token = self.bootstrap()
+        status_path = self.project / 'tabilet/memory-bank/status-M01.md'
+        rows = ['# Status\n\n| ID | State | Notes |\n|---|---|---|\n']
+        rows.extend(f'| T{number:03} | `[ ]` | pending |\n' for number in range(120))
+        status_path.write_text(''.join(rows), encoding='utf-8')
+        status, refreshed = self.request('POST', '/api/refresh', token=token,
+                                         origin=f'http://127.0.0.1:{self.port}', body={})
+        self.assertEqual(status, 200, refreshed)
+        status, todo = self.request('GET', '/api/todo?limit=50', token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(todo['ready']), 50)
+        self.assertEqual(todo['totals']['ready'], 120)
+        self.assertTrue(todo['pagination']['ready']['more'])
+        status, second_page = self.request('GET', '/api/todo?limit=50&ready_offset=50', token=token)
+        self.assertEqual(second_page['ready'][0]['explicit_id'], 'T050')
+
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            workspace = audit.ensure_workspace(connection, self.project)
+            parent = audit.start_run(connection, workspace, 'goal', run_id='large-goal', capture_mode='relevant')
+            for number in range(120):
+                audit.start_run(connection, workspace, 'next', run_id=f'child-{number:03}', parent_run_id=parent)
+            for number in range(60):
+                role = 'assistant' if number == 59 else 'user'
+                audit.capture_message(connection, parent, role, f'message {number}', capture_source='host',
+                                      fidelity='exact', message_id=f'message-{number:03}')
+        timeline = self.app.timeline({'limit': ['1'], 'child_limit': ['20']})
+        goal = next(item for item in timeline['entries'] if item['run_id'] == 'large-goal')
+        self.assertEqual(len(goal['children']), 20)
+        self.assertTrue(goal['children_more'])
+        detail = self.app.run('large-goal')
+        self.assertEqual(len(detail['messages']), 50)
+        self.assertTrue(detail['pagination']['messages']['more'])
+        self.assertEqual(detail['output_message']['text'], 'message 59')
+        self.assertEqual(len(detail['children']), 50)
+        self.assertTrue(detail['pagination']['children']['more'])
+
+    def test_followup_revalidates_every_source_and_requires_a_task(self):
+        self.bootstrap()
+        with self.assertRaisesRegex(audit.AuditError, 'needs a task'):
+            self.app.follow_up({'action': 'continue', 'path': 'tabilet/memory-bank/status-M01.md'})
+        milestone = self.project / 'tabilet/memory-bank/milestone.md'
+        original = explorer.index.readiness
+
+        def mutate_other_source(connection, workspace, project):
+            result = original(connection, workspace, project)
+            milestone.write_text(milestone.read_text() + '\nchanged policy evidence\n', encoding='utf-8')
+            return result
+
+        with mock.patch.object(explorer.index, 'readiness', side_effect=mutate_other_source):
+            with self.assertRaisesRegex(audit.AuditError, 'project sources changed'):
+                self.app.follow_up({'action': 'continue', 'task_label': 'Implement feature',
+                                    'milestone_id': 'M01'})
+
+    def test_current_task_resolution_uses_recorded_milestone_scope(self):
+        self.bootstrap()
+        bank = self.project / 'tabilet/memory-bank'
+        (bank / 'milestone.md').write_text(
+            '# Milestones\n\n## M01 - One\n\n**Acceptance.** one\n\n'
+            '## M02 - Two\n\n**Acceptance.** two\n', encoding='utf-8')
+        for identity in ('M01', 'M02'):
+            (bank / f'status-{identity}.md').write_text(
+                '# Status\n\n| Item | State | Notes |\n|---|---|---|\n| Shared | `[ ]` | pending |\n',
+                encoding='utf-8')
+        self.app.refresh()
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            workspace = audit.ensure_workspace(connection, self.project)
+            run = audit.start_run(connection, workspace, 'next', run_id='scoped-run')
+            audit.append_event(connection, {
+                'schema': 'tabilet.audit.event/v1', 'event_id': 'scoped-event', 'run_id': run,
+                'workspace_id': workspace, 'operation': 'next', 'event_type': 'task_observed',
+                'recorded_at': audit.utc_now(), 'subject': {'milestone_id': 'M01',
+                    'task_label': 'Shared', 'status_path': 'tabilet/memory-bank/status-M01.md'},
+                'details': {'schema': 'tabilet.audit.details/v1'},
+            })
+        current = [item for item in self.app.run('scoped-run')['current_state'] if item['kind'] == 'task']
+        self.assertEqual(len(current), 1)
+        self.assertTrue(current[0]['resolved'])
+        self.assertEqual(current[0]['record']['milestone_id'], 'M01')
+
+    def test_overview_active_counts_exclude_retired_rows(self):
+        history = self.project / 'tabilet/docs/history'; history.mkdir(parents=True)
+        retired_status = '# Status\n\n| Item | State | Notes |\n|---|---|---|\n| Old | `[+]` | done |\n'
+        (history / 'status-M02.md').write_text(harness.retirement_text(retired_status, milestone_id='M02'), encoding='utf-8')
+        (history / 'index.md').write_text(
+            '# History\n\n| Milestone | Outcome | Retired | Record | Summary |\n|---|---|---|---|---|\n'
+            '| M02 | completed | 2026-09-12 | [M02](status-M02.md) | old |\n', encoding='utf-8')
+        self.app.refresh()
+        overview = self.app.overview()
+        self.assertEqual(overview['counts']['completed'], 0)
+        self.assertEqual(overview['counts']['history'], 1)
+
+    def test_post_bodies_require_json_boolean_and_integer_types(self):
+        token = self.bootstrap()
+        origin = f'http://127.0.0.1:{self.port}'
+        status, body = self.request('POST', '/api/refresh', token=token, origin=origin,
+                                    body={'rebuild': 'false'})
+        self.assertEqual(status, 400); self.assertIn('boolean', body['error'])
+        status, body = self.request('POST', '/api/follow-up', token=token, origin=origin,
+                                    body={'line': True})
+        self.assertEqual(status, 400); self.assertIn('integer', body['error'])
         with audit.open_database(self.database, project_roots=[self.project]) as connection:
             workspace = audit.ensure_workspace(connection, self.project)
             run = audit.start_run(connection, workspace, "goal", run_id="large-message", capture_mode="relevant")

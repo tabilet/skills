@@ -94,6 +94,20 @@ class SqliteAuditContractTests(unittest.TestCase):
                 with self.assertRaises(audit.AuditValidationError):
                     audit.validate_event(event(**{field: value}))
 
+    def test_explorer_applied_relationships_require_applied_phase(self) -> None:
+        explorer = {
+            "schema": "tabilet.audit.explorer/v1",
+            "phase": "proposal",
+            "artifact_refs": [{
+                "namespace": "task", "identifier": "M01/T01",
+                "relationship": "created",
+            }],
+        }
+        with self.assertRaisesRegex(audit.AuditValidationError, "requires the applied phase"):
+            audit.validate_explorer_details(explorer)
+        explorer["phase"] = "applied"
+        self.assertEqual(audit.validate_explorer_details(explorer), explorer)
+
     def test_state_and_subject_shape_are_validated(self) -> None:
         with self.assertRaisesRegex(audit.AuditValidationError, "unknown subject state"):
             audit.validate_event(

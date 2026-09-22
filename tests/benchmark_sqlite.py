@@ -87,7 +87,9 @@ def main():
             start = time.perf_counter(); overview = app.overview(); overview_ms = (time.perf_counter() - start) * 1000
             start = time.perf_counter(); timeline = app.timeline({'limit':['50']}); timeline_ms = (time.perf_counter() - start) * 1000
             start = time.perf_counter(); detail = app.run('run-000'); detail_ms = (time.perf_counter() - start) * 1000
-            sizes = [len(explorer._json(value).encode()) for value in (overview, timeline, detail)]
+            start = time.perf_counter(); todo = app.todo({'limit': ['50']}); todo_ms = (time.perf_counter() - start) * 1000
+            assert len(todo['ready']) == 50 and todo['totals']['ready'] == count * 20
+            sizes = [len(explorer._json(value).encode()) for value in (overview, timeline, detail, todo)]
             print(json.dumps({
                 'python': platform.python_version(), 'sqlite': sqlite3.sqlite_version,
                 'status_files': count, 'lanes': 17, 'tasks': count * 20,
@@ -102,7 +104,9 @@ def main():
                 'retired_records': 1, 'archives': 1, 'evolution_documents': 2,
                 'audit_parent_runs': 250, 'audit_child_runs': 25,
                 'overview_ms': round(overview_ms, 2), 'timeline_page_ms': round(timeline_ms, 2),
-                'run_detail_ms': round(detail_ms, 2), 'timeline_page_entries': len(timeline['entries']),
+                'run_detail_ms': round(detail_ms, 2), 'todo_page_ms': round(todo_ms, 2),
+                'todo_page_entries': len(todo['ready']), 'todo_total_entries': todo['totals']['ready'],
+                'timeline_page_entries': len(timeline['entries']),
                 'peak_response_bytes': max(sizes),
             }, indent=2))
         finally:

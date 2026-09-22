@@ -183,6 +183,24 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(connection.execute('PRAGMA user_version').fetchone()[0], 3)
         connection.close()
 
+    def test_initial_creation_failure_after_publish_removes_destination(self):
+        from unittest import mock
+        database = self.root / 'published-then-failed.db'
+        original = sqlite3.connect
+        calls = []
+
+        def connect(path, *args, **kwargs):
+            calls.append(str(path))
+            if len(calls) == 2:
+                raise OSError('injected reopen failure')
+            return original(path, *args, **kwargs)
+
+        with mock.patch.object(a.sqlite3, 'connect', side_effect=connect), self.assertRaises(OSError):
+            a.open_database(database)
+        self.assertFalse(database.exists())
+        connection = a.open_database(database)
+        connection.close()
+
     def test_abrupt_initial_creation_never_publishes_version_zero(self):
         database = self.root / 'crashed.db'
         script = '''
@@ -267,3 +285,33 @@ audit.open_database(sys.argv[1])
         c=a.open_database(legacy)
         self.assertEqual(c.execute('PRAGMA user_version').fetchone()[0],3)
         c.close()
+
+    def test_each_migrated_workspace_rebuilds_its_explorer_projection(self):
+        import tabilet_index as index
+        import test_harness as harness
+        first = harness.make_repo(self.root / 'workspace-a')
+        second = harness.make_repo(self.root / 'workspace-b')
+        database = self.root / 'multi-workspace.db'
+        connection = a.open_database(database)
+        first_state = index.sync(connection, first)
+        second_state = index.sync(connection, second)
+        connection.execute('DROP TABLE index_task_dependencies')
+        connection.execute('DROP TABLE index_milestone_projection')
+        connection.execute("DELETE FROM schema_meta WHERE key LIKE 'index_projection:%'")
+        connection.execute("UPDATE schema_meta SET value='tabilet.audit/v2' WHERE key='schema'")
+        connection.execute('PRAGMA user_version=2')
+        connection.commit(); connection.close()
+
+        connection = a.open_database(database)
+        index.sync(connection, first)
+        index.sync(connection, second)
+        for workspace in (first_state['workspace_id'], second_state['workspace_id']):
+            self.assertEqual(connection.execute(
+                'SELECT COUNT(*) FROM index_milestone_projection WHERE workspace_id=?',
+                (workspace,),
+            ).fetchone()[0], 1)
+            self.assertEqual(connection.execute(
+                "SELECT value FROM schema_meta WHERE key=?",
+                (f'index_projection:{workspace}',),
+            ).fetchone(), ('v2',))
+        connection.close()

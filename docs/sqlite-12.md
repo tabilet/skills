@@ -131,11 +131,19 @@ a separate instruction authorizes a merge, push, or release.
 Review iteration: 3 (cross-milestone deep review fixes applied). The disposable
 benchmark now includes 120 statuses, 17 lanes, 2,400 tasks, retired history,
 archive/evolution groups, 250 parent runs, 25 child runs, timeline/detail queries,
-and peak response size; its latest run reported a 179,318-byte peak response.
-`python3 check.py` (36 checks), the full credential-free Python suite (144 tests),
-the focused SQLite suite (70 tests), DSH tests (13), `mkdocs build --strict`, five
+and peak response size; its latest run reported a bounded 50-of-2,400-entry
+To-do page and a 179,318-byte peak response.
+`python3 check.py` (36 checks), the full credential-free Python suite (154 tests),
+the focused SQLite suite (80 tests), DSH tests (13), `mkdocs build --strict`, five
 isolated DOM journeys, two real Chromium journeys, copied-toolkit launch and
 missing-asset tests, and the representative benchmark pass. Browser tooling is
 repository-only under `tests/browser`; the shipped runtime remains Python
 standard-library code and local static assets. No merge, push, publication, or
 release action was performed.
+
+Review iteration: 4. Regression coverage now includes milestone-scoped duplicate
+task IDs, per-workspace v2 projection upgrades, deep dependency chains, closure
+ordering, full-source follow-up races, bounded To-do and goal collections, strict
+POST types, active-only counts, scoped historical task resolution, and failure
+after initial database publication. The scale benchmark measures the bounded
+To-do response as well as classification.

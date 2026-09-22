@@ -1,6 +1,6 @@
 # SQLite 3 — history and evolution snapshots
 
-Plan state: [+]
+Plan state: [-] — superseded by the revised index design in SQLite 5–8.
 
 Depends on: SQLite 1 and SQLite 2
 
@@ -45,21 +45,21 @@ status.
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
 | SQL3-T01 | [+] | Add snapshot and run_snapshots migrations and exact-byte storage. | Bytes, hash, kind, path, provenance, and run association round-trip. |
-| SQL3-T02 | [+] | Implement safe history/evolution discovery with symlink, root, encoding, and size validation. | Only declared v2 files are scanned; unrelated and archive files are ignored. |
-| SQL3-T03 | [+] | Capture snapshots after every audited terminal API run. | Completed, blocked, failed, and cancelled runs produce observations when readable. |
-| SQL3-T04 | [+] | Implement deduplication, immutable changed observations, and drift/missing-source events. | Repeated bytes deduplicate; changed or missing files preserve earlier evidence and produce diagnostics. |
+| SQL3-T02 | [-] | Implement safe history/evolution discovery with symlink, root, encoding, and size validation. Superseded by SQL6-T01's current-source index. | Only declared v2 files are scanned; unrelated and archive files are ignored. |
+| SQL3-T03 | [X] | Capture snapshots after every audited terminal API run. Cancelled when the revised design retained Markdown and Git as authority. | Completed, blocked, failed, and cancelled runs produce observations when readable. |
+| SQL3-T04 | [X] | Implement deduplication, immutable changed observations, and drift/missing-source events. Cancelled with automatic snapshot capture. | Repeated bytes deduplicate; changed or missing files preserve earlier evidence and produce diagnostics. |
 | SQL3-T05 | [+] | Add backup and restore verification to a separate destination. | A live backup restores all records without touching the project. |
-| SQL3-T06 | [+] | Test ordinary, all-retired, knowledge-history, evolution-version, customized, no-Git, drift, and interrupted cases. | Exact hashes and run associations remain correct in every fixture. |
+| SQL3-T06 | [-] | Test ordinary, all-retired, knowledge-history, evolution-version, customized, no-Git, drift, and interrupted cases. Snapshot-specific coverage was superseded by SQL6-T01; legacy-byte preservation remains covered by SQL5-T01. | Exact hashes and run associations remain correct in every fixture. |
 
 ## Review follow-up
 
 Legacy snapshot restoration writes to a private temporary file and publishes it
 only after the bytes and hash have been verified, so interrupted recovery does
-not leave a destination that blocks a retry. Automatic post-run snapshot
-capture remains deferred to the later index workflow.
+not leave a destination that blocks a retry. Automatic post-run snapshot capture
+was cancelled by the revised design. The current-source index locates
+authoritative Markdown without freezing new copies.
 
 ## Completion gate
 
-This milestone is complete when an audited API run retains history/evolution
-observations without replacing or modifying project Markdown. Milestones 1–3
-then constitute the first SQLite release.
+This historical milestone is superseded. Its legacy snapshot schema and recovery
+work remain accepted; SQL5–8 own the revised release contract.
