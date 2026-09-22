@@ -1,4 +1,5 @@
 import http.client
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -229,6 +230,60 @@ class ExplorerTests(unittest.TestCase):
         self.assertEqual(overview["counts"]["audit runs"], 1)
         self.assertEqual(overview["attention"][0]["kind"], "migration")
 
+    def test_migrated_runs_are_labeled_legacy_without_v4_evidence(self):
+        self.stop_server()
+        self.database.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self.database)
+        connection.executescript(audit.SCHEMA_SQL + audit.INDEX_SQL + audit.EXPLORER_SQL)
+        connection.execute("INSERT INTO schema_meta VALUES ('schema','tabilet.audit/v3')")
+        connection.execute("INSERT INTO schema_meta VALUES ('recorder_version','tabilet-audit/3')")
+        connection.execute("PRAGMA user_version=3")
+        connection.execute("INSERT INTO workspaces VALUES (?,?,?,?,?,?)",
+                           ("legacy", str(self.project), None, "main",
+                            "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"))
+        connection.execute("INSERT INTO runs VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                           ("legacy-run", "legacy", "next", "2026-01-01T00:00:00Z", None,
+                            "tabilet-audit/3", "relevant", None, None, "clean", None))
+        connection.commit(); connection.close()
+        with audit.open_database(self.database, project_roots=[self.project]) as migrated:
+            self.assertEqual(migrated.execute("PRAGMA user_version").fetchone()[0], 4)
+        self.app = explorer.ExplorerApp(self.project, self.database)
+        timeline = self.app.timeline({})
+        self.assertTrue(timeline["results"][0]["legacy"])
+        self.assertEqual(timeline["results"][0]["capture_fidelity"], "legacy")
+        detail = self.app.run("legacy-run")
+        self.assertTrue(detail["run"]["legacy"])
+
+    def test_timeline_evidence_filters_include_goal_children(self):
+        token = self.bootstrap()
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            workspace = audit.ensure_workspace(connection, self.project)
+            parent = audit.start_run(connection, workspace, "goal", run_id="goal-parent")
+            child = audit.start_run(connection, workspace, "next", run_id="goal-child",
+                                    parent_run_id=parent, capture_mode="relevant")
+            audit.record_provenance(connection, child, {
+                "invocation_kind": "interactive_skill", "instruction_set_name": "memory-bank-next",
+                "capture_method": "instruction_driven", "fingerprint_fidelity": "unavailable",
+            })
+            audit.capture_message(connection, child, "user", "child evidence", message_id="goal-message",
+                                  capture_source="host", fidelity="exact")
+            audit.record_coverage(connection, {
+                "coverage_id": "goal-child-coverage", "run_id": child,
+                "scope": "skill_conversation", "coverage": "complete", "content_state": "available",
+                "exact_count": 1, "capture_method": "instruction_driven",
+            })
+        status, filtered = self.request("GET", "/api/timeline?instruction_set=memory-bank-next", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual([row["run_id"] for row in filtered["results"]], [parent])
+        status, filtered = self.request("GET", "/api/timeline?coverage=complete", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual([row["run_id"] for row in filtered["results"]], [parent])
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            audit.purge_message(connection, "goal-message", "privacy request", "goal-message")
+        status, filtered = self.request("GET", "/api/timeline?purged=1", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual([row["run_id"] for row in filtered["results"]], [parent])
+
     def test_invalid_pagination_and_bounded_run_detail(self):
         token = self.bootstrap()
         status, error = self.request("GET", "/api/timeline?limit=-2", token=token)
@@ -427,8 +482,17 @@ class ExplorerTests(unittest.TestCase):
         with audit.open_database(self.database, project_roots=[self.project]) as connection:
             workspace = audit.ensure_workspace(connection, self.project)
             run = audit.start_run(connection, workspace, "goal", run_id="large-message", capture_mode="relevant")
-            audit.capture_message(connection, run, "user", "x" * 70000,
-                                  capture_source="host", fidelity="exact", message_id="large-message-input")
+            legacy_text = "x" * 70000
+            raw = legacy_text.encode("utf-8")
+            connection.execute(
+                "INSERT INTO captured_messages(message_id,run_id,sequence,role,captured_at,text,capture_source,fidelity,redaction_note,content_sha256,content_byte_length) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                ("large-message-input", run, 1, "user", audit.utc_now(), "", "host", "exact", None,
+                 hashlib.sha256(raw).hexdigest(), len(raw)),
+            )
+            connection.execute(
+                "INSERT INTO captured_message_content(message_id,content,sha256,byte_length) VALUES (?,?,?,?)",
+                ("large-message-input", raw, hashlib.sha256(raw).hexdigest(), len(raw)),
+            )
             audit.finish_run(connection, run, "completed")
         detail = self.app.run("large-message")
         self.assertTrue(detail["messages"][0]["truncated"])

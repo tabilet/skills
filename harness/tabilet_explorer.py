@@ -73,6 +73,12 @@ def _safe_relative(value: str) -> str:
     return path.as_posix()
 
 
+def _legacy_run_without_v4_evidence(run: dict[str, Any], provenance: dict[str, Any] | None) -> bool:
+    """Identify a pre-v4 run after its database has gained the v4 tables."""
+
+    return provenance is None and run.get("recorder_version") != audit.RECORDER_VERSION
+
+
 class ExplorerApp:
     def __init__(self, project: pathlib.Path, database: pathlib.Path):
         self.project = project.expanduser().resolve()
@@ -278,6 +284,17 @@ class ExplorerApp:
         since = params.get("since", [None])[0]
         until = params.get("until", [None])[0]
         search = (params.get("search", [""])[0] or "").strip().lower()
+        instruction_set = params.get("instruction_set", [None])[0]
+        instruction_set_version = params.get("instruction_set_version", [None])[0]
+        host_agent = params.get("host", [None])[0]
+        model = params.get("model", [None])[0]
+        capture_method = params.get("capture_method", [None])[0]
+        coverage = params.get("coverage", [None])[0]
+        purged = params.get("purged", [None])[0]
+        if capture_method and capture_method not in audit.PROVENANCE_CAPTURE_METHODS:
+            raise audit.AuditError("unknown capture method")
+        if coverage and coverage not in audit.COVERAGE_STATES:
+            raise audit.AuditError("unknown coverage state")
         child_limit = min(int(params.get('child_limit', [20])[0]), MAX_PAGE)
         audit.pagination(child_limit, 0)
         if operation and operation not in audit.OPERATIONS:
@@ -290,6 +307,7 @@ class ExplorerApp:
             if value: audit._timestamp(value, 'timeline date')
         with self.read() as (connection, workspace):
             workspace_id = workspace["workspace_id"]
+            has_v4 = 'captured_message_content' in audit.schema_tables(connection)
             clauses = ["r.workspace_id=?", "r.parent_run_id IS NULL"]; values: list[Any] = [workspace_id]
             if operation:
                 clauses.append("(r.operation=? OR EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.workspace_id=? AND c.operation=?))")
@@ -305,15 +323,50 @@ class ExplorerApp:
                 values.extend([workspace_id, milestone])
             if since: clauses.append(f"{audit.time_key('r.started_at')} >= ?"); values.append(audit.time_bound(since))
             if until: clauses.append(f"{audit.time_key('r.started_at')} <= ?"); values.append(audit.time_bound(until))
+            if any(value is not None for value in (instruction_set, instruction_set_version, host_agent, model, capture_method)):
+                if 'run_provenance' not in audit.schema_tables(connection):
+                    return {"workspace_id": workspace_id, "results": [], "runs": [], "entries": [], "limit": limit, "next_cursor": None, "previous_cursor": None, "index": index.status(connection, workspace_id)}
+                for column, value in (("instruction_set_name", instruction_set), ("instruction_set_version", instruction_set_version), ("host_agent", host_agent), ("model", model), ("capture_method", capture_method)):
+                    if value is not None:
+                        clauses.append(
+                            f"EXISTS (SELECT 1 FROM run_provenance p JOIN runs evidence_run ON evidence_run.run_id=p.run_id "
+                            f"WHERE evidence_run.workspace_id=? AND (evidence_run.run_id=r.run_id OR evidence_run.parent_run_id=r.run_id) AND p.{column}=?)"
+                        )
+                        values.extend([workspace_id, value])
+            if coverage:
+                if 'coverage_observations' not in audit.schema_tables(connection):
+                    return {"workspace_id": workspace_id, "results": [], "runs": [], "entries": [], "limit": limit, "next_cursor": None, "previous_cursor": None, "index": index.status(connection, workspace_id)}
+                clauses.append(
+                    "EXISTS (SELECT 1 FROM coverage_observations c JOIN runs evidence_run ON evidence_run.run_id=c.run_id "
+                    "WHERE evidence_run.workspace_id=? AND (evidence_run.run_id=r.run_id OR evidence_run.parent_run_id=r.run_id) AND c.coverage=? "
+                    "AND NOT EXISTS (SELECT 1 FROM coverage_observations c2 WHERE c2.run_id=c.run_id "
+                    "AND (c2.observed_at>c.observed_at OR (c2.observed_at=c.observed_at AND c2.coverage_id>c.coverage_id))))"
+                )
+                values.extend([workspace_id, coverage])
+            if purged in {'1', 'true', 'yes'}:
+                if 'message_content_tombstones' not in audit.schema_tables(connection):
+                    return {"workspace_id": workspace_id, "results": [], "runs": [], "entries": [], "limit": limit, "next_cursor": None, "previous_cursor": None, "index": index.status(connection, workspace_id)}
+                clauses.append(
+                    "EXISTS (SELECT 1 FROM message_content_tombstones t JOIN captured_messages m USING(message_id) "
+                    "JOIN runs evidence_run ON evidence_run.run_id=m.run_id WHERE evidence_run.workspace_id=? "
+                    "AND (evidence_run.run_id=r.run_id OR evidence_run.parent_run_id=r.run_id))"
+                )
+                values.append(workspace_id)
             if search:
+                message_search = ("EXISTS (SELECT 1 FROM captured_messages m LEFT JOIN captured_message_content mc ON mc.message_id=m.message_id WHERE m.run_id=r.run_id AND (instr(lower(coalesce(m.role,'')),?)>0 OR instr(lower(coalesce(CAST(mc.content AS TEXT),m.text,'')),?)>0))"
+                                  if has_v4 else
+                                  "EXISTS (SELECT 1 FROM captured_messages m WHERE m.run_id=r.run_id AND (instr(lower(coalesce(m.role,'')),?)>0 OR instr(lower(m.text),?)>0))")
+                child_message_search = ("EXISTS (SELECT 1 FROM captured_messages cm LEFT JOIN captured_message_content cmc ON cmc.message_id=cm.message_id WHERE cm.run_id=c.run_id AND (instr(lower(coalesce(cm.role,'')),?)>0 OR instr(lower(coalesce(CAST(cmc.content AS TEXT),cm.text,'')),?)>0))"
+                                        if has_v4 else
+                                        "EXISTS (SELECT 1 FROM captured_messages cm WHERE cm.run_id=c.run_id AND (instr(lower(coalesce(cm.role,'')),?)>0 OR instr(lower(cm.text),?)>0))")
                 clauses.append("(" + " OR ".join([
                     "instr(lower(coalesce(r.operation,'')),?)>0",
                     "instr(lower(coalesce(r.result,'')),?)>0",
                     "instr(lower(coalesce(r.git_head,'')),?)>0",
                     "instr(lower(coalesce(r.worktree_state,'')),?)>0",
                     "EXISTS (SELECT 1 FROM events e WHERE e.run_id=r.run_id AND (instr(lower(coalesce(e.event_type,'')),?)>0 OR instr(lower(coalesce(e.task_label,'')),?)>0 OR instr(lower(coalesce(e.details_json,'')),?)>0 OR instr(lower(coalesce(e.payload_json,'')),?)>0))",
-                    "EXISTS (SELECT 1 FROM captured_messages m WHERE m.run_id=r.run_id AND (instr(lower(coalesce(m.role,'')),?)>0 OR instr(lower(m.text),?)>0))",
-                    "EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.workspace_id=? AND (instr(lower(c.operation),?)>0 OR instr(lower(coalesce(c.result,'')),?)>0 OR EXISTS (SELECT 1 FROM events ce WHERE ce.run_id=c.run_id AND (instr(lower(coalesce(ce.event_type,'')),?)>0 OR instr(lower(coalesce(ce.task_label,'')),?)>0 OR instr(lower(coalesce(ce.details_json,'')),?)>0 OR instr(lower(coalesce(ce.payload_json,'')),?)>0)) OR EXISTS (SELECT 1 FROM captured_messages cm WHERE cm.run_id=c.run_id AND (instr(lower(coalesce(cm.role,'')),?)>0 OR instr(lower(cm.text),?)>0))))",
+                    message_search,
+                    "EXISTS (SELECT 1 FROM runs c WHERE c.parent_run_id=r.run_id AND c.workspace_id=? AND (instr(lower(c.operation),?)>0 OR instr(lower(coalesce(c.result,'')),?)>0 OR EXISTS (SELECT 1 FROM events ce WHERE ce.run_id=c.run_id AND (instr(lower(coalesce(ce.event_type,'')),?)>0 OR instr(lower(coalesce(ce.task_label,'')),?)>0 OR instr(lower(coalesce(ce.details_json,'')),?)>0 OR instr(lower(coalesce(ce.payload_json,'')),?)>0)) OR " + child_message_search + "))",
                 ]) + ")")
                 values.extend([search] * 10 + [workspace_id] + [search] * 8)
             direction = cursor.get('direction', 'next') if cursor else None
@@ -337,16 +390,12 @@ class ExplorerApp:
                 def compact(value, limit=500):
                     if value is None: return None
                     return value if len(value) <= limit else value[:limit - 1] + '…'
-                messages = audit.records(connection, """
-                    SELECT role,substr(text,1,501) AS text,fidelity FROM captured_messages
-                    WHERE message_id IN (
-                      SELECT message_id FROM captured_messages
-                      WHERE run_id=? AND role IN ('user','request') ORDER BY sequence LIMIT 1
-                    ) OR message_id IN (
-                      SELECT message_id FROM captured_messages
-                      WHERE run_id=? AND role IN ('assistant','output') ORDER BY sequence DESC LIMIT 1
-                    ) ORDER BY sequence
-                """, (row['run_id'], row['run_id']))
+                all_messages = audit.query_messages(connection, row['run_id'], include_content=True)
+                messages = [{key: item.get(key) for key in ('role', 'text', 'fidelity', 'content_state')} for item in all_messages
+                            if item['role'] in {'user', 'request', 'assistant', 'output'}]
+                messages = ([next((item for item in messages if item['role'] in {'user', 'request'}), None)] +
+                            [next((item for item in reversed(messages) if item['role'] in {'assistant', 'output'}), None)])
+                messages = [item for item in messages if item]
                 request = next((message for message in messages if message['role'] in {'user', 'request'}), None)
                 output = next((message for message in reversed(messages) if message['role'] in {'assistant', 'output'}), None)
                 summary = None
@@ -356,9 +405,24 @@ class ExplorerApp:
                 if not summary:
                     selected = connection.execute("SELECT event_type,task_label FROM events WHERE run_id=? ORDER BY sequence DESC LIMIT 1", (row['run_id'],)).fetchone()
                     summary = ' — '.join(value for value in selected if value) if selected else None
-                row['request_summary'] = compact(request['text']) if request else None
+                row['request_summary'] = compact(request['text']) if request and request.get('text') else None
                 row['capture_fidelity'] = request['fidelity'] if request else 'incomplete'
                 row['result_summary'] = compact(output['text'] if output else summary)
+                provenance = None
+                if 'run_provenance' in audit.schema_tables(connection):
+                    provenance = audit.records(connection, "SELECT * FROM run_provenance WHERE run_id=?", (row['run_id'],))
+                    if provenance:
+                        provenance[0]['resources'] = audit.records(connection, "SELECT logical_name AS name,sha256 FROM provenance_resources WHERE run_id=? ORDER BY logical_name", (row['run_id'],))
+                        provenance[0].pop('host_session_ref', None)
+                    provenance = provenance[0] if provenance else None
+                    row['provenance'] = provenance
+                    row['coverage'] = audit.records(connection, "SELECT * FROM coverage_observations WHERE run_id=? ORDER BY observed_at DESC,coverage_id DESC LIMIT 1", (row['run_id'],))
+                    row['coverage'] = row['coverage'][0] if row['coverage'] else None
+                    if not request and row['coverage'] and row['coverage'].get('coverage') in {'missing', 'not_requested'}:
+                        row['capture_fidelity'] = row['coverage']['coverage']
+                row['legacy'] = _legacy_run_without_v4_evidence(row, provenance)
+                if row['legacy']:
+                    row['capture_fidelity'] = 'legacy'
                 row['unfinished'] = row['completed_at'] is None
                 return row
 
@@ -398,6 +462,16 @@ class ExplorerApp:
             row = audit.records(connection, "SELECT * FROM runs WHERE run_id=? AND workspace_id=?", (run_id, workspace["workspace_id"]))
             if not row: raise audit.AuditError("run is not part of this project")
             result = row[0]
+            provenance = None
+            if 'run_provenance' in audit.schema_tables(connection):
+                provenance = audit.records(connection, "SELECT * FROM run_provenance WHERE run_id=?", (run_id,))
+                if provenance:
+                    provenance[0]['resources'] = audit.records(connection, "SELECT logical_name AS name,sha256 FROM provenance_resources WHERE run_id=? ORDER BY logical_name", (run_id,))
+                    provenance[0].pop('host_session_ref', None)
+                provenance = provenance[0] if provenance else None
+                result['provenance'] = provenance
+                result['coverage'] = audit.records(connection, "SELECT * FROM coverage_observations WHERE run_id=? ORDER BY observed_at,coverage_id", (run_id,))
+            result['legacy'] = _legacy_run_without_v4_evidence(result, provenance)
             result["events"] = audit.query_events(connection, run_id, workspace_id=workspace["workspace_id"], limit=event_limit + 1, offset=event_offset)
             more_events = len(result['events']) > event_limit; result['events'] = result['events'][:event_limit]
             for event in result['events']:
@@ -419,30 +493,45 @@ class ExplorerApp:
                             if len(artifact['details_json']) > 65536:
                                 artifact['details_json'] = artifact['details_json'][:65535] + '…'
                                 artifact['details_truncated'] = True
-            result["messages"] = audit.records(connection, """
-                SELECT message_id,run_id,sequence,role,captured_at,
-                       substr(text,1,65535) AS text,length(text) AS original_characters,
-                       capture_source,fidelity,redaction_note
-                FROM captured_messages WHERE run_id=? ORDER BY sequence LIMIT ? OFFSET ?
-            """, (run_id, message_limit + 1, message_offset))
+            if 'captured_message_content' in audit.schema_tables(connection):
+                result["messages"] = audit.query_messages(connection, run_id, include_content=True)[message_offset:message_offset + message_limit + 1]
+                for message in result["messages"]:
+                    if message.get("text") is not None:
+                        message["original_characters"] = len(message["text"])
+                        if len(message["text"]) > 65535:
+                            message["text"] = message["text"][:65535] + "…"
+                            message["truncated"] = True
+            else:
+                result["messages"] = audit.records(connection, """
+                    SELECT message_id,run_id,sequence,role,captured_at,
+                           substr(text,1,65535) AS text,length(text) AS original_characters,
+                           capture_source,fidelity,redaction_note
+                    FROM captured_messages WHERE run_id=? ORDER BY sequence LIMIT ? OFFSET ?
+                """, (run_id, message_limit + 1, message_offset))
             more_messages = len(result['messages']) > message_limit; result['messages'] = result['messages'][:message_limit]
             for message in result['messages']:
-                if message['original_characters'] > len(message['text']):
+                if message.get('text') is not None and message.get('original_characters', len(message['text'])) > len(message['text']):
                     message['text'] += '…'; message['truncated'] = True
-            summary_messages = audit.records(connection, """
-                SELECT message_id,run_id,sequence,role,captured_at,
-                       substr(text,1,65535) AS text,length(text) AS original_characters,
-                       capture_source,fidelity,redaction_note
-                FROM captured_messages WHERE message_id IN (
-                  SELECT message_id FROM captured_messages
-                  WHERE run_id=? AND role IN ('user','request') ORDER BY sequence LIMIT 1
-                ) OR message_id IN (
-                  SELECT message_id FROM captured_messages
-                  WHERE run_id=? AND role IN ('assistant','output') ORDER BY sequence DESC LIMIT 1
-                ) ORDER BY sequence
-            """, (run_id, run_id))
+            if 'captured_message_content' in audit.schema_tables(connection):
+                all_messages = audit.query_messages(connection, run_id, include_content=True)
+                summary_messages = ([next((message for message in all_messages if message['role'] in {'user','request'}), None)] +
+                                    [next((message for message in reversed(all_messages) if message['role'] in {'assistant','output'}), None)])
+                summary_messages = [message for message in summary_messages if message]
+            else:
+                summary_messages = audit.records(connection, """
+                    SELECT message_id,run_id,sequence,role,captured_at,
+                           substr(text,1,65535) AS text,length(text) AS original_characters,
+                           capture_source,fidelity,redaction_note
+                    FROM captured_messages WHERE message_id IN (
+                      SELECT message_id FROM captured_messages
+                      WHERE run_id=? AND role IN ('user','request') ORDER BY sequence LIMIT 1
+                    ) OR message_id IN (
+                      SELECT message_id FROM captured_messages
+                      WHERE run_id=? AND role IN ('assistant','output') ORDER BY sequence DESC LIMIT 1
+                    ) ORDER BY sequence
+                """, (run_id, run_id))
             for message in summary_messages:
-                if message['original_characters'] > len(message['text']):
+                if message.get('text') is not None and message.get('original_characters', len(message['text'])) > len(message['text']):
                     message['text'] += '…'; message['truncated'] = True
             request_message = next((message for message in summary_messages if message['role'] in {'user','request'}), None)
             output_message = next((message for message in reversed(summary_messages) if message['role'] in {'assistant','output'}), None)

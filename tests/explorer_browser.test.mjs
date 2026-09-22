@@ -80,6 +80,14 @@ test('timeline renders captured requests and grouped goal children', () => {
   assert.match(entry.textContent, /Capture: exact/);
 });
 
+test('timeline distinguishes migrated audit evidence as legacy', () => {
+  const entry = client.timelineEntry({
+    run_id: 'legacy', operation: 'next', started_at: '2026-01-01T00:00:00Z', legacy: true,
+  });
+  assert.match(entry.textContent, /Evidence: legacy/);
+  assert.doesNotMatch(entry.textContent, /Capture: incomplete/);
+});
+
 test('filter state is written to a bookmarkable URL', () => {
   client.updateUrl({ operation: 'next', cursor: 'opaque' }, false);
   assert.match(historyCalls.at(-1)[1], /operation=next/);
