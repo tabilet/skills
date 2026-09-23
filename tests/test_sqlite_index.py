@@ -4,6 +4,7 @@ from pathlib import Path
 import sqlite3
 import sys
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -40,6 +41,84 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(len(ix.search(self.c,w,'FEATURE',kind='task')['results']),1)
         self.assertEqual(ix.search(self.c,w,'feature',kind='task',offset=1)['results'],[])
         self.assertIn('tasks',ix.show(self.c,w,'tabilet/memory-bank/status-M01.md'))
+
+    def test_malformed_fts_query_falls_back_to_literal(self):
+        state=self.sync()
+        for term in ('"', 'feature:', 'feature AND ('):
+            result=ix.search(self.c,state['workspace_id'],term)
+            self.assertEqual(result['results'],[])
+            self.assertEqual(result['query_mode'],'literal')
+        self.assertEqual(len(ix.search(self.c,state['workspace_id'],'feature')['results']) > 0,True)
+
+    def test_task_notes_do_not_create_milestone_edges_and_prose_stays_visible(self):
+        self.source.write_text(
+            '| ID | State | Notes |\n|---|---|---|\n'
+            '| T01 | `[ ]` | Depends on: M02/T99, discuss later |\n'
+            '| T02 | `[ ]` | Depends on: T01, T01 |\n'
+        )
+        state=self.sync();w=state['workspace_id']
+        self.assertEqual(self.c.execute('SELECT COUNT(*) FROM index_relationships WHERE relation="depends_on"').fetchone()[0],0)
+        self.assertEqual(self.c.execute('SELECT COUNT(*) FROM index_task_dependencies WHERE source_key="M01/T02"').fetchone()[0],1)
+        readiness=ix.readiness(self.c,w,self.root)
+        unresolved=next(row for row in readiness['waiting'] if row['task']['explicit_id']=='T01')
+        self.assertIn('discuss later',unresolved['task']['notes'])
+        self.assertTrue(any(not ref['resolved'] for ref in unresolved['task']['prerequisites']))
+
+    def test_repeated_milestone_dependency_has_one_index_edge(self):
+        milestone=self.root/'tabilet/memory-bank/milestone.md'
+        milestone.write_text(milestone.read_text()+'\n**Dependencies.** M02\n**Depends on:** M02\n')
+        self.source.write_text(self.source.read_text()+'\n**Dependencies.** M02\n')
+        (self.root/'tabilet/memory-bank/status-M02.md').write_text(
+            '| Item | State | Notes |\n|---|---|---|\n| Other | `[ ]` | pending |\n')
+        milestone.write_text(milestone.read_text()+'\n## M02 - Other\n\n**Acceptance.** Other works.\n')
+        self.sync()
+        self.assertEqual(self.c.execute("SELECT COUNT(*) FROM index_relationships WHERE source='milestone:M01' AND relation='depends_on' AND target='milestone:M02'").fetchone()[0],1)
+
+    def test_nested_milestone_heading_is_not_an_active_specification(self):
+        milestone=self.root/'tabilet/memory-bank/milestone.md'
+        milestone.write_text(milestone.read_text()+'\n### M02 example\n\nNested note.\n')
+        state=self.sync()
+        self.assertTrue(state['complete'])
+        self.assertEqual(self.c.execute('SELECT COUNT(*) FROM index_milestone_projection').fetchone()[0],1)
+
+    def test_historical_attempt_points_to_successor_without_veto(self):
+        self.source.write_text(
+            '| ID | State | Notes |\n|---|---|---|\n'
+            '| T01 | `[-]` | Failed attempt; accepted successor T02 |\n'
+            '| T02 | `[ ]` | Depends on: T01 |\n'
+        )
+        state=self.sync();view=ix.readiness(self.c,state['workspace_id'],self.root)
+        successor=next(item['task'] for item in view['ready'] if item['task']['explicit_id']=='T02')
+        self.assertEqual(successor['prerequisites'][0]['state'],'historical')
+        self.assertIn('accepted successor T02',successor['prerequisites'][0]['notes'])
+
+    def test_index_rejects_zero_status_id(self):
+        (self.root/'tabilet/memory-bank/status-M00.md').write_text('| Item | State | Notes |\n|---|---|---|\n| X | `[ ]` | x |\n')
+        with self.assertRaisesRegex(a.AuditError,'invalid declared filename'):
+            self.sync()
+
+    def test_earlier_failed_sync_cannot_mark_newer_generation_incomplete(self):
+        first=self.sync(); workspace=first['workspace_id']
+        waiting=threading.Event(); release=threading.Event(); original=ix.publish
+        outcomes=[]
+        def publish(*args,**kwargs):
+            if threading.current_thread().name=='slow-sync':
+                waiting.set()
+                self.assertTrue(release.wait(5))
+                raise OSError('injected earlier failure')
+            return original(*args,**kwargs)
+        def slow():
+            with a.open_database(self.base/'state/audit.db') as connection:
+                try: ix.sync(connection,self.root)
+                except a.AuditError as exc: outcomes.append(str(exc))
+        with mock.patch.object(ix,'publish',side_effect=publish):
+            thread=threading.Thread(target=slow,name='slow-sync');thread.start()
+            self.assertTrue(waiting.wait(5))
+            newer=self.sync()
+            release.set();thread.join(5)
+        self.assertTrue(outcomes)
+        self.assertEqual(ix.status(self.c,workspace)['generation'],newer['generation'])
+        self.assertTrue(ix.status(self.c,workspace)['complete'])
 
     def test_milestone_search_and_table_local_task_ids(self):
         self.source.write_text(
@@ -202,12 +281,12 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(ready['ready'][0]['task']['dependents'][0]['label'], 'TASK-B')
         self.assertTrue(ready['waiting'][0]['task']['prerequisites'][0]['resolved'])
 
-    def test_readiness_withholds_recommendations_for_stale_sources_or_multiple_in_progress(self):
+    def test_readiness_reports_stale_sources_and_multiple_in_progress(self):
         state=self.sync();w=state['workspace_id']
         self.source.write_text(self.source.read_text().replace('`[ ]`','`[~]`'))
         stale=ix.readiness(self.c,w,self.root)
         self.assertEqual(stale['source_freshness'],'stale')
-        self.assertEqual(stale['recommendations'],[])
+        self.assertNotIn('recommendations', stale)
         self.sync()
         self.source.write_text(
             '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
@@ -215,7 +294,7 @@ class IndexTests(unittest.TestCase):
         )
         self.sync()
         multiple=ix.readiness(self.c,w,self.root)
-        self.assertEqual(multiple['recommendations'],[])
+        self.assertNotIn('recommendations', multiple)
         self.assertTrue(any('multiple in-progress' in item['reason'] for item in multiple['needs_review']))
 
     def test_readiness_detects_duplicate_ids_cycles_and_cancelled_prerequisites(self):
@@ -236,7 +315,7 @@ class IndexTests(unittest.TestCase):
             '| B | `[ ]` | Depends on: A |\n'
         )
         state = self.sync(); ready = ix.readiness(self.c, state['workspace_id'], self.root)
-        self.assertFalse(ready['recommendations'])
+        self.assertNotIn('recommendations', ready)
         self.assertTrue(any(item['reason'] == 'dependency cycle requires review' for item in ready['needs_review']))
         self.assertTrue(any('requires review' in item['reason'] for item in ready['waiting']))
 
@@ -276,7 +355,7 @@ class IndexTests(unittest.TestCase):
         review = next(item for item in readiness['needs_review']
                       if item['reason'] == 'milestone dependency cycle requires review')
         self.assertEqual(review['milestone_ids'], ['M01', 'M02'])
-        self.assertFalse(readiness['recommendations'])
+        self.assertNotIn('recommendations', readiness)
 
     def test_scoped_cross_milestone_task_cycle_requires_review(self):
         milestone = self.root / 'tabilet/memory-bank/milestone.md'
@@ -297,7 +376,7 @@ class IndexTests(unittest.TestCase):
         review = next(item for item in readiness['needs_review']
                       if item['reason'] == 'dependency cycle requires review')
         self.assertEqual(review['milestone_ids'], ['M01', 'M02'])
-        self.assertFalse(readiness['recommendations'])
+        self.assertNotIn('recommendations', readiness)
 
     def test_deep_dependency_chain_does_not_use_python_recursion(self):
         total = 1100
@@ -321,8 +400,8 @@ class IndexTests(unittest.TestCase):
         state=self.sync()
         task=self.c.execute('SELECT line FROM index_tasks').fetchone()[0]
         self.assertIn('Old attempt',text.splitlines()[task-1])
-        relation=self.c.execute("SELECT line FROM index_relationships WHERE relation='successor'").fetchone()[0]
-        self.assertIn('successor: M02',text.splitlines()[relation-1])
+        self.assertEqual(self.c.execute("SELECT COUNT(*) FROM index_relationships WHERE relation='successor'").fetchone()[0], 0)
+        self.assertIn('successor: M02', self.c.execute("SELECT notes FROM index_tasks").fetchone()[0])
         stable=state['generation']
         retired.write_text(text.replace('**Review.** passed','**Review.** failed'))
         with self.assertRaises(a.AuditError):self.sync()

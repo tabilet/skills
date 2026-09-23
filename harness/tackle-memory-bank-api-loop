@@ -1200,6 +1200,10 @@ class AuditRun:
             return
         try:
             import tabilet_audit
+            import tabilet_index
+            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 1
+                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 1):
+                raise RuntimeError("incompatible audit toolkit modules; reinstall the toolkit files together")
             self.recorder = tabilet_audit
             if git_ref is None:
                 head = run_local(["git", "rev-parse", "HEAD"], repo)
@@ -1216,13 +1220,13 @@ class AuditRun:
             self.recorder.record_provenance(self.connection, self.run_id, {
                 "invocation_kind": "api_runner",
                 "instruction_set_name": "tackle-memory-bank-api-loop",
-                "instruction_set_version": self.recorder.RECORDER_VERSION,
+                "instruction_set_version": None,
                 "host_agent": "tackle-memory-bank-api-loop",
-                "host_version": self.recorder.RECORDER_VERSION,
+                "host_version": None,
                 "provider": args.provider,
                 "model": args.model,
                 "capture_method": "automatic",
-                "fingerprint_fidelity": "exact",
+                "fingerprint_fidelity": "partial",
                 "resources": [resource],
                 "aggregate_sha256": hashlib.sha256(self.recorder.canonical_json([resource]).encode("utf-8")).hexdigest(),
             })
@@ -1683,21 +1687,6 @@ def main() -> None:
                 ),
                 None,
             )
-            if candidate:
-                row_problems = validate_row_transition(
-                    before_rows, after_rows, in_progress["key"] if in_progress else None,
-                )
-                if row_problems:
-                    audit.emit(
-                        "verification_observed",
-                        details={"checks": ["row_transition"], "success": False, "problems": row_problems},
-                    )
-                    audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
-                    audit.finish("failed")
-                    print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
-                    for problem in row_problems:
-                        print(f"  {problem}", file=sys.stderr)
-                    raise SystemExit(8)
             transition = candidate
             transition_recorded = False
 
@@ -1746,21 +1735,20 @@ def main() -> None:
                 audit.finish("failed")
                 print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
                 raise SystemExit(9)
-            if transition is None:
-                row_problems = validate_row_transition(
-                    before_rows, after_rows, in_progress["key"] if in_progress else None,
+            row_problems = validate_row_transition(
+                before_rows, after_rows, in_progress["key"] if in_progress else None,
+            )
+            if row_problems:
+                audit.emit(
+                    "verification_observed",
+                    details={"checks": ["row_transition"], "success": False, "problems": row_problems},
                 )
-                if row_problems:
-                    audit.emit(
-                        "verification_observed",
-                        details={"checks": ["row_transition"], "success": False, "problems": row_problems},
-                    )
-                    audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
-                    audit.finish("failed")
-                    print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
-                    for problem in row_problems:
-                        print(f"  {problem}", file=sys.stderr)
-                    raise SystemExit(8)
+                audit.emit("run_failed", details={"reason": "invalid row transition", "problems": row_problems})
+                audit.finish("failed")
+                print("LLM violated the one-row transition contract. Stopping.", file=sys.stderr)
+                for problem in row_problems:
+                    print(f"  {problem}", file=sys.stderr)
+                raise SystemExit(8)
             record_transition()
             audit.emit(
                 "verification_observed",

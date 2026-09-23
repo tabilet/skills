@@ -23,6 +23,7 @@ EVOLUTION = re.compile(r'(prompt|result)-v([1-9][0-9]*)\.md$')
 TABLES = ('index_documents','index_sections','index_milestones','index_tasks','index_relationships','index_search')
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
+TOOLKIT_INTERFACE = 1
 
 
 @functools.lru_cache(maxsize=1)
@@ -214,6 +215,8 @@ def parse_document(path,kind,text,digest):
     if kind == 'milestone':
         order=0
         for section in parsed['index_sections']:
+            if not text.splitlines()[section['line']-1].startswith('## '):
+                continue
             match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)',section['heading'])
             if not match:continue
             order += 1
@@ -230,16 +233,24 @@ def parse_document(path,kind,text,digest):
         relation_lines = [(n + specification_offset, value) for n, value in p.unfenced_lines(specification)]
         relation_lines += [(n + offset, value) for n, value in p.unfenced_lines(status)]
     current_identity=identity
+    seen_relations=set()
     for line,value in relation_lines:
-        section_id=re.match(r'## ([A-Z][0-9]{2})(?:\s|$)',value)
+        section_id=re.match(r'## ([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)',value)
         if kind=='milestone' and section_id:current_identity=section_id[1]
+        # Task-table notes have their own dependency grammar and scope. They
+        # cannot create a milestone edge merely by naming an ID in prose.
+        if value.startswith('|'):
+            continue
         dependency=re.search(r'(?:\*\*)?(?:Dependencies|Depends on|Successor|Supersedes)[.:]*(?:\*\*)?\s*:?\s*(.+)',value,re.I)
         if dependency:
             relation='depends_on' if dependency[0].lower().startswith(('depend','**depend')) else 'supersedes' if 'supersedes' in dependency[0].lower() else 'successor'
             source=('milestone:'+current_identity) if current_identity else path
             if kind=='context_archive':source='archive:'+ARCHIVE.fullmatch(pathlib.Path(path).name)[1]
             for target in dict.fromkeys(re.findall(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[1])):
-                parsed['index_relationships'].append(dict(line=line,source=source,relation=relation,target=('archive:' if kind=='context_archive' else 'milestone:')+target))
+                edge=(source,relation,('archive:' if kind=='context_archive' else 'milestone:')+target)
+                if edge not in seen_relations:
+                    parsed['index_relationships'].append(dict(line=line,source=source,relation=relation,target=edge[2]))
+                    seen_relations.add(edge)
     if kind.startswith('evolution_'):
         match=EVOLUTION.fullmatch(pathlib.Path(path).name)
         counterpart = 'result' if match[1] == 'prompt' else 'prompt'
@@ -260,9 +271,15 @@ def task_dependencies(notes):
     found=[]
     for match in re.finditer(r'(?i)\b(?:depends on|dependency|blocked by)\s*:\s*([^|;]+)',notes):
         reason=match.group(0).split(':',1)[0].strip().lower()
-        values=re.findall(r'\[?([A-Z](?:0[1-9]|[1-9][0-9])/[A-Za-z0-9][A-Za-z0-9_.:-]*|[A-Za-z][A-Za-z0-9_.:-]*)\]?',match.group(1))
-        found.extend((value,reason) for value in dict.fromkeys(values))
-    return found
+        # Preserve unrecognised wording as evidence; only a complete ID may
+        # resolve to a task. Never split prose into accidental ID fragments.
+        values=[value.strip().strip('`[]() ') for value in match.group(1).split(',')]
+        found.extend((value,reason) for value in values if value)
+    unique=[]; seen=set()
+    for target,reason in found:
+        if target not in seen:
+            unique.append((target,reason));seen.add(target)
+    return unique
 
 
 def validate_projection(documents, parsed):
@@ -273,6 +290,8 @@ def validate_projection(documents, parsed):
     for path,doc in documents.items():
         if doc['kind']=='milestone':
             for section in parsed[path]['index_sections']:
+                if not doc['text'].splitlines()[section['line']-1].startswith('## '):
+                    continue
                 match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)',section['heading'])
                 if match:
                     if match[1] in specs:raise AuditError(f'duplicate milestone specification: {match[1]}')
@@ -316,6 +335,16 @@ def validate_projection(documents, parsed):
             continue
         for row in parts['index_milestone_projection']:
             row['closure_state']=row.get('closure_state') or milestones[row['milestone_id']].get('lifecycle')
+    # A milestone declaration may be repeated in its specification and status
+    # prose. Keep one graph edge while preserving the first source location.
+    seen_edges=set()
+    for path in sorted(parsed):
+        unique=[]
+        for row in parsed[path]['index_relationships']:
+            edge=(row['source'],row['relation'],row['target'])
+            if edge not in seen_edges:
+                unique.append(row);seen_edges.add(edge)
+        parsed[path]['index_relationships']=unique
     for identity in set(specs)|set(history_rows):
         if identity not in milestones:raise AuditError(f'milestone has no status record: {identity}')
     for path,doc in documents.items():
@@ -413,9 +442,11 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
         generation=str(uuid.uuid4())
         publish(connection,workspace,documents,parsed,generation,context,attempted,diagnostics,force_literal,root=root,paths=paths,stats=stats)
         return status(connection,workspace)
-    except (OSError,ValueError,sqlite3.Error) as exc:
+    except (OSError,ValueError,sqlite3.Error,AuditError) as exc:
         with connection:
-            connection.execute('INSERT INTO index_state(workspace_id,complete,last_attempt,diagnostics_json) VALUES (?,0,?,?) ON CONFLICT(workspace_id) DO UPDATE SET complete=0,last_attempt=excluded.last_attempt,diagnostics_json=excluded.diagnostics_json',
+            # A later successful refresh may already have published. Do not
+            # let an earlier failed attempt mark that generation incomplete.
+            connection.execute('INSERT INTO index_state(workspace_id,complete,last_attempt,diagnostics_json) VALUES (?,0,?,?) ON CONFLICT(workspace_id) DO UPDATE SET complete=0,last_attempt=excluded.last_attempt,diagnostics_json=excluded.diagnostics_json WHERE index_state.last_attempt IS NULL OR index_state.last_attempt<=excluded.last_attempt',
                 (workspace,attempted,canonical_json([str(exc)])))
         raise AuditError(f'index refresh failed; previous generation retained: {exc}') from exc
 
@@ -468,15 +499,13 @@ def _readiness(connection, workspace, project_root=None):
     """Return explained, read-only task readiness for the explorer To-do view.
 
     This function never chooses an execution owner and never changes source or
-    audit data.  It intentionally withholds recommendations when the current
-    projection cannot be trusted.
+    audit data. Buckets explain indexed evidence and are not execution gates.
     """
     info=status(connection,workspace)
     result={
         'workspace_id':workspace, 'index':info,
         'source_freshness':'not_checked', 'freshness_diagnostics':[],
         'resume':[], 'ready':[], 'waiting':[], 'blocked':[], 'needs_review':[],
-        'recommendations':[],
     }
     if not info.get('generation'):
         result['needs_review'].append({'reason':info.get('diagnostic','index has no published generation')})
@@ -507,10 +536,11 @@ def _readiness(connection, workspace, project_root=None):
         row['source']={'path':row['path'],'line':row['line'],'sha256':row['sha256']}
         row['prerequisites']=[]
         row['dependents']=[]
-    by_key={}
+    by_explicit={}
     by_dependency_key={}
     for row in tasks:
-        by_key.setdefault(row['task_key'], []).append(row)
+        if row.get('explicit_id'):
+            by_explicit.setdefault(row['explicit_id'], []).append(row)
         by_dependency_key.setdefault(row['dependency_key'], []).append(row)
     dependency_rows=records(connection,'SELECT * FROM index_task_dependencies WHERE workspace_id=?',(workspace,))
     dependencies={}
@@ -519,11 +549,11 @@ def _readiness(connection, workspace, project_root=None):
 
     def dependency_candidates(dep, source_row):
         if dep.get('target_milestone_id'):
-            return [item for item in by_key.get(dep['target_explicit_id'], [])
+            return [item for item in by_explicit.get(dep['target_explicit_id'], [])
                     if item['milestone_id'] == dep['target_milestone_id']]
-        candidates = [item for item in by_key.get(dep['target_key'], [])
+        candidates = [item for item in by_explicit.get(dep['target_key'], [])
                       if item['milestone_id'] == source_row['milestone_id']]
-        return candidates or by_key.get(dep['target_key'], [])
+        return candidates or by_explicit.get(dep['target_key'], [])
 
     for source_row in tasks:
         for dep in (item for item in dependencies.get(source_row['dependency_key'], [])
@@ -535,7 +565,8 @@ def _readiness(connection, workspace, project_root=None):
             if len(candidates) == 1:
                 target = candidates[0]
                 reference.update({'task_key': target['task_key'], 'milestone_id': target['milestone_id'],
-                                  'label': target['label'], 'state': target['state'], 'source': target['source']})
+                                  'label': target['label'], 'state': target['state'], 'source': target['source'],
+                                  'notes': target['notes'] if target['state']=='historical' else None})
                 target['dependents'].append({'task_key': source_row['task_key'],
                                              'milestone_id': source_row['milestone_id'],
                                              'label': source_row['label'], 'state': source_row['state'],
@@ -628,7 +659,11 @@ def _readiness(connection, workspace, project_root=None):
                 reasons.append(f"unresolved dependency: {dep['target_key']}")
                 continue
             target=candidates[0]
-            if target['state'] in {'cancelled','historical'}:
+            if target['state'] == 'historical':
+                # Consumed failed attempts remain visible as evidence. Their
+                # accepted successor, named in notes, owns any live gate.
+                continue
+            elif target['state'] == 'cancelled':
                 reasons.append(f"dependency requires review: {dep['target_key']}")
             elif target['state']!='completed':
                 reasons.append(f"dependency is {target['state']}: {dep['target_key']}")
@@ -680,12 +715,8 @@ def _readiness(connection, workspace, project_root=None):
         cycle_milestones = sorted({node[0] for node in graph if any(f'{node[0]}/' in cycle for cycle in cycle_values)})
         result['needs_review'].append({'reason':'dependency cycle requires review', 'cycles': cycle_values,
                                        'milestone_ids': cycle_milestones})
-    if diagnostics or freshness!='current' or len(in_progress)>1 or result['needs_review']:
-        if diagnostics:
-            result['needs_review'].append({'reason':'projection or source diagnostics prevent safe ordering', 'diagnostics':diagnostics})
-        result['recommendations']=[]
-    else:
-        result['recommendations']=result['resume'] or result['ready']
+    if diagnostics:
+        result['needs_review'].append({'reason':'projection or source diagnostics require inspection', 'diagnostics':diagnostics})
     return result
 
 
@@ -701,14 +732,14 @@ def workspace_id(connection, project_root):
     return row[0]
 
 
-def _search(connection, workspace, query, *, kind=None, milestone_id=None, state=None, limit=50, offset=0):
+def _search(connection, workspace, query, *, kind=None, milestone_id=None, state=None, limit=50, offset=0, force_literal=False):
     pagination(limit,offset)
     info=status(connection,workspace)
     if not info.get('generation'):return {'index':info,'results':[]}
     clauses=['s.workspace_id=?'];values=[workspace]
     for column,value in [('kind',kind),('milestone_id',milestone_id),('state',state)]:
         if value is not None:clauses.append(f's.{column}=?');values.append(value)
-    fts=info.get('search_mode')=='fts5'
+    fts=info.get('search_mode')=='fts5' and not force_literal
     if query:
         clauses.append('index_fts MATCH ?' if fts else 'instr(lower(s.text),lower(?))>0');values.append(query)
     join=' JOIN index_fts ON index_fts.rowid=s.search_id' if fts and query else ''
@@ -723,13 +754,20 @@ def _search(connection, workspace, query, *, kind=None, milestone_id=None, state
                  +f' ORDER BY {order} LIMIT ? OFFSET ?',(*values,limit + 1,offset))
     more=len(rows)>limit;rows=rows[:limit]
     for row in rows:row['refreshed_at']=info['refreshed_at']
-    return {'index':info,'limit':limit,'offset':offset,'more':more,'results':rows}
+    return {'index':info,'query_mode':'fts5' if fts and query else 'literal',
+            'limit':limit,'offset':offset,'more':more,'results':rows}
 
 
 def search(connection, workspace, query, *, kind=None, milestone_id=None, state=None, limit=50, offset=0):
     with read_snapshot(connection):
-        return _search(connection, workspace, query, kind=kind, milestone_id=milestone_id,
-                       state=state, limit=limit, offset=offset)
+        try:
+            return _search(connection, workspace, query, kind=kind, milestone_id=milestone_id,
+                           state=state, limit=limit, offset=offset)
+        except sqlite3.OperationalError as exc:
+            if not query or not any(phrase in str(exc).lower() for phrase in ('fts5: syntax error', 'unterminated string', 'no such column')):
+                raise
+            return _search(connection, workspace, query, kind=kind, milestone_id=milestone_id,
+                           state=state, limit=limit, offset=offset, force_literal=True)
 
 
 def _show(connection, workspace, path):
