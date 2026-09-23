@@ -254,19 +254,19 @@ The loopback-only explorer opens Overview, Timeline, and To-do. It reads recorde
 audit runs and the current derived index while Markdown remains authoritative.
 Timeline groups goal children and keeps its filters and selected detail in the
 URL. To-do keeps blockers, dependencies, and closure evidence visible even when
-it withholds an execution recommendation. Refresh is explicit, migrates supported
+the live ledger requires further review. Refresh is explicit, migrates supported
 older databases, and writes only the external SQLite database. Follow-up buttons
 prepare copyable prompts after rechecking live source hashes; they never run an
 agent or edit project files. From a Chromebook, tunnel a remote server
 with `ssh -N -L 8000:127.0.0.1:8000 user@host` and open `http://localhost:8000/`.
 Missing captures and stale sources remain visible as diagnostics, and task
-recommendations are withheld until the source state is valid. Non-loopback
+the live ledger remains the source for task selection. Non-loopback
 `--host` values are rejected.
 
 See the repository's [operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)
 for host lifecycle, filters, fallback search, migration, backup, and recovery.
-The DSH dashboard continues reading project Markdown; installing this toolkit
-does not add a graphical explorer or host transcript hooks.
+The separate DSH dashboard continues reading project Markdown. Installing the
+Explorer adds this local graphical view; it does not add host transcript hooks.
 
 ## Update
 

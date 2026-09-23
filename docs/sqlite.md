@@ -7,13 +7,10 @@ knowledge history, evolution, and optional context archives. SQLite contains
 an opt-in durable audit and a disposable current-source index. It never selects
 or authorizes a task, changes a marker, or replaces milestone acceptance.
 
-The original SQLite 1–4 implementation was reviewed before merge. SQLite 3 and
-4 are now marked superseded because their automatic snapshot rows were cancelled.
-Follow-up
-milestones [5](sqlite-5.md), [6](sqlite-6.md), [7](sqlite-7.md), and
-[8](sqlite-8.md) repair its storage and runner defects and implement this revised
-contract, in that order. Earlier task IDs and completion records are historical;
-they do not establish acceptance of this design.
+The durable audit, rebuildable index, and local Explorer share one external
+SQLite database. Audit records are retained while index tables can be rebuilt.
+This keeps installation and backup simple, but a large index shares the audit
+file and its writer lock; an index refresh must never rewrite audit evidence.
 
 New history/evolution/archive snapshot capture is deferred. Existing snapshots
 and run observations remain readable, exportable, and recoverable. Git and the
@@ -35,8 +32,10 @@ while preserving durable records, message bytes, and snapshot bytes. Readers can
 open known older databases without writing; an explicit writer open performs the
 transactional migration. A failed migration rolls back the schema marker and
 leaves the earlier database readable.
-Unknown or newer databases are rejected. Backups and recovery use new external
-destinations and never overwrite existing files. A database backup is validated
+Unknown or newer databases are rejected. The toolkit modules carry one
+interface version: the CLI reports an incompatible installation clearly, while
+the API runner reports an audit gap and preserves its task outcome. Backups and
+recovery use new external destinations and never overwrite existing files. A database backup is validated
 in private staging storage before its destination name is published. Take an explicit backup before
 upgrading an existing database when independent rollback is required.
 
@@ -81,7 +80,7 @@ Exports include immutable message envelopes but omit message content and snapsho
 bytes unless explicitly requested. Purged content is never returned.
 Event summaries may themselves contain private material; review exports before sharing.
 
-SQLite 13 calls the loaded-resource digest an **instruction-set fingerprint**.
+The loaded-resource digest is an **instruction-set fingerprint**.
 Resources are logical names and SHA-256 hashes only; the recorder never searches
 projects or installations for `SKILL.md` and never stores absolute paths. Fidelity
 is `exact`, `partial`, or `unavailable`; only a host that knows every loaded
@@ -89,6 +88,9 @@ resource may claim exact. Coverage observations use scope
 `skill_conversation` or `api_runner_conversation`, coverage
 `not_requested`, `complete`, `partial`, or `missing`, and content state `none`,
 `available`, `partially_purged`, or `purged`.
+A v4 run without a provenance submission displays `provenance not supplied`;
+`legacy` is reserved for pre-v4 runs, and `fingerprint unavailable` applies to a
+submitted provenance record with unavailable fingerprint fidelity.
 
 Purge is explicit and local-only:
 
@@ -98,8 +100,11 @@ tabilet-audit audit purge-message MESSAGE_ID --reason TEXT --confirm MESSAGE_ID
 
 It retains the envelope, hash, length, references, tombstone, and purge event,
 but removes content from this database. `--include-content` never returns purged
-text. Secure deletion and WAL truncation are attempted, but purge cannot remove
-copies already present in backups, exports, replicas, or filesystem snapshots.
+text. Secure deletion is enabled before migration or purge deletes text. After a
+committed purge, compaction and WAL truncation are attempted and each result is
+reported separately. Old database pages or WAL may remain recoverable if cleanup
+fails; backups, prior exports, replicas, filesystem snapshots, and storage copies
+are outside this command’s reach.
 
 Events may carry an optional `details.explorer` object with schema
 `tabilet.audit.explorer/v1`. Its `phase` is one of `request`, `proposal`,
@@ -151,19 +156,21 @@ Read commands never refresh implicitly. Execution always rereads the live ledger
 Rebuild deletes derived data only, preserving audit and old snapshot evidence.
 
 The read-only `tabilet_index.readiness(connection, workspace_id, project_root)`
-projection validates the live declared inventory and hashes before ordering work.
+projection validates the live declared inventory and hashes before grouping evidence.
 It returns `resume`, `ready`, `waiting`, `blocked`, and `needs_review` groups,
 with source references and reasons. Multiple in-progress rows, stale or
-unavailable sources, unresolved dependencies, or index diagnostics withhold
-`recommendations`; the function never edits Markdown or grants execution
-authority. A pending task is ready only when its explicit dependencies are
-completed and no sole in-progress row owns the ledger. Terminal rows do not
+unavailable sources, unresolved dependencies, and index diagnostics are explained
+in the groups. There is no
+`recommendations` field or execution signal; the function never edits Markdown
+or grants execution authority. A pending task is grouped as ready only when its
+explicit dependencies are completed and no sole in-progress row owns the ledger. Terminal rows do not
 establish milestone acceptance.
 
 ## Interfaces and failures
 
-The optional `tabilet-audit` CLI supports `audit begin|event|message|finish`,
+The optional `tabilet-audit` CLI supports `audit begin|event|message|coverage|purge-message|finish`,
 `audit runs|events|export`, `index sync|status|search|show`, and `backup|restore`.
+`explorer` serves the local read-only interface.
 Commands return JSON; errors go to stderr with nonzero status. The former
 `--event` host submission remains an alias. Lifecycle calls work from a fresh
 database and support all seven operations and parent/child goal runs.
@@ -220,17 +227,23 @@ operation, milestone, outcome, ordering, pagination, search, and selected-detail
 state is bookmarkable. Search, To-do, and run-detail page positions are included
 in that URL, and each detail URL names one selected record. Source links show a
 numbered excerpt around their exact line. To-do explains resume, ready, waiting, blocked, and
-review-required work with prerequisite and dependent links. Refresh is explicit,
+review-required evidence with prerequisite and dependent links. Refresh is explicit,
 migrates supported older databases, and writes only the external database.
-Recorded evidence remains visible when freshness or closure rules withhold task
-recommendations. Follow-up buttons revalidate the live source and prepare text
-for copying; they do not launch an agent, edit Markdown, or create task rows.
+The groups remain advisory when freshness or closure evidence needs review.
+Follow-up buttons require an unambiguous task or review milestone and revalidate
+current source hashes before preparing text for copying. Their prompts ask the
+agent to verify the live ledger, dependencies, and accepted successors; they do
+not launch an agent, edit Markdown, or create task rows.
 Use `ssh -N -L 8000:127.0.0.1:8000 user@host` for a remote server and browse to
 `http://localhost:8000/`. Missing captures, stale hashes, malformed sources,
-and unavailable indexes remain visible as diagnostics and withhold unsafe
-recommendations.
+and unavailable indexes remain visible as diagnostics. The live ledger governs
+execution decisions.
 
-The server rejects non-loopback `--host` values. An existing v1 or v2 database
+The server rejects non-loopback `--host` values. Its per-port HttpOnly cookie
+authenticates same-origin browser requests; explicit `X-Tabilet-Token` headers
+remain supported. It sends frame-denial, content security, and `nosniff` headers,
+and caps concurrent request threads. Run detail reads only the requested message
+page and two selected summary messages from SQLite. An existing v1, v2, or v3 database
 can show recorded audit runs before migration; Overview explains that its project
 projection needs refresh. API collections use bounded pagination, and timestamps
 are compared at normalized UTC microsecond precision even when older records omit
@@ -252,7 +265,8 @@ Search filters include `--kind`, `--milestone`, and `--state`, with `--limit`
 document kinds include `active_status`, `history_status`, `history_index`,
 `knowledge_history`, `evolution_prompt`, `evolution_result`, and `context_archive`.
 FTS5 queries support its expression syntax. `index sync --literal` selects a
-literal substring search; this is also the fallback when FTS5 is unavailable.
+literal substring search; this is also the fallback when FTS5 is unavailable or
+a query has malformed FTS syntax. Search results label the query mode.
 An empty query lists entries matching the filters. `show` returns the indexed
 text, tasks, sections, milestone metadata, and explicit relationships.
 
@@ -302,8 +316,10 @@ tabilet-audit audit coverage --input coverage.json
 
 Interactive skills use `instruction_driven` and report unavailable fingerprints
 unless their host supplies complete resource hashes. The API runner supplies
-`automatic` provenance for its own harness, provider, and model; it does not
-record a duplicate interactive run.
+`automatic` provenance for its own harness, provider, and model. Its current
+instruction fingerprint is `partial` because it hashes `EMBEDDED_TASK` but not
+all runner instructions. Instruction-set and host versions are unset. The runner
+does not record a duplicate interactive run.
 
 ## Capture selected visible messages
 
@@ -363,7 +379,9 @@ the index. A refresh gap does not change the recorded workflow outcome.
 tabilet-audit audit runs --project /absolute/project --operation next --limit 50
 tabilet-audit audit events --run-id RUN_ID --offset 0 --limit 100
 tabilet-audit audit runs --project /absolute/project --milestone M01 --task 'Observed task label'
-tabilet-audit audit export --project /absolute/project > /tmp/tabilet-audit-export.json
+umask 077
+install -d -m 700 /absolute/private-external-directory
+tabilet-audit audit export --project /absolute/project > /absolute/private-external-directory/tabilet-audit-export.json
 ```
 
 Runs and events accept workspace/project, operation, milestone, exact observed
@@ -371,8 +389,9 @@ task label, inclusive `--since`/`--until` UTC RFC 3339 filters, and v4 run filte
 for instruction set/version, host, model, capture method, and coverage. Exports are
 complete rather than limited to one page. `--include-content` additionally includes
 available message content and base64 legacy snapshot bytes; envelopes, provenance,
-coverage, and purge tombstones are included without that flag. Exported event summaries may
-contain private material even without that flag. CLI errors exit 2 and write a
+coverage, and purge tombstones are included without that flag. Exports can contain
+sensitive metadata and event summaries even without content; keep the directory
+private and review the file before sharing. CLI errors exit 2 and write a
 message to stderr; audit/index failures never change the API runner's established
 exit codes, task markers, or commit policy.
 
