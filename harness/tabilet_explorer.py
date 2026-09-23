@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import base64
 import contextlib
-import html
 import http.server
 import ipaddress
 import json
@@ -31,6 +30,7 @@ import tabilet_index as index
 MAX_BODY = 64 * 1024
 MAX_PAGE = 100
 POLL_SECONDS = 5
+TOOLKIT_INTERFACE = 1
 TODO_GROUPS = ('resume', 'ready', 'waiting', 'blocked', 'needs_review')
 ASSET_DIR = pathlib.Path(__file__).with_name("explorer")
 INSTALLED_ASSET_DIR = pathlib.Path.home() / ".local" / "share" / "tabilet" / "explorer"
@@ -340,7 +340,7 @@ class ExplorerApp:
                     "EXISTS (SELECT 1 FROM coverage_observations c JOIN runs evidence_run ON evidence_run.run_id=c.run_id "
                     "WHERE evidence_run.workspace_id=? AND (evidence_run.run_id=r.run_id OR evidence_run.parent_run_id=r.run_id) AND c.coverage=? "
                     "AND NOT EXISTS (SELECT 1 FROM coverage_observations c2 WHERE c2.run_id=c.run_id "
-                    "AND (c2.observed_at>c.observed_at OR (c2.observed_at=c.observed_at AND c2.coverage_id>c.coverage_id))))"
+                    "AND c2.rowid>c.rowid))"
                 )
                 values.extend([workspace_id, coverage])
             if purged in {'1', 'true', 'yes'}:
@@ -416,7 +416,7 @@ class ExplorerApp:
                         provenance[0].pop('host_session_ref', None)
                     provenance = provenance[0] if provenance else None
                     row['provenance'] = provenance
-                    row['coverage'] = audit.records(connection, "SELECT * FROM coverage_observations WHERE run_id=? ORDER BY observed_at DESC,coverage_id DESC LIMIT 1", (row['run_id'],))
+                    row['coverage'] = audit.records(connection, "SELECT * FROM coverage_observations WHERE run_id=? ORDER BY rowid DESC LIMIT 1", (row['run_id'],))
                     row['coverage'] = row['coverage'][0] if row['coverage'] else None
                     if not request and row['coverage'] and row['coverage'].get('coverage') in {'missing', 'not_requested'}:
                         row['capture_fidelity'] = row['coverage']['coverage']
@@ -470,7 +470,7 @@ class ExplorerApp:
                     provenance[0].pop('host_session_ref', None)
                 provenance = provenance[0] if provenance else None
                 result['provenance'] = provenance
-                result['coverage'] = audit.records(connection, "SELECT * FROM coverage_observations WHERE run_id=? ORDER BY observed_at,coverage_id", (run_id,))
+                result['coverage'] = audit.records(connection, "SELECT * FROM coverage_observations WHERE run_id=? ORDER BY rowid", (run_id,))
             result['legacy'] = _legacy_run_without_v4_evidence(result, provenance)
             result["events"] = audit.query_events(connection, run_id, workspace_id=workspace["workspace_id"], limit=event_limit + 1, offset=event_offset)
             more_events = len(result['events']) > event_limit; result['events'] = result['events'][:event_limit]
@@ -494,7 +494,8 @@ class ExplorerApp:
                                 artifact['details_json'] = artifact['details_json'][:65535] + '…'
                                 artifact['details_truncated'] = True
             if 'captured_message_content' in audit.schema_tables(connection):
-                result["messages"] = audit.query_messages(connection, run_id, include_content=True)[message_offset:message_offset + message_limit + 1]
+                result["messages"] = audit.query_messages(connection, run_id, include_content=True,
+                    limit=message_limit + 1, offset=message_offset)
                 for message in result["messages"]:
                     if message.get("text") is not None:
                         message["original_characters"] = len(message["text"])
@@ -513,10 +514,11 @@ class ExplorerApp:
                 if message.get('text') is not None and message.get('original_characters', len(message['text'])) > len(message['text']):
                     message['text'] += '…'; message['truncated'] = True
             if 'captured_message_content' in audit.schema_tables(connection):
-                all_messages = audit.query_messages(connection, run_id, include_content=True)
-                summary_messages = ([next((message for message in all_messages if message['role'] in {'user','request'}), None)] +
-                                    [next((message for message in reversed(all_messages) if message['role'] in {'assistant','output'}), None)])
-                summary_messages = [message for message in summary_messages if message]
+                first = audit.query_messages(connection, run_id, include_content=True,
+                    limit=1, roles=('user', 'request'))
+                last = audit.query_messages(connection, run_id, include_content=True,
+                    limit=1, roles=('assistant', 'output'), descending=True)
+                summary_messages = first + last
             else:
                 summary_messages = audit.records(connection, """
                     SELECT message_id,run_id,sequence,role,captured_at,
@@ -651,7 +653,6 @@ class ExplorerApp:
                        'pagination': pagination[key]} for key in TODO_GROUPS]
             return {'workspace_id': workspace_id, 'validation': validation,
                     'validated': validation['valid'],
-                    'recommendations_available': bool(readiness['recommendations']),
                     'validation_reason': '; '.join(validation['diagnostics']) if validation['diagnostics'] else None,
                     **pages, 'totals': totals, 'pagination': pagination,
                     'groups': groups, 'index': readiness['index']}
@@ -666,8 +667,8 @@ class ExplorerApp:
         with self.read() as (connection, workspace):
             workspace_id = workspace['workspace_id']
             readiness = index.readiness(connection, workspace_id, self.project)
-            if readiness['source_freshness'] != 'current' or (readiness['needs_review'] and action != 'review'):
-                raise audit.AuditError('follow-up requires a current, review-free index; refresh and resolve diagnostics first')
+            if readiness['source_freshness'] != 'current' or not readiness['index'].get('complete'):
+                raise audit.AuditError('follow-up requires current indexed sources; refresh first')
             explicit, label, milestone = payload.get('task_id'), payload.get('task_label'), payload.get('milestone_id')
             item = None
             if explicit or label:
@@ -682,11 +683,6 @@ class ExplorerApp:
                 item = rows[0]
             else:
                 raise audit.AuditError('follow-up needs a task or review milestone')
-            if action == 'review':
-                review_milestones = {entry.get('milestone_id') for entry in readiness['needs_review'] if entry.get('milestone_id')}
-                review_milestones.update(milestone for entry in readiness['needs_review'] for milestone in entry.get('milestone_ids', []))
-                if item.get('milestone_id') not in review_milestones:
-                    raise audit.AuditError('review follow-up requires a milestone with recorded review evidence')
             source_ref = payload.get('source')
             if source_ref is not None and not isinstance(source_ref, dict):
                 raise audit.AuditError('follow-up source must be an object')
@@ -702,19 +698,6 @@ class ExplorerApp:
                 if source_ref.get('sha256') is not None and not re.fullmatch(
                         r'[0-9a-f]{64}', str(source_ref['sha256'])):
                     raise audit.AuditError('follow-up source hash must be a SHA-256 digest')
-            if item.get('milestone_id'):
-                task_key = (f"{item['milestone_id']}/{item['explicit_id']}"
-                            if item.get('explicit_id') else f"{item['path']}#{item['line']}")
-                buckets = {
-                    'continue': {x['task']['dependency_key'] for x in readiness['resume'] + readiness['ready']},
-                    'investigate': {x['task']['dependency_key'] for x in readiness['blocked']},
-                    'clarify': {x['task']['dependency_key'] for x in readiness['waiting']},
-                    'review': set(),
-                }
-                if action != 'review' and task_key not in buckets[action]:
-                    raise audit.AuditError(f'follow-up action is not valid for the current task state: {action}')
-            elif action != 'continue':
-                raise audit.AuditError('a task is required for this follow-up action')
             if source_ref:
                 if source_ref.get('path') != item['path']:
                     raise audit.AuditError('follow-up source is not the selected task source')
@@ -749,7 +732,7 @@ class ExplorerApp:
                       f"Reread AGENTS.md and the live source before acting. Inspect {source['path']}")
             if source.get('line'):
                 prompt += f":{source['line']}"
-            prompt += ". Preserve the project's approval and commit policies; do not infer authorization for external actions."
+            prompt += ". Verify the live ledger, its task state, dependencies, and accepted successors before selecting work. Preserve the project's approval and commit policies; do not infer authorization for external actions."
             return {'action': action, 'prompt': prompt, 'source': source,
                     'validation_note': 'Prepared from the current source hash. Copying this prompt does not execute work.'}
 
@@ -839,7 +822,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         supplied = self.headers.get("X-Tabilet-Token", "")
         if not supplied:
             cookies = SimpleCookie(self.headers.get("Cookie", ""))
-            supplied = urllib.parse.unquote(cookies.get("tabilet_token").value) if cookies.get("tabilet_token") else ""
+            name = self.server.cookie_name
+            supplied = urllib.parse.unquote(cookies.get(name).value) if cookies.get(name) else ""
         if api and not secrets.compare_digest(supplied, self.app.token): return False
         if post and self.headers.get("Origin") is None: return False
         return True
@@ -847,6 +831,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _send(self, status, value, content_type="application/json", cookie=None):
         body = value if isinstance(value, bytes) else (_json(value).encode("utf-8") if content_type == "application/json" else str(value).encode("utf-8"))
         self.send_response(status); self.send_header("Content-Type", content_type + "; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
         if cookie: self.send_header("Set-Cookie", cookie)
         self.end_headers(); self.wfile.write(body)
 
@@ -868,9 +855,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if path == "/":
                 shell = self._asset("index.html").decode("utf-8")
                 shell = shell.replace('href="explorer.css"', 'href="/assets/explorer.css"').replace('src="explorer.js"', 'src="/assets/explorer.js"')
-                if 'name="tabilet-token"' not in shell:
-                    shell = shell.replace('<head>', '<head><meta name="tabilet-token" content="' + html.escape(self.app.token, quote=True) + '">', 1)
-                self._send(200, shell, "text/html", "tabilet_token=" + urllib.parse.quote(self.app.token, safe="") + "; Path=/; SameSite=Strict")
+                self._send(200, shell, "text/html", self.server.cookie_name + "=" + urllib.parse.quote(self.app.token, safe="") + "; Path=/; SameSite=Strict; HttpOnly")
             elif path == "/assets/explorer.css": self._send(200, self._asset("explorer.css"), "text/css")
             elif path == "/assets/explorer.js": self._send(200, self._asset("explorer.js"), "text/javascript")
             elif path == "/api/health": self._send(200, self.app.health())
@@ -909,6 +894,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 class ExplorerServer(http.server.ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = False
+    max_requests = 16
 
     def __init__(self, address, app):
         host = address[0]
@@ -922,6 +908,29 @@ class ExplorerServer(http.server.ThreadingHTTPServer):
             self.address_family = socket.AF_INET6
         self.app = app
         super().__init__(address, Handler)
+        self.cookie_name = f"tabilet_token_{self.server_address[1]}"
+        self.request_slots = threading.BoundedSemaphore(self.max_requests)
+
+    def process_request(self, request, client_address):
+        if not self.request_slots.acquire(blocking=False):
+            try:
+                request.sendall(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            except OSError:
+                pass
+            finally:
+                self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self.request_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.request_slots.release()
 
 
 def serve(project, database=None, host="127.0.0.1", port=8000):

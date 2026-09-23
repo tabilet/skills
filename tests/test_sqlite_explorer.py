@@ -57,8 +57,8 @@ class ExplorerTests(unittest.TestCase):
     def bootstrap(self):
         status, html = self.request("GET", "/")
         self.assertEqual(status, 200)
-        self.assertIn("meta name=\"tabilet-token\"", html)
-        token = html.split('meta name="tabilet-token" content="', 1)[1].split('"', 1)[0]
+        self.assertNotIn("tabilet-token", html)
+        token = self.app.token
         status, result = self.request("POST", "/api/refresh", token=token,
                                       origin=f"http://127.0.0.1:{self.port}", body={})
         self.assertEqual(status, 200, result)
@@ -77,6 +77,75 @@ class ExplorerTests(unittest.TestCase):
         status, script = self.request("GET", "/assets/explorer.js")
         self.assertEqual(status, 200)
         self.assertIn("/api/overview", script)
+
+    def test_port_scoped_cookie_and_response_headers(self):
+        connection=http.client.HTTPConnection(self.host,self.port,timeout=5)
+        connection.request('GET','/',headers={'Host':f'127.0.0.1:{self.port}'})
+        response=connection.getresponse(); body=response.read().decode(); headers=dict(response.getheaders());connection.close()
+        cookie=headers['Set-Cookie']
+        self.assertIn(f'tabilet_token_{self.port}=',cookie)
+        self.assertIn('HttpOnly',cookie)
+        self.assertNotIn('name="tabilet-token"',body)
+        self.assertEqual(headers['X-Frame-Options'],'DENY')
+        self.assertEqual(headers['X-Content-Type-Options'],'nosniff')
+        self.assertIn("frame-ancestors 'none'",headers['Content-Security-Policy'])
+        other=explorer.ExplorerServer(('127.0.0.1',0),self.app)
+        thread=threading.Thread(target=other.serve_forever,daemon=True);thread.start()
+        try:
+            self.assertNotEqual(other.cookie_name,self.server.cookie_name)
+            connection=http.client.HTTPConnection('127.0.0.1',other.server_address[1],timeout=5)
+            connection.request('GET','/api/health',headers={'Host':f'127.0.0.1:{other.server_address[1]}','Cookie':cookie.split(';',1)[0]})
+            response=connection.getresponse();response.read();connection.close()
+            self.assertEqual(response.status,401)
+        finally:
+            other.shutdown();other.server_close();thread.join(2)
+
+    def test_run_detail_loads_only_page_and_summary_messages(self):
+        self.bootstrap()
+        with audit.open_database(self.database,project_roots=[self.project]) as connection:
+            workspace=audit.ensure_workspace(connection,self.project)
+            run=audit.start_run(connection,workspace,'next',run_id='paged',capture_mode='relevant')
+            for number in range(120):
+                audit.capture_message(connection,run,'user' if number==0 else 'assistant',str(number),
+                    capture_source='host',fidelity='exact',message_id=f'paged-{number}')
+        original=audit.query_messages;calls=[]
+        def observed(*args,**kwargs):
+            calls.append(kwargs)
+            return original(*args,**kwargs)
+        with mock.patch.object(explorer.audit,'query_messages',side_effect=observed):
+            detail=self.app.run('paged',{'message_limit':['5'],'message_offset':['50']})
+        self.assertEqual(len(detail['messages']),5)
+        self.assertEqual([call['limit'] for call in calls],[6,1,1])
+        self.assertEqual(calls[0]['offset'],50)
+
+    def test_server_caps_concurrent_request_threads(self):
+        class OneRequestServer(explorer.ExplorerServer):
+            max_requests=1
+        server=OneRequestServer(('127.0.0.1',0),self.app)
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        entered=threading.Event();release=threading.Event()
+        original=explorer.Handler._asset
+        def blocked(handler,name):
+            entered.set()
+            self.assertTrue(release.wait(5))
+            return original(handler,name)
+        first_result=[]
+        def first():
+            connection=http.client.HTTPConnection('127.0.0.1',server.server_address[1],timeout=5)
+            connection.request('GET','/',headers={'Host':f'127.0.0.1:{server.server_address[1]}'})
+            response=connection.getresponse();first_result.append(response.status);response.read();connection.close()
+        try:
+            with mock.patch.object(explorer.Handler,'_asset',blocked):
+                client=threading.Thread(target=first);client.start()
+                self.assertTrue(entered.wait(5))
+                connection=http.client.HTTPConnection('127.0.0.1',server.server_address[1],timeout=5)
+                connection.request('GET','/',headers={'Host':f'127.0.0.1:{server.server_address[1]}'})
+                response=connection.getresponse();response.read();connection.close()
+                self.assertEqual(response.status,503)
+                release.set();client.join(5)
+            self.assertEqual(first_result,[200])
+        finally:
+            release.set();server.shutdown();server.server_close();thread.join(2)
 
     def test_scoped_reads_refresh_and_live_source_validation(self):
         token = self.bootstrap()
@@ -271,6 +340,7 @@ class ExplorerTests(unittest.TestCase):
                 "coverage_id": "goal-child-coverage", "run_id": child,
                 "scope": "skill_conversation", "coverage": "complete", "content_state": "available",
                 "exact_count": 1, "capture_method": "instruction_driven",
+                "observed_at": "2099-01-01T00:00:00Z",
             })
         status, filtered = self.request("GET", "/api/timeline?instruction_set=memory-bank-next", token=token)
         self.assertEqual(status, 200)
@@ -279,10 +349,39 @@ class ExplorerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual([row["run_id"] for row in filtered["results"]], [parent])
         with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            audit.record_coverage(connection, {
+                "coverage_id": "goal-child-later", "run_id": child,
+                "scope": "skill_conversation", "coverage": "partial", "content_state": "available",
+                "exact_count": 1, "capture_method": "instruction_driven",
+                "observed_at": "2026-01-01T00:00:00.123456Z",
+            })
+        status, filtered = self.request("GET", "/api/timeline?coverage=complete", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual(filtered["results"], [])
+        status, filtered = self.request("GET", "/api/timeline?coverage=partial", token=token)
+        self.assertEqual(status, 200)
+        self.assertEqual([row["run_id"] for row in filtered["results"]], [parent])
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
             audit.purge_message(connection, "goal-message", "privacy request", "goal-message")
         status, filtered = self.request("GET", "/api/timeline?purged=1", token=token)
         self.assertEqual(status, 200)
         self.assertEqual([row["run_id"] for row in filtered["results"]], [parent])
+
+    def test_v4_absent_provenance_is_distinct_from_legacy(self):
+        token = self.bootstrap()
+        with audit.open_database(self.database, project_roots=[self.project]) as connection:
+            workspace = audit.ensure_workspace(connection, self.project)
+            audit.start_run(connection, workspace, "next", run_id="no-provenance")
+        status, timeline = self.request("GET", "/api/timeline", token=token)
+        self.assertEqual(status, 200)
+        run = next(row for row in timeline["results"] if row["run_id"] == "no-provenance")
+        self.assertFalse(run["legacy"])
+        self.assertIsNone(run["provenance"])
+        self.assertIn("Provenance not supplied",
+                      (Path(__file__).resolve().parents[1] / "harness/explorer/explorer.js").read_text())
+        detail = self.app.run("no-provenance")
+        self.assertFalse(detail["run"]["legacy"])
+        self.assertIsNone(detail["run"]["provenance"])
 
     def test_invalid_pagination_and_bounded_run_detail(self):
         token = self.bootstrap()
@@ -408,8 +507,8 @@ class ExplorerTests(unittest.TestCase):
             '| ID | State | Notes |\n|---|---|---|\n'
             '| T01 | `[ ]` | Dependency: M02/MISSING |\n', encoding='utf-8')
         self.app.refresh()
-        with self.assertRaisesRegex(audit.AuditError, 'not valid for the current task state'):
-            self.app.follow_up({'action': 'continue', 'task_id': 'T01', 'milestone_id': 'M02'})
+        follow = self.app.follow_up({'action': 'continue', 'task_id': 'T01', 'milestone_id': 'M02'})
+        self.assertIn('Verify the live ledger', follow['prompt'])
 
     def test_timeline_child_filters_do_not_cross_workspace_boundary(self):
         self.bootstrap()
@@ -510,7 +609,7 @@ class ExplorerTests(unittest.TestCase):
         self.assertEqual(status, 200, refreshed)
         status, todo = self.request("GET", "/api/todo", token=token)
         self.assertEqual(status, 200)
-        self.assertFalse(todo["recommendations_available"])
+        self.assertNotIn("recommendations_available", todo)
         self.assertEqual(todo["needs_review"][0]["milestone_id"], "M01")
         self.assertTrue(todo["groups"])
 

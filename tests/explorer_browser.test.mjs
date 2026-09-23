@@ -49,23 +49,21 @@ test('polling detects the first generation or activity value', () => {
 
 test('degraded to-do keeps review evidence and its action visible', () => {
   client.renderTodo({
-    validated: true, recommendations_available: false,
-    resume: [], ready: [], waiting: [], blocked: [],
+    validated: true,     resume: [], ready: [], waiting: [], blocked: [],
     needs_review: [{ milestone_id: 'M01', reason: 'closure review required', source: { path: 'tabilet/memory-bank/milestone.md', line: 3 } }],
   });
   const rendered = ids.get('todo-content').textContent;
   assert.match(rendered, /Needs review/);
   assert.match(rendered, /closure review required/);
   assert.match(rendered, /Review/);
-  assert.match(ids.get('todo-validation').textContent, /recommendations withheld/i);
-  client.renderTodo({ validated: true, recommendations_available: false, resume: [], ready: [], waiting: [], needs_review: [], blocked: [{ label: 'Blocked task', reason: 'operator needed' }] });
+  assert.match(ids.get('todo-validation').textContent, /verify live ledger/i);
+  client.renderTodo({ validated: true, resume: [], ready: [], waiting: [], needs_review: [], blocked: [{ label: 'Blocked task', reason: 'operator needed', source: { path: 'status-M01.md', sha256: 'hash' } }] });
   assert.match(ids.get('todo-content').textContent, /Investigate/);
-  client.renderTodo({ validated: true, recommendations_available: false,
-    totals: { blocked: 1, needs_review: 1 }, pagination: {},
+  client.renderTodo({ validated: true,     totals: { blocked: 1, needs_review: 1 }, pagination: {},
     resume: [], ready: [], waiting: [], needs_review: [],
-    blocked: [{ label: 'Blocked task', reason: 'review exists on another page' }] });
-  assert.doesNotMatch(ids.get('todo-content').textContent, /Investigate/);
-  client.renderTodo({ validated: true, recommendations_available: true, resume: [], waiting: [], blocked: [], needs_review: [], ready: [{ label: '<script>unsafe</script>', reason: 'plain text' }] });
+    blocked: [{ label: 'Blocked task', reason: 'review exists on another page', source: { path: 'status-M01.md', sha256: 'hash' } }] });
+  assert.match(ids.get('todo-content').textContent, /Investigate/);
+  client.renderTodo({ validated: true, resume: [], waiting: [], blocked: [], needs_review: [], ready: [{ label: '<script>unsafe</script>', reason: 'plain text' }] });
   assert.match(ids.get('todo-content').textContent, /<script>unsafe<\/script>/);
 });
 
