@@ -26,6 +26,7 @@ from urllib.parse import quote
 SCHEMA_NAME = "tabilet.audit/v4"
 SCHEMA_VERSION = 4
 RECORDER_VERSION = "tabilet-audit/4"
+TOOLKIT_INTERFACE = 1
 
 OPERATIONS = frozenset({"init", "archive", "propose", "reconcile", "next", "goal", "upgrade"})
 RUN_RESULTS = frozenset({"completed", "blocked", "failed", "cancelled", "interrupted", "unknown"})
@@ -388,8 +389,13 @@ def validate_provenance(value: Any) -> dict[str, Any]:
 
 
 def _coverage_counts(value):
+    count_fields = {"exact_count", "redacted_count", "summarized_count", "incomplete_count"}
+    unknown = sorted(key for key in value if isinstance(key, str)
+                     and key.lower().endswith(("count", "counts")) and key not in count_fields)
+    if unknown:
+        raise AuditValidationError(f"unknown coverage count field: {', '.join(unknown)}")
     counts = {}
-    for field in ("exact_count", "redacted_count", "summarized_count", "incomplete_count"):
+    for field in sorted(count_fields):
         item = value.get(field, 0)
         if type(item) is not int or item < 0:
             raise AuditValidationError(f"coverage {field} must be a non-negative integer")
@@ -1000,7 +1006,11 @@ def open_database(path=None, *, project_roots=()):
             external_path(database, database_roots(connection))
         # New files are private before connect; only validated owned files are tightened.
         connect_path.chmod(0o600)
+        # Set this before legacy envelope text is moved or deleted.
+        connection.execute('PRAGMA secure_delete = ON')
+        moved_content = False
         if version < SCHEMA_VERSION:
+            moved_content = version != 0
             connection.execute('BEGIN IMMEDIATE')
             try:
                 if version == 0:
@@ -1031,6 +1041,7 @@ def open_database(path=None, *, project_roots=()):
                 _separate_v4_message_envelopes(connection)
                 validate_database(connection)
                 connection.commit()
+                moved_content = True
             except BaseException:
                 connection.rollback()
                 raise
@@ -1050,6 +1061,13 @@ def open_database(path=None, *, project_roots=()):
             connection.execute('PRAGMA busy_timeout = 5000')
         connection.execute('PRAGMA journal_mode = WAL')
         connection.execute('PRAGMA synchronous = NORMAL')
+        if moved_content:
+            # Migration is already committed. A busy checkpoint is best effort;
+            # the next writer can retry it without changing audit records.
+            try:
+                connection.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+            except sqlite3.DatabaseError:
+                pass
         database.chmod(0o600)
         for suffix in ('-wal', '-shm'):
             sidecar = safe_path(str(database) + suffix)
@@ -1164,7 +1182,7 @@ def record_coverage(connection, coverage):
     if existing_timestamp:
         coverage = {**coverage, "observed_at": existing_timestamp[0]}
     normalized = validate_coverage(coverage)
-    run = connection.execute("SELECT 1 FROM runs WHERE run_id=?", (normalized["run_id"],)).fetchone()
+    run = connection.execute("SELECT capture_mode FROM runs WHERE run_id=?", (normalized["run_id"],)).fetchone()
     if not run:
         raise AuditValidationError(f"unknown run: {normalized['run_id']}")
     provenance = connection.execute(
@@ -1173,8 +1191,13 @@ def record_coverage(connection, coverage):
     # A host can supply coverage after an interactive invocation.  That record
     # is imported evidence, not a claim that the interactive skill changed its
     # own capture method.  Other mismatches remain invalid.
-    if provenance and provenance[0] != normalized["capture_method"] and normalized["capture_method"] != "imported":
+    if (provenance and provenance[0] != normalized["capture_method"]
+            and not (provenance[0] == "instruction_driven" and normalized["capture_method"] == "imported")):
         raise AuditValidationError("coverage capture method conflicts with run provenance")
+    if normalized["coverage"] == "not_requested" and run[0] != "metadata":
+        raise AuditValidationError("not_requested coverage requires metadata capture mode")
+    if normalized["coverage"] == "missing" and run[0] != "relevant":
+        raise AuditValidationError("missing coverage requires relevant capture mode")
     fields = ("coverage_id","run_id","scope","coverage","content_state","exact_count","redacted_count","summarized_count","incomplete_count","observed_at","capture_method","reason")
     values = tuple(normalized.get(field) for field in fields)
     prior = connection.execute(
@@ -1330,7 +1353,7 @@ def _append_purge_coverage(connection, run_id, coverage_id, observed_at):
         "SELECT invocation_kind,capture_method FROM run_provenance WHERE run_id=?", (run_id,)
     ).fetchone()
     prior_observation = connection.execute(
-        "SELECT scope,capture_method FROM coverage_observations WHERE run_id=? ORDER BY observed_at DESC,coverage_id DESC LIMIT 1",
+        "SELECT scope,capture_method FROM coverage_observations WHERE run_id=? ORDER BY rowid DESC LIMIT 1",
         (run_id,),
     ).fetchone()
     method = prior_observation[1] if prior_observation else (provenance[1] if provenance else "imported")
@@ -1398,6 +1421,23 @@ def purge_message(connection, message_id, reason, confirmation):
     connection.execute("DELETE FROM captured_message_content WHERE message_id=?", (message_id,))
     _append_purge_coverage(connection, run_id, f"purge:{message_id}:coverage", timestamp)
     return records(connection, "SELECT * FROM message_content_tombstones WHERE message_id=?", (message_id,))[0]
+
+
+def cleanup_purged_content(connection):
+    """Report physical cleanup separately from an already committed purge."""
+    if connection.in_transaction:
+        raise AuditValidationError("physical cleanup requires a committed purge")
+    result = {}
+    for name, statement in (("compaction", "VACUUM"), ("wal_checkpoint", "PRAGMA wal_checkpoint(TRUNCATE)")):
+        try:
+            row = connection.execute(statement).fetchone()
+            if name == "wal_checkpoint" and row and row[0]:
+                result[name] = {"ok": False, "error": "checkpoint busy", "result": list(row)}
+            else:
+                result[name] = {"ok": True, **({"result": list(row)} if row else {})}
+        except sqlite3.DatabaseError as exc:
+            result[name] = {"ok": False, "error": str(exc)}
+    return result
 
 
 def capture_snapshots(*args, **kwargs):
@@ -1476,7 +1516,7 @@ def query_runs(connection, *, workspace_id=None, operation=None, milestone_id=No
     if coverage is not None:
         if 'coverage_observations' not in schema_tables(connection):
             return []
-        clauses.append("EXISTS (SELECT 1 FROM coverage_observations c WHERE c.run_id=r.run_id AND c.coverage=? AND NOT EXISTS (SELECT 1 FROM coverage_observations c2 WHERE c2.run_id=c.run_id AND (c2.observed_at>c.observed_at OR (c2.observed_at=c.observed_at AND c2.coverage_id>c.coverage_id))))")
+        clauses.append("EXISTS (SELECT 1 FROM coverage_observations c WHERE c.run_id=r.run_id AND c.coverage=? AND NOT EXISTS (SELECT 1 FROM coverage_observations c2 WHERE c2.run_id=c.run_id AND c2.rowid>c.rowid))")
         values.append(coverage)
     if purged is not None:
         if 'message_content_tombstones' not in schema_tables(connection):
@@ -1490,12 +1530,14 @@ def query_runs(connection, *, workspace_id=None, operation=None, milestone_id=No
             if provenance:
                 provenance[0]['resources'] = records(connection, 'SELECT logical_name AS name,sha256 FROM provenance_resources WHERE run_id=? ORDER BY logical_name', (row['run_id'],))
             row['provenance'] = provenance[0] if provenance else None
-            row['coverage'] = records(connection, 'SELECT * FROM coverage_observations WHERE run_id=? ORDER BY observed_at,coverage_id', (row['run_id'],))
+            row['coverage'] = records(connection, 'SELECT * FROM coverage_observations WHERE run_id=? ORDER BY rowid', (row['run_id'],))
     return rows
 
 
 def query_events(connection, run_id=None, *, workspace_id=None, operation=None, milestone_id=None,
-                 task=None, since=None, until=None, limit=10000, offset=0):
+                 task=None, since=None, until=None, instruction_set=None,
+                 instruction_set_version=None, host=None, model=None, capture_method=None,
+                 coverage=None, purged=None, limit=10000, offset=0):
     pagination(limit, offset)
     clauses, values = [], []
     for name,value in [('e.run_id',run_id),('r.workspace_id',workspace_id),('e.operation',operation),('e.milestone_id',milestone_id),('e.task_label',task)]:
@@ -1504,6 +1546,26 @@ def query_events(connection, run_id=None, *, workspace_id=None, operation=None, 
     for value,comparison in [(since,'>='),(until,'<=')]:
         if value is not None:
             clauses.append(f'{time_key("e.recorded_at")}{comparison}?'); values.append(time_bound(value))
+    if any(value is not None for value in (instruction_set, instruction_set_version, host, model, capture_method, coverage, purged)):
+        tables = schema_tables(connection)
+        if ('run_provenance' not in tables and any(value is not None for value in
+                (instruction_set, instruction_set_version, host, model, capture_method))
+                or 'coverage_observations' not in tables and coverage is not None
+                or 'message_content_tombstones' not in tables and purged is not None):
+            return []
+        provenance_filters = []
+        for column, value in (("instruction_set_name", instruction_set), ("instruction_set_version", instruction_set_version),
+                              ("host_agent", host), ("model", model), ("capture_method", capture_method)):
+            if value is not None:
+                provenance_filters.append(f"p.{column}=?")
+                values.append(value)
+        if provenance_filters:
+            clauses.append("EXISTS (SELECT 1 FROM run_provenance p WHERE p.run_id=r.run_id AND " + " AND ".join(provenance_filters) + ")")
+        if coverage is not None:
+            clauses.append("EXISTS (SELECT 1 FROM coverage_observations c WHERE c.run_id=r.run_id AND c.coverage=? AND NOT EXISTS (SELECT 1 FROM coverage_observations c2 WHERE c2.run_id=c.run_id AND c2.rowid>c.rowid))")
+            values.append(coverage)
+        if purged is not None:
+            clauses.append(("EXISTS" if purged else "NOT EXISTS") + " (SELECT 1 FROM message_content_tombstones t JOIN captured_messages m USING(message_id) WHERE m.run_id=r.run_id)")
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
     return records(connection, 'SELECT e.* FROM events e JOIN runs r USING(run_id)'+where+' ORDER BY '+time_key('r.started_at')+',e.run_id,e.sequence LIMIT ? OFFSET ?', (*values,limit,offset))
 
@@ -1518,9 +1580,19 @@ def query_snapshots(connection, workspace_id=None, *, kind=None, limit=10000, of
     return records(connection, 'SELECT snapshot_id,workspace_id,kind,source_path,sha256,captured_at,source_commit,worktree_state,source_run_id,predecessor_id,length(content) AS byte_length FROM snapshots'+where+' ORDER BY captured_at,snapshot_id LIMIT ? OFFSET ?', (*values,limit,offset))
 
 
-def query_messages(connection, run_id, *, include_content=False):
+def query_messages(connection, run_id, *, include_content=False, limit=None, offset=0, roles=(), descending=False):
+    where = ' WHERE m.run_id=?'
+    values = [run_id]
+    if roles:
+        where += ' AND m.role IN (' + ','.join('?' for _ in roles) + ')'
+        values.extend(roles)
+    tail = ' ORDER BY m.sequence ' + ('DESC' if descending else 'ASC')
+    if limit is not None:
+        pagination(limit, offset)
+        tail += ' LIMIT ? OFFSET ?'
+        values.extend((limit, offset))
     if "captured_message_content" not in schema_tables(connection):
-        return records(connection, "SELECT *, NULL AS content_state FROM captured_messages WHERE run_id=? ORDER BY sequence", (run_id,))
+        return records(connection, "SELECT m.*, NULL AS content_state FROM captured_messages m" + where + tail, values)
     content = ", c.content AS content_blob" if include_content else ""
     rows = records(connection, """
         SELECT m.message_id,m.run_id,m.sequence,m.role,m.captured_at,m.capture_source,m.fidelity,
@@ -1532,8 +1604,7 @@ def query_messages(connection, run_id, *, include_content=False):
         FROM captured_messages m
         LEFT JOIN captured_message_content c ON c.message_id=m.message_id
         LEFT JOIN message_content_tombstones t ON t.message_id=m.message_id
-        WHERE m.run_id=? ORDER BY m.sequence
-    """, (run_id,))
+    """ + where + tail, values)
     for row in rows:
         blob = row.pop("content_blob", None)
         if include_content and blob is not None and row["content_state"] != "purged":
@@ -1559,7 +1630,7 @@ def export_json(connection, *, workspace_id=None, include_content=False):
                 for item in provenance:
                     item['resources'] = records(connection, 'SELECT logical_name AS name,sha256 FROM provenance_resources WHERE run_id=? ORDER BY logical_name', (run['run_id'],))
                 run['provenance'] = provenance[0] if provenance else None
-                run['coverage'] = records(connection, 'SELECT * FROM coverage_observations WHERE run_id=? ORDER BY observed_at,coverage_id', (run['run_id'],))
+                run['coverage'] = records(connection, 'SELECT * FROM coverage_observations WHERE run_id=? ORDER BY rowid', (run['run_id'],))
             run['events'] = records(connection,'SELECT * FROM events WHERE run_id=? ORDER BY sequence',(run['run_id'],))
             for observed in run['events']:
                 explorer = records(connection, 'SELECT * FROM event_explorer WHERE event_id=?', (observed['event_id'],)) if has_explorer else []

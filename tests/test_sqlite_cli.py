@@ -9,12 +9,21 @@ import tempfile
 import unittest
 import urllib.error
 import urllib.request
+import importlib.util
+from unittest import mock
 import test_harness as h
 
 CLI=Path(__file__).resolve().parents[1]/'harness/tabilet_audit_host.py'
 
 
 class CliTests(unittest.TestCase):
+    def test_incompatible_toolkit_interface_fails_before_opening_database(self):
+        sys.path.insert(0,str(CLI.parent))
+        spec=importlib.util.spec_from_file_location('audit_host_under_test',CLI)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with mock.patch.object(module.index,'TOOLKIT_INTERFACE',99):
+            self.assertEqual(module.main(['index','status','/nonexistent']),2)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.base=Path(self.tmp.name)
@@ -70,6 +79,37 @@ class CliTests(unittest.TestCase):
             self.assertEqual(c.execute('SELECT COUNT(*) FROM captured_messages').fetchone()[0],0)
             self.assertEqual(c.execute('SELECT COUNT(*) FROM runs').fetchone()[0],7)
         finally:c.close()
+
+    def test_events_apply_run_provenance_coverage_and_purge_filters(self):
+        provenance={"invocation_kind":"interactive_skill","instruction_set_name":"memory-bank-next",
+                    "instruction_set_version":"1","host_agent":"test-host","model":"test-model",
+                    "capture_method":"instruction_driven","fingerprint_fidelity":"unavailable"}
+        provenance_file=self.base/'provenance.json';provenance_file.write_text(json.dumps(provenance))
+        begun=self.command('audit','begin',self.repo,'next','--run-id','filtered','--capture','relevant',
+                           '--provenance',provenance_file)
+        self.command('audit','begin',self.repo,'next','--run-id','other')
+        for run, identifier in [('filtered','matching-event'),('other','other-event')]:
+            self.command('audit','event',data={"schema":"tabilet.audit.event/v1","event_id":identifier,
+                "run_id":run,"workspace_id":begun['workspace_id'],"operation":"next","event_type":"task_observed",
+                "subject":{"milestone_id":"M01","task_label":"Task"},
+                "details":{"schema":"tabilet.audit.details/v1","capture_source":"agent","fidelity":"summarized"}})
+        self.command('audit','message',data={"run_id":"filtered","message_id":"filtered-message","role":"user",
+            "text":"private","capture_source":"host","fidelity":"exact"})
+        self.command('audit','coverage',data={"coverage_id":"filtered-coverage","run_id":"filtered",
+            "scope":"skill_conversation","coverage":"complete","content_state":"available",
+            "exact_count":1,"capture_method":"instruction_driven"})
+        filters=['--instruction-set','memory-bank-next','--instruction-set-version','1','--host','test-host',
+                 '--model','test-model','--capture-method','instruction_driven','--coverage','complete']
+        expected=['filtered:started','matching-event']
+        self.assertEqual([r['event_id'] for r in self.command('audit','events',*filters)['results']], expected)
+        for index in range(0,len(filters),2):
+            self.assertEqual([r['event_id'] for r in self.command('audit','events',*filters[index:index+2])['results']], expected)
+        self.assertEqual(self.command('audit','events','--coverage','missing')['results'],[])
+        purged=self.command('audit','purge-message','filtered-message','--reason','request','--confirm','filtered-message')
+        self.assertTrue(purged['cleanup']['compaction']['ok'])
+        self.assertEqual([r['event_id'] for r in self.command('audit','events','--purged','--milestone','M01','--task','Task')['results']],
+                         ['matching-event'])
+        self.assertEqual(self.command('audit','events','--coverage','complete')['results'],[])
 
     def test_relevant_message_capture_rejects_oversized_text(self):
         self.command('audit','begin',self.repo,'next','--run-id','bounded','--capture','relevant')

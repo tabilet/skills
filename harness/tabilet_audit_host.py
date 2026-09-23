@@ -15,6 +15,21 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import tabilet_audit as audit
 import tabilet_index as index
 
+TOOLKIT_INTERFACE = 1
+
+
+def check_toolkit(include_explorer=False):
+    modules = {'tabilet_audit': audit, 'tabilet_index': index}
+    versions = {name: getattr(module, 'TOOLKIT_INTERFACE', None) for name, module in modules.items()}
+    if include_explorer:
+        try:
+            from tabilet_explorer import TOOLKIT_INTERFACE as explorer_interface
+        except ImportError as exc:
+            raise audit.AuditError('incomplete explorer toolkit; reinstall the toolkit files together') from exc
+        versions['tabilet_explorer'] = explorer_interface
+    if any(value != TOOLKIT_INTERFACE for value in versions.values()):
+        raise audit.AuditError(f'incompatible toolkit modules: expected interface {TOOLKIT_INTERFACE}, got {versions}; reinstall the toolkit files together')
+
 
 def arguments(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
@@ -200,12 +215,7 @@ def dispatch(args):
         if action=='coverage':return audit.record_coverage(connection,submission(args))
         if action=='purge-message':
             tombstone=audit.purge_message(connection,args.message_id,args.reason,args.confirm)
-            checkpoint=None
-            try:
-                checkpoint=connection.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
-            except sqlite3.DatabaseError as exc:
-                checkpoint={'error':str(exc)}
-            return {'tombstone':tombstone,'wal_checkpoint':checkpoint}
+            return {'tombstone':tombstone,'cleanup':audit.cleanup_purged_content(connection)}
         if action=='finish':
             audit.finish_run(connection,args.run_id,args.result,completed_at=args.completed_at)
             root=connection.execute('SELECT w.project_root FROM runs r JOIN workspaces w USING(workspace_id) WHERE r.run_id=?',(args.run_id,)).fetchone()[0]
@@ -213,9 +223,8 @@ def dispatch(args):
         workspace=index.workspace_id(connection,root) if root else getattr(args,'workspace_id',None)
         if action=='export':return audit.strict_json_loads(audit.export_json(connection,workspace_id=workspace,include_content=args.include_content))
         kwargs={key:getattr(args,key) for key in ('operation','milestone_id','task','since','until','limit','offset')}
-        if action == 'runs':
-            kwargs.update({key:getattr(args,key) for key in ('instruction_set','instruction_set_version','host','model','capture_method','coverage')})
-            kwargs['purged']=True if getattr(args,'purged',False) else None
+        kwargs.update({key:getattr(args,key) for key in ('instruction_set','instruction_set_version','host','model','capture_method','coverage')})
+        kwargs['purged']=True if getattr(args,'purged',False) else None
         kwargs['workspace_id']=workspace
         if action=='events':kwargs['run_id']=args.run_id
         results=(audit.query_runs if action=='runs' else audit.query_events)(connection,**kwargs)
@@ -225,6 +234,7 @@ def dispatch(args):
 def main(argv=None):
     args=arguments(argv)
     try:
+        check_toolkit(args.group == 'explorer')
         print(audit.canonical_json(dispatch(args)))
         return 0
     except (audit.AuditError,sqlite3.Error,OSError,ValueError,TypeError) as exc:
