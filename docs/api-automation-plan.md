@@ -139,3 +139,10 @@ images, missing dependencies, and timeout cleanup. Run the existing runner and
 SQLite regressions, `python3 check.py`, the separate Node and Chromium suites,
 `mkdocs build --strict`, and `git diff --check`. Paid live-model acceptance
 remains explicitly invoked, never automatic on pull requests.
+
+The conversation, approval, evidence, checkpoint, and resume model could later
+support consumer goals, such as finding a suitable local coffee shop. That
+product would need current location-aware sources, user-controlled history and
+privacy, and completion criteria suited to the request rather than Git commits
+or software tests. Explore it as a separate future product direction; the first
+`api` release remains focused on software development.
