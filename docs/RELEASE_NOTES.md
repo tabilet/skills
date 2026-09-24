@@ -1,3 +1,37 @@
+# memory-bank v2.1.0
+
+v2.1.0 adds an optional SQLite audit and Markdown lookup toolkit. Project
+Markdown stays authoritative, and the v2 project layout is unchanged; no
+migration is needed. Auditing is off unless `TABILET_AUDIT_DB` names a database
+outside every project. Installation and read commands never create one.
+
+- `tabilet-audit` records workflow runs, observed events, instruction
+  provenance, conversation coverage, and selected visible messages. Message
+  capture is metadata-only by default, and an explicit purge keeps the envelope,
+  hash, and tombstone while removing content.
+- A rebuildable index covers milestones, tasks, retired history, knowledge,
+  evolution, and archives, with full-text search when SQLite provides FTS5 and a
+  literal fallback otherwise. Sync is explicit and never writes project files.
+- A loopback-only explorer shows Overview, Timeline, and an advisory To-do view.
+  Follow-up buttons prepare copyable text; they never run an agent or edit
+  Markdown.
+- With `TABILET_AUDIT_DB` set, the API runner records its own runs. It still
+  installs as one file when auditing is off, and its exit codes and gate order
+  are unchanged. The seven skills gain a byte-identical optional audit
+  reference; approvals and outcomes do not depend on it.
+
+The toolkit needs Python 3.9 or later with the `sqlite3` module built against
+SQLite 3.24.0 or later. Missing or older SQLite produces one clear message, and
+the runner and skills record an audit gap and continue unchanged. The full test
+suite passes on Python 3.9 and 3.14; Linux and macOS are the supported
+platforms, and Windows is untested.
+
+The template's milestone guide bounds historical retrieval: consult retired
+records only when the current task needs them, and stop when the evidence
+suffices. Existing projects adopt it through an approved Upgrade. The Medium
+drafts are no longer part of the repository. The DSH companion is unchanged and
+remains at its v2.0.0 release.
+
 # memory-bank v2.0.0
 
 New projects keep `AGENTS.md` at the root and place their goal protocol, active
