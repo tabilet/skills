@@ -84,7 +84,7 @@ for the observed results and remaining limitations. SDK, ACP, minimal profiles,
 other platforms, and older releases are not certified here.
 
 DSH integration is included in **memory-bank v1.3.0**. Use a v1.3.0-or-newer
-checkout containing this guide. Use the v2.0.0 tag for a reproducible seven-skill
+checkout containing this guide. Use the v2.1.0 tag for a reproducible seven-skill
 installation. See the [release notes](RELEASE_NOTES.md) for upgrade
 guidance and the [project-upgrade procedure](../README.md#upgrade-an-existing-project).
 Updating installed skills does not migrate existing `AGENTS.md`,
@@ -110,7 +110,7 @@ DSH does not consume this repository's plugin manifest.
 
 ## Install the seven bundles
 
-These source-checkout commands target the v2.0.0 tree with seven skills.
+These source-checkout commands target the v2.1.0 tree with seven skills.
 
 The primary destination is `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`.
 Set `MEMORY_BANK_CHECKOUT` to the absolute release checkout path. Run the

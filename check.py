@@ -20,6 +20,7 @@ from __future__ import annotations
 import ast
 import importlib.machinery
 import importlib.util
+import json
 import pathlib
 import re
 import shutil
@@ -31,6 +32,8 @@ import unicodedata
 
 ROOT = pathlib.Path(__file__).resolve().parent
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
+AUDIT_MODULE = ROOT / "harness" / "tabilet_audit.py"
+AUDIT_HOST = ROOT / "harness" / "tabilet_audit_host.py"
 PROMPT_COPY = ROOT / "harness" / "prompts" / "tackle-next-memory-bank-todo.md"
 SKILLS_DIR = ROOT / "skills"
 ARCHIVE_SKILL = SKILLS_DIR / "memory-bank-archive" / "SKILL.md"
@@ -254,12 +257,15 @@ def init_skill_text() -> str:
 # --------------------------------------------------------------------------
 @check("harness parses, and leaves no bytecode behind")
 def harness_parses():
-    try:
-        ast.parse(HARNESS.read_text())
-    except SyntaxError as exc:
-        return [f"syntax error: {exc}"]
+    problems = []
+    for path in (HARNESS, AUDIT_MODULE, AUDIT_HOST, ROOT / "harness/tabilet_index.py"):
+        try:
+            ast.parse(path.read_text())
+        except SyntaxError as exc:
+            problems.append(f"{path.relative_to(ROOT)} syntax error: {exc}")
     stray = [str(p.relative_to(ROOT)) for p in ROOT.rglob("__pycache__") if ".git" not in p.parts]
-    return [f"stray bytecode directory: {p}" for p in stray]
+    problems.extend(f"stray bytecode directory: {p}" for p in stray)
+    return problems
 
 
 # --------------------------------------------------------------------------
@@ -1024,6 +1030,23 @@ def skill_matches_prompt():
     if skill_body(skill) != PROMPT_COPY.read_text().strip():
         return ["memory-bank-next/SKILL.md and the prompt file have diverged"]
     return []
+
+
+@check("optional audit references and packaging stay consistent")
+def sqlite_bundle_contract():
+    references = [skill.parent / "references/optional-audit.md" for skill in SKILLS_DIR.glob("*/SKILL.md")]
+    problems = []
+    if len(references) != 7 or any(not path.is_file() for path in references):
+        return ["seven standalone optional audit references are required"]
+    if len({path.read_bytes() for path in references}) != 1:
+        problems.append("optional audit references differ across skill bundles")
+    for reference in references:
+        if "references/optional-audit.md" not in (reference.parent.parent / "SKILL.md").read_text():
+            problems.append(f"{reference}: missing skill route")
+    for name in ("tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py", "tackle-memory-bank-api-loop"):
+        if not (ROOT / "harness" / name).is_file():
+            problems.append(f"missing optional toolkit payload: {name}")
+    return problems
 
 
 @check("v2 layout and explicit v1.5 migration stay enforced")
@@ -1811,6 +1834,33 @@ def dsh_contract():
     for path in public:
         if "DSH.md" not in path.read_text():
             problems.append(f"{path.relative_to(ROOT)}: missing maintained DSH guide link")
+    return problems
+
+
+@check("SQLite explorer browser suite is isolated and available")
+def sqlite_browser_suite():
+    problems = []
+    browser = ROOT / "tests/browser"
+    required = (browser / "package.json", browser / "package-lock.json",
+                browser / "explorer.spec.mjs", ROOT / ".github/workflows/explorer-browser.yml")
+    for path in required:
+        if not path.is_file():
+            problems.append(f"missing {path.relative_to(ROOT)}")
+    if (browser / "package.json").is_file():
+        package = json.loads((browser / "package.json").read_text())
+        if package.get("scripts", {}).get("test") != "playwright test":
+            problems.append("tests/browser/package.json: test script must run Playwright")
+        if not package.get("devDependencies", {}).get("@playwright/test"):
+            problems.append("tests/browser/package.json: @playwright/test must be pinned")
+    workflow_path = ROOT / ".github/workflows/explorer-browser.yml"
+    if workflow_path.is_file():
+        workflow = workflow_path.read_text()
+        for command in ("npm ci --prefix tests/browser --ignore-scripts",
+                        "unittest discover -s tests -p 'test_sqlite_*.py'",
+                        "node --test tests/explorer_browser.test.mjs",
+                        "playwright install --with-deps chromium", "npm test --prefix tests/browser"):
+            if command not in workflow:
+                problems.append(f"{workflow_path.relative_to(ROOT)}: missing {command!r}")
     return problems
 
 

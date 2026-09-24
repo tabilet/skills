@@ -5,6 +5,14 @@ project writes or execution. Direct the user to preview and explicitly apply
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
 Installing v2 never migrates a project automatically.
 
+When `TABILET_AUDIT_DB` explicitly enables auditing, use exactly one recorder
+owner. Inside the API runner, the runner owns the audit lifecycle: do not look
+for an interactive skill's `references/optional-audit.md`, invoke
+`tabilet-audit`, or start a duplicate run. In an interactive skill run, read the
+bundled `references/optional-audit.md` and use the optional installed
+`tabilet-audit` toolkit. Report recorder failures as gaps without changing
+workflow approvals or outcomes.
+
 Resolve missing information through safe inspection first. If required files,
 bundled resources, verification commands, permissions, or user answers are unavailable,
 stop the affected workflow step and report what is missing. Continue independent
@@ -33,6 +41,11 @@ select the next dependency-ready `[ ]` row and mark it `[~]` before implementati
 Consult relevant maintained lessons when the project has them. Resolve retired
 prerequisites through the project's history index; never treat a stale status
 path as permission to recreate or retry a historical ID.
+Retrieve historical evidence only when a current task needs a retired dependency
+or old ID resolved, an earlier decision explained, or a related past failure
+checked and current sources do not answer the question. Stop when the evidence
+supports the task decision; report missing required evidence rather than
+expanding into unrelated history.
 
 Tackle exactly one row:
 

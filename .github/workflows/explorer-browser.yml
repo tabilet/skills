@@ -1,0 +1,25 @@
+name: Explorer browser
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: tests/browser/package-lock.json
+      - run: python3 -B -m unittest discover -s tests -p 'test_sqlite_*.py'
+      - run: node --test tests/explorer_browser.test.mjs
+      - run: npm ci --prefix tests/browser --ignore-scripts --no-audit --no-fund
+      - run: npx --prefix tests/browser playwright install --with-deps chromium
+      - run: npm test --prefix tests/browser

@@ -81,6 +81,38 @@ before writing. **Next and Goal** execute work you have authorized; they can
 change code, update records, and make commits under the applicable policy.
 Installing a skill does not authorize work or migrate an existing project.
 
+## Suggested models
+
+The skills do not require or select a particular language model. They run with
+the model chosen by the host agent, and their Markdown state stays portable
+across providers. Model capability still matters because each workflow has a
+different shape. The names below are current Codex examples, not names the
+skills recognize or require; Codex may rename or replace them, and other
+providers have their own model names.
+
+| Work shape | Skills | Capability profile | Current Codex example |
+|---|---|---|---|
+| Open-ended discovery and planning | Init, Propose, Reconcile | Deep model with strong judgment | Sol with high reasoning |
+| Bounded evidence, rule analysis, and combined implementation-review runs | Archive, Upgrade, Goal | Balanced model with strong reasoning and tool use | Terra with high reasoning |
+| One explicit task from an approved plan | Next | Fast model for clear, repeatable work | Luna with high reasoning, followed by a manual balanced-model review such as Terra |
+
+Choose the closest equivalent available in the host agent: a deeper model for
+ambiguous planning and high-consequence review, a balanced model for
+evidence-heavy analysis, and a fast model for clear tasks with explicit
+acceptance and verification. Escalate from Luna when a task exposes unclear
+dependencies, changes architecture, or repeatedly fails verification. Use Sol
+for release-critical, security-sensitive, or unusually broad final reviews.
+
+A skill cannot change its parent session's model. In Codex, use `/model` or a
+model profile before invoking the skill. Goal contains both implementation and
+the bounded milestone review, so a balanced model such as Terra is the practical
+default for the whole run. Next can use a fast model such as Luna for a clear
+row and then receive a manual review from a balanced model such as Terra. If
+that row will close its milestone and trigger the closing review inside Next,
+use the balanced model for the Next run as well. Task state, review counters, and
+acceptance evidence remain in the project files across a separate review
+handoff.
+
 ## Long-lived memory
 
 In projects that have adopted the retirement rules, a milestone's complete

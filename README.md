@@ -73,8 +73,10 @@ Git is required by the usual per-task commit workflow and the optional API
 harness. A permitted no-commit workflow can maintain the same files without
 Git, including their retired records.
 
-Python 3 is used by the optional API harness and the one-time v1.5.0 migration
-command. Both use only the standard library.
+Python 3.9 or later is used by the optional API harness, the optional SQLite
+audit toolkit, and the one-time v1.5.0 migration command. All of them use only
+the standard library. The audit toolkit also needs Python's `sqlite3` module with
+SQLite 3.24.0 or later; without it, auditing reports a gap and work continues.
 
 Already have v1.5.0 project files at the root? [Preview the explicit v2
 migration](docs/upgrade.md#migrate-a-v150-project-to-v2) before using v2 skills.
@@ -501,7 +503,7 @@ optional, because the memory bank is plain markdown and works on its own:
 |---|---|---|
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
 | [`memory-bank-next`](#install-the-seven-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
-| [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3 |
+| [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3.9+ |
 | [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `tabilet/GOAL.md` and an agent request or optional skill |
 
 With an agent such as Codex or Claude Code, the user-facing workflow can be as
@@ -832,6 +834,38 @@ paraphrase of it.
 | `memory-bank-next` | Execute or resume one row, verify, and commit under the governing policy. |
 | `memory-bank-goal` | When you want several milestones run in order. |
 
+### Suggested models
+
+The skills do not require, select, or bundle a particular language model. Each
+skill runs with the model chosen by its host agent, and the project files remain
+portable across providers. Model capability still matters because the skills do
+different kinds of work. The names below are current Codex examples, not names
+the skills recognize or require; Codex may rename or replace them, and other
+providers have their own model names.
+
+| Work shape | Skills | Capability profile | Current Codex example |
+|---|---|---|---|
+| Open-ended discovery and planning | `memory-bank-init`, `memory-bank-propose`, `memory-bank-reconcile` | Deep model with strong judgment | Sol with high reasoning |
+| Bounded evidence, rule analysis, and combined implementation-review runs | `memory-bank-archive`, `memory-bank-upgrade`, `memory-bank-goal` | Balanced model with strong reasoning and tool use | Terra with high reasoning |
+| One explicit task from an approved plan | `memory-bank-next` | Fast model for clear, repeatable work | Luna with high reasoning, followed by a manual balanced-model review such as Terra |
+
+Choose the closest equivalent available in the host agent: a deeper model for ambiguous planning and
+high-consequence review, a balanced model for evidence-heavy analysis, and a
+fast model for clear tasks with explicit acceptance and verification. Escalate
+from Luna to Terra or Sol when implementation exposes an unclear dependency,
+changes architecture, or fails verification repeatedly. Use Sol for a
+release-critical, security-sensitive, or unusually broad final review.
+
+A skill cannot change its parent session's model. In Codex, choose the model
+with `/model` or start the session with a model profile. A Goal run contains
+both implementation and the bounded milestone review, so a balanced model such
+as Terra is the practical default for the whole run. Next can use a fast model
+such as Luna for a clear row and then receive a manual review from a balanced
+model such as Terra. If that row will close its milestone and trigger the
+closing review inside Next, use the balanced model for the Next run as well. Task state,
+review counters, and acceptance evidence remain in the project files across a
+separate review handoff.
+
 `memory-bank-init` is the one that changes the experience most: it maps one
 delivery boundary as a design tree, asks each dependency-ready frontier as a
 numbered round with recommended answers, and looks up repository facts instead
@@ -942,7 +976,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.0.0` tag. A marketplace install or
+For a reproducible installation, use the `v2.1.0` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke
@@ -1008,7 +1042,7 @@ typing into one. Skip it if Codex, Claude Code, or another agent already does
 that for you.
 
 The API harness is account-level because it can drive any project that follows
-this memory-bank shape. It needs Python 3 and nothing else.
+this memory-bank shape. It needs Python 3.9 or later and nothing else.
 
 ```bash
 mkdir -p ~/.local/bin
@@ -1116,6 +1150,70 @@ committing. `11` means active and retired status state is missing or invalid;
 check filenames and the history index. A valid project with all milestones
 retired exits `0`. The full table is in
 [Execution Harness](docs/EXECUTION.md#exit-codes).
+
+### API-only workflow
+
+An API-only setup uses the project's Markdown as authoritative memory and an
+external SQLite database for observed workflow history. The API runner rereads
+`AGENTS.md`, active milestones and tasks, current facts, retired history, and
+evolution files on each run. SQLite records its observed lifecycle, task
+transitions, verification, and commits; its index makes current and historical
+Markdown searchable without replacing it.
+
+Enable the recorder before starting the runner:
+
+```bash
+export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
+export TABILET_AUDIT_CAPTURE=metadata
+ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=your-model MAX_RUNS=1 \
+  tackle-memory-bank-api-loop /absolute/path/to/project
+```
+
+Run `tabilet-audit index sync /absolute/path/to/project` after Markdown changes
+and use `tabilet-audit audit runs --project /absolute/path/to/project` to review
+recorded runs. The API runner owns its own audit lifecycle; do not start a
+duplicate manual run. Keep the SQLite file outside the project.
+
+`metadata` is the safe default. Set `TABILET_AUDIT_CAPTURE=relevant` to retain
+selected visible messages that the runner supplies. This does not capture every
+API prompt, tool result, hidden reasoning, or surrounding chat. Exact raw text
+must be supplied by the host through the selected-message procedure in
+[`docs/sqlite.md`](docs/sqlite.md#capture-selected-visible-messages). Recorded
+message text is limited to 1,024 characters; longer interactive messages need a
+concise `summarized` record or a clearly `incomplete`/redacted extract.
+
+SQLite 13 adds optional v4 run provenance and append-only conversation coverage.
+Interactive skills report instruction-driven coverage and do not infer exact
+instruction fingerprints; the API runner records automatic provenance for its
+own harness, provider, and model. `tabilet-audit audit purge-message` performs a
+confirmed logical content purge while retaining the immutable envelope and
+tombstone. Markdown remains authoritative, and purge cannot remove copies in
+backups or exports.
+
+## Optional SQLite audit and lookup
+
+Markdown remains authoritative. The optional `tabilet-audit` toolkit records
+workflow evidence in an external SQLite database and builds a disposable index
+of active milestones/tasks, retired history, evolution, and context archives.
+Indexing does not change project Markdown or require new task IDs.
+
+See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
+The API runner records enabled runs; interactive skills can use the same optional
+CLI. Exact chat capture requires text supplied by the host. Default audit capture
+stores metadata; the lookup index separately contains current Markdown text.
+Installing skills alone never creates a database. Existing
+snapshot evidence stays readable; new full-file snapshot capture is deferred.
+
+The optional `tabilet-audit explorer PROJECT --port 8000` serves a local
+browser explorer bound to a loopback address. Overview summarizes active
+milestones, history, archives, and evolution; Timeline groups goal children and
+opens the recorded request, output, changes, and resolved current state; To-do
+groups resume, ready, waiting, blocked, and review-required work with dependency
+links. Filters and selected details stay in the URL. The explorer keeps recorded
+evidence visible when it withholds recommendations, rechecks live source hashes,
+and prepares follow-up text for copying only. It does not launch an agent, change
+Markdown, or create task rows. From a remote server, use
+`ssh -N -L 8000:127.0.0.1:8000 user@host` and browse to `http://localhost:8000/`.
 
 ## What The Harness Is
 

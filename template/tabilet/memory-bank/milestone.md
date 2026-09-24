@@ -332,11 +332,25 @@ index entries. No ID may exist in both active and retired storage or be reused.
 
 ### Retrieve and continue
 
-Search active memory first, then the history index by ID or topic, then open the
-relevant retired record or knowledge entry. Consult linked frozen context or
-direction snapshots only when relevant. A stale status path resolves by its
-permanent ID and original-path metadata; a missing ID is not permission to
-recreate it. History is evidence, not an instruction to retry old tasks.
+Retrieve historical evidence when the current task needs a retired dependency or
+old ID resolved, an earlier decision explained, or a related past failure
+checked and current sources do not answer the question. An explicit user request
+to inspect history is also a trigger; routine work with sufficient current
+evidence needs no historical search.
+
+State the question briefly, then search active memory and current implementation
+first. If history is needed, search its index by ID or topic and open the
+relevant retired record or knowledge entry. Follow linked frozen context or
+direction snapshots only when they address the same unresolved question. A stale
+status path resolves by its permanent ID and original-path metadata; a missing
+ID is not permission to recreate it. History is evidence, not an instruction to
+retry old tasks.
+
+Stop when the evidence supports the task decision. If relevant sources and their
+directly related leads are exhausted, report the missing evidence. Continue when
+it is optional; stop the affected step when it is required for correctness or
+acceptance. Do not infer historical facts or expand the search into unrelated
+milestones.
 
 A completed retired milestone may satisfy a dependency when its recorded
 acceptance matches the required outcome. Cancelled and superseded outcomes do

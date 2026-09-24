@@ -2,6 +2,9 @@ medium-legacy.md
 
 # Repository-only locked DSH compatibility dependencies.
 tests/dsh/node_modules/
+tests/browser/node_modules/
+tests/browser/test-results/
+tests/browser/playwright-report/
 
 # MkDocs renders into site/. Ignore generated site and Python bytecode so
 # local documentation builds do not add them to source control.

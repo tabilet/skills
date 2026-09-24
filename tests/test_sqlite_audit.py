@@ -1,0 +1,432 @@
+from __future__ import annotations
+
+import importlib.machinery
+import importlib.util
+import json
+import os
+import stat
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.dont_write_bytecode = True
+loader = importlib.machinery.SourceFileLoader(
+    "tabilet_audit_under_test", str(ROOT / "harness" / "tabilet_audit.py")
+)
+spec = importlib.util.spec_from_loader("tabilet_audit_under_test", loader)
+audit = importlib.util.module_from_spec(spec)
+loader.exec_module(audit)
+
+
+def event(**overrides: object) -> dict:
+    value = {
+        "schema": "tabilet.audit.event/v1",
+        "event_id": "event-1",
+        "run_id": "run-1",
+        "workspace_id": "workspace-1",
+        "operation": "next",
+        "event_type": "task_transition",
+        "recorded_at": "2026-09-21T12:00:00Z",
+        "occurred_at": None,
+        "subject": {
+            "milestone_id": "M01",
+            "task_label": "Implement recorder",
+            "status_path": "tabilet/memory-bank/status-M01.md",
+            "old_state": "in_progress",
+            "new_state": "completed",
+        },
+        "details": {"schema": "tabilet.audit.details/v1"},
+    }
+    value.update(overrides)
+    return value
+
+
+class SqliteAuditContractTests(unittest.TestCase):
+    def test_schema_creates_frozen_v1_tables_and_indexes(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        self.addCleanup(connection.close)
+        connection.executescript(audit.SCHEMA_SQL)
+        self.assertEqual(
+            audit.schema_tables(connection),
+            {"schema_meta", "workspaces", "runs", "events", "captured_messages", "snapshots", "run_snapshots"},
+        )
+        indexes = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+        self.assertIn("events_run_sequence", indexes)
+        self.assertIn("events_milestone", indexes)
+        self.assertIn("runs_workspace_started", indexes)
+        self.assertIn("snapshots_source", indexes)
+
+    def test_valid_event_is_normalized_without_reassigning_subject_details(self) -> None:
+        original = event()
+        normalized = audit.validate_event(original)
+        self.assertEqual(normalized["subject"]["task_label"], "Implement recorder")
+        self.assertEqual(normalized["subject"]["status_path"], "tabilet/memory-bank/status-M01.md")
+        self.assertEqual(normalized["details"], {"schema": "tabilet.audit.details/v1"})
+        self.assertEqual(json.loads(audit.canonical_json(normalized))["event_id"], "event-1")
+
+    def test_json_rejects_non_finite_numbers_and_constants(self) -> None:
+        with self.assertRaisesRegex(audit.AuditValidationError, "finite"):
+            audit.canonical_json({"duration": float("nan")})
+        with self.assertRaisesRegex(audit.AuditValidationError, "constant"):
+            audit.strict_json_loads('{"duration":NaN}')
+
+    def test_invalid_event_contracts_are_rejected(self) -> None:
+        cases = [
+            ("schema", "wrong"),
+            ("operation", "unknown"),
+            ("event_type", "unknown"),
+            ("recorded_at", "2026-09-21 12:00:00"),
+            ("details", []),
+            ("details", {"changed": True}),
+        ]
+        for field, value in cases:
+            with self.subTest(field=field):
+                with self.assertRaises(audit.AuditValidationError):
+                    audit.validate_event(event(**{field: value}))
+
+    def test_explorer_applied_relationships_require_applied_phase(self) -> None:
+        explorer = {
+            "schema": "tabilet.audit.explorer/v1",
+            "phase": "proposal",
+            "artifact_refs": [{
+                "namespace": "task", "identifier": "M01/T01",
+                "relationship": "created",
+            }],
+        }
+        with self.assertRaisesRegex(audit.AuditValidationError, "requires the applied phase"):
+            audit.validate_explorer_details(explorer)
+        explorer["phase"] = "applied"
+        self.assertEqual(audit.validate_explorer_details(explorer), explorer)
+
+    def test_state_and_subject_shape_are_validated(self) -> None:
+        with self.assertRaisesRegex(audit.AuditValidationError, "unknown subject state"):
+            audit.validate_event(
+                event(subject={"old_state": "done", "new_state": "completed"})
+            )
+        with self.assertRaisesRegex(audit.AuditValidationError, "subject must"):
+            audit.validate_event(event(subject="task"))
+
+    def test_sqlite_version_floor_is_reported_plainly(self) -> None:
+        self.assertIsNone(audit.sqlite_support_problem("3.24.0"))
+        self.assertIsNone(audit.sqlite_support_problem("3.46.1"))
+        problem = audit.sqlite_support_problem("3.23.1")
+        self.assertIn("SQLite 3.23.1 is too old", problem)
+        self.assertIn("3.24.0 or later", problem)
+        self.assertIsNotNone(audit.sqlite_support_problem("3.7.17"))
+
+    def test_old_sqlite_stops_before_creating_or_reading_a_database(self) -> None:
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "audit.sqlite3"
+            with mock.patch.object(audit.sqlite3, "sqlite_version", "3.23.1"):
+                with self.assertRaisesRegex(audit.AuditError, "too old for the audit"):
+                    audit.open_database(database)
+                self.assertFalse(database.exists())
+                database.write_bytes(b"")
+                with self.assertRaisesRegex(audit.AuditError, "too old for the audit"):
+                    audit.open_readonly_database(database)
+
+    def test_open_database_creates_secure_v4_database(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "state" / "tabilet" / "audit.sqlite3"
+            connection = audit.open_database(database)
+            self.addCleanup(connection.close)
+            self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
+            self.assertEqual(
+                connection.execute("SELECT value FROM schema_meta WHERE key = 'schema'").fetchone()[0],
+                audit.SCHEMA_NAME,
+            )
+            connection.close()
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(database.parent.stat().st_mode), 0o700)
+                self.assertEqual(stat.S_IMODE(database.stat().st_mode), 0o600)
+            reopened = audit.open_database(database)
+            reopened.close()
+
+    def test_open_database_rejects_symlinks_and_newer_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target.sqlite3"
+            target.write_bytes(b"not a database")
+            link = root / "link.sqlite3"
+            link.symlink_to(target)
+            with self.assertRaisesRegex(audit.AuditError, "symlink"):
+                audit.open_database(link)
+
+            newer = root / "newer.sqlite3"
+            connection = sqlite3.connect(newer)
+            self.addCleanup(connection.close)
+            connection.execute("PRAGMA user_version = 99")
+            connection.commit()
+            connection.close()
+            with self.assertRaisesRegex(audit.AuditError, "unsupported"):
+                audit.open_database(newer)
+
+    def test_workspaces_keep_separate_checkout_and_unversioned_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            first = audit.ensure_workspace(connection, Path(temporary) / "one")
+            second = audit.ensure_workspace(connection, Path(temporary) / "two")
+            self.assertNotEqual(first, second)
+            run_id = audit.start_run(
+                connection,
+                second,
+                "goal",
+                worktree_state="unversioned",
+                git_head=None,
+            )
+            row = connection.execute(
+                "SELECT git_head, worktree_state, result FROM runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
+            self.assertEqual(row, (None, "unversioned", None))
+            audit.finish_run(connection, run_id, "interrupted", completed_at="2026-09-21T12:00:00Z")
+            self.assertEqual(
+                connection.execute("SELECT result FROM runs WHERE run_id = ?", (run_id,)).fetchone()[0],
+                "interrupted",
+            )
+
+    def test_database_path_must_be_regular_and_owner_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "audit.sqlite3"
+            directory.mkdir()
+            with self.assertRaises(audit.AuditError):
+                audit.open_database(directory)
+
+    def test_host_adapter_accepts_structured_host_event(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "audit.sqlite3"
+            connection = audit.open_database(database)
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "archive", run_id="run-1")
+            connection.close()
+            payload = json.dumps({
+                "schema": "tabilet.audit.event/v1",
+                "run_id": run_id,
+                "workspace_id": workspace_id,
+                "operation": "archive",
+                "event_type": "verification_observed",
+                "subject": {},
+                "details": {"schema": "tabilet.audit.details/v1", "capture_source": "host", "fidelity": "summarized"},
+            })
+            process = subprocess.run(
+                [sys.executable, str(ROOT / "harness/tabilet_audit_host.py"), "--audit-db", str(database), "--event", payload],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(process.returncode, 0, process.stderr)
+
+    def test_workspace_run_event_message_and_finish_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(
+                connection, Path(temporary) / "project", repository_id="repo", branch="sqlite"
+            )
+            self.assertEqual(
+                audit.ensure_workspace(connection, Path(temporary) / "project"), workspace_id
+            )
+            run_id = audit.start_run(
+                connection, workspace_id, "next", capture_mode="relevant", git_head="abc123", worktree_state="clean"
+            )
+            self.assertEqual(
+                audit.append_event(connection, event(run_id=run_id, workspace_id=workspace_id)), 1
+            )
+            message_id = audit.capture_message(
+                connection,
+                run_id,
+                "assistant",
+                "Completed the recorder task.",
+                capture_source="agent",
+                fidelity="summarized",
+            )
+            self.assertTrue(message_id)
+            audit.finish_run(connection, run_id, "completed")
+            row = connection.execute(
+                "SELECT operation, git_head, worktree_state, result FROM runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            self.assertEqual(row, ("next", "abc123", "clean", "completed"))
+            self.assertEqual(
+                connection.execute("SELECT task_label FROM events WHERE run_id = ?", (run_id,)).fetchone()[0],
+                "Implement recorder",
+            )
+            self.assertEqual(
+                connection.execute("SELECT text FROM captured_messages WHERE message_id = ?", (message_id,)).fetchone()[0],
+                "",
+            )
+            self.assertEqual(
+                audit.query_messages(connection, run_id, include_content=True)[0]["text"],
+                "Completed the recorder task.",
+            )
+
+    def test_explorer_event_references_are_versioned_and_workspace_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "propose", capture_mode="relevant")
+            message_id = audit.capture_message(
+                connection, run_id, "user", "Add the explorer", capture_source="host", fidelity="exact",
+                message_id="request-1",
+            )
+            self.assertEqual(message_id, "request-1")
+            details = {
+                "schema": "tabilet.audit.details/v1",
+                "explorer": {
+                    "schema": "tabilet.audit.explorer/v1",
+                    "phase": "request",
+                    "message_refs": [{"message_id": "request-1", "purpose": "request"}],
+                    "artifact_refs": [{
+                        "namespace": "milestone", "identifier": "M01", "relationship": "proposed",
+                        "path": "tabilet/memory-bank/status-M01.md", "line": 4,
+                    }],
+                },
+            }
+            payload = event(
+                event_id="explorer-1", run_id=run_id, workspace_id=workspace_id,
+                operation="propose", details=details,
+            )
+            self.assertEqual(audit.append_event(connection, payload), 1)
+            self.assertEqual(
+                connection.execute("SELECT phase FROM event_explorer WHERE event_id='explorer-1'").fetchone()[0],
+                "request",
+            )
+            self.assertEqual(
+                connection.execute("SELECT purpose FROM event_message_refs WHERE event_id='explorer-1'").fetchone()[0],
+                "request",
+            )
+            self.assertEqual(
+                connection.execute("SELECT namespace,identifier FROM event_artifacts WHERE event_id='explorer-1'").fetchone(),
+                ("milestone", "M01"),
+            )
+            for unsafe in (".", "tabilet\\memory-bank\\status-M01.md"):
+                with self.subTest(path=unsafe), self.assertRaises(audit.AuditValidationError):
+                    audit.validate_explorer_details({
+                        "schema": "tabilet.audit.explorer/v1", "phase": "request",
+                        "artifact_refs": [{"namespace": "document", "identifier": "source",
+                                           "relationship": "observed", "path": unsafe}],
+                    })
+            with self.assertRaises(audit.AuditValidationError):
+                audit.append_event(connection, event(
+                    event_id="explorer-2", run_id=run_id, workspace_id=workspace_id,
+                    operation="propose", details={
+                        "schema": "tabilet.audit.details/v1",
+                        "explorer": {
+                            "schema": "tabilet.audit.explorer/v1", "phase": "proposal",
+                            "message_refs": [{"message_id": "missing", "purpose": "output"}],
+                        },
+                    },
+                ))
+
+    def test_foreign_keys_reject_unknown_run_and_workspace(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        self.addCleanup(connection.close)
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.executescript(audit.SCHEMA_SQL)
+        with self.assertRaises(audit.AuditValidationError):
+            audit.start_run(connection, "missing", "next")
+        with self.assertRaises(audit.AuditValidationError):
+            audit.append_event(connection, event())
+
+    def test_event_message_and_run_delivery_are_idempotent_but_conflicts_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1", capture_mode="relevant")
+            original = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
+            self.assertEqual(audit.append_event(connection, original), 1)
+            self.assertEqual(audit.append_event(connection, original, sequence=99), 1)
+            with self.assertRaises(audit.AuditConflict):
+                audit.append_event(connection, {**original, "details": {"schema": "tabilet.audit.details/v1", "changed": True}})
+
+            captured_at = "2026-09-21T12:00:00Z"
+            message = dict(
+                run_id=run_id,
+                role="user",
+                text="Run the next task.",
+                capture_source="host",
+                fidelity="exact",
+                message_id="message-1",
+                captured_at=captured_at,
+            )
+            self.assertEqual(audit.capture_message(connection, **message), "message-1")
+            self.assertEqual(audit.capture_message(connection, **message, sequence=1), "message-1")
+            with self.assertRaises(audit.AuditConflict):
+                audit.capture_message(connection, **{**message, "text": "Changed."})
+
+            audit.finish_run(connection, run_id, "completed", completed_at=captured_at)
+            audit.finish_run(connection, run_id, "completed", completed_at=captured_at)
+            with self.assertRaises(audit.AuditConflict):
+                audit.finish_run(connection, run_id, "failed", completed_at=captured_at)
+
+    def test_run_filters_apply_to_one_observed_event(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next")
+            for number, milestone, task in ((1, "M01", "Alpha"), (2, "M02", "Beta")):
+                audit.append_event(connection, event(
+                    event_id=f"event-{number}", run_id=run_id, workspace_id=workspace_id,
+                    subject={"milestone_id": milestone, "task_label": task},
+                ))
+            self.assertEqual(audit.query_runs(connection, milestone_id="M01", task="Beta"), [])
+
+    def test_event_queries_order_mixed_timestamp_precision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            first = audit.start_run(connection, workspace_id, "next", run_id="first", started_at="2026-09-21T12:00:00Z")
+            second = audit.start_run(connection, workspace_id, "next", run_id="second", started_at="2026-09-21T12:00:00.000001Z")
+            audit.append_event(connection, event(event_id="first-event", run_id=first, workspace_id=workspace_id))
+            audit.append_event(connection, event(event_id="second-event", run_id=second, workspace_id=workspace_id))
+            self.assertEqual([row["run_id"] for row in audit.query_events(connection)], [first, second])
+
+    def test_event_exact_fidelity_requires_host_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next")
+            with self.assertRaises(audit.AuditValidationError):
+                audit.append_event(connection, event(
+                    run_id=run_id, workspace_id=workspace_id,
+                    details={"schema": "tabilet.audit.details/v1", "capture_source": "import", "fidelity": "exact"},
+                ))
+
+    def test_event_keeps_observed_task_details_independent_of_later_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            connection = audit.open_database(Path(temporary) / "audit.sqlite3")
+            self.addCleanup(connection.close)
+            workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
+            run_id = audit.start_run(connection, workspace_id, "next", run_id="run-1", capture_mode="relevant")
+            observed = event(run_id=run_id, workspace_id=workspace_id, event_id="event-1")
+            audit.append_event(connection, observed)
+            connection.execute("CREATE TABLE unrelated_rows(name TEXT)")
+            connection.execute("INSERT INTO unrelated_rows VALUES ('renamed later')")
+            connection.commit()
+            stored = connection.execute(
+                "SELECT milestone_id, task_label, status_path, old_state, new_state FROM events WHERE event_id = 'event-1'"
+            ).fetchone()
+            self.assertEqual(
+                stored,
+                ("M01", "Implement recorder", "tabilet/memory-bank/status-M01.md", "in_progress", "completed"),
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

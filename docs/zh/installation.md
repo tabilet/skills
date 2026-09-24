@@ -72,7 +72,7 @@ dsh plugin --profile web add \
 该伴侣已在 Linux 上验证通过，用的是 Node **24.14.1** 和锁定的 DSH **0.1.5-rc.2** 组件；
 另有一个隔离的 rc.1 启动器，跑的是 rc.2 组件。
 
-只要**技能、不要仪表盘**，就走[纯文件方式](#as-plain-files-you-own)。把 v2.0.0 检出里
+只要**技能、不要仪表盘**，就走[纯文件方式](#as-plain-files-you-own)。把 v2.1.0 检出里
 七个完整文件夹全部复制到 `$DSH_HOME/skills`，通常是 `~/.dsh/skills`。文件系统途径的
 全 rc.1 兼容性是单独测过的。
 
@@ -109,10 +109,10 @@ dsh plugin --profile web add \
 
 ## 作为你自有的纯文件 {#as-plain-files-you-own}
 
-把 v2.0.0 源码克隆到一个单独目录（七个技能全在里面）：
+把 v2.1.0 源码克隆到一个单独目录（七个技能全在里面）：
 
 ```bash
-git clone --branch v2.0.0 --depth 1 https://github.com/tabilet/skills.git
+git clone --branch v2.1.0 --depth 1 https://github.com/tabilet/skills.git
 ```
 
 把该检出 `skills/` 目录下的每个 `memory-bank-*` 文件夹，复制到你的智能体对应的目录：
@@ -144,7 +144,7 @@ cp -R /path/to/skills/template/. /path/to/new-project/
 
 ## 可选的 API 运行器 {#the-optional-api-harness}
 
-独立的 API 运行器需要 **Python 3 和 Git**，还要配好所选模型提供方的凭据。它只用 Python
+独立的 API 运行器需要 **Python 3.9 或更高版本和 Git**，还要配好所选模型提供方的凭据。它只用 Python
 标准库。
 
 ```bash
@@ -173,6 +173,80 @@ API 运行器要求每次运行都留下一次提交。碰到脏状态、缺少�
 有多行处于进行中，它都会停下来。退出码 `7` 表示已经跑满请求的运行次数上限；退出码 `3`
 表示剩下的全是阻塞工作；退出码 `0` 表示没有可执行的行了，而不是每个里程碑都过了评审。
 事后请检查记录的验证和关闭证据。同一个活跃账本上，别同时再跑另一个智能体。
+
+### 仅使用 API 的工作流 {#api-only-workflow}
+
+仅使用 API 时，项目 Markdown 是权威记忆，项目外的 SQLite 数据库保存观察到的工作流历史。
+运行器每次都会重新读取 `AGENTS.md`、活跃里程碑和任务、当前事实、已退休的历史以及演进文件。
+SQLite 记录运行器观察到的生命周期、任务转换、验证和提交；它的索引让当前和历史 Markdown
+可以检索，但不会取代这些文件。
+
+启动运行器前先启用记录器：
+
+```bash
+export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
+export TABILET_AUDIT_CAPTURE=metadata
+ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
+  ~/.local/bin/tackle-memory-bank-api-loop /absolute/path/to/project
+```
+
+Markdown 改动后运行 `tabilet-audit index sync /absolute/path/to/project`，用
+`tabilet-audit audit runs --project /absolute/path/to/project` 查看已记录的运行。
+API 运行器自己负责审计运行的开始、事件和结束，不要再手动启动一个重复运行。SQLite 文件要放在项目之外。
+
+`metadata` 是默认模式。设为 `TABILET_AUDIT_CAPTURE=relevant` 后，运行器提供的部分可见消息会被保留。
+它不会捕获每个 API 提示词、工具结果、隐藏推理或会话外的聊天。要保存精确的原始文本，必须由宿主按
+[SQLite 操作指南](https://github.com/tabilet/skills/blob/main/docs/sqlite.md#capture-selected-visible-messages)
+中的方法提交选定消息。
+
+## 可选的 SQLite 审计与检索 {#optional-sqlite}
+
+Markdown 仍是权威来源。可选工具将本地审计存储在项目外，并为里程碑、任务、
+历史、演进和归档建立可重建的索引。
+
+它需要 Linux 或 macOS，以及 **Python 3.9 或更高版本，并带有 `sqlite3` 模块，
+其内置 SQLite 为 3.24.0 或更高版本**。python.org、Homebrew 和常见 Linux 发行版自带的
+Python 都包含该模块；从源码编译、且编译时缺少 SQLite 开发头文件的 Python 则没有。可用
+`python3 -c 'import sqlite3; print(sqlite3.sqlite_version)'` 检查。文本搜索在可用时使用
+SQLite 的 FTS5，否则回退为字面匹配。Windows 未经测试。审计是可选的：如果设置了
+`TABILET_AUDIT_DB` 但不满足这些要求，API 运行器和技能会报告审计缺口，然后照常继续。
+
+在包含此功能的仓库检出目录中运行：
+
+```bash
+mkdir -p ~/.local/bin
+install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py ~/.local/bin/
+install -m 755 harness/tabilet_explorer.py ~/.local/bin/
+install -d ~/.local/share/tabilet/explorer
+install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
+install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
+export PATH="$HOME/.local/bin:$PATH"
+export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+tabilet-audit index sync /absolute/project
+tabilet-audit index search /absolute/project 'authentication' --kind task
+tabilet-audit explorer /absolute/project --port 8000
+```
+
+设置数据库路径会启用 API 运行器及交互式技能指令中的审计步骤。
+仅安装技能不会创建数据库。相关消息捕获需单独启用；原始聊天文本必须由宿主提供。
+即使审计仅记录元数据，索引仍保存当前 Markdown 文本。
+索引结果显示上次刷新时间和来源位置，执行前仍须重新读取磁盘上的 Markdown。
+暂不新增完整文件快照，已有快照证据会保留。工具仅使用 Python 标准库，无需 npm 包。
+
+仅监听回环地址的浏览器探索器提供总览、时间线和待办视图。它读取外部 SQLite
+审计和索引，Markdown 仍是权威来源。时间线会组合 goal 的子运行，并把筛选条件
+和所选详情保存在 URL 中。待办视图仅供参考，显示阻塞、
+依赖和关闭审查证据。刷新操作可迁移受支持的旧数据库，但只写外部数据库。
+后续操作会重新检查实时来源并生成可复制的提示词，但不会运行代理、修改项目
+文件或创建任务。非回环地址的 `--host` 值会被拒绝。如果浏览器在
+Chromebook 上，请使用 `ssh -N -L 8000:127.0.0.1:8000 user@host`，然后打开
+`http://localhost:8000/`。缺失的捕获内容和过期来源会显示为诊断信息，来源
+供人工核对；任务选择仍以实时台账为准。
+
+宿主生命周期、筛选、备用搜索、迁移、备份和恢复详见仓库的
+[操作指南](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)。
+独立的 DSH 仪表盘继续直接读取项目 Markdown。安装 Explorer 会添加本地图形视图，但不会添加宿主聊天捕获钩子。
 
 ## 更新
 
