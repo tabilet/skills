@@ -156,6 +156,27 @@ control back to a human.
 Codes `10` through `15` are target or authorization setup problems. Codes `20`
 through `23` are provider or network problems, not project problems.
 
+### Tabilet Controller Exit Codes
+
+The optional `tabilet` controller adds planning and bounded-horizon execution
+around the shared runner core. Exit `0` means a command completed; for an
+execution command, it means required milestone closure passed and the horizon
+was marked completed. Exit `2` retains the usage/configuration meaning above.
+The standalone runner keeps its post-commit gate meanings and precedence.
+
+| Code | Meaning |
+|---|---|
+| `16` | Controller paused because a confirmed row, attempt, turn, commit, or elapsed-time limit was reached. |
+| `17` | Controller paused for setup, required manual evidence, or a separately handled external action. |
+| `18` | The approval is stale because the branch, lineage, source hashes, IDs, or approved file actions changed. |
+| `19` | A Tabilet launcher could not acquire the shared project lock. |
+| `24` | Controller pre-commit row or required-verification validation failed; no host task commit was made. |
+| `25` | Dirty or uncertain recovery needs manual review; the controller will not reset or replay it automatically. |
+
+Codes `20` and `21` retain their provider HTTP/network meanings in the standalone
+runner and are not reused for controller gates. The project lock coordinates
+Tabilet launchers only; interactive agents do not participate in it.
+
 ## Optional SQLite audit and lookup
 
 The runner remains a single-file installation when auditing is disabled. To opt

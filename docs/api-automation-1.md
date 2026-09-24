@@ -1,6 +1,8 @@
 # API automation 1 — Boundary, contracts, and authorization model
 
-Plan state: `[ ]`
+Plan state: `[+]`
+
+Review iterations: 2 of 5; no P1/P2 findings remain after correcting the exit-code collision.
 
 Depends on: none. Source design: [api-automation-plan.md](api-automation-plan.md)
 and its [review](api-automation-review.md).
@@ -71,17 +73,39 @@ root `tabilet/memory-bank/` or introduce a permanent repository ledger.
 | `tabilet resume PROJECT` | Continue an approved horizon from a verified checkpoint. |
 
 **Receipt `tabilet.api.receipt/v1`.** Private JSON under
-`${XDG_STATE_HOME:-~/.local/state}/tabilet/receipts/`, mode `0600`, containing:
-canonical project path, proposal digest (SHA-256 of the exact rendered
-proposal), exact approved file actions and horizon IDs, expected baseline and
-branch, planning commit when known, commit lineage, immutable Docker image ID,
-limits and cumulative usage, local-only mutation scope, completed task and
-closure commits, active operation, pause reason, and state. States are
-`approved`, `running`, `paused`, `needs_review`, and `completed`. Create
-`approved` durably before applying the plan; update it atomically for each
-operation intent, counter reservation, and verified checkpoint. `needs_review`
-forbids automatic replay. The receipt is
-execution authority; Markdown stays task truth.
+`${XDG_STATE_HOME:-~/.local/state}/tabilet/receipts/`, mode `0600`. The schema
+uses these typed fields:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `schema` | string | Literal `tabilet.api.receipt/v1`. |
+| `receipt_id` | UUID string | Unique receipt identity. |
+| `project_path` | absolute canonical path string | Bound project root. |
+| `proposal_sha256`, `diff_sha256` | 64-character lowercase hex strings | Exact rendered proposal and approved patch digests. |
+| `approved_diff` | UTF-8 string | Exact patch needed to apply or reconcile the approved planning change. |
+| `horizon_ids` | array of strings | Permanent milestone IDs in this approval. |
+| `file_actions` | array of objects | Each item has a project-relative `path` string and an `action` enum of `create`, `replace`, or `delete`. |
+| `branch` | string or null | Expected branch name; null for a detached or unborn `HEAD`. |
+| `baseline_commit`, `planning_commit` | Git object ID string or null | Approved pre-plan HEAD and resulting planning commit. |
+| `image_id` | immutable Docker image ID string | Executor image pinned by the proposal. |
+| `limits` | object of positive integers | `max_rows`, `max_provider_attempts`, `max_turns_per_row`, `max_commits`, `max_runtime_seconds`; defaults are 5, 100, 40, 15, and 7200. |
+| `approved_at` | RFC 3339 UTC timestamp string | Start of the two-hour elapsed-time limit. |
+| `usage` | object | Nonnegative integer `rows_started`, `provider_attempts_reserved`, and `commits_recorded` counters, plus `turns_by_row`, a map from row-ID strings to nonnegative integer counters. |
+| `commit_ids` | array of Git object ID strings | Planning, task, and closure commits proven and recorded. |
+| `active_operation` | object or null | `kind` and stable `operation_id` strings; `expected_head` Git object ID or null; `row_id` and `closure_phase` strings or null; and `paths`, an array of project-relative strings. |
+| `mutation_scope` | string | Literal `local_only`; external actions are excluded. |
+| `pause_reason` | string or null | Human-readable reason for `paused` or `needs_review`. |
+| `state` | string enum | `approved`, `running`, `paused`, `needs_review`, or `completed`. |
+
+First create an `approved` receipt durably before applying the plan. Update it
+atomically when recording operation intent, reserving a provider attempt, or
+advancing a verified checkpoint. `approved` means the plan is authorized but
+not yet committed; `running` means the planning commit is recorded; `paused`
+means a clean checkpoint awaits setup, evidence, limit extension, or separate
+handling; `needs_review` means provenance or filesystem state is uncertain and
+forbids automatic replay; `completed` is terminal and follows verified closure.
+There is no `awaiting_acceptance` state or final accept/reject command. The
+receipt is execution authority; Markdown stays task truth.
 
 **Limits.** Suggest 5 task rows, 100 provider attempts (including failed calls
 and retries), 40 model turns per row, 15 total commits (planning, tasks, fixes,
@@ -101,8 +125,8 @@ External actions are reported for separate handling and never run under the
 general `confirm`.
 
 **Exit codes.** The standalone runner retains its existing code meanings and
-gate precedence. The shared project lock adds runner code 19 for lock collision.
-Controller-only codes are:
+gate precedence. The shared project lock adds code 19 for collision to either
+launcher. Controller codes are:
 
 | Code | Meaning |
 |---|---|
@@ -112,8 +136,8 @@ Controller-only codes are:
 | `17` | Paused for setup, required manual evidence, or a separately handled external action. |
 | `18` | Approval is stale: branch, lineage, hashes, or IDs drifted since `confirm`. |
 | `19` | Another Tabilet launcher holds the project lock. |
-| `20` | Controller pre-commit row or verification gate failed; no host task commit was made. |
-| `21` | Dirty or uncertain recovery requires manual review; no automatic replay. |
+| `24` | Controller pre-commit row or verification gate failed; no host task commit was made. |
+| `25` | Dirty or uncertain recovery requires manual review; no automatic replay. |
 
 ## Deliverables
 
@@ -143,9 +167,9 @@ git diff --check
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| API1-T01 | `[ ]` | Amend AGENTS.md boundary and non-goals for the optional `tabilet` controller. | The amendment names what is allowed and what stays excluded; the "no second harness" non-goal is kept. |
-| API1-T02 | `[ ]` | Write the combined-authorization hard rule for the controller path. | Propose and Reconcile rules are unchanged; the new rule states planning plus bounded local execution from one visible proposal. |
-| API1-T03 | `[ ]` | Specify receipt `tabilet.api.receipt/v1`, cumulative limits, and recovery states. | Every field later milestones read or write is defined, with types and privacy rules. |
-| API1-T04 | `[ ]` | Specify the CLI surface and controller exit codes 16–21. | Standalone gate meanings and precedence remain; the new lock outcome and controller codes are documented. |
-| API1-T05 | `[ ]` | Document these drafts as temporary notes under the existing no-memory-bank rule. | No root repository memory bank or permanent ledger is introduced. |
-| API1-T06 | `[ ]` | Add `check.py` enforcement for each new rule. | Each check fails on a deliberate violation and passes on the amended tree. |
+| API1-T01 | `[+]` | Amend AGENTS.md boundary and non-goals for the optional `tabilet` controller. | The amendment names what is allowed and what stays excluded; the "no second harness" non-goal is kept. |
+| API1-T02 | `[+]` | Write the combined-authorization hard rule for the controller path. | Propose and Reconcile rules are unchanged; the new rule states planning plus bounded local execution from one visible proposal. |
+| API1-T03 | `[+]` | Specify receipt `tabilet.api.receipt/v1`, cumulative limits, and recovery states. | Every field later milestones read or write is defined, with types and privacy rules. |
+| API1-T04 | `[+]` | Specify the CLI surface and controller exit codes 16–19 and 24–25. | Controller codes do not collide with runner codes 0–15, 20–23, 30–31, or 130; shared code 19 is reserved for the launcher lock. |
+| API1-T05 | `[+]` | Document these drafts as temporary notes under the existing no-memory-bank rule. | No root repository memory bank or permanent ledger is introduced. |
+| API1-T06 | `[+]` | Add `check.py` enforcement for each new rule. | Each check fails on a deliberate violation and passes on the amended tree. |

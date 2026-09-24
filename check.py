@@ -1255,17 +1255,24 @@ def translated_references():
 # --------------------------------------------------------------------------
 # 6. The documented exit codes must match the ones the harness can return.
 # --------------------------------------------------------------------------
+def harness_exit_codes() -> set[int]:
+    """Read runner exit codes from the failure and process-exit paths."""
+
+    src = HARNESS.read_text()
+    codes = {int(m) for m in re.findall(r"fail\([^;]*?,\s*(\d+),?\s*\)", src, re.S)}
+    codes |= {int(m) for m in re.findall(r"SystemExit\((\d+)\)", src)}
+    codes.add(0)  # the clean "nothing to do" return
+    return codes
+
+
 @check("documented exit codes match the harness source")
 def exit_codes():
-    src = HARNESS.read_text()
-    in_source = {int(m) for m in re.findall(r"fail\([^;]*?,\s*(\d+),?\s*\)", src, re.S)}
-    in_source |= {int(m) for m in re.findall(r"SystemExit\((\d+)\)", src)}
-    in_source.add(0)  # the clean "nothing to do" return
+    in_source = harness_exit_codes()
 
     doc = (ROOT / "docs" / "EXECUTION.md").read_text()
     if "### Exit Codes" not in doc:
         return ["docs/EXECUTION.md has no Exit Codes section"]
-    table = doc.split("### Exit Codes", 1)[1].split("\n## ", 1)[0]
+    table = re.split(r"\n#{2,6} ", doc.split("### Exit Codes", 1)[1], maxsplit=1)[0]
     documented = {int(m) for m in re.findall(r"^\| `(\d+)`", table, re.M)}
 
     problems = []
@@ -1273,6 +1280,152 @@ def exit_codes():
         problems.append(f"exit code {code} exists in the harness but is undocumented")
     for code in sorted(documented - in_source):
         problems.append(f"exit code {code} is documented but the harness cannot return it")
+    return problems
+
+
+def api_controller_contract_problems(
+    agents: str, execution: str, repository_memory_bank_exists: bool, runner_codes: set[int]
+) -> list[str]:
+    """Check controller authority, the temporary-plan boundary, and exit codes."""
+
+    problems = []
+    normalized = " ".join(agents.split())
+    required = (
+        "optional account-level `tabilet` controller",
+        "Python standard library, Git, and Docker",
+        "adds no background service or project-owned state",
+        "does not add a second execution engine",
+        "temporary flat planning drafts",
+        "do not create an exception or authorize a repository memory bank",
+        "one visible proposal and `confirm` may authorize its exact planning diff and bounded local execution horizon",
+        "direct `memory-bank-propose` or `memory-bank-reconcile` skills",
+        "without implementing, committing, or launching execution",
+        "Controller authority comes only from its own proposal, receipt, and limits; reading a skill bundle never grants execution authority.",
+        "`approved`, `running`, `paused`, `needs_review`, and `completed`",
+        "Use the `tabilet.api.receipt/v1` schema",
+        "Create `approved` durably before applying the planning diff",
+        "update it atomically for operation intent, usage reservations, and verified checkpoints",
+        "without an `awaiting_acceptance` state or final accept/reject command",
+        "5 rows, 100 provider attempts, 40 turns per row, 15 commits, and 2 hours",
+        "promise no dollar ceiling",
+        "4 CPUs, 8 GiB, 512 processes, and 300 seconds per command",
+        "External actions are excluded from the general confirmation",
+        "The standalone runner retains its existing post-commit gate meanings and precedence",
+        "Codes 24 and 25 mean failed pre-commit validation and dirty or uncertain recovery",
+    )
+    for token in required:
+        if token not in normalized:
+            problems.append(f"AGENTS.md: missing controller contract {token!r}")
+    if repository_memory_bank_exists:
+        problems.append("repository must not gain a root tabilet/memory-bank")
+
+    heading = "### Tabilet Controller Exit Codes"
+    if heading not in execution:
+        return problems + ["docs/EXECUTION.md has no Tabilet Controller Exit Codes section"]
+    section = re.split(r"\n#{1,6} ", execution.split(heading, 1)[1], maxsplit=1)[0]
+    table = {
+        int(code): meaning.strip()
+        for code, meaning in re.findall(r"^\| `(\d+)` \| (.*?) \|$", section, re.M)
+    }
+    expected = {16, 17, 18, 19, 24, 25}
+    if set(table) != expected:
+        problems.append(
+            "controller exit table must contain exactly codes "
+            + ", ".join(str(code) for code in sorted(expected))
+        )
+    for code, tokens in {
+        16: ("limit", "paused"),
+        17: ("paused", "manual evidence"),
+        18: ("approval is stale",),
+        19: ("shared project lock",),
+        24: ("pre-commit", "no host task commit"),
+        25: ("dirty or uncertain recovery", "not reset or replay"),
+    }.items():
+        meaning = table.get(code, "").casefold()
+        if any(token.casefold() not in meaning for token in tokens):
+            problems.append(f"controller exit {code} is missing its contract meaning")
+    reused = (set(table) & runner_codes) - {19}
+    if reused:
+        problems.append(f"controller exit codes collide with runner codes: {sorted(reused)}")
+    execution_normalized = " ".join(execution.split()).casefold()
+    if "codes `20` and `21` retain their provider http/network meanings" not in execution_normalized:
+        problems.append("docs/EXECUTION.md must reserve runner codes 20 and 21 for provider failures")
+    return problems
+
+
+def api_receipt_schema_problems(specification: str) -> list[str]:
+    """Require the documented v1 receipt fields and typed table to stay complete."""
+
+    start = specification.find("| Field | Type | Meaning |")
+    if start < 0:
+        return ["API 1 does not define a typed receipt field table"]
+    end = specification.find("\n\nFirst create", start)
+    if end < 0:
+        return ["API 1 receipt field table has no state-transition contract"]
+    table = specification[start:end]
+    expected_fields = {
+        "schema", "receipt_id", "project_path", "proposal_sha256", "diff_sha256",
+        "approved_diff", "horizon_ids", "file_actions", "branch", "baseline_commit",
+        "planning_commit", "image_id", "limits", "approved_at", "usage",
+        "commit_ids", "active_operation", "mutation_scope", "pause_reason", "state",
+    }
+    problems = []
+    for field in sorted(expected_fields):
+        row = next(
+            (line for line in table.splitlines() if line.startswith("|") and f"`{field}`" in line),
+            None,
+        )
+        if row is None:
+            problems.append(f"API 1 receipt schema is missing field {field!r}")
+            continue
+        cells = [cell.strip() for cell in row.strip("|").split("|")]
+        if len(cells) < 3 or not cells[1]:
+            problems.append(f"API 1 receipt field {field!r} has no type")
+    for forbidden in ("awaiting_acceptance", "tabilet accept", "tabilet reject"):
+        if forbidden in table:
+            problems.append(f"API 1 receipt schema contains obsolete contract {forbidden!r}")
+    return problems
+
+
+@check("optional controller boundary, receipt, and exit contracts stay aligned")
+def api_controller_contract():
+    agents = (ROOT / "AGENTS.md").read_text()
+    execution = (ROOT / "docs" / "EXECUTION.md").read_text()
+    memory_bank_exists = (ROOT / "tabilet" / "memory-bank").exists()
+    runner_codes = harness_exit_codes()
+    problems = api_controller_contract_problems(
+        agents, execution, memory_bank_exists, runner_codes
+    )
+    specification = (ROOT / "docs" / "api-automation-1.md").read_text()
+    problems.extend(api_receipt_schema_problems(specification))
+    if problems:
+        return problems
+
+    # Keep this validator sensitive to a missing authorization rule and a
+    # controller code accidentally changed to a runner provider-failure code.
+    mutated_agents = agents.replace(
+        "one visible proposal and `confirm`", "a proposal and `confirm`", 1
+    )
+    if not api_controller_contract_problems(
+        mutated_agents, execution, memory_bank_exists, runner_codes
+    ):
+        problems.append("controller contract check missed a removed authorization rule")
+    mutated_execution = execution.replace("| `24` |", "| `20` |", 1)
+    if not api_controller_contract_problems(
+        agents, mutated_execution, memory_bank_exists, runner_codes
+    ):
+        problems.append("controller contract check missed a colliding exit code")
+    if not api_controller_contract_problems(
+        agents, execution, True, runner_codes
+    ):
+        problems.append("controller contract check missed a repository memory bank")
+    mutated_specification = specification.replace(
+        "| `approved_diff` | UTF-8 string | Exact patch needed to apply or reconcile the approved planning change. |\n",
+        "",
+        1,
+    )
+    if not api_receipt_schema_problems(mutated_specification):
+        problems.append("receipt schema check missed a removed typed field")
     return problems
 
 

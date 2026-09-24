@@ -47,7 +47,7 @@ post-commit gate independently detects a violation.
 required Docker executor from API 3 and separate host-commit instructions.
 Before each host task commit, the controller runs required verification and
 validates the selected row, history, and approved file scope on the uncommitted
-worktree. A failed pre-commit gate exits 20, leaves evidence for review, and
+worktree. A failed pre-commit gate exits 24, leaves evidence for review, and
 does not commit. On success, the host stages only validated paths, commits one
 row, and runs the shared post-commit gates in their original order. File paths
 alone cannot prove the change belongs semantically to the selected row.

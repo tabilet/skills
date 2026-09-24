@@ -60,7 +60,7 @@ and directory fsync; first creation is exclusive and mode `0600`.
 **Crash boundaries.** A crash before the planning commit leaves an `approved`
 receipt. On resume, a clean baseline may safely apply the identical approved
 diff; a dirty worktree or uncertain partial apply enters `needs_review` (exit
-21), never automatic reset or replay. A crash after the planning commit but
+25), never automatic reset or replay. A crash after the planning commit but
 before the receipt update is reconciled from the exact expected diff and commit
 lineage; record it once if proven, otherwise enter `needs_review`. No second
 planning commit is made. The controller never treats receipt creation alone as

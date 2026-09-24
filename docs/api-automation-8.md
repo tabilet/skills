@@ -58,7 +58,7 @@ suite, and the Chromium explorer suite all pass unchanged.
 
 - [installation.md](installation.md) and its `docs/zh/` twin: installing
   `tabilet`, the skill bundles, Docker, and image guidance.
-- [EXECUTION.md](EXECUTION.md): controller exit codes 16–21 beside the runner's,
+- [EXECUTION.md](EXECUTION.md): controller exit codes 16–19 and 24–25 beside the runner's,
   including dirty recovery and the standalone lock collision.
 - README: where the controller fits beside the skills and the runner.
 - A published guide for the controller with its `docs/zh/` translation, added to

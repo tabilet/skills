@@ -52,7 +52,7 @@ instruction that forbids Git commits in the container and asks for a proposed
 host commit message. The required Docker executor leaves `.git` read-only. The
 controller validates the selected row transition, protected history, approved
 path scope, and required verification on the uncommitted worktree *before* the
-host commits. Failed pre-commit checks exit 20 without a commit. The host stages
+host commits. Failed pre-commit checks exit 24 without a commit. The host stages
 only validated paths and commits; the shared post-commit gates then run in their
 existing order. A path allowlist limits where changes may occur, but cannot
 prove their semantic scope; row acceptance and verification remain necessary.

@@ -36,7 +36,7 @@ reads live Markdown first.
 4. continues the horizon from API 6 only from a proved clean checkpoint.
 
 Stale approval or changed immutable inputs exit 18. Dirty or uncertain recovery
-sets `needs_review` and exits 21, explaining the exact evidence required.
+sets `needs_review` and exits 25, explaining the exact evidence required.
 
 **Crash reconciliation.** Persist the intended operation, its expected baseline,
 selected row or closure phase, approved paths, and usage before execution. A
@@ -46,7 +46,7 @@ commits since the last checkpoint with that intent. At a clean baseline, resume
 the unstarted operation; at a clean commit with matching lineage, paths, row
 transition, and verification evidence, record it exactly once. A dirty
 worktree, partial row, unexpected commit, lost verification evidence, or
-ambiguous outcome enters `needs_review` and exits 21. Never reset, discard,
+ambiguous outcome enters `needs_review` and exits 25. Never reset, discard,
 replay, or auto-commit dirty work to make recovery appear clean.
 
 **Operator control.** While running, the controller prints the current row,
@@ -93,7 +93,7 @@ python3 check.py
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
 | API7-T01 | `[ ]` | Implement read-only `tabilet status`. | No write to the project, receipt, or database in any test. |
-| API7-T02 | `[ ]` | Implement `tabilet resume` with lock, lineage, image, and worktree checks. | Lock exits 19, stale inputs exit 18, and dirty or uncertain recovery exits 21 with the reason. |
-| API7-T03 | `[ ]` | Reconcile crashes around planning, task, and closure commits. | Clean proven checkpoints resume; dirty or uncertain work exits 21 without replay. |
+| API7-T02 | `[ ]` | Implement `tabilet resume` with lock, lineage, image, and worktree checks. | Lock exits 19, stale inputs exit 18, and dirty or uncertain recovery exits 25 with the reason. |
+| API7-T03 | `[ ]` | Reconcile crashes around planning, task, and closure commits. | Clean proven checkpoints resume; dirty or uncertain work exits 25 without replay. |
 | API7-T04 | `[ ]` | Add progress output, Ctrl-C handling, and confirmed limit extension. | Interrupt cleans up the container; a higher cap needs a new confirmation. |
 | API7-T05 | `[ ]` | Record controller runs and automatic completion through the optional audit toolkit. | One recorder owner; completion follows verified closure, and audit gaps never change outcomes. |

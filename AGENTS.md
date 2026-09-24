@@ -66,14 +66,19 @@ repository and is not payload.
 
 - The sample memory-bank, milestone, evolution, and AGENTS files in `template/`.
 - The agent execution harness in `harness/`.
+- An optional account-level `tabilet` controller in `harness/` for bounded local
+  planning and execution; copied projects and the direct skills do not depend on it.
 - The status ID pattern and status marker vocabulary.
 
 Out of scope:
 
 - Project-specific product, architecture, or milestone content -> the project
   that copied the template.
-- Provider SDKs, agent frameworks, or CLI wrappers -> not this repository. The
-  harness talks to HTTP APIs with the standard library only.
+- Provider SDKs and agent frameworks -> not this repository. The optional
+  `tabilet` controller is the specific local CLI exception: it uses the Python
+  standard library, Git, and Docker, and adds no background service or
+  project-owned state. The harness talks to HTTP APIs with the standard library
+  only.
 
 Non-goals — things this repository has deliberately decided not to grow. The
 central claim is that a small operating manual beats a large one, and that claim
@@ -82,7 +87,9 @@ is only worth anything if additions are argued against something:
 - **No second harness implementation.** A Go or Node twin doubles the surface
   where two implementations can silently disagree, and disagreement between two
   harnesses is worse than a Python dependency. The execution runner stays one installable file when auditing is disabled;
-  optional audit/index modules do not execute tasks.
+  optional audit/index modules do not execute tasks. The `tabilet` controller
+  reuses the runner's row parser, provider loop, and post-run gates; it does not
+  add a second execution engine.
 - **No vendor-specific agent files in `template/`.** `AGENTS.md` is the open
   cross-vendor standard; tools that read another filename get a documented
   one-line bridge in the README.
@@ -92,7 +99,9 @@ is only worth anything if additions are argued against something:
   gives birth to other projects' harnesses; it is not an instance of its own
   output. A root `tabilet/memory-bank/` beside `template/tabilet/memory-bank/` would force every
   reader and agent to disambiguate two of them for no gain. The workflow is
-  proven in the projects that copied it, not here.
+  proven in the projects that copied it, not here. The temporary flat planning
+  drafts `docs/api-automation-1.md` through `docs/api-automation-8.md` do not
+  create an exception or authorize a repository memory bank.
 
 ## Essential Commands
 
@@ -298,6 +307,32 @@ spelling so an inbound link survives translation.
   The seven optional audit references stay byte-identical, and disabled auditing
   must preserve the documented single-file runner installation. The CLI package
   and source-lifecycle tests enforce these contracts.
+
+- The optional account-level `tabilet` controller is a separate combined path:
+  one visible proposal and `confirm` may authorize its exact planning diff and
+  bounded local execution horizon. This does not change the direct
+  `memory-bank-propose` or `memory-bank-reconcile` skills: they still write only
+  after their complete proposal is approved and then hand off without
+  implementing, committing, or launching execution. Controller authority comes
+  only from its own proposal, receipt, and limits; reading a skill bundle never
+  grants execution authority.
+- The controller receipt is private state outside the project; Markdown remains
+  task truth. Use the `tabilet.api.receipt/v1` schema. Create `approved`
+  durably before applying the planning diff, then update it atomically for
+  operation intent, usage reservations, and verified checkpoints. Its states
+  are `approved`, `running`, `paused`, `needs_review`, and `completed`;
+  `needs_review` cannot replay automatically, and `completed` follows verified
+  closure without an `awaiting_acceptance` state or final accept/reject command.
+  The suggested caps are 5 rows, 100 provider attempts, 40 turns per row, 15
+  commits, and 2 hours; they may be raised only in a newly confirmed proposal
+  and promise no dollar ceiling. Docker limits are 4 CPUs, 8 GiB, 512 processes,
+  and 300 seconds per command. External actions are excluded from the general
+  confirmation.
+- Controller exit codes are 16–19 and 24–25. Code 19 is the shared Tabilet
+  launcher lock collision. Codes 24 and 25 mean failed pre-commit validation and
+  dirty or uncertain recovery, respectively; they do not reuse the runner's
+  provider-failure codes 20 or 21. The standalone runner retains its existing
+  post-commit gate meanings and precedence.
 
 - Keep the harness dependency-free: Python standard library only.
 - v2 project-owned files live under `tabilet/`; only `AGENTS.md` stays at the
