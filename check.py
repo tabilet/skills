@@ -1318,6 +1318,8 @@ def api_controller_contract_problems(
             problems.append(f"AGENTS.md: missing controller contract {token!r}")
     if repository_memory_bank_exists:
         problems.append("repository must not gain a root tabilet/memory-bank")
+    if 19 not in runner_codes:
+        problems.append("standalone runner must expose shared project-lock exit code 19")
 
     heading = "### Tabilet Controller Exit Codes"
     if heading not in execution:
@@ -1419,6 +1421,10 @@ def api_controller_contract():
         agents, execution, True, runner_codes
     ):
         problems.append("controller contract check missed a repository memory bank")
+    if not api_controller_contract_problems(
+        agents, execution, memory_bank_exists, runner_codes - {19}
+    ):
+        problems.append("controller contract check missed a missing runner lock outcome")
     mutated_specification = specification.replace(
         "| `approved_diff` | UTF-8 string | Exact patch needed to apply or reconcile the approved planning change. |\n",
         "",

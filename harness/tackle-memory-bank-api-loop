@@ -23,7 +23,9 @@ work using the lane meanings and priority in `tabilet/memory-bank/milestone.md`.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime
+import fcntl
 import hashlib
 import json
 import math
@@ -31,6 +33,7 @@ import os
 import pathlib
 import re
 import signal
+import stat
 import subprocess
 import sys
 import textwrap
@@ -216,6 +219,46 @@ DANGEROUS_RE = re.compile(
 def fail(message: str, code: int) -> None:
     print(message, file=sys.stderr)
     raise SystemExit(code)
+
+
+class ProjectLockUnavailable(Exception):
+    """Another Tabilet launcher already owns this project's execution lock."""
+
+
+@contextlib.contextmanager
+def project_lock(repo: pathlib.Path):
+    """Hold the shared per-project lock used by Tabilet launchers."""
+
+    canonical = pathlib.Path(repo).expanduser().resolve(strict=True)
+    state_home = pathlib.Path(os.environ.get("XDG_STATE_HOME", "~/.local/state")).expanduser()
+    if not state_home.is_absolute():
+        raise ValueError("XDG_STATE_HOME must be an absolute path")
+    lock_dir = state_home / "tabilet" / "locks"
+    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if lock_dir.is_symlink() or not lock_dir.is_dir():
+        raise OSError(f"unsafe project lock directory: {lock_dir}")
+    os.chmod(lock_dir, 0o700)
+    key = hashlib.sha256(os.fsencode(str(canonical))).hexdigest()
+    lock_path = lock_dir / f"{key}.lock"
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(lock_path, flags, 0o600)
+    try:
+        lock_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(lock_stat.st_mode):
+            raise OSError(f"project lock is not a regular file: {lock_path}")
+        os.fchmod(descriptor, 0o600)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise ProjectLockUnavailable(str(lock_path)) from exc
+        try:
+            yield lock_path
+        finally:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+    finally:
+        os.close(descriptor)
 
 
 def run_local(cmd: list[str], cwd: pathlib.Path, timeout: int = 30) -> subprocess.CompletedProcess[str]:
@@ -836,6 +879,32 @@ def git_is_ancestor(repo: pathlib.Path, before: str, after: str) -> bool:
     return run_local(["git", "merge-base", "--is-ancestor", before, after], repo).returncode == 0
 
 
+def post_run_gates(
+    repo: pathlib.Path,
+    before: str,
+    before_branch: str,
+    before_rows: dict,
+    after_rows: dict,
+    required_key: tuple[str, str, int] | None,
+) -> dict:
+    """Return the first failed standalone post-commit gate, in legacy order."""
+
+    if not git_clean(repo):
+        return {"gate": "git_clean", "exit_code": 5, "row_problems": []}
+    after = git_head(repo)
+    if before == after:
+        return {"gate": "new_commit", "exit_code": 6, "row_problems": [], "after": after}
+    if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
+        return {"gate": "commit_ancestry", "exit_code": 9, "row_problems": [], "after": after}
+    row_problems = validate_row_transition(before_rows, after_rows, required_key)
+    if row_problems:
+        return {
+            "gate": "row_transition", "exit_code": 8,
+            "row_problems": row_problems, "after": after,
+        }
+    return {"gate": None, "exit_code": 0, "row_problems": [], "after": after}
+
+
 def extract_json(text: str) -> dict:
     stripped = text.strip()
     fenced = re.fullmatch(r"```(?:json)?\s*\n?(.*?)\n?```", stripped, re.DOTALL)
@@ -1086,12 +1155,15 @@ def one_agent_run(
     run: int,
     summary: list[dict],
     in_progress: dict | None,
+    executor=shell_tool,
+    system_prompt: str = SYSTEM_PROMPT,
+    user_message: str | None = None,
 ) -> dict[str, object]:
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
         {
             "role": "user",
-            "content": initial_user_message(
+            "content": user_message if user_message is not None else initial_user_message(
                 repo, run, args.max_runs, summary, in_progress
             ),
         },
@@ -1164,7 +1236,7 @@ def one_agent_run(
         cmd = command["cmd"]
         why = command.get("why", "")
         print(f"  shell: {cmd}" + (f"  # {why}" if why else ""))
-        result = shell_tool(
+        result = executor(
             repo,
             cmd,
             args.tool_timeout,
@@ -1564,6 +1636,19 @@ def main() -> None:
     if git_root != repo:
         fail(f"Target must be the git worktree root: got {repo}, expected {git_root}", 12)
 
+    try:
+        with project_lock(repo):
+            run_locked_loop(args, repo)
+    except ProjectLockUnavailable as exc:
+        message = (
+            "Another Tabilet launcher already holds the project lock; wait for it to "
+            f"finish before starting a second run ({exc})."
+        )
+        fail(message, 19)
+
+
+def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
+
     endpoint = "/messages" if args.provider == "anthropic" else "/chat/completions"
     print(f"Repo: {repo}")
     print(f"Provider: {args.provider}")
@@ -1719,7 +1804,15 @@ def main() -> None:
                 )
                 transition_recorded = True
 
-            if not git_clean(repo):
+            gates = post_run_gates(
+                repo,
+                before,
+                before_branch,
+                before_rows,
+                after_rows,
+                in_progress["key"] if in_progress else None,
+            )
+            if gates["exit_code"] == 5:
                 record_transition()
                 audit.emit("verification_observed", details={"checks": ["git_clean"], "success": False})
                 audit.emit("run_failed", details={"reason": "uncommitted changes after model run"})
@@ -1727,24 +1820,21 @@ def main() -> None:
                 print("LLM left uncommitted changes. Stopping.", file=sys.stderr)
                 print(git_status_short(repo), file=sys.stderr)
                 raise SystemExit(5)
-
-            after = git_head(repo)
-            if before == after:
+            after = gates.get("after")
+            if gates["exit_code"] == 6:
                 audit.emit("verification_observed", details={"checks": ["new_commit"], "success": False})
                 audit.emit("run_failed", details={"reason": "model made no commit"})
                 audit.finish("failed")
                 print("LLM made no commit. Stopping to avoid a spin loop.", file=sys.stderr)
                 raise SystemExit(6)
-            if git_branch(repo) != before_branch or not git_is_ancestor(repo, before, after):
+            if gates["exit_code"] == 9:
                 record_transition()
                 audit.emit("verification_observed", details={"checks": ["commit_ancestry"], "success": False})
                 audit.emit("run_failed", details={"reason": "history rewrite or branch change"})
                 audit.finish("failed")
                 print("LLM rewrote history or moved to another branch. Stopping.", file=sys.stderr)
                 raise SystemExit(9)
-            row_problems = validate_row_transition(
-                before_rows, after_rows, in_progress["key"] if in_progress else None,
-            )
+            row_problems = gates["row_problems"]
             if row_problems:
                 audit.emit(
                     "verification_observed",

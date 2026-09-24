@@ -1,6 +1,6 @@
 # API automation 2 — Shared execution core and project lock
 
-Plan state: `[ ]`
+Plan state: `[+]`
 
 Depends on: [API automation 1 — Boundary, contracts, and authorization model](api-automation-1.md).
 
@@ -48,14 +48,15 @@ changes executor.
 
 **Host-commit seam.** The standalone runner retains its model-commit instruction
 and the post-commit gates above, unchanged. Controller runs use a separate
-instruction that forbids Git commits in the container and asks for a proposed
-host commit message. The required Docker executor leaves `.git` read-only. The
-controller validates the selected row transition, protected history, approved
-path scope, and required verification on the uncommitted worktree *before* the
-host commits. Failed pre-commit checks exit 24 without a commit. The host stages
-only validated paths and commits; the shared post-commit gates then run in their
-existing order. A path allowlist limits where changes may occur, but cannot
-prove their semantic scope; row acceptance and verification remain necessary.
+instruction that forbids Git commits in the executor and asks for a proposed
+host commit message. API 3 supplies the required Docker executor and mounts
+`.git` read-only. Before the host commits, the controller validates the selected
+row transition and protected history, checks changed paths against approved
+paths, and requires every declared verification result to pass. Failed
+pre-commit checks exit 24 without a commit. The host stages only validated
+paths and commits; the shared post-commit gates then run in their existing
+order. A path allowlist limits where changes may occur, but cannot prove their
+semantic scope; row acceptance and verification remain necessary.
 
 **Project lock.** The runner has no lock today; one is required for "one ledger
 writer across all Tabilet launchers". Use an exclusive `fcntl.flock` on a lock
@@ -68,8 +69,10 @@ Codex sessions cannot take part, and the documentation says so.
 
 ## Deliverables
 
-- `harness/tackle-memory-bank-api-loop`: gate extraction, executor and commit-mode
+- `harness/tackle-memory-bank-api-loop`: gate extraction, executor and host-commit
   seams, project lock.
+- `harness/tabilet_controller.py`: thin source-loader adapter, separate controller
+  prompt, pre-commit validation and host-commit callback seam.
 - `tests/test_harness.py`: gate-order, executor, host-commit, and lock tests.
 - [docs/EXECUTION.md](EXECUTION.md): the lock and how a held lock is reported.
 
@@ -79,9 +82,10 @@ Codex sessions cannot take part, and the documentation says so.
   harness and SQLite test unchanged, including gate precedence for combined
   failures; a lock collision adds only code 19.
 - A second launcher on the same project stops before any provider call.
-- A fake-provider controller row uses Docker and host-commit instructions;
-  verification failure makes no host commit, while a successful host commit
-  passes the shared post-commit gates.
+- A fake-provider controller row uses an injected executor (the Docker executor
+  arrives in API 3) and host-commit instructions; failed verification makes no
+  host commit, while a successful host commit passes the shared post-commit
+  gates.
 
 ## Verification
 
@@ -91,12 +95,14 @@ python3 -B -m unittest discover -s tests -p 'test_sqlite_*.py'
 python3 check.py
 ```
 
+Review iterations: 2 of 5; no P1/P2 findings remain.
+
 ## Tasks
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| API2-T01 | `[ ]` | Extract the ordered post-run gates from `main()` into one function. | Exit codes and precedence match today for every combined-failure case already tested. |
-| API2-T02 | `[ ]` | Add an executor parameter to `one_agent_run`, defaulting to the host `shell_tool`. | Standalone behavior and the dangerous-command guardrail are unchanged. |
-| API2-T03 | `[ ]` | Add separate controller pre-commit validation and host-commit instructions. | Verification and row gates precede a host commit; standalone prompt and post-commit gates retain their meanings. |
-| API2-T04 | `[ ]` | Add the flock-based project lock and take it in the runner. | Concurrent launches stop before any provider call; the lock is released on every exit path. |
-| API2-T05 | `[ ]` | Load the core from the controller through the existing `SourceFileLoader` pattern. | A fake-provider Docker row runs end to end without invoking the runner's `main()`. |
+| API2-T01 | `[+]` | Extract the ordered post-run gates from `main()` into one function. | Exit codes and precedence match today for every combined-failure case already tested. |
+| API2-T02 | `[+]` | Add an executor parameter to `one_agent_run`, defaulting to the host `shell_tool`. | Standalone behavior and the dangerous-command guardrail are unchanged. |
+| API2-T03 | `[+]` | Add separate controller pre-commit validation and host-commit instructions. | Verification, row, and path gates precede a host-commit callback; standalone prompt and post-commit gates retain their meanings. |
+| API2-T04 | `[+]` | Add the flock-based project lock and take it in both launchers. | Concurrent runner or controller launches stop before any provider call; the lock is released on every exit path. |
+| API2-T05 | `[+]` | Load the core from the controller through the existing `SourceFileLoader` pattern. | A fake-provider row uses an injected executor end to end without invoking the runner's `main()`. |

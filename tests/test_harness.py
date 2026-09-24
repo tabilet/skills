@@ -19,12 +19,17 @@ from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 HARNESS = ROOT / "harness" / "tackle-memory-bank-api-loop"
+CONTROLLER = ROOT / "harness" / "tabilet_controller.py"
 BACKTICK = chr(96)
 sys.dont_write_bytecode = True
 loader = importlib.machinery.SourceFileLoader("harness_under_test", str(HARNESS))
 spec = importlib.util.spec_from_loader("harness_under_test", loader)
 harness = importlib.util.module_from_spec(spec)
 loader.exec_module(harness)
+controller_loader = importlib.machinery.SourceFileLoader("controller_under_test", str(CONTROLLER))
+controller_spec = importlib.util.spec_from_loader("controller_under_test", controller_loader)
+controller = importlib.util.module_from_spec(controller_spec)
+controller_loader.exec_module(controller)
 
 
 def run(*cmd: str, cwd: pathlib.Path, env: dict[str, str] | None = None):
@@ -538,6 +543,214 @@ class ProviderTests(unittest.TestCase):
         with self.assertRaises(SystemExit) as stopped:
             harness.one_agent_run(args, ROOT, 1, [], None)
         self.assertEqual(stopped.exception.code, 31)
+
+
+class PostRunGateTests(unittest.TestCase):
+    def test_post_run_gate_precedence_is_preserved(self) -> None:
+        repo = pathlib.Path("/unused")
+        before_rows = {"states": {}}
+        after_rows = {"states": {}}
+        key = ("status-M01.md", "Implement feature", 1)
+
+        with mock.patch.object(harness, "git_clean", return_value=False), \
+                mock.patch.object(harness, "git_head") as head:
+            result = harness.post_run_gates(repo, "before", "main", before_rows, after_rows, key)
+        self.assertEqual(result["exit_code"], 5)
+        head.assert_not_called()
+
+        with mock.patch.object(harness, "git_clean", return_value=True), \
+                mock.patch.object(harness, "git_head", return_value="before"), \
+                mock.patch.object(harness, "git_branch") as branch:
+            result = harness.post_run_gates(repo, "before", "main", before_rows, after_rows, key)
+        self.assertEqual(result["exit_code"], 6)
+        branch.assert_not_called()
+
+        with mock.patch.object(harness, "git_clean", return_value=True), \
+                mock.patch.object(harness, "git_head", return_value="after"), \
+                mock.patch.object(harness, "git_branch", return_value="other"), \
+                mock.patch.object(harness, "git_is_ancestor") as ancestor:
+            result = harness.post_run_gates(repo, "before", "main", before_rows, after_rows, key)
+        self.assertEqual(result["exit_code"], 9)
+        ancestor.assert_not_called()
+
+        with mock.patch.object(harness, "git_clean", return_value=True), \
+                mock.patch.object(harness, "git_head", return_value="after"), \
+                mock.patch.object(harness, "git_branch", return_value="main"), \
+                mock.patch.object(harness, "git_is_ancestor", return_value=True), \
+                mock.patch.object(harness, "validate_row_transition", return_value=["invalid row"]):
+            result = harness.post_run_gates(repo, "before", "main", before_rows, after_rows, key)
+        self.assertEqual(result["exit_code"], 8)
+        self.assertEqual(result["row_problems"], ["invalid row"])
+
+
+class ControllerCoreTests(unittest.TestCase):
+    def controller_fixture(self, tmp: str):
+        repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+        core = controller.load_runner_core()
+        before_rows = core.row_snapshot(repo)
+        selected = core.rows_in_state(repo, "in_progress")[0]
+        before_head = core.git_head(repo)
+        before_branch = core.git_branch(repo)
+        args = types.SimpleNamespace(
+            max_turns=3,
+            max_history_chars=50000,
+            provider="openai",
+            api_base="https://api.example.test/v1",
+            api_key="fake",
+            model="fake-model",
+            temperature=0,
+            max_tokens=1000,
+            api_timeout=5,
+            max_retries=0,
+            tool_timeout=5,
+            max_tool_output=1000,
+            allow_dangerous=False,
+            tool_env={},
+            max_runs=1,
+        )
+
+        def executor(target, cmd, timeout, max_output, allow_dangerous, env):
+            self.assertEqual(cmd, "write selected task")
+            status = target / "tabilet/memory-bank/status-M01.md"
+            status.write_text(status.read_text().replace(marker("[~]"), marker("[+]")))
+            (target / "feature.py").write_text("verified = True\n")
+            return {"exit_code": 0, "stdout": "changed", "stderr": "", "truncated": False}
+
+        responses = [
+            {"content": json.dumps({"tool": "run_shell", "cmd": "write selected task"}),
+             "stop_reason": "stop", "usage": {}},
+            {"content": json.dumps({"final": "Implemented the selected task."}),
+             "stop_reason": "stop", "usage": {}},
+        ]
+        with mock.patch.object(core, "call_llm", side_effect=responses) as provider:
+            result = controller.run_controller_agent(
+                core,
+                args,
+                repo,
+                1,
+                core.lane_summary(repo),
+                selected,
+                executor,
+                "Work only on status-M01.md: Implement feature. Required checks: unit tests.",
+            )
+        provider.assert_called()
+        after_rows = core.row_snapshot(repo)
+        return repo, core, selected, before_rows, after_rows, before_head, before_branch, result
+
+    def test_controller_model_uses_injected_executor_and_host_commit_seam(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            (repo, core, selected, before_rows, after_rows,
+             before_head, before_branch, result) = self.controller_fixture(tmp)
+            self.assertEqual(result["final"], "Implemented the selected task.")
+            self.assertIn('"tool":"run_shell"', controller.CONTROLLER_SYSTEM_PROMPT)
+            self.assertIn("Do not run git add, git commit", controller.CONTROLLER_SYSTEM_PROMPT)
+            self.assertNotIn("Commit before returning", controller.CONTROLLER_SYSTEM_PROMPT)
+            paths = ["feature.py", "tabilet/memory-bank/status-M01.md"]
+
+            def host_commit():
+                added = run("git", "add", "--", *paths, cwd=repo)
+                self.assertEqual(added.returncode, 0, added.stderr)
+                return run(
+                    "git", "-c", "user.name=Harness Test", "-c",
+                    "user.email=harness@example.test", "commit", "-qm", "complete feature",
+                    cwd=repo,
+                )
+
+            committed = controller.commit_after_precommit(
+                core, before_rows, after_rows, selected["key"], paths, paths,
+                ["unit tests"], {"unit tests": True}, host_commit,
+            )
+            self.assertTrue(committed["committed"], committed["problems"])
+            self.assertEqual(committed["commit_result"].returncode, 0)
+            after_commit = core.row_snapshot(repo)
+            gates = core.post_run_gates(
+                repo, before_head, before_branch, before_rows, after_commit, selected["key"]
+            )
+            self.assertEqual(gates["exit_code"], 0)
+
+    def test_failed_precommit_verification_never_calls_host_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            (repo, core, selected, before_rows, after_rows,
+             _, _, _) = self.controller_fixture(tmp)
+            host_commit = mock.Mock()
+            with self.assertRaises(SystemExit) as stopped:
+                controller.commit_after_precommit(
+                    core,
+                    before_rows,
+                    after_rows,
+                    selected["key"],
+                    ["feature.py", "tabilet/memory-bank/status-M01.md"],
+                    ["feature.py", "tabilet/memory-bank/status-M01.md"],
+                    ["unit tests"],
+                    {"unit tests": False},
+                    host_commit,
+                )
+        self.assertEqual(stopped.exception.code, 24)
+        host_commit.assert_not_called()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            (repo, core, selected, before_rows, after_rows,
+             _, _, _) = self.controller_fixture(tmp)
+            host_commit = mock.Mock()
+            with self.assertRaises(SystemExit) as stopped:
+                controller.commit_after_precommit(
+                    core,
+                    before_rows,
+                    after_rows,
+                    selected["key"],
+                    ["feature.py", "tabilet/memory-bank/status-M01.md"],
+                    ["feature.py", "tabilet/memory-bank/status-M01.md", "unapproved.py"],
+                    ["unit tests"],
+                    {"unit tests": True},
+                    host_commit,
+                )
+        self.assertEqual(stopped.exception.code, 24)
+        host_commit.assert_not_called()
+
+
+class ProjectLockTests(unittest.TestCase):
+    def test_project_lock_collides_across_canonical_aliases_and_releases(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            alias = pathlib.Path(tmp) / "repo-alias"
+            alias.symlink_to(repo, target_is_directory=True)
+            state_home = pathlib.Path(tmp) / "state"
+            with mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(state_home)}):
+                with self.assertRaises(harness.ProjectLockUnavailable):
+                    with harness.project_lock(repo):
+                        with harness.project_lock(alias):
+                            self.fail("canonical alias unexpectedly acquired a second lock")
+                with harness.project_lock(repo):
+                    pass
+                with self.assertRaises(SystemExit):
+                    with harness.project_lock(repo):
+                        raise SystemExit(7)
+                with harness.project_lock(repo):
+                    pass
+
+    def test_runner_lock_collision_exits_19_before_provider_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, fake_api([]) as (base, api):
+            repo = make_repo(pathlib.Path(tmp) / "repo")
+            state_home = pathlib.Path(tmp) / "state"
+            env = {
+                "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                "HOME": tmp,
+                "LLM_MODEL": "test-model",
+                "LLM_API_BASE": base,
+                "XDG_STATE_HOME": str(state_home),
+                "ALLOW_UNSANDBOXED_SHELL": "1",
+                "MAX_RUNS": "1",
+            }
+            core = controller.load_runner_core()
+            with mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(state_home)}):
+                proc = controller.run_with_project_lock(
+                    core,
+                    repo,
+                    lambda: run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=env),
+                )
+        self.assertEqual(proc.returncode, 19, proc.stderr)
+        self.assertIn("already holds the project lock", proc.stderr)
+        self.assertEqual(api.requests, [])
 
 
 class HarnessIntegrationTests(unittest.TestCase):

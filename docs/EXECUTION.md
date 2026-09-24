@@ -145,6 +145,7 @@ control back to a human.
 | `13` | Git `HEAD` could not be read. |
 | `14` | Actionable work was not given unsandboxed-shell acknowledgment. |
 | `15` | More than one general `[~]` row is in progress across the active ledger. |
+| `19` | Another Tabilet launcher already holds the shared project lock. |
 | `20` | The API returned an HTTP error. |
 | `21` | The API could not be reached. |
 | `22` | The API response did not match the expected shape. |
@@ -153,8 +154,10 @@ control back to a human.
 | `31` | The conversation exceeded `MAX_HISTORY_CHARS`. |
 | `130` | The run was interrupted from the terminal. |
 
-Codes `10` through `15` are target or authorization setup problems. Codes `20`
-through `23` are provider or network problems, not project problems.
+Codes `10` through `15` are target or authorization setup problems. Code `19`
+is the shared Tabilet launcher lock collision; the lock is released when the
+launcher exits and does not coordinate interactive coding-agent sessions. Codes
+`20` through `23` are provider or network problems, not project problems.
 
 ### Tabilet Controller Exit Codes
 
