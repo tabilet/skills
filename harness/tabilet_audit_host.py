@@ -6,9 +6,17 @@ import argparse
 import contextlib
 import os
 import pathlib
-import sqlite3
 import sys
 import uuid
+
+try:
+    import sqlite3
+except ImportError:
+    # Some Python builds (often compiled without SQLite headers) omit the
+    # module. Report it as one plain error instead of a traceback.
+    print("tabilet-audit: Python's sqlite3 module is unavailable; the audit needs a "
+          "Python built with SQLite 3.24.0 or later", file=sys.stderr)
+    raise SystemExit(2)
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))

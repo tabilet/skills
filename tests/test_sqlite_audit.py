@@ -116,6 +116,26 @@ class SqliteAuditContractTests(unittest.TestCase):
         with self.assertRaisesRegex(audit.AuditValidationError, "subject must"):
             audit.validate_event(event(subject="task"))
 
+    def test_sqlite_version_floor_is_reported_plainly(self) -> None:
+        self.assertIsNone(audit.sqlite_support_problem("3.24.0"))
+        self.assertIsNone(audit.sqlite_support_problem("3.46.1"))
+        problem = audit.sqlite_support_problem("3.23.1")
+        self.assertIn("SQLite 3.23.1 is too old", problem)
+        self.assertIn("3.24.0 or later", problem)
+        self.assertIsNotNone(audit.sqlite_support_problem("3.7.17"))
+
+    def test_old_sqlite_stops_before_creating_or_reading_a_database(self) -> None:
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "audit.sqlite3"
+            with mock.patch.object(audit.sqlite3, "sqlite_version", "3.23.1"):
+                with self.assertRaisesRegex(audit.AuditError, "too old for the audit"):
+                    audit.open_database(database)
+                self.assertFalse(database.exists())
+                database.write_bytes(b"")
+                with self.assertRaisesRegex(audit.AuditError, "too old for the audit"):
+                    audit.open_readonly_database(database)
+
     def test_open_database_creates_secure_v4_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "state" / "tabilet" / "audit.sqlite3"

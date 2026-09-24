@@ -1199,6 +1199,13 @@ class AuditRun:
         if not args.audit_db:
             return
         try:
+            try:
+                import sqlite3  # noqa: F401 -- optional; some Python builds omit it
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Python's sqlite3 module is unavailable; the audit needs a Python "
+                    "built with SQLite 3.24.0 or later"
+                ) from exc
             import tabilet_audit
             import tabilet_index
             if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 1

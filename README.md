@@ -73,8 +73,10 @@ Git is required by the usual per-task commit workflow and the optional API
 harness. A permitted no-commit workflow can maintain the same files without
 Git, including their retired records.
 
-Python 3 is used by the optional API harness and the one-time v1.5.0 migration
-command. Both use only the standard library.
+Python 3.9 or later is used by the optional API harness, the optional SQLite
+audit toolkit, and the one-time v1.5.0 migration command. All of them use only
+the standard library. The audit toolkit also needs Python's `sqlite3` module with
+SQLite 3.24.0 or later; without it, auditing reports a gap and work continues.
 
 Already have v1.5.0 project files at the root? [Preview the explicit v2
 migration](docs/upgrade.md#migrate-a-v150-project-to-v2) before using v2 skills.
@@ -501,7 +503,7 @@ optional, because the memory bank is plain markdown and works on its own:
 |---|---|---|
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
 | [`memory-bank-next`](#install-the-seven-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
-| [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3 |
+| [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3.9+ |
 | [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `tabilet/GOAL.md` and an agent request or optional skill |
 
 With an agent such as Codex or Claude Code, the user-facing workflow can be as
@@ -974,7 +976,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.0.0` tag. A marketplace install or
+For a reproducible installation, use the `v2.1.0` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke
@@ -1040,7 +1042,7 @@ typing into one. Skip it if Codex, Claude Code, or another agent already does
 that for you.
 
 The API harness is account-level because it can drive any project that follows
-this memory-bank shape. It needs Python 3 and nothing else.
+this memory-bank shape. It needs Python 3.9 or later and nothing else.
 
 ```bash
 mkdir -p ~/.local/bin

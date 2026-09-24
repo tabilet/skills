@@ -72,7 +72,7 @@ dsh plugin --profile web add \
 该伴侣已在 Linux 上验证通过，用的是 Node **24.14.1** 和锁定的 DSH **0.1.5-rc.2** 组件；
 另有一个隔离的 rc.1 启动器，跑的是 rc.2 组件。
 
-只要**技能、不要仪表盘**，就走[纯文件方式](#as-plain-files-you-own)。把 v2.0.0 检出里
+只要**技能、不要仪表盘**，就走[纯文件方式](#as-plain-files-you-own)。把 v2.1.0 检出里
 七个完整文件夹全部复制到 `$DSH_HOME/skills`，通常是 `~/.dsh/skills`。文件系统途径的
 全 rc.1 兼容性是单独测过的。
 
@@ -109,10 +109,10 @@ dsh plugin --profile web add \
 
 ## 作为你自有的纯文件 {#as-plain-files-you-own}
 
-把 v2.0.0 源码克隆到一个单独目录（七个技能全在里面）：
+把 v2.1.0 源码克隆到一个单独目录（七个技能全在里面）：
 
 ```bash
-git clone --branch v2.0.0 --depth 1 https://github.com/tabilet/skills.git
+git clone --branch v2.1.0 --depth 1 https://github.com/tabilet/skills.git
 ```
 
 把该检出 `skills/` 目录下的每个 `memory-bank-*` 文件夹，复制到你的智能体对应的目录：
@@ -144,7 +144,7 @@ cp -R /path/to/skills/template/. /path/to/new-project/
 
 ## 可选的 API 运行器 {#the-optional-api-harness}
 
-独立的 API 运行器需要 **Python 3 和 Git**，还要配好所选模型提供方的凭据。它只用 Python
+独立的 API 运行器需要 **Python 3.9 或更高版本和 Git**，还要配好所选模型提供方的凭据。它只用 Python
 标准库。
 
 ```bash
@@ -202,7 +202,16 @@ API 运行器自己负责审计运行的开始、事件和结束，不要再手�
 ## 可选的 SQLite 审计与检索 {#optional-sqlite}
 
 Markdown 仍是权威来源。可选工具将本地审计存储在项目外，并为里程碑、任务、
-历史、演进和归档建立可重建的索引。在包含此功能的仓库检出目录中运行：
+历史、演进和归档建立可重建的索引。
+
+它需要 Linux 或 macOS，以及 **Python 3.9 或更高版本，并带有 `sqlite3` 模块，
+其内置 SQLite 为 3.24.0 或更高版本**。python.org、Homebrew 和常见 Linux 发行版自带的
+Python 都包含该模块；从源码编译、且编译时缺少 SQLite 开发头文件的 Python 则没有。可用
+`python3 -c 'import sqlite3; print(sqlite3.sqlite_version)'` 检查。文本搜索在可用时使用
+SQLite 的 FTS5，否则回退为字面匹配。Windows 未经测试。审计是可选的：如果设置了
+`TABILET_AUDIT_DB` 但不满足这些要求，API 运行器和技能会报告审计缺口，然后照常继续。
+
+在包含此功能的仓库检出目录中运行：
 
 ```bash
 mkdir -p ~/.local/bin

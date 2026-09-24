@@ -184,7 +184,11 @@ Audit failures never repeat work. Interrupted runs without terminal evidence rem
 unfinished/unknown rather than being declared successful.
 
 The runner remains installable as one file when auditing is disabled. The toolkit
-is Python standard library only. Legacy snapshot-capture options are rejected
+is Python standard library only. It needs Python 3.9 or later with the `sqlite3`
+module built against SQLite 3.24.0 or later; FTS5 is optional. Writer and reader
+opens check the SQLite version first, and the CLI reports a missing module as one
+error with exit status 2. When either is missing, the runner and skills record
+an audit gap and continue unchanged. Legacy snapshot-capture options are rejected
 with an explanation before project execution. The optional explorer consumes
 these interfaces; no project-format migration is needed.
 

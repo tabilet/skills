@@ -24,6 +24,18 @@ class CliTests(unittest.TestCase):
         with mock.patch.object(module.index,'TOOLKIT_INTERFACE',99):
             self.assertEqual(module.main(['index','status','/nonexistent']),2)
 
+    def test_missing_sqlite_module_is_one_plain_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # Shadow the standard module the way a Python built without SQLite
+            # behaves: importing sqlite3 raises ImportError.
+            Path(tmp,'sqlite3.py').write_text("raise ImportError(\"No module named '_sqlite3'\")\n")
+            env=dict(os.environ,PYTHONPATH=tmp)
+            result=subprocess.run([sys.executable,'-B',str(CLI),'audit','runs'],text=True,capture_output=True,env=env)
+            self.assertEqual(result.returncode,2,result.stderr)
+            self.assertNotIn('Traceback',result.stderr)
+            self.assertIn("Python's sqlite3 module is unavailable",result.stderr)
+            self.assertIn('3.24.0 or later',result.stderr)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.base=Path(self.tmp.name)

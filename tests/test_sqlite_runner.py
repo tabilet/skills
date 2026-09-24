@@ -40,6 +40,32 @@ class RunnerRepairs(unittest.TestCase):
             self.assertIn('incompatible audit toolkit modules',stderr.getvalue())
             self.assertFalse(database.exists())
 
+    def test_missing_sqlite_module_is_gap_without_changing_task_outcome(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo=h.make_repo(Path(tmp)/'repo')
+            database=Path(tmp)/'audit.db'
+            def model(*args):
+                source=repo/'tabilet/memory-bank/status-M01.md'
+                source.write_text(source.read_text().replace(h.marker('[ ]'),h.marker('[+]')))
+                h.run('git','add','-A',cwd=repo)
+                commit=h.run('git','-c','user.name=Test','-c','user.email=test@example.test','commit','-qm','done',cwd=repo)
+                self.assertEqual(commit.returncode,0,commit.stderr)
+                return {'final':'done'}
+            env=h.HarnessIntegrationTests().harness_env(tmp,ALLOW_UNSANDBOXED_SHELL='1')
+            stderr=io.StringIO()
+            # A None entry makes `import sqlite3` raise ImportError, as on a
+            # Python built without SQLite.
+            with (mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo),'--audit-db',str(database)]),
+                  mock.patch.dict(os.environ,env,clear=True),
+                  mock.patch.object(h.harness,'one_agent_run',side_effect=model),
+                  mock.patch.dict(sys.modules,{'sqlite3':None}),
+                  contextlib.redirect_stderr(stderr)):
+                with self.assertRaises(SystemExit) as stopped:h.harness.main()
+            self.assertEqual(stopped.exception.code,7)
+            self.assertIn("Audit gap: unable to initialize recorder: Python's sqlite3 module is unavailable",stderr.getvalue())
+            self.assertIn(h.marker('[+]'),(repo/'tabilet/memory-bank/status-M01.md').read_text())
+            self.assertFalse(database.exists())
+
     def test_competing_post_run_gates_keep_precedence_with_optional_audit(self):
         for audited in (False,True):
             for failure,expected in (('dirty',5),('no_commit',6),('history',9),('transition',8)):

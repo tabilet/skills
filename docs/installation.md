@@ -76,7 +76,7 @@ The companion was verified on Linux with Node **24.14.1** and locked DSH
 **0.1.5-rc.2** components, plus an isolated rc.1 launcher using rc.2 components.
 
 For **skills without the dashboard**, use the [plain-file route](#as-plain-files-you-own).
-Copy all seven complete folders from the v2.0.0 checkout into `$DSH_HOME/skills`,
+Copy all seven complete folders from the v2.1.0 checkout into `$DSH_HOME/skills`,
 normally `~/.dsh/skills`. The filesystem route retains its separately tested
 all-rc.1 compatibility.
 
@@ -118,10 +118,10 @@ For Goal, include an explicit order and [commit policy](goal.md).
 
 ## As plain files you own
 
-Clone the v2.0.0 source into a separate directory (seven skills):
+Clone the v2.1.0 source into a separate directory (seven skills):
 
 ```bash
-git clone --branch v2.0.0 --depth 1 https://github.com/tabilet/skills.git
+git clone --branch v2.1.0 --depth 1 https://github.com/tabilet/skills.git
 ```
 
 Copy each `memory-bank-*` folder from that checkout's `skills/` directory into
@@ -159,7 +159,7 @@ what to check before selecting a task.
 
 ## The optional API harness
 
-The separate API runner needs **Python 3 and Git**, plus credentials for your
+The separate API runner needs **Python 3.9 or later and Git**, plus credentials for your
 chosen model provider. It uses the Python standard library only.
 
 ```bash
@@ -225,7 +225,19 @@ host to submit selected messages as described in the [SQLite operator guide](htt
 
 Markdown stays authoritative. The optional toolkit stores a local audit outside
 projects and builds a rebuildable index of milestones, tasks, history, evolution,
-and archives. From a checkout containing this feature:
+and archives.
+
+It needs Linux or macOS and **Python 3.9 or later with the `sqlite3` module,
+built with SQLite 3.24.0 or later**. The python.org, Homebrew, and standard Linux
+distribution builds include it; a Python compiled from source without the SQLite
+development headers does not. Check with
+`python3 -c 'import sqlite3; print(sqlite3.sqlite_version)'`. Text search uses
+SQLite's FTS5 when available and otherwise falls back to literal matching.
+Windows is untested. The audit is optional: if `TABILET_AUDIT_DB` is set but
+these requirements are missing, the API runner and skills report an audit gap
+and continue unchanged.
+
+From a checkout containing this feature:
 
 ```bash
 mkdir -p ~/.local/bin
@@ -259,8 +271,8 @@ older databases, and writes only the external SQLite database. Follow-up buttons
 prepare copyable prompts after rechecking live source hashes; they never run an
 agent or edit project files. From a Chromebook, tunnel a remote server
 with `ssh -N -L 8000:127.0.0.1:8000 user@host` and open `http://localhost:8000/`.
-Missing captures and stale sources remain visible as diagnostics, and task
-the live ledger remains the source for task selection. Non-loopback
+Missing captures and stale sources remain visible as diagnostics, and the live
+ledger remains the source for task selection. Non-loopback
 `--host` values are rejected.
 
 See the repository's [operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md)

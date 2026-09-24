@@ -27,6 +27,8 @@ SCHEMA_NAME = "tabilet.audit/v4"
 SCHEMA_VERSION = 4
 RECORDER_VERSION = "tabilet-audit/4"
 TOOLKIT_INTERFACE = 1
+# The index publishes with an upsert (ON CONFLICT ... DO UPDATE), added in 3.24.0.
+MINIMUM_SQLITE = (3, 24, 0)
 
 OPERATIONS = frozenset({"init", "archive", "propose", "reconcile", "next", "goal", "upgrade"})
 RUN_RESULTS = frozenset({"completed", "blocked", "failed", "cancelled", "interrupted", "unknown"})
@@ -973,8 +975,26 @@ def validate_database(connection, *, version_override=None, allow_unmarked=False
     return version
 
 
+def sqlite_support_problem(version=None):
+    """Return why this Python's SQLite cannot hold the audit, or None."""
+    text = version if version is not None else sqlite3.sqlite_version
+    parts = re.findall(r"\d+", text)[:3]
+    found = tuple(int(part) for part in parts) + (0,) * (3 - len(parts))
+    if found < MINIMUM_SQLITE:
+        required = ".".join(map(str, MINIMUM_SQLITE))
+        return f"SQLite {text} is too old for the audit; it needs SQLite {required} or later"
+    return None
+
+
+def require_sqlite():
+    problem = sqlite_support_problem()
+    if problem:
+        raise AuditError(problem)
+
+
 def open_database(path=None, *, project_roots=()):
     """Explicit writer open. Existing databases are identified before mutation."""
+    require_sqlite()
     database = external_path(path if path is not None else default_database_path(), project_roots)
     sidecars = {suffix: safe_path(str(database) + suffix) for suffix in ('-wal', '-shm', '-journal')}
     created = not database.exists()
@@ -1445,6 +1465,7 @@ def capture_snapshots(*args, **kwargs):
 
 
 def open_readonly_database(path):
+    require_sqlite()
     database = safe_path(path)
     if not database.is_file():
         raise AuditError('read-only audit database must already exist')
