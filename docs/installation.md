@@ -221,6 +221,37 @@ visible messages supplied by the runner. It does not capture every API prompt,
 tool result, hidden reasoning, or surrounding chat. Exact raw text requires the
 host to submit selected messages as described in the [SQLite operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md#capture-selected-visible-messages).
 
+### The optional Tabilet controller sandbox
+
+The controller is a separate API workflow; it does not change the standalone
+runner's host-shell behavior. The first release requires Linux and a running
+local Docker daemon on a Unix socket. Remote Docker contexts and daemon override
+variables are rejected because bind mounts must refer to the controller's local
+project files. Use an Engine version that supports `bind-recursive=disabled`.
+
+Prepare a local image yourself before starting a controller proposal. For
+example, this provides a small Python and shell base; add project-specific tools
+in your own image when a task needs them:
+
+```bash
+docker pull python:3.12-slim
+```
+
+The controller never pulls or builds images. It resolves the selected local tag
+to an immutable image ID before any provider call. The image must contain
+`/usr/bin/env`, `/bin/sh`, and the tools and packages required for the task.
+Commands run with networking disabled, a read-only container root, a private
+writable `/tmp`, and the project mounted writable with `.git` read-only. The
+proposal shows the 4 CPU, 8 GiB memory, 512 process, and 300-second per-command
+limits. Provider credentials remain on the host and are not passed into the
+container.
+
+Once the optional `tabilet` command is installed, select the prepared image with
+`tabilet chat PROJECT --image IMAGE`. The image reference and resolved ID are
+part of the visible proposal. Missing tools pause the run; prepare an updated
+image outside the controller and resume after confirming any changed limits or
+scope.
+
 ## Optional SQLite audit and lookup {#optional-sqlite}
 
 Markdown stays authoritative. The optional toolkit stores a local audit outside

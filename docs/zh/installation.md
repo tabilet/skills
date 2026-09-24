@@ -199,6 +199,28 @@ API 运行器自己负责审计运行的开始、事件和结束，不要再手�
 [SQLite 操作指南](https://github.com/tabilet/skills/blob/main/docs/sqlite.md#capture-selected-visible-messages)
 中的方法提交选定消息。
 
+### 可选的 Tabilet 控制器沙箱 {#the-optional-tabilet-controller-sandbox}
+
+控制器是另一种 API 工作流，不会改变独立运行器在宿主 shell 中执行命令的行为。首个版本需要
+Linux，以及通过 Unix 套接字连接的本地 Docker 守护进程。远程 Docker 上下文和守护进程覆盖变量会被拒绝，
+因为绑定挂载必须指向控制器所在主机的本地项目文件。请使用支持 `bind-recursive=disabled` 的 Docker Engine 版本。
+
+启动控制器提案之前，请先自行准备本地镜像。例如，下面的命令提供一个精简的 Python 和 shell 基础镜像；
+如果任务需要其他工具，请把它们加入自己的镜像：
+
+```bash
+docker pull python:3.12-slim
+```
+
+控制器不会自行拉取或构建镜像。它会在任何提供方请求之前，把所选本地标签解析为不可变的镜像 ID。
+镜像必须包含 `/usr/bin/env`、`/bin/sh`，以及任务需要的工具和软件包。命令运行在禁用网络的容器中，
+容器根文件系统只读，`/tmp` 是独立的可写目录；项目以可写方式挂载，`.git` 则只读。提案会显示
+4 个 CPU、8 GiB 内存、512 个进程和每条命令 300 秒的限制。提供方凭据留在宿主机，不会传入容器。
+
+安装可选的 `tabilet` 命令后，使用 `tabilet chat PROJECT --image IMAGE` 选择准备好的镜像。
+镜像引用及其解析出的 ID 都会出现在可见提案中。缺少工具时运行会暂停；请在控制器之外准备更新后的镜像，
+并在确认任何限制或范围变更后恢复运行。
+
 ## 可选的 SQLite 审计与检索 {#optional-sqlite}
 
 Markdown 仍是权威来源。可选工具将本地审计存储在项目外，并为里程碑、任务、

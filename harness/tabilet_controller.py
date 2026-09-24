@@ -46,16 +46,57 @@ def run_controller_agent(
 ) -> dict[str, object]:
     """Use the shared model loop with controller-specific instructions/execution."""
 
+    def sandboxed_executor(*executor_args, **executor_kwargs):
+        try:
+            result = executor(*executor_args, **executor_kwargs)
+        except Exception as exc:
+            sandbox_error = getattr(executor, "sandbox_unavailable", None)
+            if sandbox_error is not None and isinstance(exc, sandbox_error):
+                core.fail(f"Controller Docker sandbox is unavailable: {exc}", 17)
+            raise
+        if result.get("exit_code") == 127:
+            detail = result.get("stderr", "").strip()
+            core.fail(
+                "A required command or dependency is missing from the local Docker image. "
+                "Pause with exit 17, add the dependency to the image, and retry."
+                + (f"\n{detail}" if detail else ""),
+                17,
+            )
+        return result
+
     return core.one_agent_run(
         args,
         repo,
         run,
         summary,
         selected_row,
-        executor=executor,
+        executor=sandboxed_executor,
         system_prompt=CONTROLLER_SYSTEM_PROMPT,
         user_message=user_message,
     )
+
+
+def prepare_docker_executor(core, repo: pathlib.Path, image: str, mountinfo=None):
+    """Resolve topology, the local daemon, and image ID before provider dispatch."""
+
+    try:
+        import tabilet_container
+    except ImportError:
+        # Installed controller files are adjacent, but tests and direct module
+        # loading may not have added that directory to sys.path.
+        import importlib.util
+        path = pathlib.Path(__file__).resolve().with_name("tabilet_container.py")
+        spec = importlib.util.spec_from_file_location("_tabilet_container", path)
+        if spec is None or spec.loader is None:
+            core.fail("Controller Docker sandbox module is missing; install the complete controller bundle.", 17)
+        tabilet_container = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tabilet_container)
+    try:
+        if mountinfo is None:
+            return tabilet_container.prepare_executor(core, repo, image)
+        return tabilet_container.prepare_executor(core, repo, image, mountinfo)
+    except tabilet_container.SandboxUnavailable as exc:
+        core.fail(f"Controller Docker sandbox is unavailable: {exc}", 17)
 
 
 def precommit_problems(

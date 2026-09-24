@@ -258,7 +258,10 @@ def init_skill_text() -> str:
 @check("harness parses, and leaves no bytecode behind")
 def harness_parses():
     problems = []
-    for path in (HARNESS, AUDIT_MODULE, AUDIT_HOST, ROOT / "harness/tabilet_index.py"):
+    for path in (
+        HARNESS, AUDIT_MODULE, AUDIT_HOST, ROOT / "harness/tabilet_index.py",
+        ROOT / "harness/tabilet_controller.py", ROOT / "harness/tabilet_container.py",
+    ):
         try:
             ast.parse(path.read_text())
         except SyntaxError as exc:
@@ -1043,7 +1046,10 @@ def sqlite_bundle_contract():
     for reference in references:
         if "references/optional-audit.md" not in (reference.parent.parent / "SKILL.md").read_text():
             problems.append(f"{reference}: missing skill route")
-    for name in ("tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py", "tackle-memory-bank-api-loop"):
+    for name in (
+        "tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py",
+        "tabilet_controller.py", "tabilet_container.py", "tackle-memory-bank-api-loop",
+    ):
         if not (ROOT / "harness" / name).is_file():
             problems.append(f"missing optional toolkit payload: {name}")
     return problems

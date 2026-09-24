@@ -112,7 +112,7 @@ def read_document(root, relative):
 def git_context(root):
     def git(*args):
         try:
-            proc=subprocess.run(['git',*args],cwd=root,capture_output=True,text=True,timeout=10)
+            proc=parser().git_local(list(args),root,timeout=10)
             return proc.stdout.strip() if proc.returncode==0 else None
         except (OSError,subprocess.TimeoutExpired):return None
     return {'git_head':git('rev-parse','HEAD'),'branch':git('symbolic-ref','--short','-q','HEAD')}

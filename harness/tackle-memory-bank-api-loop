@@ -33,6 +33,7 @@ import os
 import pathlib
 import re
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -270,6 +271,169 @@ def run_local(cmd: list[str], cwd: pathlib.Path, timeout: int = 30) -> subproces
         stderr=subprocess.PIPE,
         timeout=timeout,
     )
+
+
+class UnsafeGitConfiguration(ValueError):
+    """A host Git operation could invoke a repository-controlled command."""
+
+
+def _git_environment() -> dict[str, str]:
+    """Keep Git away from inherited Git overrides and user/system config."""
+
+    allowed = {
+        "PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "SYSTEMROOT",
+    }
+    env = {name: os.environ[name] for name in allowed if name in os.environ}
+    env.setdefault("PATH", os.defpath)
+    env.setdefault("HOME", str(pathlib.Path.home()))
+    env.update({
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_ATTR_NOSYSTEM": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_PAGER": "cat",
+        "PAGER": "cat",
+        "GIT_EDITOR": "true",
+        "GIT_SEQUENCE_EDITOR": "true",
+    })
+    return env
+
+
+_SAFE_GIT_CONFIG = (
+    "core.hooksPath=/dev/null",
+    "core.fsmonitor=false",
+    "core.pager=cat",
+    "core.attributesFile=/dev/null",
+    "diff.external=",
+    "commit.gpgsign=false",
+    "tag.gpgsign=false",
+    "credential.helper=",
+    "core.gitProxy=",
+    "core.sshCommand=",
+    "core.askPass=",
+    "core.editor=true",
+    "protocol.ext.allow=never",
+)
+
+_HOST_GIT_COMMANDS = {
+    "add", "commit", "diff", "ls-files", "merge-base", "rev-list",
+    "rev-parse", "show", "status", "symbolic-ref",
+}
+
+
+def _git_local_raw(
+    args: list[str],
+    cwd: pathlib.Path,
+    timeout: int = 30,
+    input_text: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    executable = shutil.which("git")
+    if not executable:
+        raise OSError("Git executable not found")
+    command = [executable]
+    for value in _SAFE_GIT_CONFIG:
+        command.extend(("-c", value))
+    command.append("--no-pager")
+    if args and args[0] in {"diff", "show"}:
+        command.extend((args[0], *args[1:], "--no-ext-diff", "--no-textconv"))
+    else:
+        command.extend(args)
+    return subprocess.run(
+        command,
+        cwd=str(cwd),
+        input=input_text,
+        text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+        env=_git_environment(),
+    )
+
+
+def _git_index_paths(repo: pathlib.Path, pathspecs: list[str] | None = None) -> list[str]:
+    paths = []
+    for options in (
+        ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
+    ):
+        proc = _git_local_raw(options + (["--", *pathspecs] if pathspecs else []), repo)
+        if proc.returncode:
+            raise UnsafeGitConfiguration(proc.stderr.strip() or "unable to inspect Git path inventory")
+        paths.extend(value for value in proc.stdout.split("\0") if value)
+    return list(dict.fromkeys(paths))
+
+
+def _active_custom_filters(repo: pathlib.Path, paths: list[str]) -> list[str]:
+    if not paths:
+        return []
+    attributes = _git_local_raw(
+        ["check-attr", "-z", "filter", "--stdin"],
+        repo,
+        input_text="\0".join(paths) + "\0",
+    )
+    if attributes.returncode:
+        raise UnsafeGitConfiguration(attributes.stderr.strip() or "unable to inspect Git attributes")
+    fields = attributes.stdout.split("\0")
+    drivers = set()
+    for index in range(0, len(fields) - 2, 3):
+        _, attribute, value = fields[index:index + 3]
+        if attribute == "filter" and value not in {"unspecified", "unset", ""}:
+            drivers.add(value)
+
+    active = []
+    for driver in sorted(drivers):
+        for operation in ("clean", "process"):
+            config = _git_local_raw(
+                ["config", "--includes", "--null", "--get-all",
+                 f"filter.{driver}.{operation}"],
+                repo,
+            )
+            if config.returncode not in {0, 1}:
+                raise UnsafeGitConfiguration(
+                    config.stderr.strip() or "unable to inspect local Git filter configuration"
+                )
+            if config.returncode == 0 and any(value.strip() for value in config.stdout.split("\0")):
+                active.append(f"filter.{driver}.{operation}")
+    return active
+
+
+def git_local(
+    args: list[str],
+    cwd: pathlib.Path,
+    timeout: int = 30,
+    input_text: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run a host Git command with hooks, helpers, paging, and signing disabled."""
+
+    if not args or args[0] not in _HOST_GIT_COMMANDS:
+        raise UnsafeGitConfiguration("host Git wrapper accepts only its allowlisted built-in commands")
+    if args[0] == "commit" and any(
+        value == "-S" or value.startswith("-S") or value.startswith("--gpg-sign")
+        for value in args[1:]
+    ):
+        raise UnsafeGitConfiguration("explicit Git signing options are unsupported for host commands")
+    if args[0] in {"add", "commit"} and any(value in {"-i", "--interactive", "-p", "--patch"} for value in args[1:]):
+        raise UnsafeGitConfiguration("interactive Git staging and commit modes are unsupported for host commands")
+    if args[0] == "show" and any(value.startswith("--show-signature") for value in args[1:]):
+        raise UnsafeGitConfiguration("Git signature verification is unsupported for host commands")
+    if args and args[0] in {"add", "diff", "status"}:
+        separator = args.index("--") if "--" in args else len(args)
+        requested_paths = [value for value in args[separator + 1:] if value] if separator < len(args) else []
+        # Git status itself may invoke clean filters while comparing worktree
+        # files. Inventory and inspect every path first without calling status.
+        candidate_paths = _git_index_paths(cwd)
+        if requested_paths:
+            candidate_paths.extend(_git_index_paths(cwd, requested_paths))
+        candidate_paths.extend(requested_paths)
+        active = _active_custom_filters(cwd, candidate_paths)
+        if active:
+            raise UnsafeGitConfiguration(
+                "active custom clean/process filters are unsupported for host Git staging: "
+                + ", ".join(active)
+            )
+    return _git_local_raw(args, cwd, timeout, input_text)
 
 
 def tool_environment(extra_names: list[str]) -> dict[str, str]:
@@ -855,28 +1019,28 @@ def lane_table(summary: list[dict]) -> str:
 
 
 def git_clean(repo: pathlib.Path) -> bool:
-    proc = run_local(["git", "status", "--porcelain"], repo)
+    proc = git_local(["status", "--porcelain"], repo)
     return proc.stdout.strip() == ""
 
 
 def git_status_short(repo: pathlib.Path) -> str:
-    return run_local(["git", "status", "--short"], repo).stdout
+    return git_local(["status", "--short"], repo).stdout
 
 
 def git_head(repo: pathlib.Path) -> str:
-    proc = run_local(["git", "rev-parse", "HEAD"], repo)
+    proc = git_local(["rev-parse", "HEAD"], repo)
     if proc.returncode != 0:
         fail(proc.stderr.strip() or "Unable to read git HEAD.", 13)
     return proc.stdout.strip()
 
 
 def git_branch(repo: pathlib.Path) -> str:
-    proc = run_local(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], repo)
+    proc = git_local(["symbolic-ref", "--quiet", "--short", "HEAD"], repo)
     return proc.stdout.strip() if proc.returncode == 0 else "(detached)"
 
 
 def git_is_ancestor(repo: pathlib.Path, before: str, after: str) -> bool:
-    return run_local(["git", "merge-base", "--is-ancestor", before, after], repo).returncode == 0
+    return git_local(["merge-base", "--is-ancestor", before, after], repo).returncode == 0
 
 
 def post_run_gates(
@@ -1285,7 +1449,7 @@ class AuditRun:
                 raise RuntimeError("incompatible audit toolkit modules; reinstall the toolkit files together")
             self.recorder = tabilet_audit
             if git_ref is None:
-                head = run_local(["git", "rev-parse", "HEAD"], repo)
+                head = git_local(["rev-parse", "HEAD"], repo)
                 git_ref = head.stdout.strip() if head.returncode == 0 else None
                 self.git_ref = git_ref
             self.connection = self.recorder.open_database(args.audit_db, project_roots=[repo])
@@ -1362,13 +1526,13 @@ class AuditRun:
         if self.connection is None or self.closed or self.failure:
             return
         try:
-            head = run_local(["git", "rev-parse", "HEAD"], self.repo)
+            head = git_local(["rev-parse", "HEAD"], self.repo)
             if head.returncode:
                 return
             current = head.stdout.strip()
             if current == self.git_ref:
                 return
-            history = run_local(["git", "rev-list", "--reverse", f"{self.git_ref}..{current}"], self.repo) if self.git_ref else None
+            history = git_local(["rev-list", "--reverse", f"{self.git_ref}..{current}"], self.repo) if self.git_ref else None
             commits = history.stdout.splitlines() if history and history.returncode == 0 else [current]
             for commit in commits:
                 if commit not in self.observed_commits:
@@ -1629,7 +1793,7 @@ def main() -> None:
             "status ID pattern.",
             11,
         )
-    root_proc = run_local(["git", "rev-parse", "--show-toplevel"], repo)
+    root_proc = git_local(["rev-parse", "--show-toplevel"], repo)
     if root_proc.returncode != 0:
         fail(f"{repo} is not inside a git worktree.", 12)
     git_root = pathlib.Path(root_proc.stdout.strip()).resolve()
