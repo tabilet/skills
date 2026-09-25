@@ -2,6 +2,9 @@
 
 Plan state: `[+]`
 
+Review iterations: 1 of 5; no P1/P2 findings remain after adding cleanup for
+containers whose controller process exits unexpectedly.
+
 Depends on: [API automation 6 — Horizon execution and closure](api-automation-6.md).
 
 ## Goal
@@ -101,7 +104,8 @@ runs as `blocked`, with the exact receipt state in the corresponding
   checkpoint without dispatching the phase again.
 - A crash after provider dispatch but before a provable task result requires
   review even if the worktree is clean; the row is never replayed automatically.
-- Ctrl-C leaves no container running; dirty interruption needs manual review.
+- Ctrl-C or abrupt controller process death leaves no container running; dirty
+  interruption needs manual review.
 - A reached limit cannot be silently reset or raised by `resume`.
 - Audit failures never change a status, row outcome, or exit code; recorded
   completion requires the same verified closure as the receipt.
@@ -120,5 +124,5 @@ python3 check.py
 | API7-T01 | `[+]` | Implement read-only `tabilet status`. | No write to the project, receipt, or database in any test. |
 | API7-T02 | `[+]` | Implement `tabilet resume` with lock, lineage, image, and worktree checks. | Lock exits 19, stale inputs exit 18, and dirty or uncertain recovery exits 25 with the reason. |
 | API7-T03 | `[+]` | Reconcile crashes around planning, task, and closure commits. | Clean proven checkpoints resume; dirty or uncertain work exits 25 without replay. |
-| API7-T04 | `[+]` | Add progress output, Ctrl-C handling, and confirmed limit extension. | Interrupt cleans up the container; a higher cap needs a new confirmation. |
+| API7-T04 | `[+]` | Add progress output, interruption handling, and confirmed limit extension. | Ctrl-C and abrupt controller process death clean up the container; a higher cap needs a new confirmation. |
 | API7-T05 | `[+]` | Record controller runs and automatic completion through the optional audit toolkit. | One recorder owner; completion follows verified closure, and audit gaps never change outcomes. |
