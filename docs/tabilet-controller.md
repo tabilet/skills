@@ -107,9 +107,11 @@ evidence match the receipt. A dirty or uncertain partial operation enters
 provider request that may have run without a provable result also requires
 manual review, even when Git reports a clean worktree.
 
-Ctrl-C stops and removes the active container. A clean checkpoint becomes
-`paused`; dirty or uncertain work becomes `needs_review`. The shared project
-lock protects Tabilet launchers only and does not coordinate interactive agents.
+Ctrl-C stops and removes the active container. A separate host cleanup monitor
+also stops and removes it if the controller process exits unexpectedly. A clean
+checkpoint becomes `paused`; dirty or uncertain work becomes `needs_review`.
+The shared project lock protects Tabilet launchers only and does not coordinate
+interactive agents.
 
 ## Sandbox and Git boundary
 

@@ -2,8 +2,9 @@
 
 Plan state: `[+]`
 
-Review iterations: 1 of 5; no P1/P2 findings remain after exercising cleanup
-when the controller process dies during a Docker command.
+Review iterations: 2 of 5; no P1/P2 findings remain after exercising cleanup
+when the controller process dies during a Docker command and documenting that
+behavior in both published locales.
 
 Depends on: [API automation 1](api-automation-1.md) through
 [API automation 7 — Status, resume, recovery, and operator control](api-automation-7.md).

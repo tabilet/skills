@@ -86,8 +86,8 @@ tabilet extend-limit /absolute/path/to/project \
 `needs_review`。系统不会自动重置、丢弃或重放它。如果无法证明一次可能已经执行的模型请求结果，同样必须人工检查，
 即使 Git 显示工作区干净也一样。
 
-按 Ctrl-C 会停止并移除活动容器。干净检查点变为 `paused`；脏或不确定的工作变为 `needs_review`。共享项目锁只保护
-Tabilet 启动器，不协调交互式智能体。
+按 Ctrl-C 会停止并移除活动容器。若控制器进程意外退出，独立的主机清理监视进程也会停止并移除活动容器。干净检查点变为
+`paused`；脏或不确定的工作变为 `needs_review`。共享项目锁只保护 Tabilet 启动器，不协调交互式智能体。
 
 ## 沙箱和 Git 边界 {#sandbox-and-git-boundary}
 
