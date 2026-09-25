@@ -2,6 +2,9 @@
 
 Plan state: `[+]`
 
+Review iterations: 1 of 5; no P1/P2 findings remain after exercising cleanup
+when the controller process dies during a Docker command.
+
 Depends on: [API automation 1](api-automation-1.md) through
 [API automation 7 — Status, resume, recovery, and operator control](api-automation-7.md).
 
@@ -38,6 +41,8 @@ disposable Git repositories cover:
   commit, review-fix commit, closure commit, and receipt updates;
 - a crash after provider dispatch but before a provable task result enters
   `needs_review` without replay, even when the worktree is clean;
+- abrupt controller process death removes the active command container so it
+  cannot continue changing the project after the controller exits;
 - clean checkpoint recovery versus dirty or uncertain partial row after a
   provider failure, crash, or Ctrl-C;
 - live dependency drift, an out-of-horizon `[~]` row, and an out-of-scope `[-]`
@@ -50,7 +55,8 @@ write `.git`. Reject linked worktrees, submodules, external gitdirs, nested host
 mounts, and remote daemons. Malicious Git config, hooks, fsmonitor, external
 diff, signing, and clean/process attributes have no host effect during status,
 diff, add, commit, or recovery; built-in text normalization still works. Missing
-images and dependencies pause with exit 17; timeouts clean up containers. This
+images and dependencies pause with exit 17; timeouts and controller process
+death clean up containers. This
 runs as its own CI job so `check.py` stays Docker-free. Attribute tampering
 cases cover both repository `.gitattributes` files and `.git/info/attributes`.
 
