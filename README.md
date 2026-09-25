@@ -25,6 +25,21 @@ authorized work; installing or updating the plugin does not migrate them.
 the explicit v1.5.0 migration.
 The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the published guides, with a [Simplified Chinese mirror](https://tabilet.github.io/skills/zh/).
 
+## Contents
+
+- [Getting started](#getting-started)
+- [What is in this repository](#what-is-in-this-repository)
+- [Filled-in example and memory-bank structure](#what-a-filled-in-memory-bank-looks-like)
+- [Set up a new project](#set-up-a-new-project) or [existing project](#set-up-an-existing-project)
+- [Propose a change](#propose-a-requested-change) or [reconcile a review](#reconcile-a-new-review)
+- [Use the memory bank](#use-the-memory-bank)
+- [Install the seven skills](#install-the-seven-skills)
+- [Optional SQLite audit and lookup](#optional-sqlite-audit-and-lookup)
+- [Install the API harness](#install-the-api-harness)
+  - [Tabilet controller guide](docs/tabilet-controller.md)
+  - [Execution harness reference](docs/EXECUTION.md)
+- [What the harness is](#what-the-harness-is) and [maintenance rules](#maintenance-rules)
+
 Your project ends up looking like this:
 
 ```text
@@ -56,8 +71,9 @@ Throughout, **harness** means a repeatable command that proves something works,
 such as your test suite, a CI job, or a script. Your project defines its own in
 `tech-stack.md`. This repository also ships two optional API paths: a standalone
 loop that drives an agent through one row using the host shell, and a
-Docker-backed controller that plans, asks for one bounded confirmation, and
-resumes through verified milestone closure. See the
+Docker-backed controller that shows the proposed plan and limits before
+confirmation, then resumes through verified milestone closure. Required manual
+evidence pauses completion until it is supplied. See the
 [controller guide](docs/tabilet-controller.md).
 
 ## Getting Started

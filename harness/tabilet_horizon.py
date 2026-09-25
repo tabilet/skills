@@ -169,20 +169,29 @@ def _successor_for(index, row: dict, rows: list[dict]) -> dict:
         )
     tail = text[match.end():].split("|", 1)[0].split(";", 1)[0].split(".", 1)[0]
     candidates = []
-    identifiers = sorted(
-        {row["task_id"] for row in rows} |
-        {f"{row['milestone_id']}/{row['task_id']}" for row in rows},
-        key=len,
-        reverse=True,
-    )
-    for identifier in identifiers:
-        if re.search(r"(?<![A-Za-z0-9_.-])" + re.escape(identifier) + r"(?![A-Za-z0-9_.-])", tail):
-            matched = [
-                item for item in rows
-                if item["task_id"] == identifier
-                or f"{item['milestone_id']}/{item['task_id']}" == identifier
-            ]
-            candidates.extend(matched)
+    qualified = {}
+    for item in rows:
+        qualified.setdefault(f"{item['milestone_id']}/{item['task_id']}", []).append(item)
+    qualified_spans = []
+    for identifier in sorted(qualified, key=len, reverse=True):
+        pattern = re.compile(
+            r"(?<![A-Za-z0-9_./-])" + re.escape(identifier) + r"(?![A-Za-z0-9_.-])"
+        )
+        for found in pattern.finditer(tail):
+            qualified_spans.append(found.span())
+            candidates.extend(qualified[identifier])
+
+    task_ids = {item["task_id"] for item in rows}
+    for identifier in sorted(task_ids, key=len, reverse=True):
+        pattern = re.compile(
+            r"(?<![A-Za-z0-9_./-])" + re.escape(identifier) + r"(?![A-Za-z0-9_.-])"
+        )
+        for found in pattern.finditer(tail):
+            # A qualified reference is one token: its task-ID suffix is not a
+            # second, unqualified successor candidate.
+            if any(start <= found.start() and found.end() <= end for start, end in qualified_spans):
+                continue
+            candidates.extend(item for item in rows if item["task_id"] == identifier)
     unique = {item["key"]: item for item in candidates}
     if len(unique) != 1:
         raise _UnresolvedDependency(
@@ -689,14 +698,10 @@ def _porcelain_paths(raw: str) -> list[str]:
     return paths
 
 
-def _mark_in_progress(core, repo: pathlib.Path, row: dict) -> None:
-    """Set only the selected row's state cell before handing work to the model."""
-
-    path = repo / row["path"]
+def _locate_row_marker(path: pathlib.Path, line_number: int) -> tuple[list[str], str, int, int]:
     lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
-    line_number = row["line"]
     if not 1 <= line_number <= len(lines):
-        raise HorizonError("selected status row moved before it could be marked in progress")
+        raise HorizonError("selected status row moved before its state cell could be located")
     line = lines[line_number - 1]
     escaped = False
     separators = []
@@ -710,30 +715,72 @@ def _mark_in_progress(core, repo: pathlib.Path, row: dict) -> None:
     if len(separators) < 3:
         raise HorizonError("selected status row has no parseable state cell")
     start, end = separators[1] + 1, separators[2]
-    if line[start:end].strip() != "`[ ]`":
-        if line[start:end].strip() == "`[~]`":
-            return
+    return lines, line, start, end
+
+
+def _mark_in_progress(core, repo: pathlib.Path, row: dict) -> None:
+    """Set only the selected row's state cell before handing work to the model."""
+
+    path = repo / row["path"]
+    lines, line, start, end = _locate_row_marker(path, row["line"])
+    current = line[start:end].strip()
+    if current == "`[~]`":
+        return
+    if current != "`[ ]`":
         raise HorizonError("selected task row no longer has its approved pending state")
-    lines[line_number - 1] = line[:start] + " `[~]` " + line[end:]
+    lines[row["line"] - 1] = line[:start] + " `[~]` " + line[end:]
     path.write_text("".join(lines), encoding="utf-8")
 
 
+def _release_in_progress_marker(core, repo: pathlib.Path, row: dict) -> bool:
+    """Undo the host-written in-progress marker when it is the sole dirty path.
+
+    The marker is written before dispatch so the row is visibly claimed while
+    the model works. A pause that happens before the model changed anything of
+    its own leaves that marker as the worktree's only difference; reverting it
+    restores a genuinely clean checkpoint so the pause resumes normally instead
+    of being misread as uncertain model-made work. Any other dirty path means
+    real work may already have happened, so this leaves the tree untouched and
+    reports failure, and the caller keeps its existing needs_review handling.
+    """
+    if _changed_paths(core, repo) != [row["path"]]:
+        return False
+    path = repo / row["path"]
+    try:
+        lines, line, start, end = _locate_row_marker(path, row["line"])
+    except HorizonError:
+        return False
+    if line[start:end].strip() != "`[~]`":
+        return False
+    lines[row["line"] - 1] = line[:start] + " `[ ]` " + line[end:]
+    path.write_text("".join(lines), encoding="utf-8")
+    return _is_clean_checkpoint(core, repo)
+
+
+def _pause_review_flag(core, repo: pathlib.Path, receipt: dict, row: dict | None = None) -> bool:
+    """Return whether a pause needs manual review, healing a solitary marker first."""
+
+    if row is not None and not _is_clean_checkpoint(core, repo):
+        _release_in_progress_marker(core, repo, row)
+    return not _is_clean_checkpoint(core, repo) or _active_operation_uncertain(receipt)
+
+
 def _changed_paths(core, repo: pathlib.Path) -> list[str]:
-    return _porcelain_paths(_git(core, repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]).stdout)
+    return _porcelain_paths(_git(core, repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"]).stdout)
 
 
 def _stage_exact(core, repo: pathlib.Path, paths: list[str]) -> list[str]:
     if not paths:
         return []
     _git(core, repo, ["add", "-f", "--", *[f":(top,literal){path}" for path in paths]])
-    raw = _git(core, repo, ["diff", "--cached", "--name-only", "-z", "--"]).stdout
+    raw = _git(core, repo, ["diff", "--cached", "--no-renames", "--name-only", "-z", "--"]).stdout
     staged = raw[:-1].split("\0") if raw.endswith("\0") and raw else []
     if sorted(staged) != sorted(paths):
         raise HorizonError(f"staged paths differ from the validated set: {staged}")
     status = _changed_paths(core, repo)
     if sorted(status) != sorted(paths):
         raise HorizonError("staging left an unexpected or unstaged worktree path")
-    unstaged = _git(core, repo, ["diff", "--name-only", "--"]).stdout
+    unstaged = _git(core, repo, ["diff", "--no-renames", "--name-only", "--"]).stdout
     if unstaged:
         raise HorizonError("worktree has unstaged changes after exact-path staging")
     return staged
@@ -759,7 +806,7 @@ def _check_model_actions(result: dict) -> list[str]:
     return actions
 
 
-def _run_sandbox_check(core, store, receipt_path, receipt, executor, repo, command, args):
+def _run_sandbox_check(core, store, receipt_path, receipt, executor, repo, command, args, row=None):
     try:
         result = executor(
             repo, command, min(args.tool_timeout, 300), args.max_tool_output,
@@ -768,7 +815,7 @@ def _run_sandbox_check(core, store, receipt_path, receipt, executor, repo, comma
     except Exception as exc:
         sandbox_error = getattr(executor, "sandbox_unavailable", None)
         if sandbox_error is not None and isinstance(exc, sandbox_error):
-            review = not _is_clean_checkpoint(core, repo) or _active_operation_uncertain(receipt)
+            review = _pause_review_flag(core, repo, receipt, row)
             _pause(
                 core, store, receipt_path, receipt,
                 f"Docker executor became unavailable during verification: {exc}", 17,
@@ -777,10 +824,13 @@ def _run_sandbox_check(core, store, receipt_path, receipt, executor, repo, comma
         raise
     if result.get("exit_code") == 127:
         detail = result.get("stderr", "").strip()
-        review = not _is_clean_checkpoint(core, repo) or _active_operation_uncertain(receipt)
+        review = _pause_review_flag(core, repo, receipt, row)
         _pause(
             core, store, receipt_path, receipt,
-            "A required verification dependency is missing from the Docker image; add it locally before resuming."
+            "A required verification dependency is missing from the Docker image. The "
+            "approved image ID is fixed by this receipt and resume will not pick up a "
+            "rebuilt image; fixing it requires a new proposal that approves the updated "
+            "image ID."
             + (f"\n{detail}" if detail else ""),
             25 if review else 17, review=review,
         )
@@ -904,10 +954,17 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
             f"Current row {row_id}; {_progress_summary(receipt, row_id)}."
         )
         result = _run_agent(core, controller, args, repo, receipt, reservations, executor, _row_prompt(selection), row_id, output_fn)
+        # The model turn concluded normally; nothing is in flight anymore.
+        # Reset the phase so a pause during the post-turn checks below
+        # (verification, staging) is classified by the actual worktree state
+        # via _is_clean_checkpoint, not by a stale "provider_dispatched"
+        # marker that reserve_provider_attempt set for the last model call
+        # and nothing had advanced past since.
+        receipt["active_operation"]["phase"] = "turn_completed"
         external = _check_model_actions(result)
         if external:
             receipt["external_actions"] = list(dict.fromkeys(receipt.get("external_actions", []) + external))
-            dirty = not _is_clean_checkpoint(core, repo) or _active_operation_uncertain(receipt)
+            dirty = _pause_review_flag(core, repo, receipt, row)
             _pause(
                 core, store, receipt_path, receipt,
                 "external action requires separate handling: " + "; ".join(external), 17,
@@ -920,7 +977,7 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
         check_evidence = []
         for command in task["verification"]:
             reservations.check_time()
-            outcome = _run_sandbox_check(core, store, receipt_path, receipt, executor, repo, command, args)
+            outcome = _run_sandbox_check(core, store, receipt_path, receipt, executor, repo, command, args, row=row)
             check_results[command] = outcome.get("exit_code") == 0
             check_evidence.append({
                 "row_id": row_id, "command": command,
@@ -983,7 +1040,7 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
             _pause(core, store, receipt_path, receipt, "project HEAD or branch changed before the task commit", 25, review=True)
         message = f"Complete {row['milestone_id']}/{row['task_id']}"
 
-        staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
+        staged_patch = _git(core, repo, ["diff", "--cached", "--no-renames", "--binary", "--"]).stdout
 
         def mark_commit_attempted(candidate: str, tree: str):
             receipt["active_operation"].update({
@@ -1021,7 +1078,7 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
         return {"status": "committed", "row": row_id, "commit": gate["after"], "checks": check_results}
     except LimitPaused:
         # No replay is safe if the model already made any project changes.
-        review = not _is_clean_checkpoint(core, repo) or _active_operation_uncertain(receipt)
+        review = _pause_review_flag(core, repo, receipt, row)
         receipt["active_operation"] = None if not review else receipt.get("active_operation")
         receipt["state"] = "needs_review" if review else "paused"
         receipt["pause_reason"] = "confirmed execution limit reached"
@@ -1029,7 +1086,7 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
         raise
     except SystemExit as exc:
         if receipt.get("state") == "running" and receipt.get("active_operation") is not None:
-            uncertain = not _is_clean_checkpoint(core, repo) or _active_operation_uncertain(receipt)
+            uncertain = _pause_review_flag(core, repo, receipt, row)
             receipt["state"] = "needs_review" if uncertain else "paused"
             receipt["pause_reason"] = f"controller stopped with exit {exc.code} during an active operation"
             if not uncertain:
@@ -1060,8 +1117,173 @@ def _closure_prompt(milestone: dict, phase: str, prior: dict) -> str:
         f"Allowed paths: {json.dumps(milestone['closure_paths'], ensure_ascii=False)}\n"
         f"Prior phase evidence: {json.dumps(prior, ensure_ascii=False)}\n"
         f"Instructions: {phase_instructions[phase]}\n"
-        "Do not run Git commands or external actions. Finish with a JSON object containing `verified` (boolean), `evidence` (array of observed facts), `findings` (array with severity and finding), and `external_actions` (array). Label all review evidence as model evidence."
+        "Do not run Git commands or external actions. When finished, return exactly one "
+        "JSON object with six top-level fields: `final` (a short string summary, "
+        "required so the turn ends), `verified` (boolean), `evidence` (array of observed "
+        "facts), `findings` (array of objects with `severity` and `finding`), and "
+        "`external_actions` (array), plus `manual_evidence_verified` (boolean). All six "
+        "fields are siblings in the same object, not nested inside `final`. Set "
+        "`manual_evidence_verified` to true only during acceptance when the supplied "
+        "user evidence was actually checked; otherwise set it to false. Label all review "
+        "evidence as model evidence."
     )
+
+
+_REVIEW_GATE_LINE = re.compile(r"^\*\*Review gate\.\*\* (active|passed)$")
+_REVIEW_ITERATIONS_LINE = re.compile(r"^\*\*Review iterations\.\*\* ([0-9]+)$")
+_REVIEW_FINDINGS_LINE = re.compile(r"^\*\*Review findings\.\*\* (.+)$")
+
+
+def _review_checkpoint(repo: pathlib.Path, milestone_id: str) -> dict | None:
+    """Read the portable active review-gate checkpoint from its status file."""
+
+    path = repo / "tabilet" / "memory-bank" / f"status-{milestone_id}.md"
+    text = path.read_text(encoding="utf-8")
+    fields = {"gate": [], "iterations": [], "findings": []}
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        for name, pattern in (
+            ("gate", _REVIEW_GATE_LINE),
+            ("iterations", _REVIEW_ITERATIONS_LINE),
+            ("findings", _REVIEW_FINDINGS_LINE),
+        ):
+            match = pattern.fullmatch(line.strip())
+            if match:
+                fields[name].append(match.group(1))
+    present = any(fields.values())
+    if not present:
+        return None
+    if any(len(values) != 1 for values in fields.values()):
+        raise HorizonError(f"status-{milestone_id}.md has an incomplete or duplicate review checkpoint")
+    gate, raw_iterations, raw_findings = (
+        fields["gate"][0], fields["iterations"][0], fields["findings"][0]
+    )
+    iterations = int(raw_iterations)
+    if not 1 <= iterations <= 10:
+        raise HorizonError(f"status-{milestone_id}.md has an out-of-range review iteration count")
+    try:
+        findings = json.loads(raw_findings)
+    except json.JSONDecodeError as exc:
+        raise HorizonError(f"status-{milestone_id}.md has malformed review findings") from exc
+    if not isinstance(findings, list) or any(
+        not isinstance(item, dict)
+        or not isinstance(item.get("severity"), str)
+        or not isinstance(item.get("finding"), str)
+        for item in findings
+    ):
+        raise HorizonError(f"status-{milestone_id}.md has malformed review findings")
+    return {"gate": gate, "iterations": iterations, "findings": findings}
+
+
+def _receipt_review_checkpoint(core, store, repo: pathlib.Path, milestone_id: str, receipt: dict) -> dict | None:
+    """Find a clean paused receipt's in-flight review iteration for a new receipt."""
+
+    directory_value = getattr(store, "directory", None)
+    if not directory_value:
+        return None
+    directory = pathlib.Path(directory_value)
+    if not directory.is_dir() or directory.is_symlink():
+        return None
+    project_path = str(repo.resolve(strict=True))
+    current_head = (receipt.get("commit_ids") or [receipt.get("planning_commit")])[-1]
+    current_branch = receipt.get("branch") or "(detached)"
+    candidates = []
+    for path in directory.glob("*.json"):
+        if path.is_symlink() or not path.is_file():
+            continue
+        try:
+            prior = store.load(path)
+        except Exception:
+            continue
+        if (
+            prior.get("project_path") != project_path
+            or prior.get("branch", "(detached)") != current_branch
+            or prior.get("state") not in {"paused", "running"}
+        ):
+            continue
+        prior_head = (prior.get("commit_ids") or [prior.get("planning_commit")])[-1]
+        if not isinstance(prior_head, str) or not isinstance(current_head, str):
+            continue
+        try:
+            if not core.git_is_ancestor(repo, prior_head, current_head):
+                continue
+        except Exception:
+            continue
+        closure = prior.get("closure", {}).get("milestones", {}).get(milestone_id, {})
+        iterations = closure.get("review_iterations")
+        if (
+            closure.get("closure_state") == "pending"
+            and closure.get("phase") == "review"
+            and isinstance(iterations, int)
+            and not isinstance(iterations, bool)
+            and 0 <= iterations <= 10
+        ):
+            started = closure.get("review_iteration_started") is True and prior.get("active_operation") is None
+            findings = closure.get("review_findings", [])
+            if not isinstance(findings, list):
+                findings = []
+            candidates.append((iterations, started, prior.get("approved_at", ""), findings))
+    if not candidates:
+        return None
+    maximum = max(item[0] for item in candidates)
+    latest = [item for item in candidates if item[0] == maximum]
+    latest_receipt = max(latest, key=lambda item: item[2])
+    return {
+        "iterations": maximum,
+        "iteration_started": any(item[1] for item in latest),
+        "approved_at": latest_receipt[2],
+        "findings": latest_receipt[3],
+    }
+
+
+def _write_review_checkpoint(repo: pathlib.Path, milestone_id: str, gate: str, iterations: int, findings: list[dict]) -> None:
+    """Persist the bounded review gate for both controller and direct-agent sessions."""
+
+    if gate not in {"active", "passed"} or not 1 <= iterations <= 10:
+        raise HorizonError("invalid review checkpoint state")
+    path = repo / "tabilet" / "memory-bank" / f"status-{milestone_id}.md"
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    replacements = {
+        "gate": f"**Review gate.** {gate}",
+        "iterations": f"**Review iterations.** {iterations}",
+        "findings": "**Review findings.** " + json.dumps(findings, ensure_ascii=False, separators=(",", ":")),
+    }
+    patterns = {
+        "gate": _REVIEW_GATE_LINE,
+        "iterations": _REVIEW_ITERATIONS_LINE,
+        "findings": _REVIEW_FINDINGS_LINE,
+    }
+    matches = {name: [] for name in replacements}
+    fenced = False
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        for name, pattern in patterns.items():
+            if pattern.fullmatch(line.rstrip("\r\n").strip()):
+                matches[name].append(index)
+    if any(len(indices) > 1 for indices in matches.values()):
+        raise HorizonError(f"status-{milestone_id}.md has duplicate review checkpoint fields")
+    present = [bool(indices) for indices in matches.values()]
+    if any(present) and not all(present):
+        raise HorizonError(f"status-{milestone_id}.md has an incomplete review checkpoint")
+    if not any(present):
+        insert_at = 1 if lines and lines[0].startswith("#") else 0
+        ending = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
+        lines[insert_at:insert_at] = [replacement + ending for replacement in replacements.values()]
+    else:
+        for name, replacement in replacements.items():
+            index = matches[name][0]
+            ending = "\r\n" if lines[index].endswith("\r\n") else "\n" if lines[index].endswith("\n") else ""
+            lines[index] = replacement + ending
+    path.write_text("".join(lines), encoding="utf-8")
 
 
 def _closure_integrity_problems(
@@ -1198,7 +1420,7 @@ def _commit_closure_changes(core, controller, store, receipt_path, receipt, repo
     if core.git_head(repo) != expected_head or core.git_branch(repo) != expected_branch:
         _pause(core, store, receipt_path, receipt, "project HEAD or branch changed before the closure commit", 25, review=True)
     message = f"{phase.title()} closure for {milestone['id']}"
-    staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
+    staged_patch = _git(core, repo, ["diff", "--cached", "--no-renames", "--binary", "--"]).stdout
 
     def mark_commit_attempted(candidate: str, tree: str):
         receipt["active_operation"].update({
@@ -1289,6 +1511,28 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
         "closure_state": "pending", "phase": "review", "review_iterations": 0,
         "evidence": [], "manual_evidence": [],
     })
+    persisted_review = _review_checkpoint(repo, identity)
+    prior_receipt_review = _receipt_review_checkpoint(core, store, repo, identity, receipt)
+    if (
+        persisted_review is not None
+        and persisted_review["gate"] == "active"
+        and closure.get("phase") == "review"
+    ):
+        closure["review_iterations"] = max(
+            closure.get("review_iterations", 0), persisted_review["iterations"],
+        )
+        closure["review_findings"] = persisted_review["findings"]
+    if prior_receipt_review is not None and closure.get("phase") == "review":
+        if prior_receipt_review["iterations"] > closure.get("review_iterations", 0):
+            closure["review_iterations"] = prior_receipt_review["iterations"]
+            closure["review_iteration_started"] = prior_receipt_review["iteration_started"]
+            closure["review_findings"] = prior_receipt_review["findings"]
+        elif (
+            prior_receipt_review["iterations"] == closure.get("review_iterations")
+            and prior_receipt_review["iteration_started"]
+        ):
+            closure["review_iteration_started"] = True
+            closure.setdefault("review_findings", prior_receipt_review["findings"])
     if milestone.get("manual_evidence"):
         provided = (manual_evidence or {}).get(identity, {})
         if not isinstance(provided, dict):
@@ -1324,7 +1568,7 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
                     "Retirement prerequisites failed: " + "; ".join(prerequisites),
                     25, review=True,
                 )
-        if phase == "review" and closure["review_iterations"] >= 10:
+        if phase == "review" and closure["review_iterations"] >= 10 and not closure.get("review_iteration_started"):
             _pause(core, store, receipt_path, receipt, "bounded review gate exceeded 10 persisted iterations", 25, review=True)
         if not _is_clean_checkpoint(core, repo):
             _pause(core, store, receipt_path, receipt, "dirty worktree before closure phase", 25, review=True)
@@ -1332,9 +1576,25 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
         before = core.row_snapshot(repo)
         head = core.git_head(repo)
         branch = core.git_branch(repo)
-        phase_row = f"closure:{identity}"
+        # Scope the turn budget to this specific phase, not the whole
+        # milestone: review alone can spend up to 10 iterations of its own
+        # budget on P0-P2 fixes, and without a per-phase key it would starve
+        # the later acceptance/consolidation/downstream/retirement phases of
+        # turns before they even start.
+        phase_row = f"closure:{identity}:{phase}"
+        # A review may make closure-path edits that need a host commit. Pause
+        # at this clean checkpoint when the cap is already full, so a new
+        # confirmation can extend it before any mutation-capable dispatch.
+        reservations.ensure_commit_capacity()
         reservations.ensure_turn_capacity(phase_row)
         reservations.ensure_provider_capacity()
+        if phase == "review" and not closure.get("review_iteration_started"):
+            closure["review_iterations"] += 1
+            closure["review_iteration_started"] = True
+        # The private receipt checkpoint (including review_iteration_started)
+        # is saved below before provider dispatch. Once the pass returns, its
+        # durable status-file form is committed with the review result so
+        # direct-agent sessions can continue the same bounded gate.
         _active_operation(receipt, "closure", milestone_id=identity, phase=phase, paths=milestone["closure_paths"], expected_head=head)
         receipt["active_operation"]["before_snapshot_sha256"] = snapshot_digest(before)
         output_fn(
@@ -1346,16 +1606,19 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
                 core, controller, args, repo, receipt, reservations, executor,
                 _closure_prompt(milestone, phase, closure), phase_row, output_fn,
             )
+            # See the matching comment in _run_task: nothing is in flight once
+            # the model turn concludes normally, so a later pause should be
+            # classified by the live worktree state, not a stale dispatch marker.
+            receipt["active_operation"]["phase"] = "turn_completed"
             external = _check_model_actions(result)
             if external:
                 receipt["external_actions"] = list(dict.fromkeys(receipt.get("external_actions", []) + external))
                 review = not _is_clean_checkpoint(core, repo) or _active_operation_uncertain(receipt)
                 _pause(core, store, receipt_path, receipt, "external action requires separate handling: " + "; ".join(external), 25 if review else 17, review=review)
-            if phase == "review":
-                closure["review_iterations"] += 1
-                _save(store, receipt_path, receipt)
             if not isinstance(result.get("verified"), bool) or not isinstance(result.get("evidence"), list):
                 _pause(core, store, receipt_path, receipt, f"closure phase {phase} returned malformed evidence", 24, review=True)
+            if not isinstance(result.get("manual_evidence_verified"), bool):
+                _pause(core, store, receipt_path, receipt, f"closure phase {phase} returned malformed manual-evidence state", 24, review=True)
             if any(not isinstance(item, str) or not item.strip() for item in result["evidence"]):
                 _pause(core, store, receipt_path, receipt, f"closure phase {phase} evidence must be nonempty strings", 24, review=True)
             findings = result.get("findings", [])
@@ -1371,11 +1634,18 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
             ):
                 _pause(core, store, receipt_path, receipt, "closure findings need a severity and finding description", 24, review=True)
             p12 = [finding for finding in findings if finding["severity"].upper() in {"P0", "P1", "P2"}]
+            if phase == "review":
+                closure["review_findings"] = findings
+                _write_review_checkpoint(
+                    repo, identity, "active" if p12 else "passed",
+                    closure["review_iterations"], findings,
+                )
             if phase == "review" and p12:
                 if not result["verified"]:
                     _pause(core, store, receipt_path, receipt, "review found P1/P2 findings without a verified fix", 24, review=True)
                 # Every P0/P1/P2 fix requires another full-milestone review.
                 phase_result = _closure_phase_result(receipt, closure, phase, result, retry_review=True)
+                closure["review_iteration_started"] = False
                 receipt["active_operation"].update({
                     "phase": "result_recorded",
                     "expected_snapshot_sha256": snapshot_digest(core.row_snapshot(repo)),
@@ -1400,6 +1670,8 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
                             _pause(core, store, receipt_path, receipt, f"acceptance verification failed: {command}", 24, review=True)
                         closure["evidence"].append({"phase": "acceptance", "source": "command", "command": command, "exit_code": 0, "output": outcome.get("stdout", "")[:4000]})
             phase_result = _closure_phase_result(receipt, closure, phase, result)
+            if phase == "review":
+                closure["review_iteration_started"] = False
             receipt["active_operation"].update({
                 "phase": "result_recorded",
                 "expected_snapshot_sha256": snapshot_digest(core.row_snapshot(repo)),

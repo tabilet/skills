@@ -86,6 +86,10 @@ tabilet extend-limit /absolute/path/to/project \
 `needs_review`。系统不会自动重置、丢弃或重放它。如果无法证明一次可能已经执行的模型请求结果，同样必须人工检查，
 即使 Git 显示工作区干净也一样。
 
+每次评审开始前，控制器都会先在活动状态文件中记录已开始的迭代和此前的发现，然后在评审后更新结果。
+这些字段为 `**Review gate.** active|passed`、`**Review iterations.** N`，以及后接 JSON 数组的
+`**Review findings.**`。直接调用智能体时也会沿用此检查点；只要评审门仍处于活动状态，新控制器收据就会继续该计数。
+
 按 Ctrl-C 会停止并移除活动容器。若控制器进程意外退出，独立的主机清理监视进程也会停止并移除活动容器。干净检查点变为
 `paused`；脏或不确定的工作变为 `needs_review`。共享项目锁只保护 Tabilet 启动器，不协调交互式智能体。
 
@@ -104,7 +108,7 @@ tabilet extend-limit /absolute/path/to/project \
 
 ## 退出码 {#exit-codes}
 
-控制器专用退出码与运行器代码一起列在[执行指南](../EXECUTION.md#tabilet-controller-exit-codes)：`16` 表示已确认的限制
+控制器专用退出码与运行器代码一起列在[执行指南](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#tabilet-controller-exit-codes)：`16` 表示已确认的限制
 使工作范围暂停；`17` 表示设置、必需人工证据或需单独处理的外部操作使其暂停；`18` 表示批准输入已过期；`19` 表示共享
 启动器锁已占用；`24` 表示提交前验证失败；`25` 表示恢复需要人工检查。
 
@@ -117,4 +121,4 @@ tabilet extend-limit /absolute/path/to/project \
 
 无凭据的假提供方测试和 Docker 测试分别通过本地或独立 CI 作业运行。Docker 作业要求本地镜像，但不需要提供方凭据。任何付费
 实时模型验收都必须单独人工触发，并设置可执行的提供方预算；它不会在 pull request 上自动运行。详见
-[模型评估](../MODEL_EVAL.md#tabilet-controller-live-acceptance)。
+[模型评估](https://github.com/tabilet/skills/blob/main/docs/MODEL_EVAL.md#tabilet-controller-live-acceptance)。

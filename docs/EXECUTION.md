@@ -150,6 +150,8 @@ control back to a human.
 | `21` | The API could not be reached. |
 | `22` | The API response did not match the expected shape. |
 | `23` | The model refused or returned no usable text. |
+| `26` | The shared project lock could not be prepared safely (a read-only or missing state directory, or an invalid `XDG_STATE_HOME`). Distinct from `19`, which means the lock is held, not broken. |
+| `27` | The repository's local Git configuration is unsafe for host operations, such as an active clean/process filter (for example, a locally enabled Git LFS install). Remove or disable it before running the harness. |
 | `30` | The model used `MAX_TURNS` without finishing a row. |
 | `31` | The conversation exceeded `MAX_HISTORY_CHARS`. |
 | `130` | The run was interrupted from the terminal. |

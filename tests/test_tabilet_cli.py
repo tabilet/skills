@@ -149,13 +149,17 @@ class TabiletChatEndToEndTests(unittest.TestCase):
             {"tool": "run_shell", "cmd": "complete-task", "why": "implement selected row"},
             {"final": "The feature is ready.", "external_actions": []},
             {"final": "Review found no release blocking findings.", "verified": True,
-             "evidence": ["Reviewed the full milestone."], "findings": [], "external_actions": []},
+             "evidence": ["Reviewed the full milestone."], "findings": [], "external_actions": [],
+             "manual_evidence_verified": False},
             {"final": "Acceptance criteria pass.", "verified": True,
-             "evidence": ["Feature exists and its test passes."], "findings": [], "external_actions": []},
+             "evidence": ["Feature exists and its test passes."], "findings": [], "external_actions": [],
+             "manual_evidence_verified": False},
             {"final": "Current facts are consolidated.", "verified": True,
-             "evidence": ["No maintained facts required an update."], "findings": [], "external_actions": []},
+             "evidence": ["No maintained facts required an update."], "findings": [], "external_actions": [],
+             "manual_evidence_verified": False},
             {"final": "Downstream references are consistent.", "verified": True,
-             "evidence": ["No downstream milestone depends on this row."], "findings": [], "external_actions": []},
+             "evidence": ["No downstream milestone depends on this row."], "findings": [], "external_actions": [],
+             "manual_evidence_verified": False},
         ]
         calls = []
         queue = [answer({"tool": "propose", "proposal": plan1}),
@@ -190,7 +194,7 @@ class TabiletChatEndToEndTests(unittest.TestCase):
         self.assertEqual("feature = True\n", (self.project / "feature.py").read_text(encoding="utf-8"))
         self.assertIn("`[+]`", (self.project / "tabilet/memory-bank/status-M01.md").read_text(encoding="utf-8"))
         self.assertEqual(["complete-task", "true", "true"], self.executor.commands)
-        self.assertEqual(2, len(result["commit_ids"]))  # planning and selected task; closure made no changes
+        self.assertEqual(3, len(result["commit_ids"]))  # planning, selected task, and review checkpoint
         self.assertEqual(["publish release"], result["external_actions"])
         self.assertEqual([], queue)
         self.assertEqual(8, len(calls))

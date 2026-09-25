@@ -26,6 +26,7 @@ import argparse
 import contextlib
 import datetime
 import fcntl
+import functools
 import hashlib
 import json
 import math
@@ -226,29 +227,41 @@ class ProjectLockUnavailable(Exception):
     """Another Tabilet launcher already owns this project's execution lock."""
 
 
+class ProjectLockError(OSError):
+    """The shared project lock could not be prepared safely."""
+
+
 @contextlib.contextmanager
 def project_lock(repo: pathlib.Path):
     """Hold the shared per-project lock used by Tabilet launchers."""
 
-    canonical = pathlib.Path(repo).expanduser().resolve(strict=True)
-    state_home = pathlib.Path(os.environ.get("XDG_STATE_HOME", "~/.local/state")).expanduser()
-    if not state_home.is_absolute():
-        raise ValueError("XDG_STATE_HOME must be an absolute path")
-    lock_dir = state_home / "tabilet" / "locks"
-    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if lock_dir.is_symlink() or not lock_dir.is_dir():
-        raise OSError(f"unsafe project lock directory: {lock_dir}")
-    os.chmod(lock_dir, 0o700)
-    key = hashlib.sha256(os.fsencode(str(canonical))).hexdigest()
-    lock_path = lock_dir / f"{key}.lock"
-    flags = os.O_CREAT | os.O_RDWR
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(lock_path, flags, 0o600)
+    try:
+        canonical = pathlib.Path(repo).expanduser().resolve(strict=True)
+        state_home = pathlib.Path(os.environ.get("XDG_STATE_HOME", "~/.local/state")).expanduser()
+        if not state_home.is_absolute():
+            raise ValueError("XDG_STATE_HOME must be an absolute path")
+        lock_dir = state_home / "tabilet" / "locks"
+        lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if lock_dir.is_symlink() or not lock_dir.is_dir():
+            raise OSError(f"unsafe project lock directory: {lock_dir}")
+        os.chmod(lock_dir, 0o700)
+        key = hashlib.sha256(os.fsencode(str(canonical))).hexdigest()
+        lock_path = lock_dir / f"{key}.lock"
+        flags = os.O_CREAT | os.O_RDWR
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(lock_path, flags, 0o600)
+    except (OSError, ValueError) as exc:
+        # Everything above is lock infrastructure, not project state: a
+        # read-only or missing HOME, a misconfigured XDG_STATE_HOME, or an
+        # unsafe lock path. Give it its own exception so callers can map it to
+        # a clean, documented exit instead of an unhandled traceback, without
+        # also catching genuine errors raised later from inside the run itself.
+        raise ProjectLockError(f"cannot prepare the shared project lock: {exc}") from exc
     try:
         lock_stat = os.fstat(descriptor)
         if not stat.S_ISREG(lock_stat.st_mode):
-            raise OSError(f"project lock is not a regular file: {lock_path}")
+            raise ProjectLockError(f"project lock is not a regular file: {lock_path}")
         os.fchmod(descriptor, 0o600)
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -301,6 +314,63 @@ def _git_environment() -> dict[str, str]:
     return env
 
 
+@functools.lru_cache(maxsize=1)
+def _global_excludes_file() -> str | None:
+    """Read the user's real global core.excludesFile once, outside the sandbox.
+
+    GIT_CONFIG_GLOBAL=os.devnull below blocks the user's whole global config
+    from every host Git call, primarily so a global alias cannot silently
+    redefine one of the built-in subcommands this harness relies on. That
+    blanket block also hides the user's own ignore patterns, so an editor swap
+    file or .DS_Store the user already excludes globally shows up as
+    "untracked" and fails the clean-worktree gate. Forward just this one
+    path-valued setting explicitly instead of trusting global config wholesale.
+    """
+    executable = shutil.which("git")
+    if not executable:
+        return None
+    try:
+        result = subprocess.run(
+            [executable, "config", "--global", "--get", "core.excludesFile"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+@functools.lru_cache(maxsize=None)
+def _identity_config(repo: str) -> tuple[str, ...]:
+    """Read the user's real committer identity for this repo, outside the sandbox.
+
+    GIT_CONFIG_GLOBAL=os.devnull below hides ~/.gitconfig (and any repo-local
+    override) from every host Git call, so commit-tree has no user.name or
+    user.email to use and falls back to guessing one from the OS account and
+    hostname. That guess may not be the identity the user actually configured,
+    and can fail outright ("unable to auto-detect email address") on a host
+    whose hostname does not look like a domain, such as inside a container.
+    Read with plain `git config --get`, which already prefers a repo-local
+    value over a global one, so a per-repo identity is respected too.
+    """
+    executable = shutil.which("git")
+    if not executable:
+        return ()
+    overrides = []
+    for key in ("user.name", "user.email"):
+        try:
+            result = subprocess.run(
+                [executable, "config", "--get", key],
+                cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        value = result.stdout.strip()
+        if value:
+            overrides.append(f"{key}={value}")
+    return tuple(overrides)
+
+
 _SAFE_GIT_CONFIG = (
     "core.hooksPath=/dev/null",
     "core.fsmonitor=false",
@@ -337,6 +407,17 @@ def _git_local_raw(
     command = [executable]
     for value in _SAFE_GIT_CONFIG:
         command.extend(("-c", value))
+    excludes_file = _global_excludes_file()
+    if excludes_file is not None:
+        command.extend(("-c", f"core.excludesFile={excludes_file}"))
+    for override in _identity_config(str(pathlib.Path(cwd).resolve())):
+        command.extend(("-c", override))
+    # Scope ownership trust to exactly the repository this call targets, rather
+    # than depending on the user's global safe.directory (which GIT_CONFIG_GLOBAL
+    # below hides anyway). This is what lets a repo owned by another uid inside a
+    # container -- a normal case for the sandboxed executor -- pass Git's
+    # dubious-ownership check without granting trust to any other repository.
+    command.extend(("-c", f"safe.directory={pathlib.Path(cwd).resolve()}"))
     command.append("--no-pager")
     if args and args[0] in {"diff", "log", "show"}:
         tail = args[1:]
@@ -362,12 +443,21 @@ def _git_local_raw(
     )
 
 
-def _git_index_paths(repo: pathlib.Path, pathspecs: list[str] | None = None) -> list[str]:
+def _git_index_paths(
+    repo: pathlib.Path, pathspecs: list[str] | None = None, *, include_ignored: bool = False,
+) -> list[str]:
+    options_list = [["ls-files", "-z", "--cached", "--others", "--exclude-standard"]]
+    if include_ignored:
+        # Enumerating every ignored path requires Git to walk into ignored
+        # directories it would otherwise prune, which is slow in a repo with a
+        # large node_modules/ or .venv/. It is only needed to catch a targeted
+        # `git add -f -- <path>` on a path that is both ignored and covered by
+        # a local filter; a whole-repo status/diff never runs a filter on an
+        # ignored path (it is not tracked and not being added), so callers
+        # only set this for an explicit, narrow pathspec, not the whole tree.
+        options_list.append(["ls-files", "-z", "--others", "--ignored", "--exclude-standard"])
     paths = []
-    for options in (
-        ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-        ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"],
-    ):
+    for options in options_list:
         proc = _git_local_raw(options + (["--", *pathspecs] if pathspecs else []), repo)
         if proc.returncode:
             raise UnsafeGitConfiguration(proc.stderr.strip() or "unable to inspect Git path inventory")
@@ -435,7 +525,10 @@ def git_local(
         # files. Inventory and inspect every path first without calling status.
         candidate_paths = _git_index_paths(cwd)
         if requested_paths:
-            candidate_paths.extend(_git_index_paths(cwd, requested_paths))
+            # A targeted call (typically `add -f`) can touch a specific path
+            # that is both ignored and filtered; check ignored paths only
+            # within that narrow, explicit set, not the whole working tree.
+            candidate_paths.extend(_git_index_paths(cwd, requested_paths, include_ignored=True))
         candidate_paths.extend(requested_paths)
         active = _active_custom_filters(cwd, candidate_paths)
         if active:
@@ -1870,6 +1963,15 @@ def main() -> None:
             f"finish before starting a second run ({exc})."
         )
         fail(message, 19)
+    except ProjectLockError as exc:
+        fail(str(exc), 26)
+    except UnsafeGitConfiguration as exc:
+        fail(
+            "Repository Git configuration is unsafe for host operations: "
+            f"{exc}. Remove or disable the active local filter/attribute driver "
+            "before running the harness.",
+            27,
+        )
 
 
 def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:

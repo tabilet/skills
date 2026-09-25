@@ -109,6 +109,16 @@ class HorizonSelectionTests(unittest.TestCase):
         with self.assertRaisesRegex(horizon.HorizonError, "outside the approved horizon"):
             horizon.select_next_row(core, self.project, self.receipt())
 
+    def test_qualified_historical_successor_is_parsed_as_one_reference(self):
+        self.set_project([
+            ("M01", [("T01", "`[-]`", "accepted successor M02/T01")]),
+            ("M02", [("T01", "`[ ]`", "Ready.")]),
+        ])
+        live = horizon._live_projection(core, self.project)
+        historical = next(row for row in live["rows"] if row["milestone_id"] == "M01")
+        successor = horizon._successor_for(None, historical, live["rows"])
+        self.assertEqual(("M02", "T01"), (successor["milestone_id"], successor["task_id"]))
+
     def test_unresolved_live_task_dependency_stops_before_provider_dispatch(self):
         self.set_project([("M01", [("T01", "`[ ]`", "Depends on: T99")])])
         with self.assertRaisesRegex(horizon.HorizonError, "unresolved task dependency"):
@@ -354,7 +364,7 @@ class HorizonRuntimeTests(unittest.TestCase):
         return {
             "final": f"{phase} verified", "verified": True,
             "evidence": [f"Observed {phase} evidence."], "findings": [],
-            "external_actions": [],
+            "external_actions": [], "manual_evidence_verified": False,
         }
 
     def run_horizon(self, replies, executor=None, *, manual_evidence=None, via_adapter=False):
@@ -387,11 +397,129 @@ class HorizonRuntimeTests(unittest.TestCase):
         result, counts = self.run_horizon(replies, via_adapter=True)
         self.assertEqual("completed", result["state"])
         self.assertEqual("verified", result["closure"]["milestones"]["M01"]["closure_state"])
-        self.assertEqual(2, len(result["commit_ids"]))  # planning + one task; closure made no changes
+        self.assertEqual(3, len(result["commit_ids"]))  # planning, one task, and the persisted review checkpoint
         self.assertEqual(1, result["usage"]["rows_started"])
         self.assertEqual(6, result["usage"]["provider_attempts_reserved"])
         self.assertEqual(6, counts["attempts"])
         self.assertTrue(result["verification_evidence"][0]["exit_code"] == 0)
+        checkpoint = horizon._review_checkpoint(self.project, "M01")
+        self.assertEqual({"gate": "passed", "iterations": 1, "findings": []}, checkpoint)
+        changed = core.git_local(["show", "--format=", "--name-only", "HEAD~1..HEAD"], self.project).stdout
+        self.assertIn("status-M01.md", changed)
+
+    def test_active_status_review_counter_is_imported_into_a_new_receipt(self):
+        status = self.project / "tabilet/memory-bank/status-M01.md"
+        status_text = status.read_text(encoding="utf-8").replace("`[ ]`", "`[+]`")
+        status.write_text(
+            status_text
+            + "\n**Review gate.** active\n**Review iterations.** 9\n"
+            '**Review findings.** [{"severity":"P2","finding":"Existing finding."}]\n',
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "-A"], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-qm", "persist direct-agent review gate"], cwd=self.project, check=True)
+        receipt = self.store.load(self.receipt_path)
+        new_head = core.git_head(self.project)
+        receipt["commit_ids"].append(new_head)
+        receipt["usage"]["commits_reserved"] += 1
+        receipt["usage"]["commits_recorded"] += 1
+        self.store.update_atomic(self.receipt_path, receipt)
+
+        result, _counts = self.run_horizon([
+            self.closure_reply("review"), self.closure_reply("acceptance"),
+            self.closure_reply("consolidation"), self.closure_reply("downstream"),
+        ])
+        self.assertEqual("completed", result["state"])
+        self.assertEqual(10, result["closure"]["milestones"]["M01"]["review_iterations"])
+        self.assertEqual(3, len(result["commit_ids"]))
+        checkpoint = horizon._review_checkpoint(self.project, "M01")
+        self.assertEqual("passed", checkpoint["gate"])
+        self.assertEqual(10, checkpoint["iterations"])
+
+    def test_review_iteration_ten_is_not_reset_for_a_new_receipt(self):
+        status = self.project / "tabilet/memory-bank/status-M01.md"
+        status_text = status.read_text(encoding="utf-8").replace("`[ ]`", "`[+]`")
+        status.write_text(
+            status_text
+            + "\n**Review gate.** active\n**Review iterations.** 10\n"
+            '**Review findings.** [{"severity":"P2","finding":"Still unresolved."}]\n',
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "-A"], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-qm", "persist tenth review iteration"], cwd=self.project, check=True)
+        receipt = self.store.load(self.receipt_path)
+        new_head = core.git_head(self.project)
+        receipt["commit_ids"].append(new_head)
+        receipt["usage"]["commits_reserved"] += 1
+        receipt["usage"]["commits_recorded"] += 1
+        self.store.update_atomic(self.receipt_path, receipt)
+
+        with self.assertRaises(SystemExit) as caught:
+            self.run_horizon([self.closure_reply("review")])
+        self.assertEqual(25, caught.exception.code)
+        saved = self.store.load(self.receipt_path)
+        self.assertEqual(10, saved["closure"]["milestones"]["M01"]["review_iterations"])
+        self.assertEqual("needs_review", saved["state"])
+        self.assertTrue(core.git_clean(self.project))
+
+    def test_new_receipt_continues_a_clean_pre_dispatch_review_from_private_state(self):
+        status = self.project / "tabilet/memory-bank/status-M01.md"
+        status.write_text(status.read_text(encoding="utf-8").replace("`[ ]`", "`[+]`"), encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=self.project, check=True)
+        subprocess.run(["git", "commit", "-qm", "complete task before review"], cwd=self.project, check=True)
+
+        prior = self.store.load(self.receipt_path)
+        prior["commit_ids"].append(core.git_head(self.project))
+        prior["usage"]["commits_reserved"] += 1
+        prior["usage"]["commits_recorded"] += 1
+        prior["state"] = "paused"
+        prior["closure"]["milestones"]["M01"] = {
+            "closure_state": "pending", "phase": "review", "review_iterations": 10,
+            "review_iteration_started": True, "review_findings": [],
+            "evidence": [], "manual_evidence": [],
+        }
+        self.store.update_atomic(self.receipt_path, prior)
+
+        next_receipt = json.loads(json.dumps(prior))
+        next_receipt["receipt_id"] = str(uuid.uuid4())
+        next_receipt["state"] = "running"
+        next_receipt["closure"] = {"milestones": {}}
+        self.receipt_path = self.store.create(self.project, next_receipt)
+        result, _counts = self.run_horizon([
+            self.closure_reply("review"), self.closure_reply("acceptance"),
+            self.closure_reply("consolidation"), self.closure_reply("downstream"),
+        ])
+        self.assertEqual("completed", result["state"])
+        self.assertEqual(10, result["closure"]["milestones"]["M01"]["review_iterations"])
+
+    def test_commit_cap_pauses_cleanly_before_closure_dispatch(self):
+        receipt = self.store.load(self.receipt_path)
+        receipt["limits"]["max_commits"] = 2
+        self.store.update_atomic(self.receipt_path, receipt)
+        # The task consumes the second allowed commit. Closure must stop before
+        # its first model turn, leaving a clean checkpoint that can be extended.
+        with self.assertRaises(SystemExit) as caught:
+            self.run_horizon([
+                {"tool": "run_shell", "cmd": "finish-row", "why": "finish selected task"},
+                {"final": "task finished", "external_actions": []},
+            ])
+        self.assertEqual(16, caught.exception.code)
+        saved = self.store.load(self.receipt_path)
+        self.assertEqual("paused", saved["state"])
+        self.assertIsNone(saved["active_operation"])
+        self.assertTrue(core.git_clean(self.project))
+        self.assertEqual(2, saved["usage"]["commits_reserved"])
+        extended = horizon.extend_limit(
+            core, self.store, self.receipt_path, saved, "max_commits", 3,
+            input_fn=lambda prompt: "confirm" if "a" * 64 in prompt else "stop",
+        )
+        self.assertEqual("running", extended["status"])
+        self.assertEqual(3, self.store.load(self.receipt_path)["limits"]["max_commits"])
+
+    def test_closure_prompt_includes_manual_evidence_result_field(self):
+        prompt = horizon._closure_prompt(self.receipt["approved_horizon"][0], "acceptance", {})
+        self.assertIn("`manual_evidence_verified` (boolean)", prompt)
+        self.assertIn("only during acceptance", prompt)
 
     def test_adopted_retirement_preserves_sources_after_verified_closure(self):
         status = self.project / "tabilet/memory-bank/status-M01.md"
@@ -514,7 +642,11 @@ class HorizonRuntimeTests(unittest.TestCase):
         self.assertEqual(17, caught.exception.code)
         receipt = self.store.load(self.receipt_path)
         self.assertEqual(["publish release"], receipt["external_actions"])
-        self.assertEqual("needs_review", receipt["state"])
+        # The model reported the action on its very first turn without
+        # dispatching any tool command, so the only worktree change is the
+        # host-written in-progress marker; that is released back to a clean
+        # checkpoint, so this is safely resumable rather than uncertain.
+        self.assertEqual("paused", receipt["state"])
         self.assertEqual(self.head, core.git_head(self.project))
 
     def test_usage_reservations_count_failed_provider_calls_and_resume(self):
@@ -633,7 +765,7 @@ class HorizonRuntimeTests(unittest.TestCase):
                 "final": "critical finding fixed", "verified": True,
                 "evidence": ["Applied the P0 fix."],
                 "findings": [{"severity": "P0", "finding": "Critical release blocker."}],
-                "external_actions": [],
+                "external_actions": [], "manual_evidence_verified": False,
             },
             self.closure_reply("review"), self.closure_reply("acceptance"),
             self.closure_reply("consolidation"), self.closure_reply("downstream"),
@@ -642,7 +774,7 @@ class HorizonRuntimeTests(unittest.TestCase):
         closure = result["closure"]["milestones"]["M01"]
         self.assertEqual("completed", result["state"])
         self.assertEqual(2, closure["review_iterations"])
-        self.assertEqual(3, len(result["commit_ids"]))
+        self.assertEqual(4, len(result["commit_ids"]))
         self.assertTrue(any(
             finding["severity"] == "P0"
             for evidence in closure["evidence"]
@@ -761,7 +893,7 @@ class HorizonRuntimeTests(unittest.TestCase):
                     "final": "fixed, needs another review", "verified": True,
                     "evidence": [f"Applied iteration {number} fix."],
                     "findings": [{"severity": "P2", "finding": "Review again after fix."}],
-                    "external_actions": [],
+                    "external_actions": [], "manual_evidence_verified": False,
                 },
             ])
         with self.assertRaises(SystemExit) as caught:

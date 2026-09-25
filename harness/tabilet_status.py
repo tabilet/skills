@@ -124,6 +124,11 @@ def status_report(core, repo: pathlib.Path, receipt_store=None) -> dict:
             "active_operation": receipt.get("active_operation"),
             "path": item["path"],
         })
+    review_count = {}
+    for receipt in receipt_records:
+        for identity, iterations in receipt.get("review_iterations", {}).items():
+            if isinstance(iterations, int) and not isinstance(iterations, bool):
+                review_count[identity] = max(review_count.get(identity, 0), iterations)
     return {
         "project": str(root),
         "branch": core.git_branch(root),
@@ -134,11 +139,7 @@ def status_report(core, repo: pathlib.Path, receipt_store=None) -> dict:
         ],
         "in_progress": in_progress,
         "blocked": blocked,
-        "review_count": {
-            identity: record.get("review_iterations", 0)
-            for receipt in receipt_records
-            for identity, record in receipt.get("review_iterations", {}).items()
-        },
+        "review_count": review_count,
         "receipt": receipt_records,
         "receipt_errors": receipt_errors,
         "state_problems": state_problems,

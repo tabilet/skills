@@ -259,6 +259,26 @@ class ProposalTests(unittest.TestCase):
         receipt = self.store.load(self.receipt_path())
         self.assertEqual("commit_attempted", receipt["active_operation"]["phase"])
 
+    def test_branch_switch_at_same_head_does_not_redirect_approved_commit(self):
+        approved_branch = core.git_branch(self.project)
+        baseline = git("rev-parse", "HEAD", cwd=self.project).stdout.strip()
+        switched = []
+
+        def switch_branch(stage):
+            if stage == "before_ref_update":
+                result = git("switch", "--quiet", "--create", "unapproved", cwd=self.project)
+                self.assertEqual(0, result.returncode, result.stderr)
+                switched.append(True)
+
+        result = self.approve(fault_hook=switch_branch)
+        self.assertTrue(switched)
+        self.assertEqual("needs_review", result["status"])
+        self.assertIn("HEAD target changed", result["reason"])
+        self.assertEqual("unapproved", core.git_branch(self.project))
+        self.assertEqual(baseline, git("rev-parse", f"refs/heads/{approved_branch}", cwd=self.project).stdout.strip())
+        self.assertEqual(baseline, git("rev-parse", "refs/heads/unapproved", cwd=self.project).stdout.strip())
+        self.assertEqual(baseline, git("rev-parse", "HEAD", cwd=self.project).stdout.strip())
+
     def test_invalid_target_drift_requires_revised_proposal_before_any_receipt(self):
         calls = []
 

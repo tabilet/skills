@@ -32,8 +32,9 @@ MAX_SNAPSHOT_FILE_BYTES = 8 * 1024 * 1024
 MAX_SNAPSHOT_TOTAL_BYTES = 64 * 1024 * 1024
 MAX_SNAPSHOT_FILES = 5000
 MAX_FILE_ACTIONS = 500
-_PERMANENT_ID = re.compile(rb"\b([A-Z][0-9]{2})\b")
-_STATUS_FILE = re.compile(r"(?:^|/)status-([A-Z][0-9]{2})\.md$")
+_STATUS_ID = r"[A-Z][0-9]{2}"
+_PERMANENT_ID = re.compile(rb"\b(" + _STATUS_ID.encode() + rb")\b")
+_STATUS_FILE = re.compile(r"(?:^|/)status-(" + _STATUS_ID + r")\.md$")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
 RECEIPT_STATES = {"approved", "running", "paused", "needs_review", "completed"}
 
@@ -57,6 +58,25 @@ def _canonical_json(value) -> bytes:
         ).encode("utf-8")
     except (TypeError, ValueError, UnicodeError) as exc:
         raise ProposalError(f"value is not representable as standard UTF-8 JSON: {exc}") from exc
+
+
+_INDEX_LINE = re.compile(r"(?m)^index [0-9a-fA-F]+\.\.[0-9a-fA-F]+(?: [0-7]{6})?\r?\n")
+
+
+def _normalize_patch(patch: str) -> str:
+    """Drop Git's derived blob-hash `index` lines before a structural compare.
+
+    A blob hash depends on the exact pre- and post-image bytes, so a model
+    cannot predict it while writing a text diff, and its formatting (hash
+    length, presence) is not fully pinned by "git diff --binary" across
+    configurations. The index line carries no information the rest of the
+    patch does not already fix: paths, mode lines, and hunk bodies already
+    fully determine the bytes Git will stage. Stripping it lets an approved
+    diff match Git's own generated output without asking the model to
+    reproduce a hash Git already computes deterministically from that same
+    content.
+    """
+    return _INDEX_LINE.sub("", patch)
 
 
 def _pretty_json(value) -> str:
@@ -108,8 +128,13 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
         dependencies = milestone.get("dependencies")
         acceptance = milestone.get("acceptance")
         tasks = milestone.get("tasks")
-        if not isinstance(identifier, str) or not re.fullmatch(r"[A-Z][A-Z0-9-]{0,15}", identifier):
-            raise ProposalError("each horizon milestone needs a stable short ID")
+        if not isinstance(identifier, str) or not re.fullmatch(_STATUS_ID, identifier):
+            # Match the exact status-file ID shape (_STATUS_FILE) rather than a
+            # looser pattern: a permitted ID that this module's own parser
+            # cannot recognize back out of "status-<id>.md" would pass
+            # approval and be committed, then never resolve to a live or
+            # retired record when the horizon tries to execute it.
+            raise ProposalError("each horizon milestone needs a status-lane ID (one uppercase letter, two digits)")
         if identifier in ids:
             raise ProposalError(f"duplicate milestone ID in horizon: {identifier}")
         ids.add(identifier)
@@ -287,7 +312,7 @@ def _decode_paths(raw: str, label: str) -> list[str]:
     return values
 
 
-def _patch_paths(core, repo: pathlib.Path, patch: str) -> list[str]:
+def _patch_paths(core, repo: pathlib.Path, patch: str, *, allow_binary: bool = False) -> list[str]:
     proc = _git(core, repo, ["apply", "--numstat", "-z", "-"], input_text=patch)
     chunks = proc.stdout.split("\x00")
     if chunks[-1] != "":
@@ -305,7 +330,13 @@ def _patch_paths(core, repo: pathlib.Path, patch: str) -> list[str]:
         paths.append(_project_path(path))
     if not paths or len(paths) != len(set(paths)):
         raise ProposalError("patch must change one or more unique project files")
-    if "GIT binary patch" in patch or "\nBinary files " in patch:
+    if not allow_binary and ("GIT binary patch" in patch or "\nBinary files " in patch):
+        # A planning proposal's diff is model-authored text a human reads and
+        # approves verbatim; a model cannot emit a valid binary patch delta, so
+        # rejecting one here is a real constraint. Task and closure commits
+        # instead stage whatever the sandboxed model actually wrote, verified
+        # by path and approved scope rather than by textual review, so their
+        # caller passes allow_binary=True to admit real binary file changes.
         raise ProposalError("planning proposals are limited to reviewable text patches")
     if re.search(r"(?m)^(?:new file mode|deleted file mode|old mode|new mode) 120000$", patch):
         raise ProposalError("symbolic-link file actions are not allowed")
@@ -495,7 +526,7 @@ def capture_project_snapshot(core, repo: pathlib.Path, file_actions: list[dict],
     """Capture branch, clean state, permanent IDs, and affected source hashes."""
 
     root = _project_root(core, repo)
-    status = _git(core, root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])
+    status = _git(core, root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"])
     clean = status.stdout == ""
     if not clean and not allow_dirty:
         raise ProposalError("project must have a clean committed baseline before proposal approval")
@@ -679,6 +710,17 @@ class ReceiptStore:
     @staticmethod
     def _serialize(receipt: dict) -> bytes:
         data = _canonical_json(receipt) + b"\n"
+        # verification_evidence is the one field that grows without a fixed
+        # bound across a long-running horizon (one entry per verification
+        # command, every row). Crash recovery only ever needs evidence for the
+        # row or closure phase active at crash time, which is always the most
+        # recently appended entry, so dropping the oldest first keeps that
+        # check safe. Without this, a receipt that outgrows the cap could
+        # never be saved again, including from inside its own pause handler.
+        evidence = receipt.get("verification_evidence")
+        while len(data) > 2 * MAX_PROPOSAL_BYTES and isinstance(evidence, list) and evidence:
+            evidence.pop(0)
+            data = _canonical_json(receipt) + b"\n"
         if len(data) > 2 * MAX_PROPOSAL_BYTES:
             raise ProposalError("receipt exceeds the size limit")
         return data
@@ -850,7 +892,7 @@ def _new_receipt(project: pathlib.Path, proposal: dict, snapshot: dict, text: st
 
 
 def _status_paths(core, repo: pathlib.Path) -> tuple[list[str], bool]:
-    proc = _git(core, repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])
+    proc = _git(core, repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"])
     raw = proc.stdout
     if not raw:
         return [], True
@@ -892,17 +934,17 @@ def _mark_needs_review(store: ReceiptStore, path: pathlib.Path, receipt: dict, r
 
 def commit_staged_tree(
     core, repo: pathlib.Path, expected_head: str | None, expected_branch: str | None,
-    expected_patch: str, message: str, *, before_ref_update=None,
+    expected_patch: str, message: str, *, before_ref_update=None, allow_binary: bool = False,
 ) -> str:
     """Commit exactly the staged patch on its approved parent with a ref CAS."""
 
     staged_paths = _decode_paths(
-        _git(core, repo, ["diff", "--cached", "--name-only", "-z", "--"]).stdout,
+        _git(core, repo, ["diff", "--cached", "--no-renames", "--name-only", "-z", "--"]).stdout,
         "staged",
     )
-    expected_paths = _patch_paths(core, repo, expected_patch)
-    staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
-    if sorted(staged_paths) != expected_paths or staged_patch != expected_patch:
+    expected_paths = _patch_paths(core, repo, expected_patch, allow_binary=allow_binary)
+    staged_patch = _git(core, repo, ["diff", "--cached", "--no-renames", "--binary", "--"]).stdout
+    if sorted(staged_paths) != expected_paths or _normalize_patch(staged_patch) != _normalize_patch(expected_patch):
         raise ProposalError("staged tree differs from the exact patch approved for commit")
 
     branch_proc = _git(core, repo, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
@@ -914,6 +956,15 @@ def commit_staged_tree(
     expected_branch_normalized = None if expected_branch in {None, "(detached)"} else expected_branch
     if actual_branch != expected_branch_normalized or actual_head != expected_head:
         raise ProposalError("branch or HEAD changed before the host commit")
+    if expected_branch_normalized is None:
+        approved_ref = None
+    else:
+        approved_ref_proc = _git(core, repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
+        if approved_ref_proc.returncode:
+            raise ProposalError("cannot resolve the approved branch ref before the host commit")
+        approved_ref = approved_ref_proc.stdout.strip()
+        if not approved_ref.startswith("refs/heads/"):
+            raise ProposalError("host commit target is not an approved local branch")
 
     tree = _git(core, repo, ["write-tree"]).stdout.strip()
     if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", tree):
@@ -925,7 +976,8 @@ def commit_staged_tree(
     candidate = _git(core, repo, commit_args).stdout.strip()
     if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", candidate):
         raise ProposalError("Git returned an invalid host commit ID")
-    if _git(core, repo, ["show", "--format=", "--binary", candidate]).stdout != expected_patch:
+    shown = _git(core, repo, ["show", "--format=", "--no-renames", "--binary", candidate]).stdout
+    if _normalize_patch(shown) != _normalize_patch(expected_patch):
         raise ProposalError("candidate commit differs from the exact staged patch")
     expected_parents = [] if expected_head is None else [expected_head]
     if _parent_lineage(core, repo, candidate) != expected_parents:
@@ -934,14 +986,20 @@ def commit_staged_tree(
     if before_ref_update is not None:
         before_ref_update(candidate, tree)
     symbolic_ref = _git(core, repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
-    if symbolic_ref.returncode == 0:
-        refname = symbolic_ref.stdout.strip()
-    elif symbolic_ref.returncode == 1:
+    if expected_branch_normalized is None:
+        if symbolic_ref.returncode == 0:
+            raise ProposalError("project HEAD target changed before the host commit ref update")
+        if symbolic_ref.returncode != 1:
+            raise ProposalError(symbolic_ref.stderr.strip() or "cannot verify detached HEAD")
         refname = "HEAD"
     else:
-        raise ProposalError(symbolic_ref.stderr.strip() or "cannot resolve current Git ref")
-    if refname != "HEAD" and not refname.startswith("refs/heads/"):
-        raise ProposalError("host commit target is not a local branch or detached HEAD")
+        if symbolic_ref.returncode or symbolic_ref.stdout.strip() != approved_ref:
+            raise ProposalError("project HEAD target changed before the host commit ref update")
+        refname = approved_ref
+    current_head = _git(core, repo, ["rev-parse", "--verify", "--quiet", "HEAD"], check=False)
+    current_head_value = current_head.stdout.strip() if current_head.returncode == 0 else None
+    if current_head.returncode not in {0, 1} or current_head_value != expected_head:
+        raise ProposalError("planning ref changed or project HEAD changed before the host commit ref update")
     object_format = _git(core, repo, ["rev-parse", "--show-object-format"]).stdout.strip()
     zero = "0" * (40 if object_format == "sha1" else 64 if object_format == "sha256" else 0)
     if not zero:
@@ -1007,7 +1065,7 @@ def _apply_and_commit(
             f"approved changes are present but cannot be staged safely: {exc}",
         )
     staged = _decode_paths(
-        _git(core, repo, ["diff", "--cached", "--name-only", "-z", "--"]).stdout,
+        _git(core, repo, ["diff", "--cached", "--no-renames", "--name-only", "-z", "--"]).stdout,
         "staged",
     )
     if sorted(staged) != sorted(paths):
@@ -1018,8 +1076,8 @@ def _apply_and_commit(
     status_paths, worktree_clean = _status_paths(core, repo)
     if not worktree_clean or sorted(status_paths) != sorted(paths):
         return _mark_needs_review(store, receipt_path, receipt, "staging left an unexpected worktree or index state")
-    staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
-    if staged_patch != patch:
+    staged_patch = _git(core, repo, ["diff", "--cached", "--no-renames", "--binary", "--"]).stdout
+    if _normalize_patch(staged_patch) != _normalize_patch(patch):
         return _mark_needs_review(
             store, receipt_path, receipt,
             "staged patch differs from the exact planning diff the user confirmed",
@@ -1071,8 +1129,8 @@ def _apply_and_commit(
     after_paths, clean_after = _status_paths(core, repo)
     if after_paths or not clean_after:
         return _mark_needs_review(store, receipt_path, receipt, "planning commit did not leave a clean checkpoint")
-    actual_patch = _git(core, repo, ["show", "--format=", "--binary", commit]).stdout
-    if actual_patch != patch:
+    actual_patch = _git(core, repo, ["show", "--format=", "--no-renames", "--binary", commit]).stdout
+    if _normalize_patch(actual_patch) != _normalize_patch(patch):
         return _mark_needs_review(store, receipt_path, receipt, "planning commit does not match the approved diff")
     return _record_running(core, store, receipt_path, receipt, commit)
 
@@ -1287,8 +1345,8 @@ def resume_approved_receipt(
     try:
         parents = _parent_lineage(core, repo, head)
         expected_parents = [] if baseline is None else [baseline]
-        actual_patch = _git(core, repo, ["show", "--format=", "--binary", head]).stdout
-        diff_tree = ["diff-tree", "--no-commit-id", "--name-only", "-r", "-z"]
+        actual_patch = _git(core, repo, ["show", "--format=", "--no-renames", "--binary", head]).stdout
+        diff_tree = ["diff-tree", "--no-commit-id", "--no-renames", "--name-only", "-r", "-z"]
         if baseline is None:
             diff_tree.append("--root")
         diff_tree.append(head)
@@ -1304,7 +1362,7 @@ def resume_approved_receipt(
         return _set_needs_review(store, receipt_path, receipt, "HEAD is not the single approved planning commit")
     if not isinstance(expected_diff_digest, str) or hashlib.sha256(patch.encode("utf-8")).hexdigest() != expected_diff_digest:
         return _set_needs_review(store, receipt_path, receipt, "approved diff digest does not match the receipt")
-    if actual_patch != patch:
+    if _normalize_patch(actual_patch) != _normalize_patch(patch):
         return _set_needs_review(store, receipt_path, receipt, "planning commit patch differs from the approved diff")
     return _record_running(core, store, pathlib.Path(receipt_path), receipt, head)
 

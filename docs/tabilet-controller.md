@@ -99,6 +99,12 @@ with mode `0600`. Their states are `approved`, `running`, `paused`,
 `needs_review`, and `completed`. Status reads current Markdown before receipt
 summaries and never writes to the project, receipts, or the optional audit DB.
 
+Before a review pass, the controller records its started iteration and prior
+findings in the active status file, then updates the result after review. The
+fields are `**Review gate.** active|passed`, `**Review iterations.** N`, and
+`**Review findings.**` followed by a JSON array. Direct-agent sessions share
+this checkpoint; a new controller receipt continues an active gate's count.
+
 Recovery records operation intent and usage before dispatch. It can continue a
 clean prepared checkpoint or record an exact candidate commit whose parent,
 tree, patch, message, paths, row transition, workflow snapshot, and verification
@@ -136,7 +142,7 @@ review the actual diff and test evidence as part of normal code review.
 ## Exit codes
 
 Controller-specific exits are listed with the runner codes in
-[Execution](EXECUTION.md#tabilet-controller-exit-codes): `16` means a confirmed
+[Execution](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#tabilet-controller-exit-codes): `16` means a confirmed
 cap paused the horizon, `17` means setup, required manual evidence, or a
 separately handled external action paused it, `18` means approval inputs are
 stale, `19` means the shared launcher lock is held, `24` means pre-commit
@@ -156,4 +162,4 @@ Credential-free fake-provider and Docker suites run locally or in separate CI
 jobs. The Docker job requires a local image but no provider credentials. Any
 paid live-model acceptance is a separate manual invocation with an enforceable
 provider budget; it never runs automatically on pull requests. See
-[model evaluation](MODEL_EVAL.md#tabilet-controller-live-acceptance).
+[model evaluation](https://github.com/tabilet/skills/blob/main/docs/MODEL_EVAL.md#tabilet-controller-live-acceptance).

@@ -125,7 +125,14 @@ class ResumeRecoveryTests(unittest.TestCase):
         receipt = self.store.load(self.path)
         receipt["state"] = "paused"
         receipt["pause_reason"] = "operator pause"
+        receipt["closure"]["milestones"]["M01"] = {
+            "closure_state": "pending", "phase": "review", "review_iterations": 3,
+        }
         self.persist(receipt)
+        older_higher_count = json.loads(json.dumps(receipt))
+        older_higher_count["receipt_id"] = str(uuid.uuid4())
+        older_higher_count["closure"]["milestones"]["M01"]["review_iterations"] = 7
+        self.store.create(self.project, older_higher_count)
         audit_db = self.root / "audit.sqlite"
         audit_db.write_bytes(b"read only audit fixture\n")
         before_project = tree_digest(self.project)
@@ -137,6 +144,7 @@ class ResumeRecoveryTests(unittest.TestCase):
         self.assertEqual(b"read only audit fixture\n", audit_db.read_bytes())
         self.assertEqual("paused", report["receipt"][0]["state"])
         self.assertEqual(1, report["milestones"][0]["rows"]["pending"])
+        self.assertEqual(7, report["review_count"]["M01"])
 
     def test_resume_rejects_a_concurrent_tabilet_lock_with_exit_19(self):
         args = horizon_args()
@@ -234,7 +242,7 @@ class ResumeRecoveryTests(unittest.TestCase):
             target = self.project / path
             target.parent.mkdir(parents=True, exist_ok=True)
         git("add", "--", *changed_paths, cwd=self.project)
-        patch_text = core.git_local(["diff", "--cached", "--binary", "--"], self.project).stdout
+        patch_text = core.git_local(["diff", "--cached", "--no-renames", "--binary", "--"], self.project).stdout
         receipt["active_operation"] = operation
         receipt["usage"]["commits_reserved"] += 1
         self.persist(receipt)
@@ -289,6 +297,50 @@ class ResumeRecoveryTests(unittest.TestCase):
         again = recovery.reconcile_receipt(core, self.store, self.path, recovered, self.project)
         self.assertEqual(2, len(again["commit_ids"]))
 
+    def test_identical_content_move_recovers_with_the_captured_no_rename_patch(self):
+        source = self.project / "src/feature.py"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("feature = True\n", encoding="utf-8")
+        git("add", "-A", cwd=self.project)
+        git("-c", "user.name=Resume Test", "-c", "user.email=resume@example.test",
+            "commit", "-qm", "add feature source", cwd=self.project)
+        self.head = core.git_head(self.project)
+
+        receipt = self.store.load(self.path)
+        receipt["commit_ids"].append(self.head)
+        receipt["usage"]["commits_reserved"] += 1
+        receipt["usage"]["commits_recorded"] += 1
+        receipt["approved_horizon"][0]["tasks"][0]["approved_paths"].append("src/moved.py")
+        status = self.project / "tabilet/memory-bank/status-M01.md"
+        status.write_text(status.read_text(encoding="utf-8").replace("`[ ]`", "`[+]`"), encoding="utf-8")
+        destination = self.project / "src/moved.py"
+        source.rename(destination)
+        after = core.row_snapshot(self.project)
+        operation = {
+            "kind": "task_commit", "operation_id": str(uuid.uuid4()), "phase": "precommit_verified",
+            "expected_head": self.head, "milestone_id": "M01", "task_id": "T01",
+            "row_id": "M01/T01", "row_key": ["status-M01.md", "T01", 1],
+            "paths": ["src/feature.py", "src/moved.py", "tabilet/memory-bank/status-M01.md"],
+            "verification": ["true"], "verification_results": {"true": True},
+            "expected_snapshot_sha256": horizon.snapshot_digest(after),
+        }
+        receipt["verification_evidence"] = [{
+            "row_id": "M01/T01", "command": "true", "exit_code": 0,
+        }]
+        receipt["usage"]["rows_started"] = 1
+        receipt["usage"]["rows_started_ids"] = ["M01/T01"]
+        self._make_candidate(
+            receipt, operation, operation["paths"], "Complete M01/T01",
+        )
+
+        recovered = recovery.reconcile_receipt(
+            core, self.store, self.path, self.store.load(self.path), self.project,
+        )
+        self.assertEqual("running", recovered["state"])
+        self.assertEqual(core.git_head(self.project), recovered["commit_ids"][-1])
+        self.assertFalse(source.exists())
+        self.assertTrue(destination.is_file())
+
     def test_exact_closure_commit_advances_phase_after_crash(self):
         receipt = self.store.load(self.path)
         horizon = load_module("resume_horizon_closure", ROOT / "harness/tabilet_horizon.py")
@@ -302,6 +354,12 @@ class ResumeRecoveryTests(unittest.TestCase):
         }
         milestone_path = self.project / "tabilet/memory-bank/milestone.md"
         milestone_path.write_text(milestone_path.read_text(encoding="utf-8") + "\nReviewed.\n", encoding="utf-8")
+        status_path = self.project / "tabilet/memory-bank/status-M01.md"
+        status_path.write_text(
+            status_path.read_text(encoding="utf-8")
+            + '\n**Review gate.** passed\n**Review iterations.** 1\n**Review findings.** []\n',
+            encoding="utf-8",
+        )
         after = core.row_snapshot(self.project)
         receipt["closure"]["milestones"]["M01"] = {
             "closure_state": "pending", "phase": "review", "review_iterations": 1,
@@ -310,12 +368,13 @@ class ResumeRecoveryTests(unittest.TestCase):
         operation = {
             "kind": "closure_commit", "operation_id": operation_id,
             "phase": "precommit_verified", "closure_phase": "review", "milestone_id": "M01",
-            "expected_head": self.head, "paths": ["tabilet/memory-bank/milestone.md"],
+            "expected_head": self.head,
+            "paths": ["tabilet/memory-bank/milestone.md", "tabilet/memory-bank/status-M01.md"],
             "before_snapshot_sha256": horizon.snapshot_digest(before),
             "expected_snapshot_sha256": horizon.snapshot_digest(after),
             "phase_result": phase_result,
         }
-        self._make_candidate(receipt, operation, ["tabilet/memory-bank/milestone.md"], "Review closure for M01")
+        self._make_candidate(receipt, operation, operation["paths"], "Review closure for M01")
         recovered = recovery.reconcile_receipt(
             core, self.store, self.path, self.store.load(self.path), self.project,
         )
@@ -336,6 +395,12 @@ class ResumeRecoveryTests(unittest.TestCase):
         }
         path = self.project / "tabilet/memory-bank/milestone.md"
         path.write_text(path.read_text(encoding="utf-8") + "\nReview note.\n", encoding="utf-8")
+        status_path = self.project / "tabilet/memory-bank/status-M01.md"
+        status_path.write_text(
+            status_path.read_text(encoding="utf-8")
+            + '\n**Review gate.** passed\n**Review iterations.** 1\n**Review findings.** []\n',
+            encoding="utf-8",
+        )
         after = core.row_snapshot(self.project)
         receipt["closure"]["milestones"]["M01"] = {
             "closure_state": "pending", "phase": "review", "review_iterations": 1,
@@ -344,12 +409,13 @@ class ResumeRecoveryTests(unittest.TestCase):
         operation = {
             "kind": "closure_commit", "operation_id": operation_id,
             "phase": "commit_attempted", "closure_phase": "review", "milestone_id": "M01",
-            "expected_head": self.head, "paths": ["tabilet/memory-bank/milestone.md"],
+            "expected_head": self.head,
+            "paths": ["tabilet/memory-bank/milestone.md", "tabilet/memory-bank/status-M01.md"],
             "before_snapshot_sha256": horizon_module.snapshot_digest(before),
             "expected_snapshot_sha256": horizon_module.snapshot_digest(after),
             "phase_result": result,
         }
-        self._make_candidate(receipt, operation, ["tabilet/memory-bank/milestone.md"], "Review closure for M01")
+        self._make_candidate(receipt, operation, operation["paths"], "Review closure for M01")
         latest = self.store.load(self.path)
         latest["commit_ids"].append(core.git_head(self.project))
         latest["usage"]["commits_recorded"] += 1
@@ -363,25 +429,27 @@ class ResumeRecoveryTests(unittest.TestCase):
         horizon = load_module("resume_horizon_nochange", ROOT / "harness/tabilet_horizon.py")
         operation_id = str(uuid.uuid4())
         receipt["closure"]["milestones"]["M01"] = {
-            "closure_state": "pending", "phase": "review", "review_iterations": 1,
-            "evidence": [], "manual_evidence": [],
+            "closure_state": "pending", "phase": "acceptance", "review_iterations": 1,
+            "evidence": [{
+                "phase": "acceptance", "source": "command", "command": "true", "exit_code": 0,
+            }], "manual_evidence": [],
         }
         receipt["active_operation"] = {
             "kind": "closure", "operation_id": operation_id, "phase": "result_recorded",
-            "closure_phase": "review", "milestone_id": "M01", "expected_head": self.head,
+            "closure_phase": "acceptance", "milestone_id": "M01", "expected_head": self.head,
             "before_snapshot_sha256": horizon.snapshot_digest(core.row_snapshot(self.project)),
             "expected_snapshot_sha256": horizon.snapshot_digest(core.row_snapshot(self.project)),
                 "phase_result": {
-                "phase": "review", "operation_id": operation_id, "verified": True,
+                "phase": "acceptance", "operation_id": operation_id, "verified": True,
                 "manual_evidence_verified": False,
-                "iteration": 1, "items": ["No changes required."], "findings": [],
+                "iteration": None, "items": ["No changes required."], "findings": [],
                 "retry_review": False,
             },
         }
         self.persist(receipt)
         recovered = recovery.reconcile_receipt(core, self.store, self.path, receipt, self.project)
-        self.assertEqual("acceptance", recovered["closure"]["milestones"]["M01"]["phase"])
-        self.assertEqual(1, len(recovered["closure"]["milestones"]["M01"]["evidence"]))
+        self.assertEqual("consolidation", recovered["closure"]["milestones"]["M01"]["phase"])
+        self.assertEqual(2, len(recovered["closure"]["milestones"]["M01"]["evidence"]))
 
     def test_ctrl_c_at_clean_pre_dispatch_checkpoint_pauses(self):
         status = self.project / "tabilet/memory-bank/status-M01.md"

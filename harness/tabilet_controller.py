@@ -532,7 +532,9 @@ def run_controller_agent(
             detail = result.get("stderr", "").strip()
             core.fail(
                 "A required command or dependency is missing from the local Docker image. "
-                "Pause with exit 17, add the dependency to the image, and retry."
+                "The approved image ID is fixed by this receipt and resume will not pick up "
+                "a rebuilt image; fixing it requires a new proposal that approves the "
+                "updated image ID."
                 + (f"\n{detail}" if detail else ""),
                 17,
             )
@@ -659,12 +661,18 @@ def commit_host_changes(
     core, repo: pathlib.Path, expected_head, expected_branch, expected_patch: str,
     message: str, *, before_ref_update=None,
 ) -> str:
-    """Commit the validated staged tree with the shared expected-ref CAS."""
+    """Commit the validated staged tree with the shared expected-ref CAS.
+
+    Unlike a planning commit, expected_patch here is Git-generated from files
+    the sandboxed model actually wrote and is verified by path and approved
+    scope, not read and approved verbatim by a human, so a real binary file
+    the task legitimately touched is allowed through.
+    """
 
     proposal = load_proposal_module()
     return proposal.commit_staged_tree(
         core, repo, expected_head, expected_branch, expected_patch, message,
-        before_ref_update=before_ref_update,
+        before_ref_update=before_ref_update, allow_binary=True,
     )
 
 

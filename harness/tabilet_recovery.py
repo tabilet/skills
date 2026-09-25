@@ -89,7 +89,10 @@ def _snapshot_at(core, repo: pathlib.Path, commit: str) -> dict:
 
 
 def _changed_paths(core, repo: pathlib.Path, commit: str) -> list[str]:
-    raw = _git(core, repo, ["diff-tree", "--no-commit-id", "--name-only", "-z", "-r", commit])
+    # Task and closure intents hash patches captured with --no-renames. Keep
+    # path reconstruction on the same diff model so a move is represented by
+    # its delete and add paths, regardless of Git's rename similarity guess.
+    raw = _git(core, repo, ["diff-tree", "--no-renames", "--no-commit-id", "--name-only", "-z", "-r", commit])
     if not raw:
         return []
     if not raw.endswith("\x00"):
@@ -127,7 +130,7 @@ def _validate_candidate(core, repo, operation, expected_branch) -> tuple[str, di
     actual_message = _git(core, repo, ["show", "-s", "--format=%s", candidate]).rstrip("\n")
     if actual_message != message:
         raise RecoveryError("candidate commit message differs from the persisted intent")
-    patch = _git(core, repo, ["show", "--format=", "--binary", candidate])
+    patch = _git(core, repo, ["show", "--format=", "--no-renames", "--binary", candidate])
     if hashlib.sha256(patch.encode("utf-8", errors="surrogateescape")).hexdigest() != patch_hash:
         raise RecoveryError("candidate patch differs from the persisted exact patch digest")
     paths = _changed_paths(core, repo, candidate)
@@ -230,6 +233,19 @@ def _reconcile_closure(core, repo, receipt, operation):
         raise RecoveryError("closure parent workflow snapshot differs from its recorded baseline")
     closure = receipt.get("closure", {}).get("milestones", {}).get(milestone["id"], {})
     review_iterations = closure.get("review_iterations")
+    if operation.get("closure_phase") == "review":
+        try:
+            checkpoint = horizon._review_checkpoint(repo, milestone["id"])
+        except Exception as exc:
+            raise RecoveryError(f"review checkpoint cannot be read after the candidate commit: {exc}") from exc
+        expected_gate = "active" if phase_result.get("retry_review") else "passed"
+        if (
+            checkpoint is None
+            or checkpoint.get("gate") != expected_gate
+            or checkpoint.get("iterations") != review_iterations
+            or checkpoint.get("findings") != phase_result.get("findings")
+        ):
+            raise RecoveryError("review checkpoint differs from the persisted phase result")
     problems = horizon._closure_integrity_problems(
         before, after,
         retirement_id=milestone["id"] if operation.get("closure_phase") == "retirement" else None,
