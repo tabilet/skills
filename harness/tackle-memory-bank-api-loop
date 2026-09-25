@@ -321,7 +321,7 @@ _SAFE_GIT_CONFIG = (
 
 _HOST_GIT_COMMANDS = {
     "add", "apply", "commit", "commit-tree", "diff", "diff-tree", "log", "ls-files", "merge-base", "rev-list",
-    "rev-parse", "show", "status", "symbolic-ref", "update-ref", "write-tree",
+    "rev-parse", "show", "status", "symbolic-ref", "update-ref", "write-tree", "ls-tree",
 }
 
 
@@ -1363,6 +1363,7 @@ def one_agent_run(
     before_model_turn=None,
     before_provider_attempt=None,
     before_command=None,
+    after_command=None,
 ) -> dict[str, object]:
     messages = [
         {"role": "system", "content": system_prompt},
@@ -1458,6 +1459,8 @@ def one_agent_run(
             args.allow_dangerous,
             args.tool_env,
         )
+        if after_command is not None:
+            after_command(cmd, result)
         messages.append(
             {
                 "role": "user",
@@ -1471,7 +1474,11 @@ def one_agent_run(
 class AuditRun:
     """Best-effort recorder: optional imports and failures never change row gates."""
 
-    def __init__(self, args, repo, operation, git_ref, worktree_state):
+    def __init__(
+        self, args, repo, operation, git_ref, worktree_state, *,
+        invocation_kind="api_runner", instruction_set_name="tackle-memory-bank-api-loop",
+        host_agent="tackle-memory-bank-api-loop",
+    ):
         self.connection = None
         self.run_id = None
         self.workspace_id = None
@@ -1482,6 +1489,9 @@ class AuditRun:
         self.failure = None
         self.observed_commits = set()
         self.capture = args.audit_capture
+        self.invocation_kind = invocation_kind
+        self.instruction_set_name = instruction_set_name
+        self.host_agent = host_agent
         if not args.audit_db:
             return
         try:
@@ -1508,13 +1518,14 @@ class AuditRun:
                 self.connection, self.workspace_id, operation, capture_mode=self.capture,
                 git_head=git_ref, worktree_state=worktree_state,
             )
-            resource = {"name": "tackle-memory-bank-api-loop/EMBEDDED_TASK",
-                        "sha256": hashlib.sha256(EMBEDDED_TASK.encode("utf-8")).hexdigest()}
+            instruction_text = getattr(args, "audit_instruction_text", EMBEDDED_TASK)
+            resource = {"name": self.instruction_set_name,
+                        "sha256": hashlib.sha256(instruction_text.encode("utf-8")).hexdigest()}
             self.recorder.record_provenance(self.connection, self.run_id, {
-                "invocation_kind": "api_runner",
-                "instruction_set_name": "tackle-memory-bank-api-loop",
+                "invocation_kind": self.invocation_kind,
+                "instruction_set_name": self.instruction_set_name,
                 "instruction_set_version": None,
-                "host_agent": "tackle-memory-bank-api-loop",
+                "host_agent": self.host_agent,
                 "host_version": None,
                 "provider": args.provider,
                 "model": args.model,

@@ -7,6 +7,7 @@ import importlib.machinery
 import importlib.util
 import pathlib
 import re
+import os
 import sys
 import types
 
@@ -77,6 +78,26 @@ def load_horizon_module():
     return module
 
 
+def load_recovery_module():
+    path = pathlib.Path(__file__).resolve().with_name("tabilet_recovery.py")
+    spec = importlib.util.spec_from_file_location("_tabilet_recovery", path)
+    if spec is None or spec.loader is None:
+        raise ImportError("controller recovery module is missing")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_status_module():
+    path = pathlib.Path(__file__).resolve().with_name("tabilet_status.py")
+    spec = importlib.util.spec_from_file_location("_tabilet_status", path)
+    if spec is None or spec.loader is None:
+        raise ImportError("controller status module is missing")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def approve_proposal(
     core,
     repo: pathlib.Path,
@@ -93,6 +114,7 @@ def approve_proposal(
     planner = load_proposal_module()
 
     def run():
+        validate_repository_topology(core, repo)
         try:
             result = planner.approve_proposal(
                 core, repo, proposal, receipt_store=receipt_store, input_fn=input_fn,
@@ -117,6 +139,7 @@ def resume_approved_receipt(core, repo: pathlib.Path, receipt_path: pathlib.Path
     planner = load_proposal_module()
 
     def run():
+        validate_repository_topology(core, repo)
         try:
             result = planner.resume_approved_receipt(
                 core, repo, receipt_path, receipt_store=receipt_store, fault_hook=fault_hook,
@@ -147,36 +170,75 @@ def execute_horizon(
             receipt = receipt_store.load(receipt_path)
         except Exception as exc:
             core.fail(f"Cannot load approved horizon receipt: {exc}", 25)
-        if receipt.get("state") == "completed":
-            output_fn(f"Horizon {receipt.get('horizon_ids', [])} is already completed.")
-            return receipt
-        if receipt.get("state") == "needs_review" or receipt.get("active_operation") is not None:
-            core.fail("The receipt has an unfinished or uncertain operation; run API 7 recovery before execution.", 25)
-        if receipt.get("state") not in {"running", "paused"}:
-            core.fail("The receipt is not ready for horizon execution; reconcile planning approval first.", 25)
-        approved_image = receipt.get("image_id")
-        if image_id is not None and image_id != approved_image:
-            core.fail("Selected Docker image differs from the immutable image ID in the approved receipt.", 18)
-        if not isinstance(approved_image, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", approved_image):
-            receipt["state"] = "paused"
-            receipt["pause_reason"] = "receipt has no valid immutable Docker image ID"
+        return _execute_horizon_locked(
+            core, args, repo, receipt_path, receipt, receipt_store,
+            horizon=horizon, image_id=image_id, manual_evidence=manual_evidence,
+            output_fn=output_fn,
+        )
+
+    return run_with_project_lock(core, repo, run)
+
+
+def _execute_horizon_locked(
+    core, args, repo, receipt_path, receipt, receipt_store, *, horizon=None,
+    image_id=None, manual_evidence=None, output_fn=print,
+):
+    horizon = horizon or load_horizon_module()
+    if receipt.get("state") == "completed":
+        output_fn(f"Horizon {receipt.get('horizon_ids', [])} is already completed.")
+        return receipt
+    if receipt.get("state") == "needs_review" or receipt.get("active_operation") is not None:
+        core.fail("The receipt has an unfinished or uncertain operation; run API 7 recovery before execution.", 25)
+    if receipt.get("state") not in {"running", "paused"}:
+        core.fail("The receipt is not ready for horizon execution; reconcile planning approval first.", 25)
+    approved_image = receipt.get("image_id")
+    if image_id is not None and image_id != approved_image:
+        core.fail("Selected Docker image differs from the immutable image ID in the approved receipt.", 18)
+    if not isinstance(approved_image, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", approved_image):
+        receipt["state"] = "paused"
+        receipt["pause_reason"] = "receipt has no valid immutable Docker image ID"
+        receipt_store.update_atomic(receipt_path, receipt)
+        core.fail("Execution requires the immutable Docker image ID from the approved receipt.", 17)
+    try:
+        selected_executor = prepare_docker_executor(core, repo, approved_image)
+    except SystemExit as exc:
+        if exc.code == 17:
+            try:
+                clean = core.git_clean(repo)
+            except Exception:
+                clean = False
+            receipt["state"] = "paused" if clean else "needs_review"
+            receipt["pause_reason"] = "Docker executor setup is unavailable"
+            if clean:
+                receipt["active_operation"] = None
             receipt_store.update_atomic(receipt_path, receipt)
-            core.fail("Execution requires the immutable Docker image ID from the approved receipt.", 17)
-        try:
-            selected_executor = prepare_docker_executor(core, repo, approved_image)
-        except SystemExit as exc:
-            if exc.code == 17:
-                try:
-                    clean = core.git_clean(repo)
-                except Exception:
-                    clean = False
-                receipt["state"] = "paused" if clean else "needs_review"
-                receipt["pause_reason"] = "Docker executor setup is unavailable"
-                if clean:
-                    receipt["active_operation"] = None
-                receipt_store.update_atomic(receipt_path, receipt)
-            raise
-        return horizon.run_horizon(
+        raise
+
+    audit = None
+    try:
+        audit_instruction_args = types.SimpleNamespace(**vars(args))
+        audit_instruction_args.audit_instruction_text = CONTROLLER_SYSTEM_PROMPT
+        audit_instruction_args.audit_capture = getattr(
+            args, "audit_capture", os.environ.get("TABILET_AUDIT_CAPTURE", "metadata"),
+        )
+        audit_instruction_args.audit_db = getattr(args, "audit_db", None) or os.environ.get("TABILET_AUDIT_DB")
+        audit = core.AuditRun(
+            audit_instruction_args, repo, "next", core.git_head(repo),
+            "clean" if core.git_clean(repo) else "dirty",
+            invocation_kind="host_operation",
+            instruction_set_name="tabilet-controller/system-prompt",
+            host_agent="tabilet-controller",
+        )
+        audit.emit("task_observed", details={
+            "controller": "tabilet-api-horizon",
+            "receipt_id": receipt.get("receipt_id"),
+            "horizon": receipt.get("horizon_ids", []),
+        })
+    except Exception as exc:
+        print(f"Audit gap: unable to initialize controller run: {exc}", file=sys.stderr)
+        audit = None
+    try:
+        result = horizon.run_horizon(
             core, args, repo, receipt_path, receipt_store=receipt_store,
             executor=selected_executor, manual_evidence=manual_evidence,
             output_fn=output_fn,
@@ -185,6 +247,106 @@ def execute_horizon(
                 precommit_problems=precommit_problems,
                 commit_host_changes=commit_host_changes,
             ),
+        )
+        if audit is not None:
+            _audit_best_effort(audit, "finish", "completed" if result.get("state") == "completed" else "blocked")
+        return result
+    except KeyboardInterrupt:
+        if audit is not None:
+            _audit_best_effort(audit, "emit", "run_interrupted", details={"receipt_state": "interrupted"})
+            _audit_best_effort(audit, "finish", "interrupted")
+        raise
+    except BaseException as exc:
+        if audit is not None:
+            try:
+                latest = receipt_store.load(receipt_path)
+                state = latest.get("state", "unknown")
+                detail = {"receipt_state": state, "reason": str(exc)[:1000]}
+            except Exception:
+                state, detail = "unknown", {"receipt_state": "unknown", "reason": str(exc)[:1000]}
+            if isinstance(exc, SystemExit) and exc.code == 130:
+                _audit_best_effort(audit, "emit", "run_interrupted", details=detail)
+                _audit_best_effort(audit, "finish", "interrupted")
+            else:
+                _audit_best_effort(
+                    audit, "emit", "run_blocked" if state in {"paused", "needs_review"} else "run_failed",
+                    details=detail,
+                )
+                _audit_best_effort(audit, "finish", "blocked" if state in {"paused", "needs_review"} else "failed")
+        raise
+
+
+def _audit_best_effort(audit, method, *args, **kwargs):
+    try:
+        getattr(audit, method)(*args, **kwargs)
+    except Exception as exc:
+        print(f"Audit gap: unable to {method} controller run: {exc}", file=sys.stderr)
+
+
+def status_project(core, repo: pathlib.Path, *, receipt_store=None, output_fn=print):
+    """Show the read-only status report without acquiring the project lock."""
+
+    status = load_status_module()
+    validate_repository_topology(core, repo)
+    try:
+        report = status.status_report(core, repo, receipt_store=receipt_store)
+    except status.StatusError as exc:
+        core.fail(f"Cannot read Tabilet status: {exc}", 2)
+    output_fn(status.format_status(report))
+    return report
+
+
+def resume_horizon(
+    core, args, repo: pathlib.Path, receipt_path: pathlib.Path, *,
+    receipt_store=None, image_id=None, manual_evidence=None, output_fn=print,
+    fault_hook=None,
+):
+    """Reconcile an approved receipt and continue it under the shared project lock."""
+
+    if receipt_store is None:
+        receipt_store = load_proposal_module().ReceiptStore()
+    planner = load_proposal_module()
+    recovery = load_recovery_module()
+    horizon = load_horizon_module()
+
+    def run():
+        try:
+            receipt = receipt_store.load(receipt_path)
+        except Exception as exc:
+            core.fail(f"Cannot load horizon receipt: {exc}", 25)
+        if receipt.get("project_path") != str(pathlib.Path(repo).resolve(strict=True)):
+            core.fail("The selected receipt belongs to another project; choose its canonical project path.", 18)
+        if receipt.get("state") == "completed":
+            output_fn(f"Horizon {receipt.get('horizon_ids', [])} is already completed.")
+            return receipt
+        if receipt.get("state") == "approved":
+            if core.git_branch(repo) != (receipt.get("branch") or "(detached)"):
+                core.fail("Planning approval is stale because the project branch changed; review it and propose again.", 18)
+        validate_repository_topology(core, repo)
+        if receipt.get("state") == "approved":
+            try:
+                result = planner.resume_approved_receipt(
+                    core, repo, receipt_path, receipt_store=receipt_store, fault_hook=fault_hook,
+                )
+            except planner.ProposalError as exc:
+                core.fail(f"Planning recovery needs manual review: {exc}", 25)
+            if result.get("status") == "needs_review":
+                core.fail(f"Planning recovery needs manual review: {result.get('reason', 'uncertain state')}", 25)
+            receipt = receipt_store.load(receipt_path)
+        if receipt.get("state") == "completed":
+            output_fn(f"Horizon {receipt.get('horizon_ids', [])} is already completed.")
+            return receipt
+        try:
+            recovery.reconcile_receipt(core, receipt_store, receipt_path, receipt, repo)
+        except recovery.RecoveryStale as exc:
+            core.fail(f"Horizon approval is stale: {exc}", 18)
+        except recovery.RecoveryError as exc:
+            core.fail(f"Horizon recovery needs manual review: {exc}", 25)
+        receipt = receipt_store.load(receipt_path)
+        return _execute_horizon_locked(
+            core, args, repo, receipt_path, receipt, receipt_store,
+            horizon=horizon, image_id=image_id, manual_evidence=manual_evidence,
+            output_fn=output_fn,
         )
 
     return run_with_project_lock(core, repo, run)
@@ -201,6 +363,7 @@ def extend_horizon_limit(
         receipt_store = load_proposal_module().ReceiptStore()
 
     def run():
+        validate_repository_topology(core, repo)
         try:
             receipt = receipt_store.load(receipt_path)
             return horizon.extend_limit(
@@ -228,6 +391,7 @@ def run_planning_session(
     planner = load_planning_module()
 
     def run():
+        validate_repository_topology(core, repo)
         try:
             return planner.run_planning_session(
                 core, args, repo, operation, request,
@@ -255,6 +419,7 @@ def run_controller_agent(
     before_model_turn=None,
     before_provider_attempt=None,
     before_command=None,
+    after_command=None,
 ) -> dict[str, object]:
     """Use the shared model loop with controller-specific instructions/execution."""
 
@@ -288,6 +453,7 @@ def run_controller_agent(
         before_model_turn=before_model_turn,
         before_provider_attempt=before_provider_attempt,
         before_command=before_command,
+        after_command=after_command,
     )
 
 
@@ -312,6 +478,26 @@ def prepare_docker_executor(core, repo: pathlib.Path, image: str, mountinfo=None
         return tabilet_container.prepare_executor(core, repo, image, mountinfo)
     except tabilet_container.SandboxUnavailable as exc:
         core.fail(f"Controller Docker sandbox is unavailable: {exc}", 17)
+
+
+def validate_repository_topology(core, repo: pathlib.Path, mountinfo=None):
+    """Reject unsupported Git layouts and active filters before controller Git work."""
+
+    try:
+        import tabilet_container
+    except ImportError:
+        path = pathlib.Path(__file__).resolve().with_name("tabilet_container.py")
+        spec = importlib.util.spec_from_file_location("_tabilet_container_topology", path)
+        if spec is None or spec.loader is None:
+            core.fail("Controller Docker sandbox module is missing; install the complete controller bundle.", 17)
+        tabilet_container = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tabilet_container)
+    try:
+        if mountinfo is None:
+            return tabilet_container.validate_repository(core, repo)
+        return tabilet_container.validate_repository(core, repo, mountinfo)
+    except tabilet_container.SandboxUnavailable as exc:
+        core.fail(f"Controller repository topology is unsupported: {exc}", 17)
 
 
 def precommit_problems(

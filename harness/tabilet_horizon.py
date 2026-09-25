@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import stat
 import importlib.util
+import hashlib
 import json
 import pathlib
 import re
@@ -489,6 +490,34 @@ def _is_clean_checkpoint(core, repo: pathlib.Path) -> bool:
         return False
 
 
+def snapshot_digest(snapshot: dict) -> str:
+    """Hash the row and history projection used by the deterministic gates."""
+
+    payload = {
+        "states": [
+            [key[0], key[1], key[2], value]
+            for key, value in sorted(snapshot.get("states", {}).items())
+        ],
+        "cells": [
+            [key[0], key[1], key[2], value]
+            for key, value in sorted(snapshot.get("cells", {}).items())
+        ],
+        "files": sorted(snapshot.get("files", set())),
+        "active": sorted(snapshot.get("active", set())),
+        "history_digests": sorted(snapshot.get("history", {}).get("digests", {}).items()),
+        "history_entries": sorted(snapshot.get("history", {}).get("entries", {}).items()),
+        "history_journal_sha256": hashlib.sha256(
+            snapshot.get("history", {}).get("journal", b"")
+        ).hexdigest(),
+        "history_problems": snapshot.get("history", {}).get("problems", []),
+        "specifications": sorted(
+            (name, hashlib.sha256(value.encode("utf-8")).hexdigest() if value is not None else None)
+            for name, value in snapshot.get("specifications", {}).items()
+        ),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
 def _active_operation_uncertain(receipt: dict) -> bool:
     operation = receipt.get("active_operation")
     return isinstance(operation, dict) and operation.get("phase") in {
@@ -794,7 +823,33 @@ def _args_for_turn_cap(args, already_used: int, remaining: int):
     return clone
 
 
-def _run_agent(core, controller, args, repo, receipt, reservations, executor, user_message, row_id):
+def _progress_summary(receipt: dict, row_id: str) -> str:
+    usage, limits = receipt.get("usage", {}), receipt.get("limits", {})
+    attempts = usage.get("provider_attempts_reserved", 0)
+    attempts_cap = limits.get("max_provider_attempts", 0)
+    turns = usage.get("turns_by_row", {}).get(row_id, 0)
+    turn_cap = limits.get("max_turns_per_row", 0)
+    rows = usage.get("rows_started", 0)
+    rows_cap = limits.get("max_rows", 0)
+    commits = usage.get("commits_reserved", 0)
+    commits_cap = limits.get("max_commits", 0)
+    try:
+        approved = datetime.datetime.strptime(
+            receipt["approved_at"], "%Y-%m-%dT%H:%M:%SZ",
+        ).replace(tzinfo=datetime.timezone.utc).timestamp()
+        seconds_left = max(0, int(limits["max_runtime_seconds"] - (time.time() - approved)))
+    except (KeyError, TypeError, ValueError, OverflowError):
+        seconds_left = 0
+    return (
+        f"provider attempts {attempts}/{attempts_cap} ({max(0, attempts_cap - attempts)} remaining); "
+        f"model turns {turns}/{turn_cap} ({max(0, turn_cap - turns)} remaining); "
+        f"rows {rows}/{rows_cap} ({max(0, rows_cap - rows)} remaining); "
+        f"commits {commits}/{commits_cap} ({max(0, commits_cap - commits)} remaining); "
+        f"time {seconds_left}s remaining"
+    )
+
+
+def _run_agent(core, controller, args, repo, receipt, reservations, executor, user_message, row_id, output_fn=print):
     turns = receipt["usage"].get("turns_by_row", {}).get(row_id, 0)
     left = receipt["limits"]["max_turns_per_row"] - turns
     if left <= 0:
@@ -802,14 +857,20 @@ def _run_agent(core, controller, args, repo, receipt, reservations, executor, us
     before_turn = lambda: reservations.reserve_turn(row_id)
     before_attempt = reservations.reserve_provider_attempt
     before_command = reservations.check_time
+    def after_command(command, result):
+        stdout = str(result.get("stdout", "")).strip().splitlines()
+        stderr = str(result.get("stderr", "")).strip().splitlines()
+        summary = (stdout or stderr or ["no output"])[0].replace("\n", " ")[:240]
+        output_fn(f"  command result: exit {result.get('exit_code')}; {summary}")
     return controller.run_controller_agent(
         core, _args_for_turn_cap(args, turns, left), repo, turns + 1, [], None, executor,
         user_message, before_model_turn=before_turn,
         before_provider_attempt=before_attempt, before_command=before_command,
+        after_command=after_command,
     )
 
 
-def _run_task(core, controller, args, repo, store, receipt_path, receipt, executor, selection, reservations):
+def _run_task(core, controller, args, repo, store, receipt_path, receipt, executor, selection, reservations, output_fn=print):
     row, task = selection["row"], selection["task"]
     row_id = f"{row['milestone_id']}/{row['task_id']}"
     if not _is_clean_checkpoint(core, repo):
@@ -829,11 +890,20 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
         receipt, "task", row_id=row_id,
         paths=task["approved_paths"], expected_head=head,
     )
+    receipt["active_operation"]["milestone_id"] = row["milestone_id"]
+    receipt["active_operation"]["task_id"] = row["task_id"]
+    receipt["active_operation"]["row_key"] = list(row["key"])
+    receipt["active_operation"]["verification"] = list(task["verification"])
     _save(store, receipt_path, receipt)
     try:
         _mark_in_progress(core, repo, row)
         before_rows = core.row_snapshot(repo)
-        result = _run_agent(core, controller, args, repo, receipt, reservations, executor, _row_prompt(selection), row_id)
+        receipt["active_operation"]["before_snapshot_sha256"] = snapshot_digest(before_rows)
+        _save(store, receipt_path, receipt)
+        output_fn(
+            f"Current row {row_id}; {_progress_summary(receipt, row_id)}."
+        )
+        result = _run_agent(core, controller, args, repo, receipt, reservations, executor, _row_prompt(selection), row_id, output_fn)
         external = _check_model_actions(result)
         if external:
             receipt["external_actions"] = list(dict.fromkeys(receipt.get("external_actions", []) + external))
@@ -887,6 +957,10 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
                 24, review=True,
             )
         receipt.setdefault("verification_evidence", []).extend(check_evidence)
+        receipt["active_operation"]["expected_snapshot_sha256"] = snapshot_digest(after_rows)
+        receipt["active_operation"]["verification_results"] = {
+            command: check_results.get(command) is True for command in task["verification"]
+        }
         staged = _stage_exact(core, repo, changed)
         if core.git_head(repo) != head or core.git_branch(repo) != branch:
             _pause(core, store, receipt_path, receipt, "project HEAD or branch changed before the task commit", 25, review=True)
@@ -895,6 +969,14 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
             receipt, "task_commit", row_id=row_id, paths=staged,
             expected_head=head,
         )
+        receipt["active_operation"].update({
+            "milestone_id": row["milestone_id"],
+            "task_id": row["task_id"],
+            "row_key": list(row["key"]),
+            "verification": list(task["verification"]),
+            "verification_results": {command: check_results.get(command) is True for command in task["verification"]},
+            "expected_snapshot_sha256": snapshot_digest(after_rows),
+        })
         receipt["active_operation"]["phase"] = "precommit_verified"
         _save(store, receipt_path, receipt)
         if core.git_head(repo) != head or core.git_branch(repo) != branch:
@@ -903,8 +985,14 @@ def _run_task(core, controller, args, repo, store, receipt_path, receipt, execut
 
         staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
 
-        def mark_commit_attempted():
-            receipt["active_operation"]["phase"] = "commit_attempted"
+        def mark_commit_attempted(candidate: str, tree: str):
+            receipt["active_operation"].update({
+                "phase": "commit_attempted",
+                "candidate_commit": candidate,
+                "expected_tree": tree,
+                "expected_patch_sha256": hashlib.sha256(staged_patch.encode("utf-8", errors="surrogateescape")).hexdigest(),
+                "commit_message": message,
+            })
             _save(store, receipt_path, receipt)
 
         try:
@@ -1069,7 +1157,7 @@ def _retirement_prerequisite_problems(closure: dict) -> list[str]:
     return problems
 
 
-def _commit_closure_changes(core, controller, store, receipt_path, receipt, repo, milestone, phase, before, allowed, reservations, expected_head, expected_branch):
+def _commit_closure_changes(core, controller, store, receipt_path, receipt, repo, milestone, phase, before, allowed, reservations, expected_head, expected_branch, phase_result=None):
     if core.git_head(repo) != expected_head or core.git_branch(repo) != expected_branch:
         _pause(core, store, receipt_path, receipt, "project HEAD or branch changed during closure", 25, review=True)
     changed = _changed_paths(core, repo)
@@ -1095,10 +1183,16 @@ def _commit_closure_changes(core, controller, store, receipt_path, receipt, repo
     reservations.reserve_commit()
     head = expected_head
     branch = expected_branch
+    operation_id = receipt.get("active_operation", {}).get("operation_id")
     _active_operation(
         receipt, "closure_commit", milestone_id=milestone["id"], phase=phase,
         paths=staged, expected_head=head,
     )
+    if operation_id:
+        receipt["active_operation"]["operation_id"] = operation_id
+    receipt["active_operation"]["before_snapshot_sha256"] = snapshot_digest(before)
+    receipt["active_operation"]["expected_snapshot_sha256"] = snapshot_digest(after)
+    receipt["active_operation"]["phase_result"] = phase_result
     receipt["active_operation"]["phase"] = "precommit_verified"
     _save(store, receipt_path, receipt)
     if core.git_head(repo) != expected_head or core.git_branch(repo) != expected_branch:
@@ -1106,8 +1200,14 @@ def _commit_closure_changes(core, controller, store, receipt_path, receipt, repo
     message = f"{phase.title()} closure for {milestone['id']}"
     staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
 
-    def mark_commit_attempted():
-        receipt["active_operation"]["phase"] = "commit_attempted"
+    def mark_commit_attempted(candidate: str, tree: str):
+        receipt["active_operation"].update({
+            "phase": "commit_attempted",
+            "candidate_commit": candidate,
+            "expected_tree": tree,
+            "expected_patch_sha256": hashlib.sha256(staged_patch.encode("utf-8", errors="surrogateescape")).hexdigest(),
+            "commit_message": message,
+        })
         _save(store, receipt_path, receipt)
 
     try:
@@ -1139,7 +1239,51 @@ def _commit_closure_changes(core, controller, store, receipt_path, receipt, repo
     return commit_id
 
 
-def _close_milestone(core, controller, args, repo, store, receipt_path, receipt, executor, milestone, reservations, manual_evidence):
+def _closure_phase_result(receipt, closure, phase, result, *, retry_review=False):
+    return {
+        "phase": phase,
+        "operation_id": receipt["active_operation"]["operation_id"],
+        "verified": True,
+        "manual_evidence_verified": result.get("manual_evidence_verified") is True,
+        "iteration": closure.get("review_iterations") if phase == "review" else None,
+        "items": list(result.get("evidence", [])),
+        "findings": list(result.get("findings", [])),
+        "retry_review": bool(retry_review),
+    }
+
+
+def _finish_closure_phase(receipt, milestone, phase_result, commit_id=None):
+    identity = milestone["id"]
+    closure = receipt["closure"]["milestones"][identity]
+    op_id = phase_result["operation_id"]
+    evidence = closure.setdefault("evidence", [])
+    existing = next((item for item in evidence if isinstance(item, dict) and item.get("operation_id") == op_id), None)
+    if existing is None:
+        item = {
+            "phase": phase_result["phase"],
+            "source": "model",
+            "operation_id": op_id,
+            "iteration": phase_result.get("iteration"),
+            "items": phase_result["items"],
+            "findings": phase_result["findings"],
+        }
+        if commit_id is not None:
+            item["commit"] = commit_id
+        evidence.append(item)
+    phase = phase_result["phase"]
+    phases = ["review", "acceptance", "consolidation", "downstream"]
+    if milestone.get("retirement_adopted") is True:
+        phases.append("retirement")
+    if phase_result.get("retry_review"):
+        closure["phase"] = "review"
+    else:
+        index = phases.index(phase)
+        closure["phase"] = phases[index + 1] if index + 1 < len(phases) else "verified"
+    if closure["phase"] == "verified":
+        closure["closure_state"] = "verified"
+
+
+def _close_milestone(core, controller, args, repo, store, receipt_path, receipt, executor, milestone, reservations, manual_evidence, output_fn=print):
     identity = milestone["id"]
     closure = receipt.setdefault("closure", {}).setdefault("milestones", {}).setdefault(identity, {
         "closure_state": "pending", "phase": "review", "review_iterations": 0,
@@ -1192,11 +1336,15 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
         reservations.ensure_turn_capacity(phase_row)
         reservations.ensure_provider_capacity()
         _active_operation(receipt, "closure", milestone_id=identity, phase=phase, paths=milestone["closure_paths"], expected_head=head)
+        receipt["active_operation"]["before_snapshot_sha256"] = snapshot_digest(before)
+        output_fn(
+            f"Current closure phase {identity}/{phase}; {_progress_summary(receipt, phase_row)}."
+        )
         _save(store, receipt_path, receipt)
         try:
             result = _run_agent(
                 core, controller, args, repo, receipt, reservations, executor,
-                _closure_prompt(milestone, phase, closure), phase_row,
+                _closure_prompt(milestone, phase, closure), phase_row, output_fn,
             )
             external = _check_model_actions(result)
             if external:
@@ -1227,9 +1375,15 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
                 if not result["verified"]:
                     _pause(core, store, receipt_path, receipt, "review found P1/P2 findings without a verified fix", 24, review=True)
                 # Every P0/P1/P2 fix requires another full-milestone review.
-                _commit_closure_changes(core, controller, store, receipt_path, receipt, repo, milestone, phase, before, milestone["closure_paths"], reservations, head, branch)
-                closure["phase"] = "review"
-                closure["evidence"].append({"phase": phase, "source": "model", "iteration": closure["review_iterations"], "items": result["evidence"], "findings": findings})
+                phase_result = _closure_phase_result(receipt, closure, phase, result, retry_review=True)
+                receipt["active_operation"].update({
+                    "phase": "result_recorded",
+                    "expected_snapshot_sha256": snapshot_digest(core.row_snapshot(repo)),
+                    "phase_result": phase_result,
+                })
+                _save(store, receipt_path, receipt)
+                commit_id = _commit_closure_changes(core, controller, store, receipt_path, receipt, repo, milestone, phase, before, milestone["closure_paths"], reservations, head, branch, phase_result=phase_result)
+                _finish_closure_phase(receipt, milestone, phase_result, commit_id)
                 receipt["active_operation"] = None
                 _save(store, receipt_path, receipt)
                 continue
@@ -1245,12 +1399,15 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
                         if outcome.get("exit_code") != 0:
                             _pause(core, store, receipt_path, receipt, f"acceptance verification failed: {command}", 24, review=True)
                         closure["evidence"].append({"phase": "acceptance", "source": "command", "command": command, "exit_code": 0, "output": outcome.get("stdout", "")[:4000]})
-            commit_id = _commit_closure_changes(core, controller, store, receipt_path, receipt, repo, milestone, phase, before, milestone["closure_paths"], reservations, head, branch)
-            closure["evidence"].append({"phase": phase, "source": "model", "iteration": closure["review_iterations"] if phase == "review" else None, "items": result["evidence"], "findings": findings, "commit": commit_id})
-            phase_index = phases.index(phase)
-            closure["phase"] = phases[phase_index + 1] if phase_index + 1 < len(phases) else "verified"
-            if closure["phase"] == "verified":
-                closure["closure_state"] = "verified"
+            phase_result = _closure_phase_result(receipt, closure, phase, result)
+            receipt["active_operation"].update({
+                "phase": "result_recorded",
+                "expected_snapshot_sha256": snapshot_digest(core.row_snapshot(repo)),
+                "phase_result": phase_result,
+            })
+            _save(store, receipt_path, receipt)
+            commit_id = _commit_closure_changes(core, controller, store, receipt_path, receipt, repo, milestone, phase, before, milestone["closure_paths"], reservations, head, branch, phase_result=phase_result)
+            _finish_closure_phase(receipt, milestone, phase_result, commit_id)
             receipt["active_operation"] = None
             _save(store, receipt_path, receipt)
         except LimitPaused:
@@ -1311,13 +1468,13 @@ def run_horizon(
                 _save(store, receipt_path, receipt)
                 core.fail(selection["reason"], 17)
             if selection["status"] == "row":
-                _run_task(core, controller, args, root, store, receipt_path, receipt, executor, selection, reservations)
+                _run_task(core, controller, args, root, store, receipt_path, receipt, executor, selection, reservations, output_fn)
                 receipt = store.load(receipt_path)
                 reservations.receipt = receipt
                 continue
             if selection["status"] == "closure":
                 milestone = selection["milestone"]
-                _close_milestone(core, controller, args, root, store, receipt_path, receipt, executor, milestone, reservations, manual_evidence)
+                _close_milestone(core, controller, args, root, store, receipt_path, receipt, executor, milestone, reservations, manual_evidence, output_fn)
                 receipt = store.load(receipt_path)
                 reservations.receipt = receipt
                 continue
@@ -1347,6 +1504,21 @@ def run_horizon(
                 }, ensure_ascii=False, indent=2))
                 return receipt
             raise _UnresolvedDependency(f"unknown horizon selection state: {selection['status']}")
+    except KeyboardInterrupt:
+        uncertain = not _is_clean_checkpoint(core, root) or _active_operation_uncertain(receipt)
+        receipt["state"] = "needs_review" if uncertain else "paused"
+        receipt["pause_reason"] = (
+            "interrupted with an uncertain or dirty partial operation; manual review is required"
+            if uncertain else "interrupted at a clean checkpoint"
+        )
+        if not uncertain:
+            receipt["active_operation"] = None
+        _save(store, receipt_path, receipt)
+        try:
+            output_fn(receipt["pause_reason"])
+        except KeyboardInterrupt:
+            pass
+        raise SystemExit(130)
     except LimitPaused as exc:
         if receipt.get("state") != "needs_review":
             uncertain = not _is_clean_checkpoint(core, root) or _active_operation_uncertain(receipt)

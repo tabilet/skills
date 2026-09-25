@@ -1,6 +1,6 @@
 # API automation 7 — Status, resume, recovery, and operator control
 
-Plan state: `[ ]`
+Plan state: `[+]`
 
 Depends on: [API automation 6 — Horizon execution and closure](api-automation-6.md).
 
@@ -41,14 +41,19 @@ sets `needs_review` and exits 25, explaining the exact evidence required.
 **Crash reconciliation.** Persist the intended operation, its expected baseline,
 selected row or closure phase, approved paths, and usage before execution.
 Record the active operation's phase as `prepared` before dispatch, then advance
-it to `provider_dispatched`, `precommit_verified`, and `commit_attempted` before
-the corresponding action. A crash may occur before or after the planning, task,
+it to `provider_dispatched`, `result_recorded` for a verified closure result,
+`precommit_verified`, and `commit_attempted` before the corresponding action.
+A crash may occur before or after the planning, task,
 review-fix, or closure commit, and before the receipt update. On resume, compare
 the live tree and commits since the last checkpoint with that intent. Resume an
 unstarted operation only from a proved clean checkpoint whose intent is still
 `prepared`; a clean checkpoint after a verified operation may proceed to the
-next one. At a clean commit with matching lineage, paths, row transition, and
-verification evidence, record it exactly once. A provider-dispatched operation
+next one. At a clean commit with matching candidate object, parent, tree, patch,
+message, paths, row transition, workflow snapshot, and verification evidence,
+record it exactly once. A closure commit already recorded just before a crash
+does not increment usage or duplicate its phase evidence. A persisted verified
+no-change closure result advances only from the same clean `HEAD` and workflow
+snapshot. A provider-dispatched operation
 without a provable result, dirty worktree, partial row, unexpected commit, lost
 verification evidence, or ambiguous outcome enters `needs_review` and exits 25,
 even when Git reports a clean worktree. Never reset, discard, replay, or
@@ -70,8 +75,12 @@ and never resets or replays that row.
 through the existing `tabilet-audit` toolkit and is the sole recorder owner for
 them; runs it drives are not recorded again as runner or skill runs. A missing or
 unusable audit reports a gap and never changes an outcome, matching v2.1.0.
-Record `completed` only after verified closure, and distinguish `paused` and
-`needs_review` from completion; remove any `awaiting_acceptance` audit path.
+The existing audit result vocabulary records paused and needs-review controller
+runs as `blocked`, with the exact receipt state in the corresponding
+`run_blocked` event. Only receipt state `completed` is recorded as audit result
+`completed`, and it follows verified closure. Ctrl-C is recorded as
+`interrupted`, with the resulting receipt state in event details. There is no
+`awaiting_acceptance` audit path.
 
 ## Deliverables
 
@@ -85,6 +94,11 @@ Record `completed` only after verified closure, and distinguish `paused` and
 - Crash injection around planning, task, and closure commits either continues
   from a proved clean checkpoint or stops for review; no row or closure phase
   runs twice.
+- An exact task or closure candidate commit is recorded once after a crash on
+  either side of its receipt update; an already-recorded closure commit does not
+  increment usage or duplicate phase evidence.
+- A persisted, verified no-change closure phase advances from its clean
+  checkpoint without dispatching the phase again.
 - A crash after provider dispatch but before a provable task result requires
   review even if the worktree is clean; the row is never replayed automatically.
 - Ctrl-C leaves no container running; dirty interruption needs manual review.
@@ -103,8 +117,8 @@ python3 check.py
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| API7-T01 | `[ ]` | Implement read-only `tabilet status`. | No write to the project, receipt, or database in any test. |
-| API7-T02 | `[ ]` | Implement `tabilet resume` with lock, lineage, image, and worktree checks. | Lock exits 19, stale inputs exit 18, and dirty or uncertain recovery exits 25 with the reason. |
-| API7-T03 | `[ ]` | Reconcile crashes around planning, task, and closure commits. | Clean proven checkpoints resume; dirty or uncertain work exits 25 without replay. |
-| API7-T04 | `[ ]` | Add progress output, Ctrl-C handling, and confirmed limit extension. | Interrupt cleans up the container; a higher cap needs a new confirmation. |
-| API7-T05 | `[ ]` | Record controller runs and automatic completion through the optional audit toolkit. | One recorder owner; completion follows verified closure, and audit gaps never change outcomes. |
+| API7-T01 | `[+]` | Implement read-only `tabilet status`. | No write to the project, receipt, or database in any test. |
+| API7-T02 | `[+]` | Implement `tabilet resume` with lock, lineage, image, and worktree checks. | Lock exits 19, stale inputs exit 18, and dirty or uncertain recovery exits 25 with the reason. |
+| API7-T03 | `[+]` | Reconcile crashes around planning, task, and closure commits. | Clean proven checkpoints resume; dirty or uncertain work exits 25 without replay. |
+| API7-T04 | `[+]` | Add progress output, Ctrl-C handling, and confirmed limit extension. | Interrupt cleans up the container; a higher cap needs a new confirmation. |
+| API7-T05 | `[+]` | Record controller runs and automatic completion through the optional audit toolkit. | One recorder owner; completion follows verified closure, and audit gaps never change outcomes. |

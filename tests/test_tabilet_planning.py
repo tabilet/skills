@@ -245,10 +245,11 @@ class PlanningTests(unittest.TestCase):
             {"tool": "ask", "questions": [{"id": "q", "title": "What is needed?"}]},
             {"tool": "propose", "proposal": {"title": "A plan"}},
         ])
-        result = controller.run_planning_session(
-            fake, self.args(), self.project, "init", "initialize project",
-            self.installed, input_fn=lambda _prompt: "  keep this exact  ", output_fn=self.outputs.append,
-        )
+        with mock.patch.object(controller, "validate_repository_topology", return_value=self.project):
+            result = controller.run_planning_session(
+                fake, self.args(), self.project, "init", "initialize project",
+                self.installed, input_fn=lambda _prompt: "  keep this exact  ", output_fn=self.outputs.append,
+            )
         self.assertEqual(2, fake.calls)
         self.assertEqual("proposal", result["status"])
         self.assertTrue(any("  keep this exact  " in msg["content"] for msg in fake.messages[-1]))
@@ -285,11 +286,12 @@ class PlanningTests(unittest.TestCase):
     def test_controller_maps_bundle_integrity_failure_to_exit_17(self):
         (self.installed / "memory-bank-init/SKILL.md").write_text("tampered")
         fake = FakeCore([])
-        with self.assertRaises(SystemExit) as stopped:
-            controller.run_planning_session(
-                fake, self.args(), self.project, "init", "request", self.installed,
-                output_fn=self.outputs.append,
-            )
+        with mock.patch.object(controller, "validate_repository_topology", return_value=self.project):
+            with self.assertRaises(SystemExit) as stopped:
+                controller.run_planning_session(
+                    fake, self.args(), self.project, "init", "request", self.installed,
+                    output_fn=self.outputs.append,
+                )
         self.assertEqual(17, stopped.exception.code)
         self.assertEqual(0, fake.calls)
 

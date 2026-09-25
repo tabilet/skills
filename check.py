@@ -263,6 +263,7 @@ def harness_parses():
         ROOT / "harness/tabilet_controller.py", ROOT / "harness/tabilet_container.py",
         ROOT / "harness/tabilet_planning.py", ROOT / "harness/tabilet_install.py",
         ROOT / "harness/tabilet_proposal.py", ROOT / "harness/tabilet_horizon.py",
+        ROOT / "harness/tabilet_recovery.py", ROOT / "harness/tabilet_status.py",
     ):
         try:
             ast.parse(path.read_text())
@@ -1052,6 +1053,7 @@ def sqlite_bundle_contract():
         "tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py",
         "tabilet_controller.py", "tabilet_container.py", "tabilet_planning.py",
         "tabilet_install.py", "tabilet_proposal.py", "tabilet_horizon.py",
+        "tabilet_recovery.py", "tabilet_status.py",
         "tackle-memory-bank-api-loop",
     ):
         if not (ROOT / "harness" / name).is_file():

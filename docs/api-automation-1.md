@@ -100,7 +100,7 @@ uses these typed fields:
 | `verification_evidence` | array | Required task-check commands, exit results, and bounded output captured before each host commit. |
 | `commit_ids` | array of Git object ID strings | Planning, task, and closure commits proven and recorded. |
 | `limit_extensions` | array | Confirmed cap increases, each with the limit name, old and new value, proposal digest, clean checkpoint `HEAD`, and confirmation timestamp. |
-| `active_operation` | object or null | `kind` and stable `operation_id` strings; `phase` enum `prepared`, `provider_dispatched`, `precommit_verified`, or `commit_attempted`; `expected_head` Git object ID or null; `row_id`, `milestone_id`, and `closure_phase` strings or null; and `paths`, an array of project-relative strings. Persist `prepared` before dispatch, then atomically record each phase before its corresponding action. |
+| `active_operation` | object or null | `kind` and stable `operation_id` strings; `phase` enum `prepared`, `provider_dispatched`, `result_recorded`, `precommit_verified`, or `commit_attempted`; `expected_head` Git object ID or null; `row_id`, `milestone_id`, and `closure_phase` strings or null; and `paths`, an array of project-relative strings. Persist `prepared` before dispatch, then atomically record each phase before its corresponding action. `result_recorded` is used only for a verified closure result and lets recovery advance a clean no-change phase without repeating its model call. |
 | `mutation_scope` | string | Literal `local_only`; external actions are excluded. |
 | `pause_reason` | string or null | Human-readable reason for `paused` or `needs_review`. |
 | `state` | string enum | `approved`, `running`, `paused`, `needs_review`, or `completed`. |

@@ -932,7 +932,7 @@ def commit_staged_tree(
         raise ProposalError("candidate commit does not use the approved parent")
 
     if before_ref_update is not None:
-        before_ref_update()
+        before_ref_update(candidate, tree)
     symbolic_ref = _git(core, repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
     if symbolic_ref.returncode == 0:
         refname = symbolic_ref.stdout.strip()
@@ -1032,8 +1032,14 @@ def _apply_and_commit(
     if fault_hook:
         fault_hook("before_commit")
 
-    def mark_commit_attempted():
-        receipt["active_operation"]["phase"] = "commit_attempted"
+    def mark_commit_attempted(candidate: str, tree: str):
+        receipt["active_operation"].update({
+            "phase": "commit_attempted",
+            "candidate_commit": candidate,
+            "expected_tree": tree,
+            "expected_patch_sha256": hashlib.sha256(patch.encode("utf-8")).hexdigest(),
+            "commit_message": message,
+        })
         store.update_atomic(receipt_path, receipt)
         if fault_hook:
             fault_hook("before_ref_update")
