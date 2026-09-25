@@ -1,10 +1,10 @@
 # API automation 6 — Horizon execution and closure
 
-Plan state: `[ ]`
+Plan state: `[+]`
 
-Review iterations: 3 of 5; no P1/P2 findings remain after fixing crash-time
-operation intent, successor task-scope checks, bounded closure evidence, and
-host-HEAD drift around commits.
+Review iterations: 5 of 5; no P1/P2 findings remain after fixing crash-time
+operation intent, successor task-scope checks, bounded closure evidence,
+host-ref races, resume turn reporting, and adopted-retirement validation.
 
 Depends on: [API automation 3 — Docker sandbox executor](api-automation-3.md) and
 [API automation 5 — Proposal, confirm or reject, receipt, and planning commit](api-automation-5.md).
@@ -54,8 +54,9 @@ Before each host task commit, the controller runs required verification and
 validates the selected row, history, and approved file scope on the uncommitted
 worktree. A failed pre-commit gate exits 24, leaves evidence for review, and
 does not commit. On success, the host stages only validated paths, commits one
-row, and runs the shared post-commit gates in their original order. File paths
-alone cannot prove the change belongs semantically to the selected row.
+row through a fixed-parent commit object and expected-ref compare-and-swap, then
+runs the shared post-commit gates in their original order. File paths alone
+cannot prove the change belongs semantically to the selected row.
 
 **Limits.** The receipt persists maximum rows, provider attempts, turns per
 row, total commits, and elapsed time from approval plus cumulative usage.
@@ -78,8 +79,11 @@ review or closure commit only when files actually change:
 2. verification of the milestone's acceptance criteria;
 3. fact and lesson consolidation;
 4. downstream reconciliation;
-5. the retirement procedure, when the project has adopted it (the runner already
-   rejects retirement without a passed review within 10 iterations).
+5. the retirement procedure, when the project has adopted it. Retirement is
+   accepted only after persisted review, acceptance, consolidation, and
+   downstream evidence; the new record must retain the complete specification
+   and status bytes, identify the passed review count, and be the only milestone
+   retired in that phase.
 
 **Completion evidence.** Required manual inspection or other manual acceptance
 evidence pauses with exit 17 until supplied and verified. Supply it keyed by
@@ -117,10 +121,14 @@ The `[~]` marker records selection, never external-mutation authority.
 - Failed required verification makes no host commit. A crash after the task
   commit leaves its operation intent for API 7 reconciliation and is never
   replayed automatically.
+- A provider-dispatched operation that stops without a proven result remains
+  `needs_review` even if Git reports a clean tree; resume does not repeat it.
 - The complete closure order is persisted. P0/P1/P2 findings trigger another
   whole-milestone review up to 10 iterations; a clean no-change pass creates no
   commit. Required manual evidence pauses; model review is labeled as model
   evidence; verified closure marks the horizon `completed` automatically.
+- An adopted retirement cannot run before verified closure phases and must
+  preserve the full status record and milestone specification byte-for-byte.
 - External actions are recorded and reported for separate handling; no external
   mutation happens under the general confirmation.
 
@@ -136,9 +144,9 @@ python3 check.py
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| API6-T01 | `[ ]` | Implement deterministic, receipt-bounded row selection from live dependencies. | Out-of-horizon `[~]`, unresolved dependency, blocked row, and out-of-scope `[-]` successor cases stop safely. |
-| API6-T02 | `[ ]` | Run each row through the shared core with Docker and host commits. | Pre-commit verification precedes each host commit; shared post-commit gate order is unchanged. |
-| API6-T03 | `[ ]` | Enforce cumulative receipt limits as pauses with exit 16. | Attempts count before dispatch and across resumes; an extension needs a newly confirmed higher number. |
-| API6-T04 | `[ ]` | Run the milestone closure procedure in order. | Review iterations persist; no-change passes have no commit; retirement follows a passed review. |
-| API6-T05 | `[ ]` | Report evidence and complete automatically after verified closure. | Manual evidence pauses; model evidence is labeled; `completed` needs no final command. |
-| API6-T06 | `[ ]` | Pause and report external actions for separate handling. | No external mutation happens under the general confirmation. |
+| API6-T01 | `[+]` | Implement deterministic, receipt-bounded row selection from live dependencies. | Out-of-horizon `[~]`, unresolved dependency, blocked row, and out-of-scope `[-]` successor cases stop safely. |
+| API6-T02 | `[+]` | Run each row through the shared core with Docker and host commits. | Pre-commit verification precedes each host commit; shared post-commit gate order is unchanged. |
+| API6-T03 | `[+]` | Enforce cumulative receipt limits as pauses with exit 16. | Attempts count before dispatch and across resumes; an extension needs a newly confirmed higher number. |
+| API6-T04 | `[+]` | Run the milestone closure procedure in order. | Review iterations persist; no-change passes have no commit; retirement follows a passed review. |
+| API6-T05 | `[+]` | Report evidence and complete automatically after verified closure. | Manual evidence pauses; model evidence is labeled; `completed` needs no final command. |
+| API6-T06 | `[+]` | Pause and report external actions for separate handling. | No external mutation happens under the general confirmation. |

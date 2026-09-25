@@ -1119,9 +1119,12 @@ def _post_json(
     label: str,
     timeout: int = 120,
     max_retries: int = 2,
+    before_attempt=None,
 ) -> dict:
     data = json.dumps(payload).encode("utf-8")
     for attempt in range(max_retries + 1):
+        if before_attempt is not None:
+            before_attempt()
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -1175,6 +1178,7 @@ def call_openai(
     max_tokens: int,
     timeout: int = 120,
     max_retries: int = 2,
+    before_attempt=None,
 ) -> dict:
     url = api_base.rstrip("/") + "/chat/completions"
     payload = {
@@ -1188,7 +1192,13 @@ def call_openai(
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    body = _post_json(url, headers, payload, "OpenAI API", timeout, max_retries)
+    if before_attempt is None:
+        body = _post_json(url, headers, payload, "OpenAI API", timeout, max_retries)
+    else:
+        body = _post_json(
+            url, headers, payload, "OpenAI API", timeout, max_retries,
+            before_attempt=before_attempt,
+        )
     try:
         choice = body["choices"][0]
         message = choice["message"]
@@ -1214,6 +1224,7 @@ def call_anthropic(
     max_tokens: int,
     timeout: int = 120,
     max_retries: int = 2,
+    before_attempt=None,
 ) -> dict:
     url = api_base.rstrip("/") + "/messages"
     system_parts = [m["content"] for m in messages if m["role"] == "system"]
@@ -1238,7 +1249,13 @@ def call_anthropic(
     if api_key:
         headers["x-api-key"] = api_key
 
-    body = _post_json(url, headers, payload, "Anthropic API", timeout, max_retries)
+    if before_attempt is None:
+        body = _post_json(url, headers, payload, "Anthropic API", timeout, max_retries)
+    else:
+        body = _post_json(
+            url, headers, payload, "Anthropic API", timeout, max_retries,
+            before_attempt=before_attempt,
+        )
     try:
         blocks = body["content"]
         texts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
@@ -1262,14 +1279,25 @@ def call_llm(
     max_tokens: int,
     timeout: int = 120,
     max_retries: int = 2,
+    before_attempt=None,
 ) -> dict:
     if provider == "anthropic":
+        if before_attempt is None:
+            return call_anthropic(
+                api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries,
+            )
         return call_anthropic(
-            api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries
+            api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries,
+            before_attempt=before_attempt,
         )
     if provider == "openai":
+        if before_attempt is None:
+            return call_openai(
+                api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries,
+            )
         return call_openai(
-            api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries
+            api_base, api_key, model, messages, temperature, max_tokens, timeout, max_retries,
+            before_attempt=before_attempt,
         )
     fail(f"Unknown LLM provider: {provider!r}. Use 'openai' or 'anthropic'.", 2)
 
@@ -1332,6 +1360,9 @@ def one_agent_run(
     executor=shell_tool,
     system_prompt: str = SYSTEM_PROMPT,
     user_message: str | None = None,
+    before_model_turn=None,
+    before_provider_attempt=None,
+    before_command=None,
 ) -> dict[str, object]:
     messages = [
         {"role": "system", "content": system_prompt},
@@ -1351,8 +1382,11 @@ def one_agent_run(
                 f"MAX_HISTORY_CHARS={args.max_history_chars}.",
                 31,
             )
-        print(f"  LLM turn {turn}/{args.max_turns}")
-        response = call_llm(
+        displayed_turn = turn + getattr(args, "controller_turn_offset", 0)
+        print(f"  LLM turn {displayed_turn}/{args.max_turns}")
+        if before_model_turn is not None:
+            before_model_turn()
+        llm_args = (
             args.provider,
             args.api_base,
             args.api_key,
@@ -1363,6 +1397,10 @@ def one_agent_run(
             args.api_timeout,
             args.max_retries,
         )
+        if before_provider_attempt is None:
+            response = call_llm(*llm_args)
+        else:
+            response = call_llm(*llm_args, before_attempt=before_provider_attempt)
         content = response["content"]
         stop_reason = response.get("stop_reason")
         usage = usage_line(response.get("usage") or {})
@@ -1396,7 +1434,7 @@ def one_agent_run(
 
         if isinstance(command.get("final"), str):
             print(command["final"])
-            return {"final": command["final"]}
+            return command
 
         if command.get("tool") != "run_shell" or not isinstance(command.get("cmd"), str):
             messages.append(
@@ -1410,6 +1448,8 @@ def one_agent_run(
         cmd = command["cmd"]
         why = command.get("why", "")
         print(f"  shell: {cmd}" + (f"  # {why}" if why else ""))
+        if before_command is not None:
+            before_command()
         result = executor(
             repo,
             cmd,

@@ -6,6 +6,9 @@ from __future__ import annotations
 import importlib.machinery
 import importlib.util
 import pathlib
+import re
+import sys
+import types
 
 
 CONTROLLER_SYSTEM_PROMPT = """\
@@ -15,7 +18,8 @@ Return exactly one JSON object per response, without surrounding prose. Use
 {"tool":"run_shell","cmd":"...","why":"..."} for a command or
 {"final":"..."} when the selected task work is finished.
 
-Work on exactly the selected task row and only within the approved file scope.
+Work only on the selected task row or closure phase named in the user message,
+and only within that operation's approved file scope.
 The controller owns Git operations.
 Do not run git add, git commit, git reset, git checkout, git switch, or commands
 that alter branches, tags, or commit history. Do not claim a commit was made.
@@ -55,6 +59,19 @@ def load_proposal_module():
     spec = importlib.util.spec_from_loader(loader.name, loader)
     if spec is None or spec.loader is None:
         raise ImportError("controller proposal module is missing")
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def load_horizon_module():
+    """Load the adjacent receipt-bounded execution and closure module."""
+
+    path = pathlib.Path(__file__).resolve().with_name("tabilet_horizon.py")
+    loader = importlib.machinery.SourceFileLoader("_tabilet_horizon", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None or spec.loader is None:
+        raise ImportError("controller horizon module is missing")
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
     return module
@@ -113,6 +130,89 @@ def resume_approved_receipt(core, repo: pathlib.Path, receipt_path: pathlib.Path
     return run_with_project_lock(core, repo, run)
 
 
+def execute_horizon(
+    core, args, repo: pathlib.Path, receipt_path: pathlib.Path, *,
+    receipt_store=None, image_id=None, manual_evidence=None,
+    output_fn=print,
+):
+    """Execute or resume one confirmed horizon under the shared project lock."""
+
+    horizon = load_horizon_module()
+    if receipt_store is None:
+        proposal = load_proposal_module()
+        receipt_store = proposal.ReceiptStore()
+
+    def run():
+        try:
+            receipt = receipt_store.load(receipt_path)
+        except Exception as exc:
+            core.fail(f"Cannot load approved horizon receipt: {exc}", 25)
+        if receipt.get("state") == "completed":
+            output_fn(f"Horizon {receipt.get('horizon_ids', [])} is already completed.")
+            return receipt
+        if receipt.get("state") == "needs_review" or receipt.get("active_operation") is not None:
+            core.fail("The receipt has an unfinished or uncertain operation; run API 7 recovery before execution.", 25)
+        if receipt.get("state") not in {"running", "paused"}:
+            core.fail("The receipt is not ready for horizon execution; reconcile planning approval first.", 25)
+        approved_image = receipt.get("image_id")
+        if image_id is not None and image_id != approved_image:
+            core.fail("Selected Docker image differs from the immutable image ID in the approved receipt.", 18)
+        if not isinstance(approved_image, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", approved_image):
+            receipt["state"] = "paused"
+            receipt["pause_reason"] = "receipt has no valid immutable Docker image ID"
+            receipt_store.update_atomic(receipt_path, receipt)
+            core.fail("Execution requires the immutable Docker image ID from the approved receipt.", 17)
+        try:
+            selected_executor = prepare_docker_executor(core, repo, approved_image)
+        except SystemExit as exc:
+            if exc.code == 17:
+                try:
+                    clean = core.git_clean(repo)
+                except Exception:
+                    clean = False
+                receipt["state"] = "paused" if clean else "needs_review"
+                receipt["pause_reason"] = "Docker executor setup is unavailable"
+                if clean:
+                    receipt["active_operation"] = None
+                receipt_store.update_atomic(receipt_path, receipt)
+            raise
+        return horizon.run_horizon(
+            core, args, repo, receipt_path, receipt_store=receipt_store,
+            executor=selected_executor, manual_evidence=manual_evidence,
+            output_fn=output_fn,
+            controller_module=sys.modules.get(__name__) or types.SimpleNamespace(
+                run_controller_agent=run_controller_agent,
+                precommit_problems=precommit_problems,
+                commit_host_changes=commit_host_changes,
+            ),
+        )
+
+    return run_with_project_lock(core, repo, run)
+
+
+def extend_horizon_limit(
+    core, repo: pathlib.Path, receipt_path: pathlib.Path, name: str, value: int,
+    *, receipt_store=None, input_fn=input,
+):
+    """Confirm one higher numeric cap under the shared project lock."""
+
+    horizon = load_horizon_module()
+    if receipt_store is None:
+        receipt_store = load_proposal_module().ReceiptStore()
+
+    def run():
+        try:
+            receipt = receipt_store.load(receipt_path)
+            return horizon.extend_limit(
+                core, receipt_store, receipt_path, receipt, name, value,
+                input_fn=input_fn,
+            )
+        except horizon.HorizonError as exc:
+            core.fail(f"Limit extension was not applied: {exc}", 18)
+
+    return run_with_project_lock(core, repo, run)
+
+
 def run_planning_session(
     core,
     args,
@@ -152,6 +252,9 @@ def run_controller_agent(
     selected_row: dict | None,
     executor,
     user_message: str,
+    before_model_turn=None,
+    before_provider_attempt=None,
+    before_command=None,
 ) -> dict[str, object]:
     """Use the shared model loop with controller-specific instructions/execution."""
 
@@ -182,6 +285,9 @@ def run_controller_agent(
         executor=sandboxed_executor,
         system_prompt=CONTROLLER_SYSTEM_PROMPT,
         user_message=user_message,
+        before_model_turn=before_model_turn,
+        before_provider_attempt=before_provider_attempt,
+        before_command=before_command,
     )
 
 
@@ -264,6 +370,19 @@ def commit_after_precommit(
         "problems": [],
         "commit_result": host_commit(),
     }
+
+
+def commit_host_changes(
+    core, repo: pathlib.Path, expected_head, expected_branch, expected_patch: str,
+    message: str, *, before_ref_update=None,
+) -> str:
+    """Commit the validated staged tree with the shared expected-ref CAS."""
+
+    proposal = load_proposal_module()
+    return proposal.commit_staged_tree(
+        core, repo, expected_head, expected_branch, expected_patch, message,
+        before_ref_update=before_ref_update,
+    )
 
 
 def run_with_project_lock(core, repo: pathlib.Path, operation, *args, **kwargs):

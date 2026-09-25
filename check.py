@@ -262,7 +262,7 @@ def harness_parses():
         HARNESS, AUDIT_MODULE, AUDIT_HOST, ROOT / "harness/tabilet_index.py",
         ROOT / "harness/tabilet_controller.py", ROOT / "harness/tabilet_container.py",
         ROOT / "harness/tabilet_planning.py", ROOT / "harness/tabilet_install.py",
-        ROOT / "harness/tabilet_proposal.py",
+        ROOT / "harness/tabilet_proposal.py", ROOT / "harness/tabilet_horizon.py",
     ):
         try:
             ast.parse(path.read_text())
@@ -1051,7 +1051,8 @@ def sqlite_bundle_contract():
     for name in (
         "tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py",
         "tabilet_controller.py", "tabilet_container.py", "tabilet_planning.py",
-        "tabilet_install.py", "tabilet_proposal.py", "tackle-memory-bank-api-loop",
+        "tabilet_install.py", "tabilet_proposal.py", "tabilet_horizon.py",
+        "tackle-memory-bank-api-loop",
     ):
         if not (ROOT / "harness" / name).is_file():
             problems.append(f"missing optional toolkit payload: {name}")

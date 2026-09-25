@@ -643,6 +643,7 @@ class ControllerCoreTests(unittest.TestCase):
              before_head, before_branch, result) = self.controller_fixture(tmp)
             self.assertEqual(result["final"], "Implemented the selected task.")
             self.assertIn('"tool":"run_shell"', controller.CONTROLLER_SYSTEM_PROMPT)
+            self.assertIn("selected task row or closure phase", controller.CONTROLLER_SYSTEM_PROMPT)
             self.assertIn("Do not run git add, git commit", controller.CONTROLLER_SYSTEM_PROMPT)
             self.assertNotIn("Commit before returning", controller.CONTROLLER_SYSTEM_PROMPT)
             paths = ["feature.py", "tabilet/memory-bank/status-M01.md"]

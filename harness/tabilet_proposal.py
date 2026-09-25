@@ -890,6 +890,81 @@ def _mark_needs_review(store: ReceiptStore, path: pathlib.Path, receipt: dict, r
     return {"status": "needs_review", "reason": receipt["pause_reason"], "receipt_path": str(path)}
 
 
+def commit_staged_tree(
+    core, repo: pathlib.Path, expected_head: str | None, expected_branch: str | None,
+    expected_patch: str, message: str, *, before_ref_update=None,
+) -> str:
+    """Commit exactly the staged patch on its approved parent with a ref CAS."""
+
+    staged_paths = _decode_paths(
+        _git(core, repo, ["diff", "--cached", "--name-only", "-z", "--"]).stdout,
+        "staged",
+    )
+    expected_paths = _patch_paths(core, repo, expected_patch)
+    staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
+    if sorted(staged_paths) != expected_paths or staged_patch != expected_patch:
+        raise ProposalError("staged tree differs from the exact patch approved for commit")
+
+    branch_proc = _git(core, repo, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
+    head_proc = _git(core, repo, ["rev-parse", "--verify", "--quiet", "HEAD"], check=False)
+    if branch_proc.returncode not in {0, 1} or head_proc.returncode not in {0, 1}:
+        raise ProposalError("cannot verify branch and HEAD before the host commit")
+    actual_branch = branch_proc.stdout.strip() if branch_proc.returncode == 0 else None
+    actual_head = head_proc.stdout.strip() if head_proc.returncode == 0 else None
+    expected_branch_normalized = None if expected_branch in {None, "(detached)"} else expected_branch
+    if actual_branch != expected_branch_normalized or actual_head != expected_head:
+        raise ProposalError("branch or HEAD changed before the host commit")
+
+    tree = _git(core, repo, ["write-tree"]).stdout.strip()
+    if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", tree):
+        raise ProposalError("Git returned an invalid staged tree ID")
+    commit_args = ["commit-tree", tree]
+    if expected_head is not None:
+        commit_args.extend(("-p", expected_head))
+    commit_args.extend(("-m", message))
+    candidate = _git(core, repo, commit_args).stdout.strip()
+    if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", candidate):
+        raise ProposalError("Git returned an invalid host commit ID")
+    if _git(core, repo, ["show", "--format=", "--binary", candidate]).stdout != expected_patch:
+        raise ProposalError("candidate commit differs from the exact staged patch")
+    expected_parents = [] if expected_head is None else [expected_head]
+    if _parent_lineage(core, repo, candidate) != expected_parents:
+        raise ProposalError("candidate commit does not use the approved parent")
+
+    if before_ref_update is not None:
+        before_ref_update()
+    symbolic_ref = _git(core, repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
+    if symbolic_ref.returncode == 0:
+        refname = symbolic_ref.stdout.strip()
+    elif symbolic_ref.returncode == 1:
+        refname = "HEAD"
+    else:
+        raise ProposalError(symbolic_ref.stderr.strip() or "cannot resolve current Git ref")
+    if refname != "HEAD" and not refname.startswith("refs/heads/"):
+        raise ProposalError("host commit target is not a local branch or detached HEAD")
+    object_format = _git(core, repo, ["rev-parse", "--show-object-format"]).stdout.strip()
+    zero = "0" * (40 if object_format == "sha1" else 64 if object_format == "sha256" else 0)
+    if not zero:
+        raise ProposalError("unsupported Git object format for compare-and-swap commit")
+    expected_old = expected_head or zero
+    update = _git(
+        core, repo,
+        ["update-ref", "-m", message, refname, candidate, expected_old],
+        check=False,
+    )
+    if update.returncode:
+        raise ProposalError(
+            "planning ref changed before compare-and-swap: "
+            + (update.stderr.strip() or "Git update-ref rejected the expected old value")
+        )
+    final_head = _git(core, repo, ["rev-parse", "--verify", "HEAD"]).stdout.strip()
+    final_branch = _git(core, repo, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
+    actual_final_branch = final_branch.stdout.strip() if final_branch.returncode == 0 else None
+    if final_branch.returncode not in {0, 1} or final_head != candidate or actual_final_branch != expected_branch_normalized:
+        raise ProposalError("branch or HEAD changed immediately after the host commit")
+    return candidate
+
+
 def _apply_and_commit(
     core,
     store: ReceiptStore,
@@ -952,81 +1027,27 @@ def _apply_and_commit(
     message = "Planning update: " + title.replace("\n", " ").strip()
     if len(message) > 120:
         message = message[:117].rstrip() + "..."
+    receipt["active_operation"]["phase"] = "precommit_verified"
+    store.update_atomic(receipt_path, receipt)
     if fault_hook:
         fault_hook("before_commit")
-    try:
-        staged = _decode_paths(
-            _git(core, repo, ["diff", "--cached", "--name-only", "-z", "--"]).stdout,
-            "staged",
-        )
-        staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
-        if sorted(staged) != sorted(paths) or staged_patch != patch:
-            return _mark_needs_review(
-                store, receipt_path, receipt,
-                "staged planning patch changed after pre-commit verification",
-            )
-        branch_result = _git(core, repo, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
-        actual_branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
-        head_result = _git(core, repo, ["rev-parse", "--verify", "--quiet", "HEAD"], check=False)
-        actual_head = head_result.stdout.strip() if head_result.returncode == 0 else None
-        if branch_result.returncode not in {0, 1} or head_result.returncode not in {0, 1}:
-            return _mark_needs_review(store, receipt_path, receipt, "cannot revalidate branch and HEAD before planning commit")
-        if actual_branch != receipt["branch"] or actual_head != receipt["baseline_commit"]:
-            return _mark_needs_review(
-                store, receipt_path, receipt,
-                "branch or HEAD changed after approval and before the planning commit",
-            )
-        receipt["active_operation"]["phase"] = "precommit_verified"
-        store.update_atomic(receipt_path, receipt)
-        tree = _git(core, repo, ["write-tree"]).stdout.strip()
-        if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", tree):
-            raise ProposalError("Git returned an invalid planning tree ID")
-        commit_args = ["commit-tree", tree]
-        baseline = receipt["baseline_commit"]
-        if baseline is not None:
-            commit_args.extend(("-p", baseline))
-        commit_args.extend(("-m", message))
-        candidate = _git(core, repo, commit_args).stdout.strip()
-        if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", candidate):
-            raise ProposalError("Git returned an invalid planning commit ID")
-        candidate_patch = _git(core, repo, ["show", "--format=", "--binary", candidate]).stdout
-        if candidate_patch != patch:
-            raise ProposalError("candidate planning commit differs from the exact approved patch")
+
+    def mark_commit_attempted():
         receipt["active_operation"]["phase"] = "commit_attempted"
         store.update_atomic(receipt_path, receipt)
         if fault_hook:
             fault_hook("before_ref_update")
-        symbolic_ref = _git(core, repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
-        if symbolic_ref.returncode == 0:
-            refname = symbolic_ref.stdout.strip()
-        elif symbolic_ref.returncode == 1:
-            refname = "HEAD"
-        else:
-            raise ProposalError(symbolic_ref.stderr.strip() or "cannot resolve current Git ref")
-        if refname != "HEAD" and not refname.startswith("refs/heads/"):
-            raise ProposalError("planning commit target is not a local branch or detached HEAD")
-        object_format = _git(core, repo, ["rev-parse", "--show-object-format"]).stdout.strip()
-        zero = "0" * (40 if object_format == "sha1" else 64 if object_format == "sha256" else 0)
-        if not zero:
-            raise ProposalError("unsupported Git object format for compare-and-swap commit")
-        expected_old = baseline or zero
-        update = _git(
-            core, repo,
-            ["update-ref", "-m", message, refname, candidate, expected_old],
-            check=False,
+
+    try:
+        commit = commit_staged_tree(
+            core, repo, receipt["baseline_commit"], receipt["branch"], patch, message,
+            before_ref_update=mark_commit_attempted,
         )
     except ProposalError as exc:
         return _mark_needs_review(
             store, receipt_path, receipt,
             "planning changes are staged but the compare-and-swap commit failed: " + str(exc),
         )
-    if update.returncode:
-        return _mark_needs_review(
-            store, receipt_path, receipt,
-            "planning ref changed before the approved commit could be recorded: "
-            + (update.stderr.strip() or "Git compare-and-swap update-ref failed"),
-        )
-    commit = candidate
     if fault_hook:
         fault_hook("after_commit")
     try:
