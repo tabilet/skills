@@ -36,6 +36,8 @@ disposable Git repositories cover:
   resumes, and newly confirmed limit extensions;
 - crashes before and after approval receipt creation, planning commit, task
   commit, review-fix commit, closure commit, and receipt updates;
+- a crash after provider dispatch but before a provable task result enters
+  `needs_review` without replay, even when the worktree is clean;
 - clean checkpoint recovery versus dirty or uncertain partial row after a
   provider failure, crash, or Ctrl-C;
 - live dependency drift, an out-of-horizon `[~]` row, and an out-of-scope `[-]`

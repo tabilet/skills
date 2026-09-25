@@ -49,7 +49,7 @@ do not participate in the lock.
 | `git_log` / `git_show` | Read history through the hardened host Git wrapper. |
 | `ask` | Put one or more questions to the user and wait for answers. |
 | `fetch_review` | Request a remote review URL; see consent below. |
-| `propose` | Return the complete proposal object for API 5. |
+| `propose` | Return the complete proposal object for API 5, including milestone acceptance, closure paths, manual evidence, retirement-adoption state, and task verification and approved paths. |
 
 There is no shell and no write tool before approval. Every path is resolved
 inside the selected project (or inside the installed skill bundles, read-only),

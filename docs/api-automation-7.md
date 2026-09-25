@@ -39,15 +39,20 @@ Stale approval or changed immutable inputs exit 18. Dirty or uncertain recovery
 sets `needs_review` and exits 25, explaining the exact evidence required.
 
 **Crash reconciliation.** Persist the intended operation, its expected baseline,
-selected row or closure phase, approved paths, and usage before execution. A
-crash may occur before or after the planning, task, review-fix, or closure
-commit, and before the receipt update. On resume, compare the live tree and
-commits since the last checkpoint with that intent. At a clean baseline, resume
-the unstarted operation; at a clean commit with matching lineage, paths, row
-transition, and verification evidence, record it exactly once. A dirty
-worktree, partial row, unexpected commit, lost verification evidence, or
-ambiguous outcome enters `needs_review` and exits 25. Never reset, discard,
-replay, or auto-commit dirty work to make recovery appear clean.
+selected row or closure phase, approved paths, and usage before execution.
+Record the active operation's phase as `prepared` before dispatch, then advance
+it to `provider_dispatched`, `precommit_verified`, and `commit_attempted` before
+the corresponding action. A crash may occur before or after the planning, task,
+review-fix, or closure commit, and before the receipt update. On resume, compare
+the live tree and commits since the last checkpoint with that intent. Resume an
+unstarted operation only from a proved clean checkpoint whose intent is still
+`prepared`; a clean checkpoint after a verified operation may proceed to the
+next one. At a clean commit with matching lineage, paths, row transition, and
+verification evidence, record it exactly once. A provider-dispatched operation
+without a provable result, dirty worktree, partial row, unexpected commit, lost
+verification evidence, or ambiguous outcome enters `needs_review` and exits 25,
+even when Git reports a clean worktree. Never reset, discard, replay, or
+auto-commit dirty or uncertain work to make recovery appear clean.
 
 **Operator control.** While running, the controller prints the current row,
 provider attempts and model turns used, limits remaining, and each command's
@@ -80,6 +85,8 @@ Record `completed` only after verified closure, and distinguish `paused` and
 - Crash injection around planning, task, and closure commits either continues
   from a proved clean checkpoint or stops for review; no row or closure phase
   runs twice.
+- A crash after provider dispatch but before a provable task result requires
+  review even if the worktree is clean; the row is never replayed automatically.
 - Ctrl-C leaves no container running; dirty interruption needs manual review.
 - A reached limit cannot be silently reset or raised by `resume`.
 - Audit failures never change a status, row outcome, or exit code; recorded

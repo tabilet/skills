@@ -2,6 +2,10 @@
 
 Plan state: `[ ]`
 
+Review iterations: 3 of 5; no P1/P2 findings remain after fixing crash-time
+operation intent, successor task-scope checks, bounded closure evidence, and
+host-HEAD drift around commits.
+
 Depends on: [API automation 3 — Docker sandbox executor](api-automation-3.md) and
 [API automation 5 — Proposal, confirm or reject, receipt, and planning commit](api-automation-5.md).
 
@@ -69,8 +73,8 @@ commands use the sandbox. Persist evidence and checkpoint each phase; create a
 review or closure commit only when files actually change:
 
 1. the bounded review-fix gate — the initial deep review is iteration 1, every
-   P1/P2 fix is followed by a whole-milestone re-review, and a clean pass is
-   required within 10 iterations, with the count persisted in the active status;
+   P0/P1/P2 fix is followed by a whole-milestone re-review, and a clean pass is
+   required within 10 iterations, with the count persisted in the receipt;
 2. verification of the milestone's acceptance criteria;
 3. fact and lesson consolidation;
 4. downstream reconciliation;
@@ -78,8 +82,10 @@ review or closure commit only when files actually change:
    rejects retirement without a passed review within 10 iterations).
 
 **Completion evidence.** Required manual inspection or other manual acceptance
-evidence pauses with exit 17 until supplied and verified. A model review is
-labeled as model evidence, not independent human acceptance. When every horizon
+evidence pauses with exit 17 until supplied and verified. Supply it keyed by
+the exact approved criterion; the acceptance phase records it as user evidence
+and separately verifies it. A model review is labeled as model evidence, not
+independent human acceptance. When every horizon
 milestone has verified closure, the controller prints commits, verification
 output, review iterations, and each acceptance criterion against observed
 results, atomically sets `completed`, and exits 0. There is no final `accept` or
@@ -93,24 +99,36 @@ The `[~]` marker records selection, never external-mutation authority.
 
 ## Deliverables
 
-- `harness/`: the horizon controller loop, row selection, limits, closure
-  sequence, automatic completion, external-action pause.
+- `harness/tabilet_horizon.py`: live row selection, usage reservations, exact
+  host staging and commits, closure phases, evidence, and automatic completion.
+- `harness/tabilet_controller.py`: locked execution and limit-extension adapters
+  using the required Docker executor.
 - `tests/`: fake-provider horizons across multiple milestones.
 
 ## Acceptance
 
 - Rows outside the horizon or out of dependency order are never selected.
 - A commit touching another row's outcome is rejected.
-- Every limit pauses without closing or accepting anything.
+- Every limit pauses without closing or accepting anything; attempts and turns
+  remain charged across resumes, and an extension needs a newly confirmed higher
+  number at the same clean checkpoint.
 - Unresolved live dependencies, an out-of-horizon `[~]` row, and an out-of-scope
   `[-]` successor stop selection before a provider call.
-- A clean no-change review pass creates no commit; required manual evidence
-  pauses; verified closure marks the horizon `completed` automatically.
+- Failed required verification makes no host commit. A crash after the task
+  commit leaves its operation intent for API 7 reconciliation and is never
+  replayed automatically.
+- The complete closure order is persisted. P0/P1/P2 findings trigger another
+  whole-milestone review up to 10 iterations; a clean no-change pass creates no
+  commit. Required manual evidence pauses; model review is labeled as model
+  evidence; verified closure marks the horizon `completed` automatically.
+- External actions are recorded and reported for separate handling; no external
+  mutation happens under the general confirmation.
 
 ## Verification
 
 ```bash
 python3 -B -m unittest discover -s tests -p 'test_tabilet_horizon*.py'
+python3 -B -m unittest discover -s tests -p 'test_tabilet_proposal.py'
 python3 check.py
 ```
 

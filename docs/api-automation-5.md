@@ -29,7 +29,12 @@ exactly what was shown and nothing else; `reject` revises it and writes nothing.
 
 - the delivery boundary and the approved horizon;
 - milestone and task owners, dependencies, and order;
-- acceptance criteria and verification commands for each milestone;
+- milestone and task acceptance criteria, verification commands, and exact
+  approved paths for each task row; paths bound staging while row acceptance
+  and checks assess semantics;
+- exact closure paths for each milestone, for review and closure evidence;
+- any required manual evidence for each milestone;
+- whether milestone retirement has been adopted by the project;
 - candidate directions kept out of the horizon;
 - every exact project-file action and the full Markdown diff;
 - an optional compatible `tabilet/GOAL.md` copy as an explicit file action when a

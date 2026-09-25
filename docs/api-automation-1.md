@@ -84,6 +84,8 @@ uses these typed fields:
 | `proposal_sha256`, `diff_sha256` | 64-character lowercase hex strings | Exact rendered proposal and approved patch digests. |
 | `approved_diff` | UTF-8 string | Exact patch needed to apply or reconcile the approved planning change. |
 | `horizon_ids` | array of strings | Permanent milestone IDs in this approval. |
+| `approved_horizon` | array of milestone objects | Exact approved task descriptions, milestone and task acceptance criteria, dependencies, verification commands, task `approved_paths`, milestone `closure_paths`, and declared manual evidence for execution. |
+| `external_actions` | array | Actions reported by planning; none are authorized by the general confirmation. |
 | `file_actions` | array of objects | Each item has a project-relative `path` string and an `action` enum of `create`, `replace`, or `delete`. |
 | `branch` | string or null | Expected branch name; null for a detached or unborn `HEAD`. |
 | `baseline_commit`, `planning_commit` | Git object ID string or null | Approved pre-plan HEAD and resulting planning commit. |
@@ -93,9 +95,12 @@ uses these typed fields:
 | `image_id` | immutable Docker image ID string | Executor image pinned by the proposal. |
 | `limits` | object of positive integers | `max_rows`, `max_provider_attempts`, `max_turns_per_row`, `max_commits`, `max_runtime_seconds`; defaults are 5, 100, 40, 15, and 7200. |
 | `approved_at` | RFC 3339 UTC timestamp string | Start of the two-hour elapsed-time limit. |
-| `usage` | object | Nonnegative integer `rows_started`, `provider_attempts_reserved`, and `commits_recorded` counters, plus `turns_by_row`, a map from row-ID strings to nonnegative integer counters. |
+| `usage` | object | Nonnegative integer `rows_started`, `provider_attempts_reserved`, `commits_reserved`, and `commits_recorded` counters; unique `rows_started_ids`; plus `turns_by_row`, a map from row or closure-ID strings to nonnegative integer counters. `commits_reserved` starts at 1 for the receipt-created planning commit and increases durably before each later commit attempt; `commits_recorded` counts verified commits. |
+| `closure` | object | Per-milestone phase checkpoints, bounded review-iteration count, and evidence with its source. |
+| `verification_evidence` | array | Required task-check commands, exit results, and bounded output captured before each host commit. |
 | `commit_ids` | array of Git object ID strings | Planning, task, and closure commits proven and recorded. |
-| `active_operation` | object or null | `kind` and stable `operation_id` strings; `expected_head` Git object ID or null; `row_id` and `closure_phase` strings or null; and `paths`, an array of project-relative strings. |
+| `limit_extensions` | array | Confirmed cap increases, each with the limit name, old and new value, proposal digest, clean checkpoint `HEAD`, and confirmation timestamp. |
+| `active_operation` | object or null | `kind` and stable `operation_id` strings; `phase` enum `prepared`, `provider_dispatched`, `precommit_verified`, or `commit_attempted`; `expected_head` Git object ID or null; `row_id`, `milestone_id`, and `closure_phase` strings or null; and `paths`, an array of project-relative strings. Persist `prepared` before dispatch, then atomically record each phase before its corresponding action. |
 | `mutation_scope` | string | Literal `local_only`; external actions are excluded. |
 | `pause_reason` | string or null | Human-readable reason for `paused` or `needs_review`. |
 | `state` | string enum | `approved`, `running`, `paused`, `needs_review`, or `completed`. |
