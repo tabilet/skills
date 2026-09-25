@@ -205,6 +205,17 @@ API 运行器自己负责审计运行的开始、事件和结束，不要再手�
 Linux，以及通过 Unix 套接字连接的本地 Docker 守护进程。远程 Docker 上下文和守护进程覆盖变量会被拒绝，
 因为绑定挂载必须指向控制器所在主机的本地项目文件。请使用支持 `bind-recursive=disabled` 的 Docker Engine 版本。
 
+从 skills 源码检出安装 `tabilet` 和经过验证的七个规划技能包：
+
+```bash
+python3 harness/tabilet_install.py --source skills --controller-source harness
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+安装器会把命令放到 `~/.local/bin`，把运行模块放到
+`~/.local/lib/tabilet/controller`，并在 `${XDG_DATA_HOME:-~/.local/share}/tabilet/` 下保存带生成式
+SHA-256 清单的规范技能包。安装器不会写入项目。后续更新可以从更新版本的检出中重新运行。
+
 启动控制器提案之前，请先自行准备本地镜像。例如，下面的命令提供一个精简的 Python 和 shell 基础镜像；
 如果任务需要其他工具，请把它们加入自己的镜像：
 
@@ -218,8 +229,18 @@ docker pull python:3.12-slim
 4 个 CPU、8 GiB 内存、512 个进程和每条命令 300 秒的限制。提供方凭据留在宿主机，不会传入容器。
 
 安装可选的 `tabilet` 命令后，使用 `tabilet chat PROJECT --image IMAGE` 选择准备好的镜像。
-镜像引用及其解析出的 ID 都会出现在可见提案中。缺少工具时运行会暂停；请在控制器之外准备更新后的镜像，
-并在确认任何限制或范围变更后恢复运行。
+命令会询问使用哪个规划契约（`init`、`propose` 或 `reconcile`）以及要交付什么；也可以通过
+`--operation` 和 `--request` 直接提供。提案会显示镜像引用、解析出的 ID，以及行数、提供方请求次数、每行模型轮次、提交、总时长、CPU、内存、进程数和单条命令时限。输入 `confirm` 前会展示完整规划差异和所有限制。
+输入 `reject` 后可以给出修改意见并查看新提案；在确认之前不会写入项目。
+
+使用 `tabilet status PROJECT` 查看只读状态，使用 `tabilet resume PROJECT` 对账收据并继续已验证的检查点。
+如果有多个开放的执行范围，请用 `--receipt UUID` 选择。恢复时会收集必需的人工证据；证据不齐时执行会暂停。
+达到限制后，必须通过 `tabilet extend-limit PROJECT --limit NAME --value NUMBER` 单独确认更高数值。
+恢复会沿用原有计数器和总时长起点。
+
+缺少工具或 Docker 配置时会以退出码 `17` 暂停；请在控制器之外准备新的本地镜像，再从收据恢复。
+外部操作会列出供后续单独处理，不会因通用确认而执行。收据状态、恢复行为、宿主 Git 防护和退出码，详见
+[控制器指南](tabilet-controller.md)。
 
 ## 可选的 SQLite 审计与检索 {#optional-sqlite}
 

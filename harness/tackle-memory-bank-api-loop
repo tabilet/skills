@@ -1697,7 +1697,7 @@ def environment_names(value: str) -> list[str]:
     return names
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run memory-bank tasks through an OpenAI-compatible or Anthropic LLM API.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1804,7 +1804,7 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("TABILET_AUDIT_ARCHIVES") == "1",
         help="Obsolete: use tabilet-audit index sync for current Markdown lookup.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.audit_archives:
         parser.error("New snapshot capture is deferred; use tabilet-audit index sync PROJECT.")
     if args.audit_capture not in {"metadata", "relevant"}:

@@ -13,6 +13,7 @@ exclude_docs: |
   !/index.md
   !/installation.md
   !/examples.md
+  !/tabilet-controller.md
   !/init.md
   !/next.md
   !/goal.md
@@ -23,6 +24,7 @@ exclude_docs: |
   !/zh/index.md
   !/zh/installation.md
   !/zh/examples.md
+  !/zh/tabilet-controller.md
   !/zh/init.md
   !/zh/next.md
   !/zh/goal.md
@@ -97,6 +99,7 @@ plugins:
             Get started: 开始使用
             Installation: 安装
             Choose a workflow: 选择工作流
+            API controller: API 控制器
             Skills: 技能
             Init: Init 初始化
             Next: Next 下一步
@@ -116,6 +119,7 @@ nav:
   - Get started:
     - Installation: installation.md
     - Choose a workflow: examples.md
+    - API controller: tabilet-controller.md
   - Skills:
     - Init: init.md
     - Next: next.md

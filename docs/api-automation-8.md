@@ -1,6 +1,6 @@
 # API automation 8 — Acceptance, documentation, and release candidate
 
-Plan state: `[ ]`
+Plan state: `[+]`
 
 Depends on: [API automation 1](api-automation-1.md) through
 [API automation 7 — Status, resume, recovery, and operator control](api-automation-7.md).
@@ -97,6 +97,7 @@ automatic in API 8.
 
 ```bash
 python3 check.py
+TABILET_REQUIRE_DOCKER=1 TABILET_TEST_DOCKER_IMAGE=python:3.12-slim python3 -B -m unittest discover -s tests/container_acceptance -v
 npm test --prefix tests/dsh
 npm test --prefix tests/browser
 mkdocs build --strict
@@ -107,9 +108,9 @@ git diff --check
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| API8-T01 | `[ ]` | Build the fake-provider end-to-end suite. | Approval, commit crash boundaries, live drift, limits, closure, and automatic completion pass without credentials or network. |
-| API8-T02 | `[ ]` | Build the container acceptance suite and its CI job. | Escape, repository-topology, Git config and attribute tampering, missing-image, dependency, and timeout tests pass on Linux. |
-| API8-T03 | `[ ]` | Confirm every existing suite passes unchanged. | Runner, SQLite, DSH, and Chromium suites are green. |
-| API8-T04 | `[ ]` | Write installation, execution, README, and published guide documentation with Chinese twins. | `check.py` site parity and link checks pass; `mkdocs build --strict` is clean. |
-| API8-T05 | `[ ]` | Define an explicitly invoked paid live-model acceptance gate. | Its cost ceiling and results format are documented; nothing runs automatically on pull requests. |
-| API8-T06 | `[ ]` | Prepare the v2.2.0 manifest, notes, and reviewable release candidate. | Candidate checks pass; merge, tag, push, and release are reserved for a later explicit instruction. |
+| API8-T01 | `[+]` | Build the fake-provider end-to-end suite. | Approval, commit crash boundaries, live drift, limits, closure, and automatic completion pass without credentials or network. |
+| API8-T02 | `[+]` | Build the container acceptance suite and its CI job. | Escape, repository-topology, Git config and attribute tampering, missing-image, dependency, and timeout tests pass on Linux. |
+| API8-T03 | `[+]` | Confirm every existing suite passes unchanged. | Runner, SQLite, DSH, and Chromium suites are green. |
+| API8-T04 | `[+]` | Write installation, execution, README, and published guide documentation with Chinese twins. | `check.py` site parity and link checks pass; `mkdocs build --strict` is clean. |
+| API8-T05 | `[+]` | Define an explicitly invoked paid live-model acceptance gate. | Its cost ceiling and results format are documented; nothing runs automatically on pull requests. |
+| API8-T06 | `[+]` | Prepare the v2.2.0 manifest, notes, and reviewable release candidate. | Candidate checks pass; merge, tag, push, and release are reserved for a later explicit instruction. |

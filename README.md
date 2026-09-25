@@ -8,13 +8,13 @@ own them from that moment on.
 Everything here is plain text, so `git` is the only tool you need. You can read
 the files, edit them by hand, rename them, or delete them, and any agent that
 reads markdown can work with them. Optional skills will generate the files for
-you, and an optional API runner will work through them unattended; both stay
-outside your project.
+you. An optional API runner or Docker-backed Tabilet controller can work through
+them; both stay outside your project.
 
-`template/` goes into your project, and `harness/` goes into your home directory
-if you want the API runner. Once the files are in place they belong to your
-project, and your project stays independent of this repository. Six months from
-now, the only files you are maintaining are still your own.
+`template/` goes into your project. Install the API runner or controller from
+`harness/` if you want API-driven execution. Once the files are in place they
+belong to your project, and your project stays independent of this repository.
+Six months from now, the only files you are maintaining are still your own.
 
 Seven optional skills can do the mapping, copying, and filling for you; see
 [Install The Seven Skills](#install-the-seven-skills). The files they write are
@@ -54,8 +54,11 @@ implementation of the same idea, in plain files with no runtime.
 
 Throughout, **harness** means a repeatable command that proves something works,
 such as your test suite, a CI job, or a script. Your project defines its own in
-`tech-stack.md`. This repository also ships one optional harness of its own, an
-API loop that drives an agent through the memory bank unattended.
+`tech-stack.md`. This repository also ships two optional API paths: a standalone
+loop that drives an agent through one row using the host shell, and a
+Docker-backed controller that plans, asks for one bounded confirmation, and
+resumes through verified milestone closure. See the
+[controller guide](docs/tabilet-controller.md).
 
 ## Getting Started
 
@@ -128,11 +131,11 @@ root:
 - [template/tabilet/evolution/prompt-v1.md](template/tabilet/evolution/prompt-v1.md)
 - [template/tabilet/evolution/result-v1.md](template/tabilet/evolution/result-v1.md)
 
-The optional API runner and its human-readable instruction copy live in
-[harness/](harness/):
+The optional API runner and controller payload live in [harness/](harness/):
 
 - [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
 - [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
+- [harness/tabilet](harness/tabilet) and [harness/tabilet_install.py](harness/tabilet_install.py) install the optional controller.
 
 The seven skills are in [skills/](skills/). Claude Code, Codex, and DSH read the
 same `SKILL.md` bundles, so there is one source per skill:

@@ -10,7 +10,6 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
-from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -66,6 +65,10 @@ def docker_available() -> bool:
     except (OSError, subprocess.TimeoutExpired, container.SandboxUnavailable):
         return False
     return proc.returncode == 0
+
+
+if os.environ.get("TABILET_REQUIRE_DOCKER") == "1" and not docker_available():
+    raise RuntimeError("TABILET_REQUIRE_DOCKER=1 but local Docker or TABILET_TEST_DOCKER_IMAGE is unavailable")
 
 
 @unittest.skipUnless(docker_available(), "local Docker daemon or test image is unavailable")

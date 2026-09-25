@@ -1,3 +1,32 @@
+# memory-bank v2.2.0
+
+v2.2.0 adds the optional Tabilet API controller alongside the standalone
+one-row runner. It uses the canonical planning skills, shows one exact proposal
+and bounded local horizon for confirmation, and executes task commands in a
+networkless local Docker container. The project Markdown remains authoritative;
+the seven skills and template stay usable without the controller.
+
+- `tabilet chat`, `status`, `resume`, and `extend-limit` provide planning,
+  read-only state, crash reconciliation, and separately confirmed limit changes.
+  Private receipts persist approvals, cumulative caps, task and closure evidence,
+  and recovery proofs outside the project.
+- Host commits retain the standalone runner's shared post-commit gates and add
+  controller pre-commit row and required-check validation. Docker mounts the
+  project writable and `.git` read-only, disables networking, and rejects
+  unsupported Git topologies, active custom filters, and command-launching Git
+  configuration.
+- A clean verified closure completes a horizon automatically. Dirty or
+  uncertain interruptions require manual review and are never reset or replayed
+  automatically. External actions remain separate from the general confirmation.
+- The installer packages all seven canonical skill bundles with a generated
+  SHA-256 manifest and installs the controller without requiring a source
+  checkout at runtime. Credential-free fake-provider tests and a Docker
+  acceptance CI job cover the command path and sandbox.
+- This candidate prepares the 2.2.0 manifest and documentation only. It does not
+  merge, tag, push, or publish. Paid live-model acceptance must be explicitly
+  invoked under the documented US$10 provider budget; no paid run is implied by
+  these notes.
+
 # memory-bank v2.1.0
 
 v2.1.0 adds an optional SQLite audit and Markdown lookup toolkit. Project

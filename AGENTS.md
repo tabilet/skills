@@ -55,8 +55,10 @@ Two consequences that matter constantly:
   downstream projects.
 
 Python payload commands include the standalone `harness/tackle-memory-bank-api-loop`,
-the optional `harness/tabilet_audit_host.py` (installed as `tabilet-audit` with
-its audit/index modules and runner parser), and
+the optional `harness/tabilet` controller (installed with its runtime modules and
+verified planning bundles by `harness/tabilet_install.py`), the optional
+`harness/tabilet_audit_host.py` (installed as `tabilet-audit` with its
+audit/index modules and runner parser), and
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`. `check.py` verifies this
 repository and is not payload.
 

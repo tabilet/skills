@@ -229,6 +229,19 @@ local Docker daemon on a Unix socket. Remote Docker contexts and daemon override
 variables are rejected because bind mounts must refer to the controller's local
 project files. Use an Engine version that supports `bind-recursive=disabled`.
 
+Install `tabilet` and its seven verified planning bundles from a skills checkout:
+
+```bash
+python3 harness/tabilet_install.py --source skills --controller-source harness
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+The installer places the command in `~/.local/bin`, its runtime modules in
+`~/.local/lib/tabilet/controller`, and the canonical skill bundles with a
+generated SHA-256 manifest under `${XDG_DATA_HOME:-~/.local/share}/tabilet/`.
+It does not write to a project. Keep the source checkout available for later
+updates, or rerun the installer from a newer checkout.
+
 Prepare a local image yourself before starting a controller proposal. For
 example, this provides a small Python and shell base; add project-specific tools
 in your own image when a task needs them:
@@ -247,10 +260,28 @@ limits. Provider credentials remain on the host and are not passed into the
 container.
 
 Once the optional `tabilet` command is installed, select the prepared image with
-`tabilet chat PROJECT --image IMAGE`. The image reference and resolved ID are
-part of the visible proposal. Missing tools pause the run; prepare an updated
-image outside the controller and resume after confirming any changed limits or
-scope.
+`tabilet chat PROJECT --image IMAGE`. The command asks which planning contract
+to use (`init`, `propose`, or `reconcile`) and what to deliver. You can provide
+those without prompts with `--operation` and `--request`. The image reference
+and resolved ID are part of the visible proposal. Before `confirm`, the full
+planning diff and row, attempt, turn, commit, elapsed-time, CPU, memory, process,
+and command-time limits are shown. `reject` asks for changes and renders a new
+proposal; it makes no project writes.
+
+Use `tabilet status PROJECT` for a read-only report and `tabilet resume PROJECT`
+to reconcile a receipt and continue a proved checkpoint. If more than one
+horizon is open, choose it with `--receipt UUID`. Required manual evidence is
+collected during resume; if it is missing, the horizon pauses. Extend a reached
+cap only with `tabilet extend-limit PROJECT --limit NAME --value NUMBER`, which
+shows current use and requires a separate exact `confirm`. A resumed horizon
+keeps its original counters and elapsed-time clock.
+
+The image reference and resolved ID are part of the visible proposal. Missing
+tools or Docker setup pauses with exit `17`; prepare an updated local image
+outside the controller and resume from the receipt. External actions are listed
+for separate handling and never run under the general confirmation. See the
+[controller guide](tabilet-controller.md) for receipt states, recovery behavior,
+host Git protections, and exits.
 
 ## Optional SQLite audit and lookup {#optional-sqlite}
 

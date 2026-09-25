@@ -12,10 +12,11 @@ Full dependency order: API 1 -> [API 2](api-automation-2.md) ->
 [API 5](api-automation-5.md) -> [API 6](api-automation-6.md) ->
 [API 7](api-automation-7.md) -> [API 8](api-automation-8.md).
 
-These eight flat documents are temporary implementation planning notes for
+These eight flat documents record the implementation plan and its completion on
 branch `api`. They supersede conflicting details in the source design and review
-linked above. They are not this repository's memory bank or task state. Saving
-them authorizes no API implementation, merge, tag, push, or publication.
+linked above. They are completed review records, not this repository's memory
+bank or task state. This candidate does not authorize merge, tag, push, or
+publication; those require a later explicit instruction.
 
 ## Decisions
 

@@ -180,6 +180,24 @@ Codes `20` and `21` retain their provider HTTP/network meanings in the standalon
 runner and are not reused for controller gates. The project lock coordinates
 Tabilet launchers only; interactive agents do not participate in it.
 
+## Tabilet API Controller
+
+The optional `tabilet` controller adds read-only planning, one exact approval,
+receipt-bounded execution in local Docker, and automatic completion after
+verified milestone closure. It is separate from the standalone runner, whose
+post-commit gates and host-shell behavior remain unchanged. See the
+[controller guide](tabilet-controller.md) for installation, sandbox boundaries,
+receipts, and operator commands.
+
+### Tabilet Controller Exit Codes {#tabilet-controller-exit-codes}
+
+The controller preserves runner codes and adds `16` for a reached confirmed
+limit, `17` for setup, required manual evidence, or a separately handled
+external action, `18` for stale approval inputs, `19` for the shared launcher
+lock, `24` for failed pre-commit validation, and `25` for dirty or uncertain
+recovery that needs manual review. Exit `0` from an execution command means
+verified closure passed and the receipt is `completed`.
+
 ## Optional SQLite audit and lookup
 
 The runner remains a single-file installation when auditing is disabled. To opt

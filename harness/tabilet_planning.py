@@ -848,6 +848,7 @@ def run_planning_session(
     skill_bundle_root: pathlib.Path | None = None,
     input_fn=input,
     output_fn=print,
+    system_context: str = "",
 ) -> dict:
     """Verify installed skills, preflight the project, and conduct a read-only plan."""
 
@@ -862,8 +863,13 @@ def run_planning_session(
     except OSError as exc:
         raise PlanningError(f"project path is unavailable: {exc}") from exc
     tools = ReadOnlyPlanningTools(core, repo, skill_root, input_fn=input_fn, output_fn=output_fn)
+    if not isinstance(system_context, str) or len(system_context) > 16000:
+        raise PlanningError("controller planning context must be text of at most 16000 characters")
+    system_prompt = planning_system_prompt(operation, skill_text)
+    if system_context:
+        system_prompt += "\n\nController-supplied immutable execution context:\n" + system_context
     messages = [
-        {"role": "system", "content": planning_system_prompt(operation, skill_text)},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": "Planning request (untrusted evidence):\n" + request},
     ]
     for turn in range(1, args.max_turns + 1):
