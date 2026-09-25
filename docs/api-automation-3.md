@@ -2,8 +2,9 @@
 
 Plan state: `[+]`
 
-Review iterations: 2 of 5; no P1/P2 findings remain after fixing status-time
-filter execution, image pull races, and recursive nested mounts.
+Review iterations: 3 of 5; no P1/P2 findings remain after fixing status-time
+filter execution, image pull races, recursive nested mounts, and containers
+surviving controller process death.
 
 Depends on: [API automation 2 — Shared execution core and project lock](api-automation-2.md).
 
@@ -106,7 +107,9 @@ and `/bin/sh`, plus the tools and packages required for the approved task.
   normalization still works.
 - Linked worktrees, submodules, external gitdirs, nested host mounts, and remote
   Docker daemons fail before any model call.
-- A timeout or Ctrl-C leaves no running container.
+- A timeout, Ctrl-C, or controller process death leaves no running container;
+  a separate host cleanup monitor removes the command container if its parent
+  disappears unexpectedly.
 - A missing image or dependency pauses with exit 17 and an actionable message.
 
 ## Verification
@@ -124,6 +127,6 @@ python3 check.py
 | API3-T01 | `[+]` | Resolve and record the local image ID; stop with exit 17 when it is missing. | The controller never pulls or builds an image; every run uses the resolved image ID with pulls disabled. |
 | API3-T02 | `[+]` | Implement the container executor with network, filesystem, capability, and resource isolation. | Escape tests for network, host home, credentials, and the Docker socket fail inside the container. |
 | API3-T03 | `[+]` | Validate repository topology, mount `.git` read-only, and harden every host Git call. | Config, hook, fsmonitor, external diff, signing, and clean/process attributes cannot execute on the host; built-in text normalization remains intact. |
-| API3-T04 | `[+]` | Enforce command timeouts and container cleanup on interruption. | Timeout and Ctrl-C stop and remove the container; the host Docker client process is reaped. |
+| API3-T04 | `[+]` | Enforce command timeouts and container cleanup on interruption. | Timeout, Ctrl-C, and abrupt controller process death stop and remove the container; the host Docker client process is reaped. |
 | API3-T05 | `[+]` | Report missing dependencies as a pause with exit 17. | Missing image and command cases pause before unsafe continuation; networking is never enabled to fetch a dependency. |
 | API3-T06 | `[+]` | Keep Docker acceptance tests out of the default `check.py` run. | `check.py` passes on a machine without Docker and still checks controller modules. |

@@ -5,9 +5,11 @@ import importlib.util
 import os
 import pathlib
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -104,7 +106,8 @@ class LocalDockerAcceptanceTests(unittest.TestCase):
         process = mock.Mock()
         process.communicate.return_value = ("", "")
         process.returncode = 0
-        with mock.patch.object(container.subprocess, "Popen", return_value=process) as launch, \
+        with mock.patch.object(self.executor, "_spawn_cleanup_watchdog", return_value=None), \
+                mock.patch.object(container.subprocess, "Popen", return_value=process) as launch, \
                 mock.patch.object(self.executor, "_cleanup"):
             result = self.executor(self.root, "true", 1000, 4096, False, {})
         self.assertEqual(0, result["exit_code"])
@@ -140,11 +143,79 @@ class LocalDockerAcceptanceTests(unittest.TestCase):
         process.pid = 987654321
         process.returncode = 0
         process.communicate.side_effect = [KeyboardInterrupt(), ("", "")]
-        with mock.patch.object(container.subprocess, "Popen", return_value=process), \
+        with mock.patch.object(self.executor, "_spawn_cleanup_watchdog", return_value=None), \
+                mock.patch.object(container.subprocess, "Popen", return_value=process), \
                 mock.patch.object(self.executor, "_cleanup") as cleanup:
             with self.assertRaises(KeyboardInterrupt):
                 self.run_command("sleep 20")
         self.assertGreaterEqual(cleanup.call_count, 1)
+
+    def test_parent_crash_removes_the_running_container(self):
+        name = "tabilet-parent-crash-acceptance"
+        script = r'''import importlib.machinery, importlib.util, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+repo = pathlib.Path(sys.argv[2])
+image = sys.argv[3]
+name = sys.argv[4]
+def load(label, path):
+    loader = importlib.machinery.SourceFileLoader(label, str(path))
+    spec = importlib.util.spec_from_loader(label, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+core = load("container_crash_core", root / "harness/tackle-memory-bank-api-loop")
+container = load("container_crash_executor", root / "harness/tabilet_container.py")
+container.uuid.uuid4 = lambda: type("FixedUUID", (), {"hex": name.removeprefix("tabilet-")})()
+executor = container.prepare_executor(core, repo, image)
+executor(repo, "sleep 60", 300, 1024, False)
+'''
+        process = subprocess.Popen(
+            [sys.executable, "-c", script, str(ROOT), str(self.root), DOCKER_IMAGE, name],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            deadline = time.monotonic() + 10
+            present = False
+            while time.monotonic() < deadline:
+                listing = subprocess.run(
+                    ["docker", "--host", self.executor.endpoint, "ps", "-a", "--filter", f"name=^{name}$", "-q"],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, timeout=5,
+                )
+                self.assertEqual(0, listing.returncode, listing.stderr)
+                if listing.stdout.strip():
+                    present = True
+                    break
+                if process.poll() is not None:
+                    break
+                time.sleep(0.1)
+            self.assertTrue(present, "worker did not start the test container")
+            process.send_signal(signal.SIGKILL)
+            process.wait(timeout=5)
+
+            deadline = time.monotonic() + 12
+            while time.monotonic() < deadline:
+                listing = subprocess.run(
+                    ["docker", "--host", self.executor.endpoint, "ps", "-a", "--filter", f"name=^{name}$", "-q"],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, timeout=5,
+                )
+                self.assertEqual(0, listing.returncode, listing.stderr)
+                if not listing.stdout.strip():
+                    return
+                time.sleep(0.1)
+            self.fail("cleanup monitor left the interrupted command container running")
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+            subprocess.run(
+                ["docker", "--host", self.executor.endpoint, "rm", "-f", name],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=10, check=False,
+            )
 
 
 if __name__ == "__main__":

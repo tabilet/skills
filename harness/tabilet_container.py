@@ -213,6 +213,69 @@ class DockerExecutor:
         except SandboxUnavailable:
             pass
 
+    def _spawn_cleanup_watchdog(self, name: str):
+        """Keep a tiny host process able to remove a container if this process dies."""
+
+        read_fd = write_fd = None
+        try:
+            read_fd, write_fd = os.pipe()
+            script = (
+                "import os, signal, subprocess, sys\n"
+                "fd, docker, endpoint, name = int(sys.argv[1]), *sys.argv[2:]\n"
+                "for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):\n"
+                "    signal.signal(signum, signal.SIG_IGN)\n"
+                "try:\n"
+                "    while os.read(fd, 65536):\n"
+                "        pass\n"
+                "finally:\n"
+                "    os.close(fd)\n"
+                "    try:\n"
+                "        subprocess.run([docker, '--host', endpoint, 'rm', '-f', name], "
+                "stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, "
+                "stderr=subprocess.DEVNULL, timeout=10, check=False)\n"
+                "    except (OSError, subprocess.TimeoutExpired):\n"
+                "        pass\n"
+            )
+            monitor = subprocess.Popen(
+                [sys.executable, "-c", script, str(read_fd), self.docker, self.endpoint, name],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                env=_docker_environment(),
+                close_fds=True,
+                pass_fds=(read_fd,),
+                start_new_session=True,
+            )
+            os.close(read_fd)
+            read_fd = None
+            return monitor, write_fd
+        except OSError as exc:
+            for descriptor in (read_fd, write_fd):
+                if descriptor is not None:
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+            raise SandboxUnavailable(f"unable to start the container cleanup monitor: {exc}") from exc
+
+    @staticmethod
+    def _release_cleanup_watchdog(watchdog) -> None:
+        if watchdog is None:
+            return
+        monitor, write_fd = watchdog
+        try:
+            os.close(write_fd)
+        except OSError:
+            pass
+        try:
+            monitor.wait(timeout=12)
+        except subprocess.TimeoutExpired:
+            monitor.kill()
+            try:
+                monitor.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                pass
+
     @staticmethod
     def _stop_client(process: subprocess.Popen) -> None:
         try:
@@ -264,22 +327,23 @@ class DockerExecutor:
             "/bin/sh", "-c", cmd,
         ]
         command_timeout = min(max(1, int(timeout)), COMMAND_LIMIT)
+        watchdog = self._spawn_cleanup_watchdog(name)
+        process = None
         try:
-            process = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                env=_docker_environment(),
-                start_new_session=True,
-            )
-        except OSError as exc:
-            self._cleanup(name)
-            raise SandboxUnavailable(f"unable to start Docker: {exc}") from exc
-        try:
+            try:
+                process = subprocess.Popen(
+                    command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    env=_docker_environment(),
+                    start_new_session=True,
+                )
+            except OSError as exc:
+                raise SandboxUnavailable(f"unable to start Docker: {exc}") from exc
             try:
                 stdout, stderr = process.communicate(timeout=command_timeout)
                 exit_code = process.returncode
@@ -298,10 +362,12 @@ class DockerExecutor:
             return {"exit_code": exit_code, "stdout": stdout, "stderr": stderr, "truncated": truncated}
         except KeyboardInterrupt:
             self._cleanup(name)
-            self._stop_client(process)
+            if process is not None:
+                self._stop_client(process)
             raise
         finally:
             self._cleanup(name)
+            self._release_cleanup_watchdog(watchdog)
 
 
 def prepare_executor(core, project: pathlib.Path, image: str, mountinfo: pathlib.Path = pathlib.Path("/proc/self/mountinfo")) -> DockerExecutor:
