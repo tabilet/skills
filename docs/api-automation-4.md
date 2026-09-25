@@ -1,6 +1,10 @@
 # API automation 4 — Read-only planning tools and interview
 
-Plan state: `[ ]`
+Plan state: `[+]`
+
+Review iterations: 3 of 5; no P1/P2 findings remain after fixing legacy-path
+symlink handling, redirect response cleanup, and missing skill-entrypoint
+validation.
 
 Depends on: [API automation 1](api-automation-1.md) and
 [API automation 2 — Shared execution core and project lock](api-automation-2.md).
@@ -109,9 +113,9 @@ python3 check.py
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| API4-T01 | `[ ]` | Define and validate the planning JSON tool protocol. | Unknown tools and malformed requests are rejected without side effects. |
-| API4-T02 | `[ ]` | Implement contained read, list, search, and hardened Git read tools. | Traversal, symlink, and size-limit tests pass; no write path exists. |
-| API4-T03 | `[ ]` | Package canonical bundles with a generated manifest and verify them at runtime. | A modified, missing, or extra bundle file stops planning without requiring a source checkout. |
-| API4-T04 | `[ ]` | Implement the `ask` interview loop in the terminal. | Multi-round questions work with a fake provider; answers reach the model verbatim. |
-| API4-T05 | `[ ]` | Implement untrusted review intake and URL-confirmed `fetch_review`. | Without the separate `yes`, no network request is made. |
-| API4-T06 | `[ ]` | Stop at the adaptive archive gate and on legacy or mixed layouts. | Legacy/mixed layouts stop before provider dispatch; archive-required discovery returns a terminal stop without proposing or writing. |
+| API4-T01 | `[+]` | Define and validate the planning JSON tool protocol. | Unknown tools and malformed requests are rejected without side effects. |
+| API4-T02 | `[+]` | Implement contained read, list, search, and hardened Git read tools. | Traversal, symlink, and size-limit tests pass; no write path exists. |
+| API4-T03 | `[+]` | Package canonical bundles with a generated manifest and verify them at runtime. | A modified, missing, or extra bundle file stops planning without requiring a source checkout. |
+| API4-T04 | `[+]` | Implement the `ask` interview loop in the terminal. | Multi-round questions work with a fake provider; answers reach the model verbatim. |
+| API4-T05 | `[+]` | Implement untrusted review intake and URL-confirmed `fetch_review`. | Without the separate `yes`, no network request is made. |
+| API4-T06 | `[+]` | Stop at the adaptive archive gate and on legacy or mixed layouts. | Legacy/mixed layouts stop before provider dispatch; archive-required discovery returns a terminal stop without proposing or writing. |

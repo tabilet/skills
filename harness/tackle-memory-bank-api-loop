@@ -289,6 +289,7 @@ def _git_environment() -> dict[str, str]:
     env.update({
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_NO_LAZY_FETCH": "1",
         "GIT_ATTR_NOSYSTEM": "1",
         "GIT_TERMINAL_PROMPT": "0",
         "GIT_PAGER": "cat",
@@ -303,6 +304,8 @@ _SAFE_GIT_CONFIG = (
     "core.hooksPath=/dev/null",
     "core.fsmonitor=false",
     "core.pager=cat",
+    "color.ui=false",
+    "log.showSignature=false",
     "core.attributesFile=/dev/null",
     "diff.external=",
     "commit.gpgsign=false",
@@ -316,7 +319,7 @@ _SAFE_GIT_CONFIG = (
 )
 
 _HOST_GIT_COMMANDS = {
-    "add", "commit", "diff", "ls-files", "merge-base", "rev-list",
+    "add", "commit", "diff", "log", "ls-files", "merge-base", "rev-list",
     "rev-parse", "show", "status", "symbolic-ref",
 }
 
@@ -334,8 +337,14 @@ def _git_local_raw(
     for value in _SAFE_GIT_CONFIG:
         command.extend(("-c", value))
     command.append("--no-pager")
-    if args and args[0] in {"diff", "show"}:
-        command.extend((args[0], *args[1:], "--no-ext-diff", "--no-textconv"))
+    if args and args[0] in {"diff", "log", "show"}:
+        tail = args[1:]
+        if "--" in tail:
+            separator = tail.index("--")
+            tail = [*tail[:separator], "--no-ext-diff", "--no-textconv", "--", *tail[separator + 1:]]
+        else:
+            tail = [*tail, "--no-ext-diff", "--no-textconv"]
+        command.extend((args[0], *tail))
     else:
         command.extend(args)
     return subprocess.run(
@@ -416,7 +425,7 @@ def git_local(
         raise UnsafeGitConfiguration("explicit Git signing options are unsupported for host commands")
     if args[0] in {"add", "commit"} and any(value in {"-i", "--interactive", "-p", "--patch"} for value in args[1:]):
         raise UnsafeGitConfiguration("interactive Git staging and commit modes are unsupported for host commands")
-    if args[0] == "show" and any(value.startswith("--show-signature") for value in args[1:]):
+    if args[0] in {"show", "log"} and any(value.startswith("--show-signature") for value in args[1:]):
         raise UnsafeGitConfiguration("Git signature verification is unsupported for host commands")
     if args and args[0] in {"add", "diff", "status"}:
         separator = args.index("--") if "--" in args else len(args)

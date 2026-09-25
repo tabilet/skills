@@ -34,6 +34,49 @@ def load_runner_core():
     return module
 
 
+def load_planning_module():
+    """Load the adjacent read-only planning protocol module."""
+
+    path = pathlib.Path(__file__).resolve().with_name("tabilet_planning.py")
+    loader = importlib.machinery.SourceFileLoader("_tabilet_planning", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None or spec.loader is None:
+        raise ImportError("controller planning module is missing")
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def run_planning_session(
+    core,
+    args,
+    repo: pathlib.Path,
+    operation: str,
+    request: str,
+    skill_bundle_root: pathlib.Path | None = None,
+    input_fn=input,
+    output_fn=print,
+) -> dict:
+    """Run the API 4 planning loop under the shared Tabilet project lock."""
+
+    planner = load_planning_module()
+
+    def run():
+        try:
+            return planner.run_planning_session(
+                core, args, repo, operation, request,
+                skill_bundle_root=skill_bundle_root,
+                input_fn=input_fn,
+                output_fn=output_fn,
+            )
+        except planner.BundleIntegrityError as exc:
+            core.fail(f"Installed planning bundles failed integrity verification: {exc}", 17)
+        except planner.PlanningError as exc:
+            core.fail(f"Planning stopped: {exc}", 2)
+
+    return run_with_project_lock(core, repo, run)
+
+
 def run_controller_agent(
     core,
     args,
