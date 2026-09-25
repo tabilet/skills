@@ -1034,6 +1034,68 @@ no project, such as an architecture argument, a hiring plan, or a talk outline. 
 `memory-bank-init` when the thing you are grilling about is a codebase that has
 to still know what it is next week.
 
+## Optional SQLite audit and lookup
+
+Markdown remains authoritative. The optional `tabilet-audit` toolkit records
+workflow evidence in an external SQLite database and builds a disposable index
+of active milestones/tasks, retired history, evolution, and context archives.
+Indexing does not change project Markdown or require new task IDs.
+
+To enable auditing, run these commands from a `skills` checkout. Install the
+runner too: the lookup index uses its Markdown parser. Set the exports in the
+environment that launches your agent or API runner; restart an existing agent
+session if it does not inherit the new variables.
+
+```bash
+install -d "$HOME/.local/bin"
+install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
+install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
+export PATH="$HOME/.local/bin:$PATH"
+export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+export TABILET_AUDIT_CAPTURE=metadata
+```
+
+No project is needed to initialize an empty database. Use the installed
+module's writer, which creates and validates the Tabilet schema without
+registering a workspace or inventing an audit run:
+
+```bash
+PYTHONPATH="$HOME/.local/bin" python3 - <<'PY'
+import os
+from contextlib import closing
+import tabilet_audit
+
+with closing(tabilet_audit.open_database(os.environ["TABILET_AUDIT_DB"])):
+    pass
+PY
+```
+
+Do not use `touch` to create the database; an empty file is not a valid Tabilet
+database. When you do have a project,
+`tabilet-audit index sync /absolute/path/to/project` also creates the database
+if needed and indexes that project's Markdown. The configured external database
+can hold separate records for multiple projects.
+
+See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
+The API runner records enabled runs; interactive skills can use the same optional
+CLI. Exact chat capture requires text supplied by the host. Default audit capture
+stores metadata; the lookup index separately contains current Markdown text.
+Installing skills alone never creates a database. Existing
+snapshot evidence stays readable; new full-file snapshot capture is deferred.
+
+Install the explorer module and web assets using the linked guide if you want
+the browser view. The optional `tabilet-audit explorer PROJECT --port 8000`
+serves a local browser explorer bound to a loopback address. Overview summarizes active
+milestones, history, archives, and evolution; Timeline groups goal children and
+opens the recorded request, output, changes, and resolved current state; To-do
+groups resume, ready, waiting, blocked, and review-required work with dependency
+links. Filters and selected details stay in the URL. The explorer keeps recorded
+evidence visible when it withholds recommendations, rechecks live source hashes,
+and prepares follow-up text for copying only. It does not launch an agent, change
+Markdown, or create task rows. From a remote server, use
+`ssh -N -L 8000:127.0.0.1:8000 user@host` and browse to `http://localhost:8000/`.
+
 ## Install The API Harness
 
 This section is optional. Everything above works without it, because the harness
@@ -1189,31 +1251,6 @@ own harness, provider, and model. `tabilet-audit audit purge-message` performs a
 confirmed logical content purge while retaining the immutable envelope and
 tombstone. Markdown remains authoritative, and purge cannot remove copies in
 backups or exports.
-
-## Optional SQLite audit and lookup
-
-Markdown remains authoritative. The optional `tabilet-audit` toolkit records
-workflow evidence in an external SQLite database and builds a disposable index
-of active milestones/tasks, retired history, evolution, and context archives.
-Indexing does not change project Markdown or require new task IDs.
-
-See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
-The API runner records enabled runs; interactive skills can use the same optional
-CLI. Exact chat capture requires text supplied by the host. Default audit capture
-stores metadata; the lookup index separately contains current Markdown text.
-Installing skills alone never creates a database. Existing
-snapshot evidence stays readable; new full-file snapshot capture is deferred.
-
-The optional `tabilet-audit explorer PROJECT --port 8000` serves a local
-browser explorer bound to a loopback address. Overview summarizes active
-milestones, history, archives, and evolution; Timeline groups goal children and
-opens the recorded request, output, changes, and resolved current state; To-do
-groups resume, ready, waiting, blocked, and review-required work with dependency
-links. Filters and selected details stay in the URL. The explorer keeps recorded
-evidence visible when it withholds recommendations, rechecks live source hashes,
-and prepares follow-up text for copying only. It does not launch an agent, change
-Markdown, or create task rows. From a remote server, use
-`ssh -N -L 8000:127.0.0.1:8000 user@host` and browse to `http://localhost:8000/`.
 
 ## What The Harness Is
 
