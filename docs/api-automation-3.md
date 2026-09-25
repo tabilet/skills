@@ -58,11 +58,15 @@ nested host mounts before creating a container.
 path. The host nevertheless treats the project and its Git metadata as
 untrusted: every Git call goes through one wrapper with a controlled environment
 and arguments. Clear inherited Git config and execution variables, isolate
-system/global config, and disable hooks, fsmonitor, external diff, textconv,
-pager, and signing; use `--no-ext-diff` where applicable. Inspect repository config and
-effective attributes before status, diff, and staging. Reject active custom `filter.<name>.clean`
-or `.process`, including those enabled by `.gitattributes` or
-`.git/info/attributes`; preserve built-in text/eol normalization when staging.
+system/global config, and neutralize or reject every repository setting that can
+launch a command. Explicitly disable hooks, fsmonitor, external diff, textconv,
+pager, signing, credential helpers, SSH commands, and proxy helpers; use
+`--no-ext-diff` where applicable. Use built-in Git commands only, rejecting
+options that enable external helpers. Inspect effective repository config and
+attributes before every host Git call that reads or changes worktree/index
+state. Reject active custom `filter.<name>.clean` or `.process`, including
+those enabled by `.gitattributes` or `.git/info/attributes`; preserve built-in
+text/eol normalization when staging.
 Never simply disable all filters with `filter.<name>.clean=cat`, since that can
 silently change repository content. [Git attributes](https://git-scm.com/docs/gitattributes/2.40.0)
 can trigger a clean command on `git add`, so tampering tests cover both config
@@ -95,9 +99,11 @@ and `/bin/sh`, plus the tools and packages required for the approved task.
 - From inside the container, tests cannot reach the network, read the host home,
   find provider credentials, reach the Docker socket, or write `.git`.
 - Tampering attempts on `.git/config` and `.git/hooks` fail inside the container.
-  Malicious hooks, fsmonitor, external diff, signing, and clean/process attributes
-  never execute on the host, including when `git status` compares changed files;
-  built-in text normalization still works.
+  Malicious repository config that launches hooks, fsmonitor, external diff or
+  text conversion, signing, credential/SSH/proxy helpers, or clean/process
+  commands from Git attributes never executes on the host during any host Git
+  call, including `git status` comparing changed files; built-in text
+  normalization still works.
 - Linked worktrees, submodules, external gitdirs, nested host mounts, and remote
   Docker daemons fail before any model call.
 - A timeout or Ctrl-C leaves no running container.

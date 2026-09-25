@@ -49,10 +49,12 @@ changes executor.
 **Host-commit seam.** The standalone runner retains its model-commit instruction
 and the post-commit gates above, unchanged. Controller runs use a separate
 instruction that forbids Git commits in the executor and asks for a proposed
-host commit message. API 3 supplies the required Docker executor and mounts
-`.git` read-only. Before the host commits, the controller validates the selected
-row transition and protected history, checks changed paths against approved
-paths, and requires every declared verification result to pass. Failed
+host commit message. Do not pass the standalone runner's "model must commit"
+prompt into controller host-commit mode. API 3 supplies the required Docker
+executor and mounts `.git` read-only. Before the host commits, the controller
+validates the selected row transition and protected history, checks changed
+paths against approved paths, and requires every declared verification result
+to pass. Failed
 pre-commit checks exit 24 without a commit. The host stages only validated
 paths and commits; the shared post-commit gates then run in their existing
 order. A path allowlist limits where changes may occur, but cannot prove their

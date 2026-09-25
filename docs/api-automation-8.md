@@ -49,7 +49,8 @@ mounts, and remote daemons. Malicious Git config, hooks, fsmonitor, external
 diff, signing, and clean/process attributes have no host effect during status,
 diff, add, commit, or recovery; built-in text normalization still works. Missing
 images and dependencies pause with exit 17; timeouts clean up containers. This
-runs as its own CI job so `check.py` stays Docker-free.
+runs as its own CI job so `check.py` stays Docker-free. Attribute tampering
+cases cover both repository `.gitattributes` files and `.git/info/attributes`.
 
 **Regression.** The standalone runner's harness suite, the SQLite suites, the DSH
 suite, and the Chromium explorer suite all pass unchanged.
@@ -69,9 +70,11 @@ suite, and the Chromium explorer suite all pass unchanged.
 **Release candidate.** Prepare the 2.2.0 manifest and
 [RELEASE_NOTES.md](RELEASE_NOTES.md) section together, verify the documentation
 and all required suites, and present the exact candidate commit and diff for
-review. Resolve the temporary planning notes without creating a repository
-memory bank. Record release steps to be performed only after a separate explicit
-instruction: merge, tag, push, and GitHub release. None is automatic in API 8.
+review. The candidate is a review artifact on the working branch, not an
+authorization to publish. Resolve the temporary planning notes without creating
+a repository memory bank. Record release steps to be performed only after a
+separate explicit instruction: merge, tag, push, and GitHub release. None is
+automatic in API 8.
 
 ## Deliverables
 

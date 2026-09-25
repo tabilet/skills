@@ -38,6 +38,13 @@ exactly what was shown and nothing else; `reject` revises it and writes nothing.
 - the local-only mutation scope, and the statement that push, merge, deploy,
   publication, and other external actions are not authorized.
 
+Render the full planning diff and every numeric cap, including the 5-row,
+100-provider-attempt, 40-turn-per-row, 15-commit, and 2-hour defaults plus the
+Docker limits of 4 CPUs, 8 GiB memory, 512 processes, and 300 seconds per
+command, before asking for `confirm`. Clearly label these as operational limits
+rather than a promised dollar amount. The user may change them before
+confirming; the approved values become part of the digest.
+
 **Digest.** The controller renders the proposal deterministically and records the
 SHA-256 of the exact text shown. `confirm` binds to that digest.
 

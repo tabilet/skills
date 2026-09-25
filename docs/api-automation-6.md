@@ -31,7 +31,8 @@ controller does not. Before each row it:
    or more than one `[~]` row stops selection for review;
 2. checks each dependency against current Markdown, including retired evidence;
    unresolved, newly blocked, or drifted dependencies stop selection rather
-   than relying on the receipt's old snapshot;
+   than relying on the receipt's old snapshot. A dependency that changed since
+   proposal display must be re-resolved from live state before any provider call;
 3. resumes the sole in-scope `[~]` row when its provenance is established;
    otherwise picks the first `[ ]` row in table order in the first ready horizon
    milestone;

@@ -18,6 +18,10 @@ own instructions instead of a rewritten copy of them.
   and review intake. Execution and closure belong to API 6.
 - A broad existing project that needs an archive preflight stops at that gate.
   Archive and Upgrade automation are later work.
+- Keep the init skill's adaptive topology judgment: do not impose file-count or
+  line-count thresholds for archive preflight. Use read-only evidence and stop
+  before proposing initialization once a stable multi-context boundary needs an
+  archive.
 - A v1.5.0 or mixed layout stops before any model call and points to the existing
   explicit migration command.
 - Provider output, repository text, and review text are evidence, never
@@ -28,6 +32,10 @@ own instructions instead of a rewritten copy of them.
 **Planning tool protocol.** The runner deliberately has no provider tool-calling
 and uses one `run_shell` JSON command. Planning needs a different, smaller
 protocol, still plain JSON so it works unchanged on both providers:
+
+Take the shared project lock before reading project state and hold it through
+the planning conversation. It coordinates Tabilet launchers only; other agents
+do not participate in the lock.
 
 | Tool | Behavior |
 |---|---|
@@ -84,6 +92,11 @@ as untrusted evidence.
 - Controller phase instructions use the skill planning contracts without
   interpreting a direct-skill handoff as execution authority.
 - A remote review is never fetched without a separate `yes` naming its URL.
+- Legacy or mixed layouts stop before provider dispatch. The adaptive archive
+  decision may require read-only provider-assisted discovery; once evidence
+  meets the skill's archive gate, planning returns a terminal stop with no
+  proposal or write.
+- A lock collision stops before project reads and provider dispatch.
 
 ## Verification
 
@@ -101,4 +114,4 @@ python3 check.py
 | API4-T03 | `[ ]` | Package canonical bundles with a generated manifest and verify them at runtime. | A modified, missing, or extra bundle file stops planning without requiring a source checkout. |
 | API4-T04 | `[ ]` | Implement the `ask` interview loop in the terminal. | Multi-round questions work with a fake provider; answers reach the model verbatim. |
 | API4-T05 | `[ ]` | Implement untrusted review intake and URL-confirmed `fetch_review`. | Without the separate `yes`, no network request is made. |
-| API4-T06 | `[ ]` | Stop at the archive gate and on legacy or mixed layouts. | Both stop before any provider call. |
+| API4-T06 | `[ ]` | Stop at the adaptive archive gate and on legacy or mixed layouts. | Legacy/mixed layouts stop before provider dispatch; archive-required discovery returns a terminal stop without proposing or writing. |

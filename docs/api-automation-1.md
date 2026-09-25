@@ -68,7 +68,7 @@ root `tabilet/memory-bank/` or introduce a permanent repository ledger.
 
 | Command | Behavior |
 |---|---|
-| `tabilet chat PROJECT --image IMAGE` | Interview, preview the plan, accept `confirm` or `reject`. |
+| `tabilet chat PROJECT --image IMAGE` | Interview, preview the exact proposal, accept `confirm` or request revision with `reject`. |
 | `tabilet status PROJECT` | Summarize live project state; never writes. |
 | `tabilet resume PROJECT` | Continue an approved horizon from a verified checkpoint. |
 
@@ -104,8 +104,9 @@ not yet committed; `running` means the planning commit is recorded; `paused`
 means a clean checkpoint awaits setup, evidence, limit extension, or separate
 handling; `needs_review` means provenance or filesystem state is uncertain and
 forbids automatic replay; `completed` is terminal and follows verified closure.
-There is no `awaiting_acceptance` state or final accept/reject command. The
-receipt is execution authority; Markdown stays task truth.
+There is no `awaiting_acceptance` state or final horizon accept/reject command.
+`reject` applies only to a planning proposal before confirmation. The receipt is
+execution authority; Markdown stays task truth.
 
 **Limits.** Suggest 5 task rows, 100 provider attempts (including failed calls
 and retries), 40 model turns per row, 15 total commits (planning, tasks, fixes,

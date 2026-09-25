@@ -57,6 +57,10 @@ checkpoint records `paused` and can resume; dirty or uncertain work records
 proposal showing the higher cap and current usage, followed by `confirm` before
 more calls or commits.
 
+Ctrl-C with a clean checkpoint can pause safely. Ctrl-C with a dirty or
+uncertain partial row records `needs_review`; resume requires manual inspection
+and never resets or replays that row.
+
 **Optional audit.** With `TABILET_AUDIT_DB` set, the controller records its runs
 through the existing `tabilet-audit` toolkit and is the sole recorder owner for
 them; runs it drives are not recorded again as runner or skill runs. A missing or
