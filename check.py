@@ -1376,10 +1376,11 @@ def api_receipt_schema_problems(specification: str) -> list[str]:
     table = specification[start:end]
     expected_fields = {
         "schema", "receipt_id", "project_path", "proposal_sha256", "diff_sha256",
-        "approved_diff", "horizon_ids", "file_actions", "branch", "baseline_commit",
+        "approved_diff", "horizon_ids", "approved_horizon", "external_actions",
+        "file_actions", "branch", "baseline_commit",
         "planning_commit", "planning_state_sha256", "result_state_sha256", "result_action_sha256",
         "image_id", "limits", "approved_at", "usage",
-        "commit_ids", "active_operation", "mutation_scope", "pause_reason", "state",
+        "closure", "verification_evidence", "commit_ids", "limit_extensions", "active_operation", "mutation_scope", "pause_reason", "state",
     }
     problems = []
     for field in sorted(expected_fields):

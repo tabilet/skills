@@ -320,8 +320,8 @@ _SAFE_GIT_CONFIG = (
 )
 
 _HOST_GIT_COMMANDS = {
-    "add", "apply", "commit", "diff", "diff-tree", "log", "ls-files", "merge-base", "rev-list",
-    "rev-parse", "show", "status", "symbolic-ref",
+    "add", "apply", "commit", "commit-tree", "diff", "diff-tree", "log", "ls-files", "merge-base", "rev-list",
+    "rev-parse", "show", "status", "symbolic-ref", "update-ref", "write-tree",
 }
 
 

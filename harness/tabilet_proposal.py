@@ -106,6 +106,7 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
         identifier = milestone.get("id")
         title = milestone.get("title")
         dependencies = milestone.get("dependencies")
+        acceptance = milestone.get("acceptance")
         tasks = milestone.get("tasks")
         if not isinstance(identifier, str) or not re.fullmatch(r"[A-Z][A-Z0-9-]{0,15}", identifier):
             raise ProposalError("each horizon milestone needs a stable short ID")
@@ -113,12 +114,29 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
             raise ProposalError(f"duplicate milestone ID in horizon: {identifier}")
         ids.add(identifier)
         _required_text(title, f"title for {identifier}", 1000)
+        if isinstance(acceptance, str):
+            _required_text(acceptance, f"acceptance for {identifier}", 8000)
+        elif isinstance(acceptance, list) and acceptance and all(
+            isinstance(item, str) and item.strip() and len(item) <= 8000 for item in acceptance
+        ):
+            pass
+        else:
+            raise ProposalError(f"{identifier} needs explicit milestone acceptance criteria")
         if not isinstance(dependencies, list) or any(not isinstance(dep, str) or not dep for dep in dependencies):
             raise ProposalError(f"dependencies for {identifier} must be an array of IDs")
         if len(set(dependencies)) != len(dependencies) or identifier in dependencies:
             raise ProposalError(f"dependencies for {identifier} must be unique and cannot include itself")
         if not isinstance(tasks, list) or not tasks:
             raise ProposalError(f"{identifier} must contain at least one task row")
+        closure_paths = milestone.get("closure_paths")
+        if not isinstance(closure_paths, list) or not closure_paths:
+            raise ProposalError(f"{identifier} needs explicit closure_paths")
+        closure_paths = [_project_path(path) for path in closure_paths]
+        if len(closure_paths) != len(set(closure_paths)):
+            raise ProposalError(f"closure_paths for {identifier} must be unique")
+        if f"tabilet/memory-bank/status-{identifier}.md" not in closure_paths:
+            raise ProposalError(f"closure_paths for {identifier} must include its active status file")
+        milestone["closure_paths"] = closure_paths
         total_rows += len(tasks)
         for task in tasks:
             if not isinstance(task, dict):
@@ -142,6 +160,26 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
                 for command in verification
             ):
                 raise ProposalError("every task needs at least one verification command")
+            approved_paths = task.get("approved_paths")
+            if not isinstance(approved_paths, list) or not approved_paths:
+                raise ProposalError(f"every task in {identifier} needs explicit approved_paths")
+            task_paths = [_project_path(path) for path in approved_paths]
+            if len(task_paths) != len(set(task_paths)):
+                raise ProposalError(f"approved_paths for task {task['id']} must be unique")
+            if f"tabilet/memory-bank/status-{identifier}.md" not in task_paths:
+                raise ProposalError(
+                    f"approved_paths for task {task['id']} must include its status file"
+                )
+            task["approved_paths"] = task_paths
+        milestone.setdefault("manual_evidence", [])
+        if not isinstance(milestone["manual_evidence"], list) or any(
+            not isinstance(item, str) or not item.strip() or len(item) > 8000
+            for item in milestone["manual_evidence"]
+        ):
+            raise ProposalError(f"manual_evidence for {identifier} must be an array of descriptions")
+        retirement_adopted = milestone.setdefault("retirement_adopted", False)
+        if not isinstance(retirement_adopted, bool):
+            raise ProposalError(f"retirement_adopted for {identifier} must be a boolean")
         validated.append(milestone)
     if total_rows > limits["max_rows"]:
         raise ProposalError(
@@ -772,6 +810,8 @@ def _new_receipt(project: pathlib.Path, proposal: dict, snapshot: dict, text: st
         "diff_sha256": hashlib.sha256(proposal["diff"].encode("utf-8")).hexdigest(),
         "approved_diff": proposal["diff"],
         "horizon_ids": horizon_ids,
+        "approved_horizon": proposal["horizon"],
+        "external_actions": proposal["external_actions"],
         "file_actions": actions,
         "branch": snapshot["branch"],
         "baseline_commit": snapshot["baseline_commit"],
@@ -784,14 +824,20 @@ def _new_receipt(project: pathlib.Path, proposal: dict, snapshot: dict, text: st
         "approved_at": _utc_timestamp(),
         "usage": {
             "rows_started": 0,
+            "rows_started_ids": [],
             "provider_attempts_reserved": 0,
+            "commits_reserved": 1,
             "commits_recorded": 0,
             "turns_by_row": {},
         },
+        "closure": {"milestones": {}},
+        "verification_evidence": [],
         "commit_ids": [],
+        "limit_extensions": [],
         "active_operation": {
             "kind": "planning",
             "operation_id": str(uuid.uuid4()),
+            "phase": "prepared",
             "expected_head": snapshot["baseline_commit"],
             "row_id": None,
             "closure_phase": None,
@@ -903,19 +949,84 @@ def _apply_and_commit(
             store, receipt_path, receipt,
             "staged patch differs from the exact planning diff the user confirmed",
         )
-    if fault_hook:
-        fault_hook("before_commit")
     message = "Planning update: " + title.replace("\n", " ").strip()
     if len(message) > 120:
         message = message[:117].rstrip() + "..."
-    committed = _git(core, repo, ["commit", "-m", message], check=False)
-    if committed.returncode:
+    if fault_hook:
+        fault_hook("before_commit")
+    try:
+        staged = _decode_paths(
+            _git(core, repo, ["diff", "--cached", "--name-only", "-z", "--"]).stdout,
+            "staged",
+        )
+        staged_patch = _git(core, repo, ["diff", "--cached", "--binary", "--"]).stdout
+        if sorted(staged) != sorted(paths) or staged_patch != patch:
+            return _mark_needs_review(
+                store, receipt_path, receipt,
+                "staged planning patch changed after pre-commit verification",
+            )
+        branch_result = _git(core, repo, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
+        actual_branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
+        head_result = _git(core, repo, ["rev-parse", "--verify", "--quiet", "HEAD"], check=False)
+        actual_head = head_result.stdout.strip() if head_result.returncode == 0 else None
+        if branch_result.returncode not in {0, 1} or head_result.returncode not in {0, 1}:
+            return _mark_needs_review(store, receipt_path, receipt, "cannot revalidate branch and HEAD before planning commit")
+        if actual_branch != receipt["branch"] or actual_head != receipt["baseline_commit"]:
+            return _mark_needs_review(
+                store, receipt_path, receipt,
+                "branch or HEAD changed after approval and before the planning commit",
+            )
+        receipt["active_operation"]["phase"] = "precommit_verified"
+        store.update_atomic(receipt_path, receipt)
+        tree = _git(core, repo, ["write-tree"]).stdout.strip()
+        if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", tree):
+            raise ProposalError("Git returned an invalid planning tree ID")
+        commit_args = ["commit-tree", tree]
+        baseline = receipt["baseline_commit"]
+        if baseline is not None:
+            commit_args.extend(("-p", baseline))
+        commit_args.extend(("-m", message))
+        candidate = _git(core, repo, commit_args).stdout.strip()
+        if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", candidate):
+            raise ProposalError("Git returned an invalid planning commit ID")
+        candidate_patch = _git(core, repo, ["show", "--format=", "--binary", candidate]).stdout
+        if candidate_patch != patch:
+            raise ProposalError("candidate planning commit differs from the exact approved patch")
+        receipt["active_operation"]["phase"] = "commit_attempted"
+        store.update_atomic(receipt_path, receipt)
+        if fault_hook:
+            fault_hook("before_ref_update")
+        symbolic_ref = _git(core, repo, ["symbolic-ref", "--quiet", "HEAD"], check=False)
+        if symbolic_ref.returncode == 0:
+            refname = symbolic_ref.stdout.strip()
+        elif symbolic_ref.returncode == 1:
+            refname = "HEAD"
+        else:
+            raise ProposalError(symbolic_ref.stderr.strip() or "cannot resolve current Git ref")
+        if refname != "HEAD" and not refname.startswith("refs/heads/"):
+            raise ProposalError("planning commit target is not a local branch or detached HEAD")
+        object_format = _git(core, repo, ["rev-parse", "--show-object-format"]).stdout.strip()
+        zero = "0" * (40 if object_format == "sha1" else 64 if object_format == "sha256" else 0)
+        if not zero:
+            raise ProposalError("unsupported Git object format for compare-and-swap commit")
+        expected_old = baseline or zero
+        update = _git(
+            core, repo,
+            ["update-ref", "-m", message, refname, candidate, expected_old],
+            check=False,
+        )
+    except ProposalError as exc:
         return _mark_needs_review(
             store, receipt_path, receipt,
-            "planning changes are staged but the planning commit failed: "
-            + (committed.stderr.strip() or f"Git commit exited {committed.returncode}"),
+            "planning changes are staged but the compare-and-swap commit failed: " + str(exc),
         )
-    commit = _git(core, repo, ["rev-parse", "--verify", "HEAD"]).stdout.strip()
+    if update.returncode:
+        return _mark_needs_review(
+            store, receipt_path, receipt,
+            "planning ref changed before the approved commit could be recorded: "
+            + (update.stderr.strip() or "Git compare-and-swap update-ref failed"),
+        )
+    commit = candidate
     if fault_hook:
         fault_hook("after_commit")
     try:

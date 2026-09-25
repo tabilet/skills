@@ -86,13 +86,22 @@ class ProposalTests(unittest.TestCase):
             "horizon": [{
                 "id": "M01",
                 "title": "Complete the first outcome",
+                "acceptance": "The first delivery outcome works end to end.",
                 "dependencies": [],
+                "closure_paths": [
+                    "tabilet/memory-bank/milestone.md",
+                    "tabilet/memory-bank/status-M01.md",
+                ],
                 "tasks": [{
                     "id": "M01-T01",
                     "owner": "implementation agent",
                     "description": "Implement the approved scope.",
                     "acceptance": "The change meets the milestone acceptance criteria.",
                     "verification": ["python3 check.py"],
+                    "approved_paths": [
+                        "src/example.py",
+                        "tabilet/memory-bank/status-M01.md",
+                    ],
                 }],
             }],
             "candidate_directions": ["A later optional extension."],
@@ -189,6 +198,7 @@ class ProposalTests(unittest.TestCase):
                 receipt = self.store.load(path)
                 self.assertEqual("approved", receipt["state"])
                 self.assertEqual(baseline, receipt["baseline_commit"])
+                self.assertEqual("prepared", receipt["active_operation"]["phase"])
                 self.assertEqual(0o600, path.stat().st_mode & 0o777)
                 self.assertFalse(path.is_relative_to(self.project))
                 self.assertEqual("# Milestones\nOriginal plan.\n", (self.project / "tabilet/memory-bank/milestone.md").read_text())
@@ -217,6 +227,37 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual("", git("status", "--porcelain", cwd=self.project).stdout)
         self.assertEqual(self.plan["diff"], git("show", "--format=", "--binary", "HEAD", cwd=self.project).stdout)
         self.assertEqual(baseline, git("rev-parse", "HEAD^", cwd=self.project).stdout.strip())
+
+    def test_concurrent_ref_advance_wins_compare_and_swap_without_planning_commit(self):
+        moved = []
+
+        def advance_ref(stage):
+            if stage != "before_ref_update":
+                return
+            baseline = git("rev-parse", "HEAD", cwd=self.project).stdout.strip()
+            tree = git("rev-parse", "HEAD^{tree}", cwd=self.project).stdout.strip()
+            branch = git("symbolic-ref", "--quiet", "--short", "HEAD", cwd=self.project).stdout.strip()
+            candidate = git(
+                "commit-tree", tree, "-p", baseline, "-m", "Concurrent external commit",
+                cwd=self.project,
+            )
+            self.assertEqual(0, candidate.returncode, candidate.stderr)
+            update = git(
+                "update-ref", f"refs/heads/{branch}", candidate.stdout.strip(), baseline,
+                cwd=self.project,
+            )
+            self.assertEqual(0, update.returncode, update.stderr)
+            moved.append(candidate.stdout.strip())
+
+        result = self.approve(fault_hook=advance_ref)
+        self.assertEqual("needs_review", result["status"])
+        self.assertIn("planning ref changed", result["reason"])
+        self.assertEqual(1, len(moved))
+        self.assertEqual(moved[0], git("rev-parse", "HEAD", cwd=self.project).stdout.strip())
+        self.assertEqual(2, len(git("rev-list", "--all", cwd=self.project).stdout.splitlines()))
+        self.assertNotEqual(self.plan["diff"], git("show", "--format=", "--binary", "HEAD", cwd=self.project).stdout)
+        receipt = self.store.load(self.receipt_path())
+        self.assertEqual("commit_attempted", receipt["active_operation"]["phase"])
 
     def test_invalid_target_drift_requires_revised_proposal_before_any_receipt(self):
         calls = []

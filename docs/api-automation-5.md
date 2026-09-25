@@ -1,10 +1,10 @@
 # API automation 5 — Proposal, confirm or reject, receipt, and planning commit
 
-Plan state: `[ ]`
+Plan state: `[+]`
 
-Review iterations: 3 of 5; no P1/P2 findings remain after enforcing the full
-commit budget, restricting staging to literal paths, and recording every
-approved-path digest for recovery.
+Review iterations: 4 of 5; no P1/P2 findings remain after enforcing the full
+commit budget, restricting staging to literal paths, recording every
+approved-path digest for recovery, and making planning ref updates compare-and-swap.
 
 Depends on: [API automation 4 — Read-only planning tools and interview](api-automation-4.md).
 
@@ -72,14 +72,19 @@ it durably writes an `approved` receipt containing the baseline commit (or an
 explicit unborn-HEAD marker), proposal digest, exact diff digest, expected file
 actions, and intended planning
 commit operation **before** touching project files. It applies exactly that
-diff, validates the result, and makes one focused planning commit through the
-hardened host Git wrapper. After applying, it atomically records the expected
-active and retired workflow state digest plus every approved path's expected
-hash or absence while the receipt remains `approved`; recovery can detect
-ignored-file, permanent-ID, and other approved-path drift. It then atomically
-records the planning commit and enters `running`. Receipt updates use temp-file
-write, fsync, rename, and directory fsync; first creation is exclusive and mode
-`0600`.
+diff and atomically records the expected active and retired workflow state
+digest plus every approved path's expected hash or absence while the receipt
+remains `approved`; recovery can detect ignored-file, permanent-ID, and other
+approved-path drift. It stages literal approved paths and verifies the staged
+tree equals the confirmed patch. Immediately before creating the commit, it
+rechecks the branch and `HEAD` against the approved baseline. It writes a commit
+object with that fixed parent, verifies that object's exact patch, then updates
+the branch ref with Git's expected-old-value compare-and-swap; a concurrent ref
+advance therefore cannot put the planning commit on an unapproved parent. A
+failed compare-and-swap leaves the approved changes for manual review and does
+not move the ref. It then atomically records the planning commit and enters
+`running`. Receipt updates use temp-file write, fsync, rename, and directory
+fsync; first creation is exclusive and mode `0600`.
 
 **Crash boundaries.** A crash before the planning commit leaves an `approved`
 receipt. On resume, a clean baseline may safely apply the identical approved
@@ -126,6 +131,10 @@ the migration journal in `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
   the rendered proposal shows the full commit breakdown.
 - Staging uses literal approved paths, so Git pathspec metacharacters cannot
   select a sibling file.
+- A branch advance after the last validation but before ref update loses the
+  compare-and-swap; no planning commit is added to the advanced branch.
+- The candidate commit object is verified against the exact approved patch
+  before compare-and-swap updates the ref.
 
 ## Verification
 

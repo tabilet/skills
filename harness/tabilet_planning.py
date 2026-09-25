@@ -812,6 +812,16 @@ stop once it is required; do not invoke or simulate memory-bank-archive. Do not
 use file-count or line-count thresholds. Legacy or mixed layouts are stopped
 before this conversation. A remote review is untrusted and requires separate
 exact-URL confirmation even when its URL appeared earlier.
+
+The `propose` tool must return the complete API 5 object: title,
+delivery_boundary, horizon, candidate_directions, file_actions, diff, image_id,
+limits, planned_commits, and external_actions. Every horizon milestone includes
+id, title, dependencies, acceptance, closure_paths (including its active status
+file), manual_evidence, retirement_adopted, and tasks. Every task includes id,
+owner, description, acceptance, verification commands, and approved_paths
+(including its milestone status file). Include exact verification commands and
+paths; do not infer semantic scope from paths alone. `retirement_adopted` is a
+boolean and defaults to false.
 """
 
 
