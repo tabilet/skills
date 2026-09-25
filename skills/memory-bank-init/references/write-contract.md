@@ -259,7 +259,10 @@ Generate these retirement rules in `tabilet/memory-bank/milestone.md`:
   `includes uncommitted changes`, or `unversioned`), `Review` (`passed`),
   `Review iterations` (1 through 10), `Verification` (commands/results/evidence),
   and `Consolidated into` (current-document/lesson links or explicit
-  `no current-truth change`). Without Git, both provenance fields are
+  `no current-truth change`). A completed legacy closure that predates the
+  persisted review gate instead uses `Review` (`legacy`), `Review iterations`
+  (`not recorded`), and a required `Legacy closure` field, as defined in the
+  milestone retirement procedure. Without Git, both provenance fields are
   `unversioned`; never claim an earlier commit includes uncommitted work.
   Obtain the full Git evidence ID with `git rev-parse --verify HEAD`, never a
   shortened log-display hash. Before removing active sources, validate all

@@ -229,8 +229,9 @@ The [milestone contract](../template/tabilet/memory-bank/milestone.md#long-term-
 owns the exact gates and preservation rules; retirement respects the governing
 commit policy. A one-row run does not bulk-retire unrelated older milestones.
 Legacy adoption and cleanup of older closed work need explicit requests and
-closure evidence. The API runner validates preservation, not the semantic
-truth of acceptance claims.
+closure evidence; work that closed before the review gate retires as a legacy
+closure rather than with an invented review count. The API runner validates
+preservation, not the semantic truth of acceptance claims.
 
 The result limits history-driven growth, not current complexity or a fixed
 number of tokens. The tutorial's

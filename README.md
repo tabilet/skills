@@ -660,6 +660,8 @@ Git; Git adds intermediate revisions when present.
 **Existing projects need explicit adoption.** Update their project instructions
 and, if used, adopt a compatible API runner before retirement. Separately request
 cleanup of older closed milestones; missing closure evidence keeps them active.
+A completed milestone that closed before the review gate was adopted may retire
+as a legacy closure that records no invented review count.
 Installing newer skills alone never merges project instructions or moves files.
 
 See the complete

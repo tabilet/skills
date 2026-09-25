@@ -686,7 +686,8 @@ Completed rows stay in the active status file until their whole milestone
 qualifies. Open work, blockers, or missing closure evidence prevent retirement.
 Existing projects adopt these conventions explicitly; updating a skill does
 not migrate their files, and cleanup of older closed work needs a separate
-request. All retirement writes follow the governing commit policy.
+request. Work that closed before the review gate existed can retire as a legacy
+closure, which says the review count was not recorded instead of inventing one. All retirement writes follow the governing commit policy.
 
 ### Example: a milestone closes and a lesson survives
 

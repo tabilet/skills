@@ -206,6 +206,25 @@ class RetirementTests(unittest.TestCase):
             with self.subTest(fields=fields), self.assertRaises(ValueError):
                 harness.retired_record(retirement_text(status, **fields), "status-M01.md")
 
+    def test_legacy_closure_records_no_invented_review_count(self) -> None:
+        status = f"| Task | {marker('[+]')} | Closed under the earlier procedure |\n"
+        legacy = {
+            "Review": "legacy",
+            "Review iterations": "not recorded",
+            "Legacy closure": "Closed before the persisted review gate was adopted.",
+        }
+        record = harness.retired_record(retirement_text(status, **legacy), "status-M01.md")
+        self.assertEqual(record["metadata"]["Review"], "legacy")
+        self.assertEqual(record["status"], status)
+        for fields in (
+            {**legacy, "Review iterations": "1"},
+            {"Review": "legacy", "Review iterations": "not recorded"},
+            {**legacy, "Outcome": "cancelled", "Disposition": "User authorized cancellation"},
+            {"Review": "passed", "Review iterations": "not recorded"},
+        ):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                harness.retired_record(retirement_text(status, **fields), "status-M01.md")
+
     def test_open_rows_and_unnamed_successors_prevent_retirement(self) -> None:
         for state in ("[ ]", "[~]", "[!]", "[-]"):
             with self.subTest(state=state), self.assertRaises(ValueError):

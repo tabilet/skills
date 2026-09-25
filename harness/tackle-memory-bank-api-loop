@@ -528,7 +528,14 @@ def retired_record(text: str, name: str) -> dict:
         raise ValueError("invalid worktree provenance")
     if (metadata["Evidence"] == "unversioned") != (metadata["Worktree"] == "unversioned"):
         raise ValueError("inconsistent unversioned provenance")
-    if metadata["Review"] != "passed" or not re.fullmatch(r"(?:[1-9]|10)", metadata["Review iterations"]):
+    if metadata["Review"] == "legacy":
+        # A milestone closed before the persisted review gate records no count;
+        # it must say so rather than invent one, and only completed work qualifies.
+        if (metadata["Review iterations"] != "not recorded" or not metadata.get("Legacy closure")
+                or metadata["Outcome"] != "completed"):
+            raise ValueError("legacy retirement requires a completed outcome, "
+                             "'not recorded' iterations, and a Legacy closure note")
+    elif metadata["Review"] != "passed" or not re.fullmatch(r"(?:[1-9]|10)", metadata["Review iterations"]):
         raise ValueError("retirement requires a passed review within 10 iterations")
     if metadata["Outcome"] != "completed" and not metadata.get("Disposition"):
         raise ValueError("cancellation or supersession needs its authorized disposition")

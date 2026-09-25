@@ -98,7 +98,9 @@ acceptance claims or evidence. History is never scheduled. A valid all-retired
 project exits without an API call; the API runner still requires a Git worktree.
 Exit `0` can also mean all remaining active rows are terminal; it proves neither
 milestone acceptance nor that older milestones were retired. Legacy cleanup needs a separate request with
-closure evidence.
+closure evidence. A completed milestone that predates the persisted review gate
+retires with `Review: legacy`, `Review iterations: not recorded`, and a
+`Legacy closure` note; the runner rejects any other combination.
 When task rows are terminal but milestone review or closure was interrupted,
 finish that closure in an agent session using the project procedure. The API
 runner gates on actionable rows and cannot execute a closure-only recovery run;

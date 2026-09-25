@@ -229,7 +229,8 @@ keeps it active. Terminal rows alone do not prove acceptance.
 Existing projects adopt this contract explicitly, with a compatible API runner
 if used; upgrading installed skills alone does not merge project instructions
 or move files. An explicit cleanup request may retire older closed milestones
-only when their closure evidence is available.
+only when their closure evidence is available, either a recorded review under
+this contract or the legacy closure described below.
 
 ### Consolidate before retiring
 
@@ -325,6 +326,17 @@ For a cancelled or superseded outcome, add `**Disposition.**` naming the
 authority, reason, and dependency disposition. A superseded outcome also needs
 `**Successor.**` identifying its accepted successor. These are milestone
 outcomes, not new task markers.
+
+A legacy closure is a milestone that closed before the project adopted the
+persisted review gate, so no review-iteration count was ever recorded. Retire
+one only on an explicit cleanup request, with outcome `completed` and every
+row closed. Write `**Review.** legacy` and `**Review iterations.** not
+recorded` instead of inventing a count, and add `**Legacy closure.**` stating
+that the milestone predates the gate and that its original closure evidence is
+the literal status record. `**Verification.**` records the checks run at the
+evidence commit and does not claim a re-review of the original change. Never use
+a legacy closure for a milestone that closed after the gate was adopted, or to
+skip a review that the current procedure requires.
 
 Retired milestone records are frozen. Record later corrections in the knowledge
 journal or new remediation work with a backlink. Preserve previous history
