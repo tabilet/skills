@@ -87,6 +87,9 @@ uses these typed fields:
 | `file_actions` | array of objects | Each item has a project-relative `path` string and an `action` enum of `create`, `replace`, or `delete`. |
 | `branch` | string or null | Expected branch name; null for a detached or unborn `HEAD`. |
 | `baseline_commit`, `planning_commit` | Git object ID string or null | Approved pre-plan HEAD and resulting planning commit. |
+| `planning_state_sha256` | 64-character lowercase hex string | Digest of active and retired workflow file hashes and permanent IDs at approval. |
+| `result_state_sha256` | 64-character lowercase hex string or null | Expected active and retired workflow state after the approved planning diff is applied. Initially null; persisted before the planning commit so crash recovery can detect ignored-file or ID drift. |
+| `result_action_sha256` | object mapping approved project-relative paths to a lowercase SHA-256 string or null | Expected hash or absence of each approved file after patch application. Initially null; persisted before commit to detect worktree drift in every changed path. |
 | `image_id` | immutable Docker image ID string | Executor image pinned by the proposal. |
 | `limits` | object of positive integers | `max_rows`, `max_provider_attempts`, `max_turns_per_row`, `max_commits`, `max_runtime_seconds`; defaults are 5, 100, 40, 15, and 7200. |
 | `approved_at` | RFC 3339 UTC timestamp string | Start of the two-hour elapsed-time limit. |

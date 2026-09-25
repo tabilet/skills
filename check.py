@@ -262,6 +262,7 @@ def harness_parses():
         HARNESS, AUDIT_MODULE, AUDIT_HOST, ROOT / "harness/tabilet_index.py",
         ROOT / "harness/tabilet_controller.py", ROOT / "harness/tabilet_container.py",
         ROOT / "harness/tabilet_planning.py", ROOT / "harness/tabilet_install.py",
+        ROOT / "harness/tabilet_proposal.py",
     ):
         try:
             ast.parse(path.read_text())
@@ -1050,7 +1051,7 @@ def sqlite_bundle_contract():
     for name in (
         "tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py",
         "tabilet_controller.py", "tabilet_container.py", "tabilet_planning.py",
-        "tabilet_install.py", "tackle-memory-bank-api-loop",
+        "tabilet_install.py", "tabilet_proposal.py", "tackle-memory-bank-api-loop",
     ):
         if not (ROOT / "harness" / name).is_file():
             problems.append(f"missing optional toolkit payload: {name}")
@@ -1376,7 +1377,8 @@ def api_receipt_schema_problems(specification: str) -> list[str]:
     expected_fields = {
         "schema", "receipt_id", "project_path", "proposal_sha256", "diff_sha256",
         "approved_diff", "horizon_ids", "file_actions", "branch", "baseline_commit",
-        "planning_commit", "image_id", "limits", "approved_at", "usage",
+        "planning_commit", "planning_state_sha256", "result_state_sha256", "result_action_sha256",
+        "image_id", "limits", "approved_at", "usage",
         "commit_ids", "active_operation", "mutation_scope", "pause_reason", "state",
     }
     problems = []

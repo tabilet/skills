@@ -47,6 +47,72 @@ def load_planning_module():
     return module
 
 
+def load_proposal_module():
+    """Load proposal rendering and private receipt recovery helpers."""
+
+    path = pathlib.Path(__file__).resolve().with_name("tabilet_proposal.py")
+    loader = importlib.machinery.SourceFileLoader("_tabilet_proposal", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None or spec.loader is None:
+        raise ImportError("controller proposal module is missing")
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def approve_proposal(
+    core,
+    repo: pathlib.Path,
+    proposal: dict,
+    *,
+    receipt_store=None,
+    input_fn=input,
+    output_fn=print,
+    revise_fn=None,
+    fault_hook=None,
+) -> dict:
+    """Approve and apply one rendered planning proposal under the project lock."""
+
+    planner = load_proposal_module()
+
+    def run():
+        try:
+            result = planner.approve_proposal(
+                core, repo, proposal, receipt_store=receipt_store, input_fn=input_fn,
+                output_fn=output_fn, revise_fn=revise_fn, fault_hook=fault_hook,
+            )
+        except planner.ApprovalStale as exc:
+            core.fail(f"Approval is stale; review the revised proposal and confirm again: {exc}", 18)
+        except planner.RecoveryNeedsReview as exc:
+            core.fail(f"Planning recovery needs manual review: {exc}", 25)
+        except planner.ProposalError as exc:
+            core.fail(f"Proposal cannot be approved: {exc}", 2)
+        if result.get("status") == "needs_review":
+            core.fail(f"Planning recovery needs manual review: {result.get('reason', 'uncertain state')}", 25)
+        return result
+
+    return run_with_project_lock(core, repo, run)
+
+
+def resume_approved_receipt(core, repo: pathlib.Path, receipt_path: pathlib.Path, *, receipt_store=None, fault_hook=None):
+    """Recover a clean approved planning checkpoint while holding the shared lock."""
+
+    planner = load_proposal_module()
+
+    def run():
+        try:
+            result = planner.resume_approved_receipt(
+                core, repo, receipt_path, receipt_store=receipt_store, fault_hook=fault_hook,
+            )
+        except planner.ProposalError as exc:
+            core.fail(f"Planning recovery needs manual review: {exc}", 25)
+        if result.get("status") == "needs_review":
+            core.fail(f"Planning recovery needs manual review: {result.get('reason', 'uncertain state')}", 25)
+        return result
+
+    return run_with_project_lock(core, repo, run)
+
+
 def run_planning_session(
     core,
     args,

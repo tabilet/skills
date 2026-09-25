@@ -2,6 +2,10 @@
 
 Plan state: `[ ]`
 
+Review iterations: 3 of 5; no P1/P2 findings remain after enforcing the full
+commit budget, restricting staging to literal paths, and recording every
+approved-path digest for recovery.
+
 Depends on: [API automation 4 — Read-only planning tools and interview](api-automation-4.md).
 
 ## Goal
@@ -38,6 +42,10 @@ exactly what was shown and nothing else; `reject` revises it and writes nothing.
 - the local-only mutation scope, and the statement that push, merge, deploy,
   publication, and other external actions are not authorized.
 
+The shown commit breakdown includes one planning commit and at least one commit
+per task row. Any remaining planned commits are reserved for substantive review
+fixes and closure changes. The total is bounded by `max_commits`.
+
 Render the full planning diff and every numeric cap, including the 5-row,
 100-provider-attempt, 40-turn-per-row, 15-commit, and 2-hour defaults plus the
 Docker limits of 4 CPUs, 8 GiB memory, 512 processes, and 300 seconds per
@@ -60,18 +68,27 @@ explicit unborn-HEAD marker), proposal digest, exact diff digest, expected file
 actions, and intended planning
 commit operation **before** touching project files. It applies exactly that
 diff, validates the result, and makes one focused planning commit through the
-hardened host Git wrapper. It then atomically records the planning commit and
-enters `running`. The receipt is updated through temp-file write, fsync, rename,
-and directory fsync; first creation is exclusive and mode `0600`.
+hardened host Git wrapper. After applying, it atomically records the expected
+active and retired workflow state digest plus every approved path's expected
+hash or absence while the receipt remains `approved`; recovery can detect
+ignored-file, permanent-ID, and other approved-path drift. It then atomically
+records the planning commit and enters `running`. Receipt updates use temp-file
+write, fsync, rename, and directory fsync; first creation is exclusive and mode
+`0600`.
 
 **Crash boundaries.** A crash before the planning commit leaves an `approved`
 receipt. On resume, a clean baseline may safely apply the identical approved
-diff; a dirty worktree or uncertain partial apply enters `needs_review` (exit
-25), never automatic reset or replay. A crash after the planning commit but
-before the receipt update is reconciled from the exact expected diff and commit
-lineage; record it once if proven, otherwise enter `needs_review`. No second
-planning commit is made. The controller never treats receipt creation alone as
-proof that project writes or commits succeeded.
+diff only when the baseline workflow digest, permanent IDs, branch, and file
+actions still match and the receipt has no post-apply digest; a dirty worktree
+or uncertain partial apply enters `needs_review` (exit 25), never automatic
+reset or replay. Once the receipt records a post-apply digest, finding `HEAD`
+back at the baseline is uncertain and also requires review. A crash after the
+planning commit but before the receipt update is reconciled from the exact
+expected diff, post-apply workflow and approved-path digests, and commit lineage;
+record it once if proven, otherwise enter `needs_review`. Ignored workflow files
+and IDs are included in those digests. No second planning commit is made. The controller
+never treats receipt creation alone as proof that project writes or commits
+succeeded.
 
 **Receipt.** Created exclusively (`O_CREAT | O_EXCL`), mode `0600`, under
 `${XDG_STATE_HOME:-~/.local/state}/tabilet/receipts/`, never inside the project,
@@ -93,9 +110,17 @@ the migration journal in `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
   apply.
 - The receipt is private, outside the project, and matches the confirmed digest
   before the first project write.
-- Fault injection before apply, after partial apply, before commit, and after
-  commit either resumes from a proved clean checkpoint or stops for review;
-  no plan is committed twice.
+- Fault injection before apply, after partial apply, after recording the
+  post-apply digest, before commit, and after commit either resumes from a proved
+  clean checkpoint or stops for review; no plan is committed twice. Resetting to
+  the baseline after a result digest was recorded never triggers replay.
+- Changes to ignored workflow Markdown or permanent IDs after the planning
+  commit stop recovery for review even when Git reports a clean worktree.
+- Changes to any approved path hidden from Git status stop recovery for review.
+- The planned commit total covers the planning commit and every task row, and
+  the rendered proposal shows the full commit breakdown.
+- Staging uses literal approved paths, so Git pathspec metacharacters cannot
+  select a sibling file.
 
 ## Verification
 
@@ -108,8 +133,8 @@ python3 check.py
 
 | ID | Status | Task | Acceptance |
 |---|---|---|---|
-| API5-T01 | `[ ]` | Render the complete proposal deterministically and digest it. | The same inputs produce byte-identical text and digest. |
-| API5-T02 | `[ ]` | Implement `reject` with feedback-driven revision and no writes. | The project and state directory are unchanged after any number of rejects. |
-| API5-T03 | `[ ]` | Implement the pre-apply drift recheck. | Branch, worktree, hash, ID, and file-action drift each force a revised proposal. |
-| API5-T04 | `[ ]` | Apply the exact approved diff and make one planning commit. | Only approved files change; crashes on either side of the commit reconcile without replay. |
-| API5-T05 | `[ ]` | Create the private `approved` receipt before apply and update it atomically after commit. | Mode `0600`, outside the project, exclusive create, durable updates, digest matches. |
+| API5-T01 | `[+]` | Render the complete proposal deterministically and digest it. | The same inputs produce byte-identical text and digest. |
+| API5-T02 | `[+]` | Implement `reject` with feedback-driven revision and no writes. | The project and state directory are unchanged after any number of rejects. |
+| API5-T03 | `[+]` | Implement the pre-apply drift recheck. | Branch, worktree, hash, ID, and file-action drift each force a revised proposal. |
+| API5-T04 | `[+]` | Apply the exact approved diff and make one planning commit. | Only approved files change; crashes on either side of the commit reconcile without replay. |
+| API5-T05 | `[+]` | Create the private `approved` receipt before apply and update it atomically after commit. | Mode `0600`, outside the project, exclusive create, durable updates, digest matches. |
