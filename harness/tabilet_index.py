@@ -8,6 +8,7 @@ import importlib.util
 import contextlib
 import pathlib
 import os
+import posixpath
 import re
 import sqlite3
 import stat
@@ -136,6 +137,25 @@ def headings(text):
         yield {'line':line,'end_line':end,'heading':title,'anchor':anchor,'text':'\n'.join(lines[line-1:end])}
 
 
+def external_milestone_links(text, source_path):
+    """Find sibling retirement links relative to a record's original source."""
+    found={}
+    for link in re.finditer(r'\]\(([^\s)]+)',text):
+        href=link[1].split('#',1)[0]
+        if '://' in href or href.startswith('/'):
+            continue
+        resolved=posixpath.normpath(posixpath.join(posixpath.dirname(source_path),href))
+        parts=pathlib.PurePosixPath(resolved).parts
+        if (len(parts)<6 or parts[0]!='..'
+                or parts[-4:-1]!=('tabilet','docs','history')):
+            continue
+        match=STATUS.fullmatch(parts[-1])
+        if match:
+            found.setdefault(match[1],set()).add(parts[-5])
+    return {identity:next(iter(packages)) for identity,packages in found.items()
+            if len(packages)==1}
+
+
 def parse_document(path,kind,text,digest):
     p=parser()
     parsed={table:[] for table in DERIVED_TABLES if table!='index_documents'}
@@ -148,6 +168,7 @@ def parse_document(path,kind,text,digest):
     status=text
     offset=0
     specification_offset=0
+    source_path=path
     if kind in ('active_status','history_status'):
         identity=STATUS.fullmatch(pathlib.Path(path).name)[1]
         meta={}
@@ -155,6 +176,7 @@ def parse_document(path,kind,text,digest):
         if kind=='history_status':
             record=p.retired_record(text,pathlib.Path(path).name)
             meta=record['metadata'];status=record['status'];specification=record['specification']
+            source_path=meta['Source status']
             envelope = dict((value, line) for line, value in p.unfenced_lines(text)
                             if value in ('## Status record', '## Milestone specification'))
             source_lines = text.splitlines(keepends=True)
@@ -232,6 +254,7 @@ def parse_document(path,kind,text,digest):
     if kind == 'history_status':
         relation_lines = [(n + specification_offset, value) for n, value in p.unfenced_lines(specification)]
         relation_lines += [(n + offset, value) for n, value in p.unfenced_lines(status)]
+    external_links=external_milestone_links(text,source_path)
     current_identity=identity
     seen_relations=set()
     for line,value in relation_lines:
@@ -246,8 +269,23 @@ def parse_document(path,kind,text,digest):
             relation='depends_on' if dependency[0].lower().startswith(('depend','**depend')) else 'supersedes' if 'supersedes' in dependency[0].lower() else 'successor'
             source=('milestone:'+current_identity) if current_identity else path
             if kind=='context_archive':source='archive:'+ARCHIVE.fullmatch(pathlib.Path(path).name)[1]
-            for target in dict.fromkeys(re.findall(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[1])):
-                edge=(source,relation,('archive:' if kind=='context_archive' else 'milestone:')+target)
+            line_targets=set()
+            for target_match in re.finditer(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[1]):
+                target=target_match[0]
+                if target in line_targets:
+                    continue
+                line_targets.add(target)
+                package=external_links.get(target)
+                package_named=package and re.search(
+                    r'(?i)(?:^|[^\w-])'+re.escape(package)+r'\s+$',
+                    dependency[1][:target_match.start()])
+                if kind=='context_archive':
+                    target_key='archive:'+target
+                elif package_named:
+                    target_key=f'external:{package}:{target}'
+                else:
+                    target_key='milestone:'+target
+                edge=(source,relation,target_key)
                 if edge not in seen_relations:
                     parsed['index_relationships'].append(dict(line=line,source=source,relation=relation,target=edge[2]))
                     seen_relations.add(edge)
@@ -360,6 +398,7 @@ def validate_projection(documents, parsed):
             exists=target in documents
             if target.startswith('milestone:'):exists=target[10:] in milestones
             if target.startswith('archive:'):exists=f'tabilet/docs/archive-{target[8:]}.md' in documents
+            if target.startswith('external:'):exists=True
             if not exists:diagnostics.append(f'{path}:{relation["line"]}: unresolved {relation["relation"]}: {target}')
     return diagnostics
 
@@ -400,7 +439,7 @@ def publish(connection, workspace, documents, parsed, generation, context, attem
     # explorer projections. Record readiness only after this publish has filled
     # the complete derived projection.
     connection.execute(
-        "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, 'v2')",
+        "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, 'v3')",
         (f'index_projection:{workspace}',),
     )
 
@@ -424,7 +463,7 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
             "SELECT value FROM schema_meta WHERE key=?",
             (f'index_projection:{workspace}',),
         ).fetchone()
-        projection_ready = projection == ('v2',)
+        projection_ready = projection == ('v3',)
         for path,kind in paths.items():
             text,digest,info=read_document(root,path)
             stats[path]=signature(info)
@@ -581,9 +620,15 @@ def _readiness(connection, workspace, project_root=None):
     milestone_graph={}
     for relation in milestone_dependencies:
         source_id=relation['source'].removeprefix('milestone:')
-        target_id=relation['target'].removeprefix('milestone:')
         if source_id not in active:
             continue
+        if relation['target'].startswith('external:'):
+            target=relation['target']
+            milestone_waiting.setdefault(source_id,[]).append(target)
+            milestone_review.setdefault(source_id,[]).append(target)
+            diagnostics.append(f"{relation['path']}:{relation['line']}: external milestone dependency requires manual reconciliation: {target}")
+            continue
+        target_id=relation['target'].removeprefix('milestone:')
         if target_id not in milestones:
             diagnostics.append(f"{relation['path']}:{relation['line']}: unresolved milestone dependency: {relation['target']}")
             continue

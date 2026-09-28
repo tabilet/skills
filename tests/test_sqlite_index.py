@@ -74,6 +74,43 @@ class IndexTests(unittest.TestCase):
         self.sync()
         self.assertEqual(self.c.execute("SELECT COUNT(*) FROM index_relationships WHERE source='milestone:M01' AND relation='depends_on' AND target='milestone:M02'").fetchone()[0],1)
 
+    def test_retired_sibling_dependencies_are_not_missing_local_milestones(self):
+        self.source.write_text(self.source.read_text().replace('`[ ]`','`[+]`')+
+            '\n**Dependencies.** Local M02, APItools M79, OpenUdon M89; the M89 implementation is published.\n'
+            '[APItools M79](../../../apitools/tabilet/docs/history/status-M79.md)\n'
+            '[OpenUdon M89](../../../openudon/tabilet/docs/history/status-M89.md)\n')
+        h.retire_fixture(self.root)
+        state=self.sync()
+        unresolved=[d for d in state['diagnostics'] if 'unresolved depends_on' in d]
+        self.assertEqual(len(unresolved),1)
+        self.assertIn('milestone:M02',unresolved[0])
+        targets={row[0] for row in self.c.execute(
+            "SELECT target FROM index_relationships WHERE relation='depends_on'")}
+        self.assertEqual(targets,{'milestone:M02','external:apitools:M79','external:openudon:M89'})
+
+    def test_active_sibling_dependency_requires_manual_reconciliation(self):
+        self.source.write_text(self.source.read_text()+
+            '\n**Dependencies.** APItools M79.\n'
+            '[APItools M79](../../../apitools/tabilet/docs/history/status-M79.md)\n')
+        state=self.sync()
+        readiness=ix.readiness(self.c,state['workspace_id'],self.root)
+        self.assertEqual(readiness['ready'],[])
+        self.assertEqual(len(readiness['waiting']),1)
+        self.assertIn('external:apitools:M79',readiness['waiting'][0]['reason'])
+        self.assertTrue(any('manual reconciliation' in d
+            for item in readiness['needs_review'] for d in item.get('diagnostics',[])))
+
+    def test_unqualified_dependency_remains_local_with_sibling_link_elsewhere(self):
+        self.source.write_text(self.source.read_text()+
+            '\n**Dependencies.** M79.\n'
+            '[Sibling M79](../../../apitools/tabilet/docs/history/status-M79.md)\n')
+        state=self.sync()
+        self.assertTrue(any('unresolved depends_on: milestone:M79' in d
+                            for d in state['diagnostics']))
+        self.assertEqual(self.c.execute(
+            "SELECT target FROM index_relationships WHERE relation='depends_on'").fetchone(),
+            ('milestone:M79',))
+
     def test_nested_milestone_heading_is_not_an_active_specification(self):
         milestone=self.root/'tabilet/memory-bank/milestone.md'
         milestone.write_text(milestone.read_text()+'\n### M02 example\n\nNested note.\n')

@@ -369,5 +369,5 @@ audit.backup_database(source, sys.argv[2])
             self.assertEqual(connection.execute(
                 "SELECT value FROM schema_meta WHERE key=?",
                 (f'index_projection:{workspace}',),
-            ).fetchone(), ('v2',))
+            ).fetchone(), ('v3',))
         connection.close()
