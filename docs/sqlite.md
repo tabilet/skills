@@ -264,6 +264,50 @@ Malformed statuses or interrupted reads retain the last published generation wit
 `complete=false` and diagnostics. Repair the source and sync again. A rebuild
 reparses all current sources; it never clears audit or legacy snapshots.
 
+### Recover a failed retirement index
+
+Older audit toolkit installations may report
+`expected one fenced markdown document` or
+`expected Milestone specification and Status record sections` when indexing
+frozen retirement records. The affected historical formats use unlabelled outer
+code fences or `## Status` instead of `## Status record`. Current canonical
+retirement records do not need this compatibility handling.
+
+Update your `skills` checkout to a revision containing the retirement-index
+compatibility fix. If the checkout is clean and tracks `origin/main`, use
+`git pull --ff-only`; if it fails or you have local changes, preserve those
+changes and resolve the checkout update before installing. Updating the memory-bank
+plugin alone does not replace the optional toolkit in `~/.local/bin`.
+
+From the updated `skills` checkout, reinstall the runner/parser and audit
+modules together, then rebuild the affected project's index:
+
+```bash
+install -d "$HOME/.local/bin"
+install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
+install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
+export PATH="$HOME/.local/bin:$PATH"
+export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+tabilet-audit index sync /absolute/path/to/project --rebuild
+tabilet-audit index status /absolute/path/to/project
+```
+
+Keep your existing `TABILET_AUDIT_DB` value if you configured another external
+database path. Verify that status reports `complete: true`. Completion refers to
+this refresh; review any remaining diagnostics separately and reread live Markdown
+before acting. Reinstall the explorer module and assets using the installation
+instructions above if you use the browser explorer.
+
+The index reads these historical envelope variations in memory, preserving source
+bytes, task line numbers and durable audit records. It still rejects invalid
+metadata, broken fences and non-terminal retired tasks. The execution runner
+keeps its stricter canonical retirement validation. No database reset, frozen-record
+edit or project migration is required for this indexing fix. Refresh the index
+directly; do not replay completed work or finish an old run again to trigger it.
+If refresh still fails, inspect its diagnostic and the installed toolkit revision;
+retain the database and frozen evidence while diagnosing the remaining problem.
+
 Search filters include `--kind`, `--milestone`, and `--state`, with `--limit`
 (1–10000) and `--offset`. Kind `task` returns task rows; `section` returns headings;
 document kinds include `active_status`, `history_status`, `history_index`,

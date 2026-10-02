@@ -88,6 +88,63 @@ class IndexTests(unittest.TestCase):
             "SELECT target FROM index_relationships WHERE relation='depends_on'")}
         self.assertEqual(targets,{'milestone:M02','external:apitools:M79','external:openudon:M89'})
 
+    def test_legacy_retirement_envelopes_preserve_literal_bytes_and_locations(self):
+        status = self.source.read_text().replace('`[ ]`', '`[+]`')
+        canonical = h.retirement_text(status)
+        variants = (
+            ('````', '## Status record', ''), ('~~~~', '## Status record', ''),
+            ('````', '## Status', ''), ('~~~~', '## Status', ''),
+            ('````', '## Status', 'markdown'), ('~~~~', '## Status', 'markdown'),
+        )
+        for fence, heading, label in variants:
+            with self.subTest(fence=fence, heading=heading, label=label):
+                text = canonical.replace('\n`````\n\n## Status record\n',
+                                         '\n`````\n\n' + heading + '\n')
+                text = text.replace('\n`````markdown\n', '\n' + fence + label + '\n')
+                text = text.replace('\n`````\n', '\n' + fence + '\n')
+                with self.assertRaises(ValueError):
+                    ix.parser().retired_record(text, 'status-M01.md')
+                path = 'tabilet/docs/history/status-M01.md'
+                parsed = ix.parse_document(path, 'history_status', text, 'digest')
+                task = parsed['index_tasks'][0]
+                self.assertIn('Implement feature', text.splitlines()[task['line'] - 1])
+                record, _ = ix.retired_record_for_index(text, 'status-M01.md')
+                self.assertEqual(record['status'], status)
+                self.assertEqual(record['specification'],
+                                 ix.parser().retired_record(canonical, 'status-M01.md')['specification'])
+        retired = h.retire_fixture(self.root)
+        retired.write_text(canonical.replace('\n`````markdown\n', '\n`````\n')
+                          .replace('\n`````\n\n## Status record\n', '\n`````\n\n## Status\n'))
+        before = self.hashes()
+        state = self.sync()
+        self.assertTrue(state['complete'])
+        self.assertEqual(self.hashes(), before)
+        stored = self.c.execute('SELECT text FROM index_documents WHERE path=?',
+                                ('tabilet/docs/history/status-M01.md',)).fetchone()[0]
+        self.assertEqual(stored, retired.read_text())
+
+    def test_legacy_retirement_compatibility_still_rejects_invalid_records(self):
+        self.source.write_text(self.source.read_text().replace('`[ ]`', '`[+]`'))
+        retired = h.retire_fixture(self.root)
+        valid = retired.read_text().replace('\n`````markdown\n', '\n`````\n')
+        valid = valid.replace('\n`````\n\n## Status record\n', '\n`````\n\n## Status\n')
+        retired.write_text(valid)
+        initial = self.sync()
+        bad_records = (
+            valid.replace('**Review.** passed', '**Review.** failed'),
+            valid.replace('`[+]`', '`[ ]`'),
+            valid.replace('## Status', '## Unknown'),
+            valid.replace('`````\n# Status', '`````python\n# Status'),
+            valid.rsplit('`````', 1)[0],
+            valid.replace('| Implement feature', '`````\n| Implement feature'),
+        )
+        for text in bad_records:
+            with self.subTest(text=text[:40]):
+                retired.write_text(text)
+                with self.assertRaises(a.AuditError):
+                    self.sync()
+                self.assertEqual(ix.status(self.c, initial['workspace_id'])['generation'], initial['generation'])
+
     def test_active_sibling_dependency_requires_manual_reconciliation(self):
         self.source.write_text(self.source.read_text()+
             '\n**Dependencies.** APItools M79.\n'

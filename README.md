@@ -1080,6 +1080,12 @@ if needed and indexes that project's Markdown. The configured external database
 can hold separate records for multiple projects.
 
 See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
+If older retired records make refresh fail with `expected one fenced markdown
+document` or `expected Milestone specification and Status record sections`,
+follow [retirement-index recovery](docs/sqlite.md#recover-a-failed-retirement-index):
+update the checkout, reinstall the optional toolkit, and rebuild the index.
+Updating the plugin alone does not update `~/.local/bin`; preserve frozen Markdown
+and the audit database during recovery.
 The API runner records enabled runs; interactive skills can use the same optional
 CLI. Exact chat capture requires text supplied by the host. Default audit capture
 stores metadata; the lookup index separately contains current Markdown text.

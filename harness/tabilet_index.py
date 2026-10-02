@@ -156,6 +156,39 @@ def external_milestone_links(text, source_path):
             if len(packages)==1}
 
 
+def retired_record_for_index(text, name):
+    """Read older literal envelopes without rewriting frozen source records.
+
+    Only the historical Status heading and unlabelled outer fences are
+    normalized in memory. The runner still validates metadata, literal fence
+    boundaries and closed task rows; execution keeps its canonical-only parser.
+    Normalization preserves line numbers and the literal documents' bytes.
+    """
+    p = parser()
+    lines = text.splitlines(keepends=True)
+    sections = [(n, value) for n, value in p.unfenced_lines(text)
+                if value.startswith('## ')]
+    if [value for _, value in sections] in (
+            ['## Milestone specification', '## Status record'],
+            ['## Milestone specification', '## Status']):
+        for n, value in sections:
+            if value == '## Status':
+                lines[n - 1] = lines[n - 1].replace('## Status', '## Status record', 1)
+            opening = next((i for i in range(n, len(lines)) if lines[i].strip()), None)
+            if opening is not None:
+                fence = lines[opening].strip()
+                if re.fullmatch(r'`{3,}|~{3,}', fence):
+                    lines[opening] = lines[opening].replace(fence, fence + 'markdown', 1)
+    normalized = ''.join(lines)
+    record = p.retired_record(normalized, name)
+    offsets = {}
+    for n, heading in p.unfenced_lines(normalized):
+        if heading in ('## Milestone specification', '## Status record'):
+            offsets[heading] = next(i + 1 for i in range(n, len(lines))
+                                    if re.fullmatch(r'(?:`{3,}|~{3,})markdown', lines[i].strip()))
+    return record, offsets
+
+
 def parse_document(path,kind,text,digest):
     p=parser()
     parsed={table:[] for table in DERIVED_TABLES if table!='index_documents'}
@@ -174,18 +207,11 @@ def parse_document(path,kind,text,digest):
         meta={}
         specification=None
         if kind=='history_status':
-            record=p.retired_record(text,pathlib.Path(path).name)
+            record, offsets = retired_record_for_index(text, pathlib.Path(path).name)
             meta=record['metadata'];status=record['status'];specification=record['specification']
             source_path=meta['Source status']
-            envelope = dict((value, line) for line, value in p.unfenced_lines(text)
-                            if value in ('## Status record', '## Milestone specification'))
-            source_lines = text.splitlines(keepends=True)
-            def body_offset(heading):
-                start = envelope[heading]
-                return next(n + 1 for n in range(start, len(source_lines))
-                            if re.fullmatch(r'(?:`{3,}|~{3,})markdown', source_lines[n].strip()))
-            offset = body_offset('## Status record')
-            specification_offset = body_offset('## Milestone specification')
+            offset = offsets['## Status record']
+            specification_offset = offsets['## Milestone specification']
         problems=p.status_marker_problems(status)
         rows=p.status_rows(status)
         if problems or not rows:raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
@@ -353,7 +379,8 @@ def validate_projection(documents, parsed):
             if identity in specs:raise AuditError(f'retired specification remains active: {identity}')
             cells=history_rows.get(identity,[])
             path=f'tabilet/docs/history/status-{identity}.md'
-            meta=p.retired_record(documents[path]['text'],pathlib.Path(path).name)['metadata']
+            record, _ = retired_record_for_index(documents[path]['text'], pathlib.Path(path).name)
+            meta = record['metadata']
             if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\(status-'+identity+r'\.md\)',cells[3]):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
     # A current milestone specification is the maintained source for display
