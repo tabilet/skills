@@ -147,7 +147,7 @@ def begin_run(connection, root, args):
             return {'run_id': row['run_id'], 'workspace_id': row['workspace_id'], 'started_at': row['started_at']}
     context=index.git_context(root)
     workspace=audit.ensure_workspace(connection,root,branch=context['branch'])
-    dirty=index.subprocess.run(['git','status','--porcelain'],cwd=root,capture_output=True,text=True) if context['git_head'] else None
+    dirty=index.parser().git_local(['status','--porcelain'],root) if context['git_head'] else None
     run_id=audit.start_run(connection,workspace,args.operation,run_id=args.run_id,capture_mode=args.capture,
         parent_run_id=args.parent_run_id,git_head=context['git_head'],worktree_state='unversioned' if dirty is None else 'dirty' if dirty.stdout else 'clean')
     started=connection.execute('SELECT started_at FROM runs WHERE run_id=?',(run_id,)).fetchone()[0]

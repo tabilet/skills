@@ -221,6 +221,68 @@ visible messages supplied by the runner. It does not capture every API prompt,
 tool result, hidden reasoning, or surrounding chat. Exact raw text requires the
 host to submit selected messages as described in the [SQLite operator guide](https://github.com/tabilet/skills/blob/main/docs/sqlite.md#capture-selected-visible-messages).
 
+### The optional Tabilet controller sandbox
+
+The controller is a separate API workflow; it does not change the standalone
+runner's host-shell behavior. The first release requires Linux and a running
+local Docker daemon on a Unix socket. Remote Docker contexts and daemon override
+variables are rejected because bind mounts must refer to the controller's local
+project files. Use an Engine version that supports `bind-recursive=disabled`.
+
+Install `tabilet` and its seven verified planning bundles from a skills checkout:
+
+```bash
+python3 harness/tabilet_install.py --source skills --controller-source harness
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+The installer places the command in `~/.local/bin`, its runtime modules in
+`~/.local/lib/tabilet/controller`, and the canonical skill bundles with a
+generated SHA-256 manifest under `${XDG_DATA_HOME:-~/.local/share}/tabilet/`.
+It does not write to a project. Keep the source checkout available for later
+updates, or rerun the installer from a newer checkout.
+
+Prepare a local image yourself before starting a controller proposal. For
+example, this provides a small Python and shell base; add project-specific tools
+in your own image when a task needs them:
+
+```bash
+docker pull python:3.12-slim
+```
+
+The controller never pulls or builds images. It resolves the selected local tag
+to an immutable image ID before any provider call. The image must contain
+`/usr/bin/env`, `/bin/sh`, and the tools and packages required for the task.
+Commands run with networking disabled, a read-only container root, a private
+writable `/tmp`, and the project mounted writable with `.git` read-only. The
+proposal shows the 4 CPU, 8 GiB memory, 512 process, and 300-second per-command
+limits. Provider credentials remain on the host and are not passed into the
+container.
+
+Once the optional `tabilet` command is installed, select the prepared image with
+`tabilet chat PROJECT --image IMAGE`. The command asks which planning contract
+to use (`init`, `propose`, or `reconcile`) and what to deliver. You can provide
+those without prompts with `--operation` and `--request`. The image reference
+and resolved ID are part of the visible proposal. Before `confirm`, the full
+planning diff and row, attempt, turn, commit, elapsed-time, CPU, memory, process,
+and command-time limits are shown. `reject` asks for changes and renders a new
+proposal; it makes no project writes.
+
+Use `tabilet status PROJECT` for a read-only report and `tabilet resume PROJECT`
+to reconcile a receipt and continue a proved checkpoint. If more than one
+horizon is open, choose it with `--receipt UUID`. Required manual evidence is
+collected during resume; if it is missing, the horizon pauses. Extend a reached
+cap only with `tabilet extend-limit PROJECT --limit NAME --value NUMBER`, which
+shows current use and requires a separate exact `confirm`. A resumed horizon
+keeps its original counters and elapsed-time clock.
+
+The image reference and resolved ID are part of the visible proposal. Missing
+tools or Docker setup pauses with exit `17`; prepare an updated local image
+outside the controller and resume from the receipt. External actions are listed
+for separate handling and never run under the general confirmation. See the
+[controller guide](tabilet-controller.md) for receipt states, recovery behavior,
+host Git protections, and exits.
+
 ## Optional SQLite audit and lookup {#optional-sqlite}
 
 Markdown stays authoritative. The optional toolkit stores a local audit outside

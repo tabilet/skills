@@ -67,6 +67,33 @@ Missing credentials, controls, or budget leave it incomplete, even when all
 loader checks pass. Keep raw transcripts and generated projects outside shipped
 payload.
 
+## Tabilet Controller Live Acceptance {#tabilet-controller-live-acceptance}
+
+The controller's fake-provider and Docker acceptance suites are credential-free.
+Paid controller acceptance is a separate operator-run session on a disposable
+project; CI never invokes it. Before `tabilet chat`, set an enforceable
+provider-account spend limit of **US$10 cumulative** for the candidate's live
+acceptance. Treat retries, planning turns, task turns, and closure turns as part
+of that same ceiling. The controller's row, attempt, turn, commit, and elapsed
+time caps are additional operational bounds; they are not a dollar guarantee.
+If the provider cannot enforce the requested spend cap, do not run the paid
+gate.
+
+Use a local image and a disposable initialized project with one small task and
+cheap deterministic verification. Invoke `tabilet chat` manually, inspect the
+proposal, and enter `confirm` only for that test horizon. Exercise planning
+revision, required verification, milestone closure, status, and resume when the
+fixture supports interruption. Do not use a production project or authorize
+external actions. Stop when the provider's recorded spend reaches US$10.
+
+The acceptance report records the provider and model, runtime versions, image
+ID, project fixture revision, confirmation scope, provider attempts, model
+turns, commits, wall-clock time, billed spend against the US$10 limit, scenario
+outcomes, verification commands, and unresolved failures. Keep transcripts and
+generated repositories outside shipped payload. A missing enforceable budget,
+operator confirmation, or required evidence leaves paid acceptance incomplete;
+credential-free suites do not substitute for it.
+
 ## Turning The API Loop Into An Eval
 
 The included API loop is not automatically a model eval harness. It becomes part

@@ -147,16 +147,60 @@ control back to a human.
 | `13` | Git `HEAD` could not be read. |
 | `14` | Actionable work was not given unsandboxed-shell acknowledgment. |
 | `15` | More than one general `[~]` row is in progress across the active ledger. |
+| `19` | Another Tabilet launcher already holds the shared project lock. |
 | `20` | The API returned an HTTP error. |
 | `21` | The API could not be reached. |
 | `22` | The API response did not match the expected shape. |
 | `23` | The model refused or returned no usable text. |
+| `26` | The shared project lock could not be prepared safely (a read-only or missing state directory, or an invalid `XDG_STATE_HOME`). Distinct from `19`, which means the lock is held, not broken. |
+| `27` | The repository's local Git configuration is unsafe for host operations, such as an active clean/process filter (for example, a locally enabled Git LFS install). Remove or disable it before running the harness. |
 | `30` | The model used `MAX_TURNS` without finishing a row. |
 | `31` | The conversation exceeded `MAX_HISTORY_CHARS`. |
 | `130` | The run was interrupted from the terminal. |
 
-Codes `10` through `15` are target or authorization setup problems. Codes `20`
-through `23` are provider or network problems, not project problems.
+Codes `10` through `15` are target or authorization setup problems. Code `19`
+is the shared Tabilet launcher lock collision; the lock is released when the
+launcher exits and does not coordinate interactive coding-agent sessions. Codes
+`20` through `23` are provider or network problems, not project problems.
+
+### Tabilet Controller Exit Codes
+
+The optional `tabilet` controller adds planning and bounded-horizon execution
+around the shared runner core. Exit `0` means a command completed; for an
+execution command, it means required milestone closure passed and the horizon
+was marked completed. Exit `2` retains the usage/configuration meaning above.
+The standalone runner keeps its post-commit gate meanings and precedence.
+
+| Code | Meaning |
+|---|---|
+| `16` | Controller paused because a confirmed row, attempt, turn, commit, or elapsed-time limit was reached. |
+| `17` | Controller paused for setup, required manual evidence, or a separately handled external action. |
+| `18` | The approval is stale because the branch, lineage, source hashes, IDs, or approved file actions changed. |
+| `19` | A Tabilet launcher could not acquire the shared project lock. |
+| `24` | Controller pre-commit row or required-verification validation failed; no host task commit was made. |
+| `25` | Dirty or uncertain recovery needs manual review; the controller will not reset or replay it automatically. |
+
+Codes `20` and `21` retain their provider HTTP/network meanings in the standalone
+runner and are not reused for controller gates. The project lock coordinates
+Tabilet launchers only; interactive agents do not participate in it.
+
+## Tabilet API Controller
+
+The optional `tabilet` controller adds read-only planning, one exact approval,
+receipt-bounded execution in local Docker, and automatic completion after
+verified milestone closure. It is separate from the standalone runner, whose
+post-commit gates and host-shell behavior remain unchanged. See the
+[controller guide](tabilet-controller.md) for installation, sandbox boundaries,
+receipts, and operator commands.
+
+### Tabilet Controller Exit Codes {#tabilet-controller-exit-codes}
+
+The controller preserves runner codes and adds `16` for a reached confirmed
+limit, `17` for setup, required manual evidence, or a separately handled
+external action, `18` for stale approval inputs, `19` for the shared launcher
+lock, `24` for failed pre-commit validation, and `25` for dirty or uncertain
+recovery that needs manual review. Exit `0` from an execution command means
+verified closure passed and the receipt is `completed`.
 
 ## Optional SQLite audit and lookup
 
