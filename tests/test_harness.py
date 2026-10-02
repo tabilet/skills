@@ -61,6 +61,8 @@ def make_repo(root: pathlib.Path, state: str | None = None) -> pathlib.Path:
         encoding="utf-8",
     )
     run("git", "init", "-q", cwd=root)
+    run("git", "config", "--local", "user.name", "Harness Test", cwd=root)
+    run("git", "config", "--local", "user.email", "harness@example.test", cwd=root)
     run("git", "add", "-A", cwd=root)
     run(
         "git",

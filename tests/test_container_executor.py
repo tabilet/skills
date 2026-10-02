@@ -38,6 +38,8 @@ def make_git_repo(root: pathlib.Path) -> pathlib.Path:
     root.mkdir(parents=True)
     (root / "file.txt").write_text("initial\n", encoding="utf-8")
     git("init", "-q", cwd=root)
+    git("config", "--local", "user.name", "Container test", cwd=root)
+    git("config", "--local", "user.email", "container@example.test", cwd=root)
     git("-c", "user.name=Container test", "-c", "user.email=container@example.test",
         "add", "-A", cwd=root)
     committed = git("-c", "user.name=Container test", "-c", "user.email=container@example.test",
