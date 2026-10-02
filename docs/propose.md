@@ -12,6 +12,23 @@ status ledger, use [Init](init.md).
 | Codex plugin | `$memory-bank:memory-bank-propose <requested outcome or candidate direction>` |
 | DSH | `/memory-bank-propose <requested outcome or candidate direction>` |
 
+For stage work, add `--stages` to propose an overview or `--stage STG-02` to
+focus on a specific existing stage. These are request words understood by the
+skill, not shell options. Naming `tabilet/stages.md` or a stage ID explicitly in
+plain English also works. For example:
+
+```text
+/memory-bank-propose --stages Divide this project into stages.
+/memory-bank-propose --stage STG-02 Develop this idea further.
+/memory-bank-propose --stage STG-02 Plan its next milestones.
+```
+
+A later stage may have only a tentative name and brief intent. Developing its
+context does not schedule milestones. The stage ID remains stable when the name
+or order changes. An initialized project can adopt stages without restarting
+Init; Propose places its existing approved horizon in the current stage by
+default.
+
 ## What happens
 
 Propose reads the relevant project memory, code, tests, pending work, candidate
@@ -32,6 +49,13 @@ retired IDs again. It applies only the approved planning edits. A material
 change or ID collision calls for a revised proposal. It preserves current row
 outcomes, counters, local policies, and frozen history. Planned behavior stays
 in milestone/status records until implementation makes it current fact.
+
+If you want to defer already approved pending work, ask for an explicit stage
+rescope. Propose shows the exact untouched rows to cancel, their destination
+stage, and the affected dependencies. Approval changes those rows to `[X]`
+with their original identities and withdrawal reason preserved. A future
+replacement needs fresh planning and a new identity; cancelled work does not
+prove delivery. Work already underway needs separate handling.
 
 A material change of direction may add an `tabilet/evolution/` pair under the project's
 existing trigger. A compatible approved `tabilet/GOAL.md` may receive a refreshed

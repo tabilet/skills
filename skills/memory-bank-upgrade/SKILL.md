@@ -72,6 +72,9 @@ provenance and literal records, reserved IDs, all-retired identity, six task
 markers, sole in-progress ownership, current-fact maintenance, and the persisted
 ten-iteration review gate. Never reset an active
 review count or reinterpret cancellation/supersession as delivered acceptance.
+The optional stage rules may be adopted without creating `tabilet/stages.md` or
+replanning delivery. Preserve an existing stage overview and its stable IDs;
+Init or Propose owns any new stage structure and approved pending-work rescope.
 
 If the project uses the API runner, inspect its actual executable or documented
 version for retirement compatibility. This skill does not update account-level

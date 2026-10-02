@@ -16,6 +16,11 @@ The review procedure below covers one milestone. To run several in order, with
 dependency and downstream reconciliation between them, [../GOAL.md](../GOAL.md)
 is one optional protocol for that; any equivalent works just as well.
 
+When `tabilet/stages.md` exists, it records stable `STG-` IDs, the current
+stage, and provisional later ideas. Give each active milestone specification
+its stage ID. An absent stages file means one implicit stage. Stage labels do
+not determine task readiness or prove milestone acceptance.
+
 ## Status ID Pattern
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single
@@ -75,6 +80,15 @@ specification and status file together before including its row above:
 
 ## Requested changes after initialization
 
+For stage work, `memory-bank-propose --stages` requests creation or revision of
+the optional `tabilet/stages.md` overview. `--stage STG-01` selects an existing
+stage; the request must say when milestones should be planned. Equivalent
+plain-English references are valid. Later-stage ideas may have only an ID,
+tentative name, and brief intent. Additional context can be proposed later,
+without assigning milestone IDs or task rows now. Stage IDs stay stable across
+renames and reorderings and are never reused. Do not advance stages or schedule
+later work merely because the current milestone closes.
+
 For a requested feature, candidate promotion, or change to future direction,
 inspect the current plan and implementation first. Record user intent separately
 from observed facts and unresolved assumptions. If a pending milestone already
@@ -94,6 +108,17 @@ only what the repository establishes as fact. Planning does not implement or
 accept the requested behavior. Use `memory-bank-propose` where installed, or
 follow this procedure directly with another agent.
 
+To defer already approved work through a stage rescope, present the exact
+untouched pending rows and affected downstream work for approval. After
+approval, retain their identity and original task text, mark them `[X]`, and
+record the authority, reason, destination stage, and dependency disposition.
+Cancellation proves no delivered acceptance. A future replacement receives a
+new approved identity and names its cancelled lineage. Preserve `[~]`, `[!]`,
+`[+]`, `[X]`, and `[-]` rows and all review evidence. Withdraw affected pending
+dependents or keep their prerequisites in the active horizon; an unresolved
+dependency cannot be deferred by changing a stage label. An entirely cancelled
+milestone remains active until its normal closure and retirement disposition.
+
 ## Candidate Directions
 
 Candidate directions are outside the active execution horizon. They are not
@@ -101,6 +126,9 @@ milestones: they have no lane, permanent status ID, status file, or place in an
 execution order. A promotion trigger causes fresh planning and approval,
 not automatic scheduling. Assign the next unused permanent ID only after a
 candidate is promoted.
+Reference a stage ID when relevant, without copying its whole description.
+A preliminary stage need not have a candidate's deferral reason or promotion
+trigger; do not duplicate every stage as a Candidate Direction.
 
 | Direction | Why Deferred | Promotion Trigger |
 |---|---|---|

@@ -12,7 +12,7 @@ Status markers:
 | `[+]` | Completed | Item finished or done. |
 | `[~]` | In Progress | Item is the one general row currently being worked. |
 | `[!]` | Blocked | A current unresolved blocker still prevents progress. |
-| `[X]` | Cancelled | Item is no longer needed. |
+| `[X]` | Cancelled | The approved item was withdrawn; any later replacement needs fresh planning. Cancellation does not prove delivery. |
 | `[-]` | Closed Historical | A consumed failed attempt or superseded row retained for audit; it is never retried and does not block its accepted successor. |
 
 Write markers with backticks, exactly as in the table above: `` `[ ]` ``, not

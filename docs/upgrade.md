@@ -95,6 +95,10 @@ Task state, permanent identifiers, local policies, review counters, custom goal
 protocols, completed evidence, and frozen history. A project already compatible
 needs no changes at all.
 
+Upgrade can adopt the optional stage rules without creating a stages document
+or moving current work. Use [Propose](propose.md) when you want to introduce
+stages or withdraw already approved pending tasks for later planning.
+
 ## What an upgrade is not
 
 An upgrade adopts **operating rules**. It does not initialize a project,

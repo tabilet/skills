@@ -13,6 +13,7 @@
 | 已初始化、有一个就绪任务的项目 | [next](next.md) |
 | 有多个获批里程碑，需要按顺序执行 | [goal](goal.md) |
 | 已初始化的项目要做需求中的功能，或提升候选方向 | [propose](propose.md) → 获批的规划变更 → 另行请求执行 |
+| 后续交付尚不确定 | [init](init.md) 可记录初步阶段 → [propose](propose.md) 日后补充 |
 | 收到新的工程评审 | [reconcile](reconcile.md) → 获批的规划变更 → 另行请求执行 |
 | 现有项目需要更新工作流规则 | [upgrade](upgrade.md) → 获批的规则合并 → 另行请求执行 |
 | 当前里程碑已经可以关闭 | 由它的执行工作流负责评审和关闭；如果项目已经采用这套生命周期，退役也一并处理。不需要调用 archive。 |
@@ -65,6 +66,11 @@ decisions you need, then show the complete proposal before writing.
 [Goal](goal.md)。初始化本身不会启动任何实施。
 
 ## 现有代码库
+
+如果你清楚第一步要交付什么，对后面的工作还只有模糊想法，就这样告诉 Init。它可以在可选的
+`tabilet/stages.md` 中用 `STG-01` 表示当前阶段，再用简短的 `STG-02` 记录后续想法。当前阶段
+的下一个可验证结果会得到里程碑；后续想法不会生成可执行任务。有了更多证据后，可以请求
+`/memory-bank-propose --stage STG-02 Develop this idea further.`，等到准备好了再明确请求规划里程碑。
 
 仓库里已经积累了很多年的决策，散落在源码、测试、清单、CI，以及不同时期
 写的文档中。有些彼此一致，有些已经过时。

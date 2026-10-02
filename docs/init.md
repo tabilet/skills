@@ -35,6 +35,9 @@ inconsistent records need inspection; they are not permission to start over.
 cannot establish from evidence. Questions arrive in numbered rounds, with a
 recommended answer and the relevant tradeoffs. Each round builds on earlier
 answers; there is no fixed questionnaire or limit on the areas it can explore.
+For a medium or large project, Init asks at least one staging question. A small
+project with uncertain later work may use stages too. The interview resolves
+the current delivery outcome; later ideas can stay preliminary.
 
 **Propose.** It presents the boundary, the proposed active horizon, lane
 meanings, candidate directions, and every file action. Nothing is written until
@@ -48,7 +51,7 @@ never see a bracketed placeholder, because the memory bank arrives filled in.
 
 ## The active horizon
 
-The output separates three kinds of information:
+The output separates present facts, approved work, and optional stage direction:
 
 ```text
 tabilet/memory-bank/product.md       what the product is and its domain invariants
@@ -57,15 +60,31 @@ tabilet/memory-bank/tech-stack.md    commands, dependencies, and verification
 tabilet/memory-bank/lessons.md       learning that still changes decisions
 tabilet/memory-bank/milestone.md     the active horizon and later directions
 tabilet/memory-bank/status-*.md      one task-sized row per implementation unit
+tabilet/stages.md                    optional overview of delivery stages
 ```
 
 The **active horizon** is the smallest dependency-closed set of milestones that
 reaches the next meaningful, verifiable outcome. Permanent status identifiers go
 only to that horizon.
 
-Later ideas stay unnumbered in Candidate Directions with promotion triggers.
-They do not receive status IDs merely because the repository survey noticed
-them, and they never appear in the launch reference.
+Distinct optional ideas stay unnumbered in Candidate Directions with promotion
+triggers. Preliminary stages have `STG-` IDs and can remain sketches. Neither
+receives status IDs merely because the repository survey noticed them, and
+neither appears in the launch reference.
+
+## Stages
+
+`tabilet/stages.md` records broad delivery stages when they help the project.
+Its absence means one implicit stage. Init can accept a later idea as just a
+tentative name and one sentence of intent; it does not ask for distant tasks or
+acceptance details. It may add useful context from existing evidence, clearly
+marking assumptions and open questions. Only the current stage's next reliable
+outcome receives milestone and task IDs.
+
+Each stage has a stable ID such as `STG-01`, separate from milestone IDs such
+as `M01`. Reordering or renaming a stage preserves its ID. Stage ideas do not
+enter status files or the launch reference. Once new evidence arrives, use
+[Propose](propose.md) to enrich a stage or plan its milestones.
 
 > Archive records what exists. Init decides what to do next.
 

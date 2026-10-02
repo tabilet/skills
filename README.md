@@ -474,6 +474,13 @@ The agent should:
 
 ## Propose A Requested Change
 
+For a project with uncertain later work, Init can create an optional
+`tabilet/stages.md`. It plans milestones for the current stage's next verifiable
+outcome; later stages can begin as a tentative name and one-sentence idea.
+`STG-01` identifies a stage independently of milestone IDs such as `M01`.
+Without this file, the existing one-stage workflow applies. See the
+[Init guide](docs/init.md) for the staging question and output.
+
 When an initialized project needs a new feature, candidate promotion, or change
 to future direction, use `memory-bank-propose`. It inspects current records and
 implementation, asks only consequential questions, and presents one complete
@@ -481,6 +488,12 @@ proposal with acceptance, dependencies, downstream effects, and exact file
 actions. It rechecks affected files and IDs before approved planning writes.
 The new work is implemented later under a separate request. See the
 [Propose guide](docs/propose.md).
+
+Use `--stages` to propose a stage overview, or `--stage STG-02` to focus on an
+existing stage. The request can enrich its context without scheduling tasks;
+ask explicitly to plan milestones when ready. A stage label alone does not
+defer approved pending work. Propose can present an explicit rescope for
+approval, preserving the old task record and reconciling its dependencies.
 
 ## Reconcile A New Review
 

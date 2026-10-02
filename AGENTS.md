@@ -173,7 +173,7 @@ the whole point of the design:
 | Layer | Role |
 |---|---|
 | `AGENTS.md` | Short bootstrap pointer; read first by agents. Names commands, boundaries, hard rules. |
-| `tabilet/memory-bank/` | Active truth: product, architecture, stack, curated `lessons.md`, active milestone specifications and status files. |
+| `tabilet/stages.md` and `tabilet/memory-bank/` | Optional stage direction, then active truth: product, architecture, stack, curated `lessons.md`, active milestone specifications and status files. |
 | `tabilet/evolution/` | Versioned direction snapshots (`prompt-vN.md` / `result-vN.md`). New version only on a real direction, boundary, milestone, or contract change. |
 | `docs/` | Long-form reference, optional frozen context baselines, and on-demand retired milestone/knowledge history. `README.md` stays short and user-facing. |
 
@@ -388,6 +388,16 @@ spelling so an inbound link survives translation.
   when the project contains an approved compatible `GOAL.md`; a conditional
   status suffix is for documented conditionally required active work, not a
   candidate direction.
+- `tabilet/stages.md` is optional. Its absence means one implicit stage. For a
+  medium or large project, Init confirms the need for stages and accepts
+  preliminary later ideas without grilling for their tasks or acceptance.
+  Stage IDs use stable `STG-` numbers, stay separate from status and archive
+  IDs, and never enter executable orders. Only the current stage's approved
+  horizon gets milestones. Propose can add or refine stages; a stage-only
+  request creates no task. An explicit approved stage rescope may cancel
+  untouched pending rows after reconciling dependencies, preserving identities,
+  other row outcomes, review counters, and frozen history. Stage progression
+  requires fresh planning approval.
 - `memory-bank-init` runs an adaptive topology gate for an existing package. A
   broad boundary spanning several stable contexts, or one that cannot be
   evidenced reliably in a single initialization pass, must first use
