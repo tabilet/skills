@@ -49,6 +49,7 @@ Create or merge the approved project-specific content for:
 ```text
 AGENTS.md                        what an agent reads first
 tabilet/GOAL.md                  optional protocol for multi-milestone runs
+tabilet/stages.md                optional overview when multiple stages are approved
 tabilet/memory-bank/product.md           product, users, workflows, domain model, non-goals
 tabilet/memory-bank/architecture.md      layout, data flow, ownership, public contracts
 tabilet/memory-bank/tech-stack.md        stack, dependencies, harnesses, commands
@@ -63,6 +64,14 @@ tabilet/evolution/result-v1.md           current state, or next unused version
 Write only applicable sections. Remove optional template sections that do not
 apply instead of inventing behavior or writing `N/A`. Never leave bracketed
 placeholders.
+
+When stages are approved, follow the bundled
+[stage contract](stages.md) to create or merge `tabilet/stages.md`. A future
+stage may remain a preliminary idea. Record the current stage's ID in each
+relevant active milestone specification. An absent stages file means one
+implicit stage; do not add stage pointers to a project without that file.
+Do not copy every preliminary stage into Candidate Directions or require it to
+have a promotion trigger.
 
 Keep `AGENTS.md` short: what to read and in what order, essential commands,
 boundaries, hard rules, and work cadence. Point at the memory bank rather than
@@ -88,6 +97,8 @@ In `tabilet/memory-bank/milestone.md`:
 - state their dependency order, acceptance, and downstream relationships; and
 - place later work in an explicitly unnumbered `Candidate Directions` section
   with columns for direction, why it is deferred, and its promotion trigger.
+- when stages exist, reference each active milestone's stage by its stable ID
+  and keep future-stage sketches out of the active index.
 
 Include the automatic closure, consolidation, retirement, and retrieval contract
 below. Keep only active specifications and index rows in `milestone.md`; create
@@ -313,6 +324,9 @@ Before reporting completion, verify all of the following:
    every link resolves.
 5. Candidate directions have no lane letters, IDs, status files, or launch
    entries, and each has a reason and promotion trigger.
+   Provisional stages may have `STG-` IDs but no milestone or status IDs, task
+   rows, or launch entries. Every active milestone's stage ID resolves when
+   `tabilet/stages.md` exists.
 6. When `suggested.txt` exists, it maps every active ordered ID to exactly one
    existing status file; its order and impact map match the approved active
    graph. When it is omitted, no generated pointer tells the user to read it.

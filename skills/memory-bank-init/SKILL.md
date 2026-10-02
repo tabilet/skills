@@ -41,14 +41,17 @@ wherever this skill came from, and nothing will update it but them.
 ## Phase 1 - Grill
 
 Map the project as a **design tree**: decisions branch into the decisions that
-depend on them. Interview the user until every applicable branch is settled or
-explicitly deferred.
+depend on them. Settle decisions needed for the current delivery outcome;
+record preliminary later-stage ideas without interviewing them into a complete
+roadmap. Read [references/stages.md](references/stages.md) when the project has
+or may need stages.
 
 ### Gate broad existing packages
 
 Start with applicable agent instructions, the README, source layout, and any
 existing milestone or archive index. Use this cheap topology pass to identify
-the selected boundary before extensive discovery or interviewing. New projects
+the selected boundary before extensive discovery or interviewing. An existing
+`tabilet/stages.md` alone does not make a project initialized. New projects
 and existing packages whose selected boundary can be evidenced reliably in one
 initialization pass proceed normally.
 
@@ -87,6 +90,7 @@ behavior, and deployment files for operational assumptions. Reuse facts and
 decisions already present in the conversation. Inventory destination files such
 as `AGENTS.md`, `tabilet/GOAL.md`, `tabilet/evolution/`, current memory-bank files, and archives
 so the proposal can identify each create, merge, preserve, or omit action.
+Include `tabilet/stages.md` when it exists.
 
 Keep a working **evidence ledger** and work the **whole frontier** of the
 **design tree**. Read [references/discovery.md](references/discovery.md) when
@@ -126,13 +130,28 @@ separately; do not turn lanes into separate products merely because they share a
 repository.
 
 For a broad project, map the whole selected boundary breadth-first, then deepen
-the branches needed to define the next reliable delivery outcome. Later
-directions need a reason and a promotion trigger, not speculative task lists.
+the branches needed to define the next reliable delivery outcome. Optional
+Candidate Directions need a reason and a promotion trigger, not speculative
+task lists.
+
+Assess project size and planning uncertainty from the selected boundary and
+confirm that assessment with the user. For a medium or large project, ask at
+least one explicit staging question covering the first delivery outcome and any
+later-stage ideas the user already has. Reuse answers already supplied instead
+of repeating the question. Offer stages to a small project when its future is
+uncertain. A later stage can begin with only a tentative name and one-sentence
+intent; do not grill the user for its contracts, tasks, or acceptance. Suggest
+other useful context from available evidence and label assumptions provisional.
+If the user has no later-stage ideas, do not invent a stage count or force a
+`tabilet/stages.md` file.
+A preliminary stage is not automatically a Candidate Direction. Reserve that
+section for distinct optional directions with a known deferral reason and
+promotion trigger; a stage sketch need not have those fields.
 
 ### Complete the grill
 
-Do not defer a decision that defines scope, ownership, a public contract, or
-acceptance. A narrower unknown may become blocked work only when it has a named
+Do not defer a decision that defines the current outcome's scope, ownership, a
+public contract, or acceptance. A narrower current-stage unknown may become blocked work only when it has a named
 owner or source, missing input, impact, and unblock condition.
 
 The grill is complete when the frontier is empty and the evidence ledger can
@@ -140,7 +159,7 @@ populate every applicable output section without guessing. Present a structured
 confirmation covering the delivery boundary, users and workflows, domain model
 and business invariants, non-goals, current and target state, architecture and
 contracts, constraints, verification, active delivery outcome, later
-directions, and any blockers. Do not proceed until the user confirms the shared
+directions, any provisional stages, and current-stage blockers. Do not proceed until the user confirms the shared
 understanding.
 
 *(Interview technique adapted from the `grilling` skill in
@@ -157,7 +176,9 @@ Present the breakdown and file actions. **Write nothing to disk yet.**
 
 Define the **active horizon** as the smallest dependency-closed sequence of
 vertical milestones that reaches the next user-verifiable delivery outcome.
-Assign permanent status IDs only inside that horizon.
+Keep it within the current stage; it may cover less than the whole stage. Assign
+permanent status IDs only inside that horizon. An approved multi-stage overview
+is a distinct file action, not a reason to allocate future milestone IDs.
 
 Show:
 
@@ -169,9 +190,11 @@ Show:
 3. Every active milestone's goal, scope, acceptance evidence, dependencies,
    downstream impacts, and complete set of commit-sized rows.
 4. The execution order and exact status-file map.
-5. Later **candidate directions**, each unnumbered and carrying its reason for
+5. The current stage and any preliminary later stages; omit `tabilet/stages.md`
+   when a one-stage project has no use for it.
+6. Later **candidate directions**, each unnumbered and carrying its reason for
    deferral and promotion trigger.
-6. Every destination file action: create, merge, preserve, or omit.
+7. Every destination file action: create, merge, preserve, or omit.
 
 When an archive preflight exists, include the seeded product and architecture
 merge plus preservation of every verified archive in the file actions. Archive
@@ -191,6 +214,8 @@ Rules:
   it never refers to an interview question number.
 - Every indexed milestone gets one status file. A candidate direction gets no
   lane, ID, status file, or disposable launch entry.
+- A provisional stage gets a stable `STG-` ID but no status file, task row, or
+  disposable launch entry.
 - A promotion trigger causes a fresh approved proposal, not automatic scheduling.
   Allocate an ID only after the promoted breakdown is approved.
 

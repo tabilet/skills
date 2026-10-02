@@ -42,6 +42,40 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(ix.search(self.c,w,'feature',kind='task',offset=1)['results'],[])
         self.assertIn('tasks',ix.show(self.c,w,'tabilet/memory-bank/status-M01.md'))
 
+    def test_provisional_stages_are_searchable_without_execution_edges(self):
+        baseline=self.sync(); workspace=baseline['workspace_id']
+        ready_before=ix.readiness(self.c,workspace,self.root)['ready']
+        stages=self.root/'tabilet/stages.md'
+        stages.write_text(
+            '# Stages\n\n**Current stage.** STG-01\n\n'
+            '## STG-01\n\n**Name.** First delivery\n'
+            '**Intent.** Verify the core workflow.\n\n'
+            '## STG-02\n\n**Name.** Tentative expansion\n'
+            '**Intent.** Consider exports later.\n'
+            '**Dependencies.** M01 is a possible prerequisite, not an approved plan.\n'
+        )
+        original=stages.read_bytes()
+        self.sync()
+        self.assertEqual(stages.read_bytes(),original)
+        row=self.c.execute(
+            "SELECT kind, text FROM index_documents WHERE path='tabilet/stages.md'"
+        ).fetchone()
+        self.assertEqual(row[0],'stages')
+        self.assertIn('Consider exports later',row[1])
+        matches=ix.search(self.c,workspace,'Tentative expansion',kind='stages')['results']
+        self.assertEqual(len(matches),1)
+        self.assertEqual(matches[0]['path'],'tabilet/stages.md')
+        self.assertEqual(self.c.execute(
+            "SELECT COUNT(*) FROM index_sections WHERE path='tabilet/stages.md'"
+        ).fetchone()[0],3)
+        self.assertEqual(self.c.execute(
+            "SELECT COUNT(*) FROM index_relationships WHERE path='tabilet/stages.md'"
+        ).fetchone()[0],0)
+        self.assertEqual(self.c.execute(
+            "SELECT COUNT(*) FROM index_tasks WHERE path='tabilet/stages.md'"
+        ).fetchone()[0],0)
+        self.assertEqual(ix.readiness(self.c,workspace,self.root)['ready'],ready_before)
+
     def test_malformed_fts_query_falls_back_to_literal(self):
         state=self.sync()
         for term in ('"', 'feature:', 'feature AND ('):

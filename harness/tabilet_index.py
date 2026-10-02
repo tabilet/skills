@@ -59,6 +59,7 @@ def inventory(root):
     found = {}
     fixed = {
         'tabilet/GOAL.md':'goal_protocol',
+        'tabilet/stages.md':'stages',
         **{f'tabilet/memory-bank/{name}.md':name for name in ('product','architecture','tech-stack','lessons','milestone')},
         'tabilet/docs/history/index.md':'history_index',
         'tabilet/docs/history/knowledge.md':'knowledge_history',
@@ -197,6 +198,10 @@ def parse_document(path,kind,text,digest):
     for section in parsed['index_sections']:
         match = re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)', section['heading'])
         parsed['index_search'].append(dict(line=section['line'],kind='section',milestone_id=match[1] if match else None,state=None,text=section['text']))
+    if kind == 'stages':
+        # Stages describe future intent. Their prose cannot create executable
+        # milestone dependencies or task-readiness edges.
+        return parsed
     identity=None
     status=text
     offset=0

@@ -149,6 +149,15 @@ test('DSH slash injection keeps explicit request text separate from the complete
   const loaded = await tool.execute({ name: 'memory-bank-goal' }, { agent, signal });
   assert.equal(result.messages[1].content[0].text, renderSkillContent(loaded));
   assert.ok(!loaded.content.includes('$ARGUMENTS'));
+  const stageRequest = '/memory-bank-propose --stage STG-02 Develop this idea further.';
+  const stageMessages = [{ role: 'user', source: { kind: 'user' },
+    content: [{ type: 'text', text: stageRequest }] }];
+  const stageResult = await handlers[0]({ agent, messages: stageMessages, signal },
+    async () => ({ kind: 'continue', messages: stageMessages }));
+  assert.equal(stageResult.messages[0].content[0].text, stageRequest);
+  assert.equal(stageResult.messages[1].source.name, 'memory-bank-propose');
+  const proposal = await tool.execute({ name: 'memory-bank-propose' }, { agent, signal });
+  assert.ok(proposal.content.includes('references/stages.md'));
 });
 
 test('repeat install, backed-up update, and removal preserve unrelated content', async t => {

@@ -14,6 +14,7 @@ workflow automatically.
 | An initialized project with one ready task | [next](next.md) |
 | Several approved milestones to run in order | [goal](goal.md) |
 | An initialized project needs a requested feature or candidate promotion | [propose](propose.md) → approved planning changes → separately requested execution |
+| Later delivery is uncertain | [init](init.md) may record preliminary stages → [propose](propose.md) enriches one later |
 | A new engineering review arrives | [reconcile](reconcile.md) → approved planning changes → separately requested execution |
 | An existing project needs updated workflow rules | [upgrade](upgrade.md) → approved rule merges → separately requested execution |
 | The current milestone becomes ready to close | Its execution workflow performs review and closure, including retirement when the project has adopted that lifecycle. No archive invocation. |
@@ -69,6 +70,13 @@ you are ready to authorize an explicit milestone order and commit policy.
 Initialization itself never starts implementation.
 
 ## An existing codebase
+
+If you know the first delivery but have only vague ideas about later work, tell
+Init that. It can create `STG-01` for the current stage and a short `STG-02`
+idea in optional `tabilet/stages.md`. The first stage's next verifiable outcome
+gets milestones; the later idea does not receive executable rows. When you have
+more evidence, request `/memory-bank-propose --stage STG-02 Develop this idea
+further.` and later request its milestone plan explicitly.
 
 The repository already contains years of decisions spread across source, tests,
 manifests, CI, and documents written at different moments. Some agree; some are

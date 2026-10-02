@@ -79,6 +79,9 @@ and history. Show the complete proposed file changes before writing.
 任务状态、永久标识符、本地策略、评审计数器、自定义 goal 协议、已完成的证据，以及冻结
 历史。已经兼容的项目一处都不用改。
 
+Upgrade 可以采用可选的阶段规则，而不创建阶段文件或移动现有工作。想引入阶段，或者撤回
+已获批的待处理任务以便以后重新规划，请用 [Propose](propose.md)。
+
 ## 升级不是什么
 
 升级采用的是一套**运行规则**。它不会顺手帮你初始化项目、实现工作、提交或退役里程碑。

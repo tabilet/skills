@@ -30,6 +30,12 @@ the review says to do so.
 
 Three phases: **assess**, **propose**, **write**. Write no file until phase 3.
 
+When `tabilet/stages.md` exists, use its current stage and provisional later
+ideas as planning context. A review still follows the existing severity and
+dependency rules; it does not automatically promote a future stage or withdraw
+approved pending work. Route a user-requested stage restructure to
+`memory-bank-propose`.
+
 Resolve missing information through safe inspection first. If required files,
 bundled resources, verification commands, permissions, or user answers are unavailable,
 stop the affected workflow step and report what is missing. Continue independent

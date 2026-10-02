@@ -11,6 +11,18 @@
 | Codex plugin | `$memory-bank:memory-bank-propose <requested outcome or candidate direction>` |
 | DSH | `/memory-bank-propose <requested outcome or candidate direction>` |
 
+要规划阶段，可用 `--stages` 提议整体概览，或用 `--stage STG-02` 指定已有阶段。这些是技能
+请求中的词语，不是 shell 参数。用自然语言明确提到 `tabilet/stages.md` 或阶段 ID 也可以。例如：
+
+```text
+/memory-bank-propose --stages Divide this project into stages.
+/memory-bank-propose --stage STG-02 Develop this idea further.
+/memory-bank-propose --stage STG-02 Plan its next milestones.
+```
+
+后续阶段可以先只有暂定名称和简短意图。补充背景不会安排里程碑；改名称或顺序也不会改 ID。
+已初始化的项目不需要重做 Init 就能采用阶段。默认把已获批的活跃工作归入当前阶段。
+
 ## 会发生什么
 
 Propose 会去读项目里相关的记忆库、代码、测试、待处理工作、候选方向和已退役的 ID。它把哪些是你
@@ -25,6 +37,10 @@ Propose 会去读项目里相关的记忆库、代码、测试、待处理工作
 批准之后，Propose 会再查一遍受影响的文件、工作区改动和活跃、已退役的 ID，然后只落已批准的
 规划改动。出现重大变化或 ID 冲突，就得改一版方案再来。当前各行的结果、计数器、本地策略和
 冻结历史都保持不动。计划中的行为一直留在里程碑和状态记录里，直到实现把它变成当前事实。
+
+要推迟已获批的待处理工作，需要明确提出阶段范围调整。Propose 会列出准备取消的原始待处理
+行、目标阶段以及受影响的依赖。批准后，这些行标为 `[X]`，保留原有身份和撤回原因。今后重新
+规划时要给替代工作新的身份；取消不代表交付。正在进行的工作需要另行处理。
 
 方向发生重大变化时，可能按项目现有的触发条件新增一对 `tabilet/evolution/` 文件。如果已经有一份
 兼容且已批准的 `tabilet/GOAL.md`，也可能顺带刷新 `tabilet/memory-bank/suggested.txt` 这份启动

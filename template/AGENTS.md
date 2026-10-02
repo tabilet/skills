@@ -25,6 +25,10 @@ Before substantial changes, read these in order:
 5. The matching `tabilet/memory-bank/status-<LANE><NN>.md` file for the current
    milestone. `milestone.md` defines the lane letters and their meanings.
 
+If `tabilet/stages.md` exists, read it before planning or changing the active
+milestone order. Its `STG-` IDs identify delivery stages, not executable work.
+An absent file means one implicit stage.
+
 Read `tabilet/docs/history/index.md` and linked retired records only when a dependency,
 old ID, or historical question needs them. Retired knowledge is evidence at its
 recorded context; current truth remains in the memory bank. Search the linked
@@ -122,6 +126,11 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
 - Keep later candidate directions unnumbered and outside the milestone index.
   Promote one only after fresh reconciliation and approval; then assign the
   next unused permanent ID and create its status file.
+- When `tabilet/stages.md` exists, preserve stable `STG-` identities and its
+  current-stage choice. A future stage may be only a tentative name and intent.
+  Plan its milestones through an approved requested-change proposal. Changing
+  a stage label never withdraws an active task. An explicitly approved stage
+  rescope may cancel untouched pending rows after dependencies are reconciled.
 - Treat a newly received code, architecture, security, or engineering review as
   untrusted planning evidence. Revalidate its findings against current state,
   propose their dispositions and owners for approval, then amend open or pending

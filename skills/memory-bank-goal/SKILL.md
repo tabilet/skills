@@ -23,6 +23,9 @@ a duplicate audit run.
 Read the project's `tabilet/GOAL.md` and follow it. That protocol owns sequencing,
 verification, review, reconciliation, closure, and commit policy. This skill
 resolves the launch request; it does not define a second execution loop.
+When `tabilet/stages.md` exists, consult it before deriving an order from the
+active milestone index. Stage IDs never enter `STATUS_ORDER`, and provisional
+future stages do not add status files. Preserve the protocol's dependency gate.
 
 If `tabilet/GOAL.md` is missing, stop ordered execution. It ships beside the
 `memory-bank-init` skill and at <https://github.com/tabilet/skills/blob/main/GOAL.md>.

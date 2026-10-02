@@ -1775,6 +1775,40 @@ def propose_contract():
         problems.append("AGENTS.md lacks Propose boundary")
     return problems
 
+
+@check("optional stages preserve one-stage and executable-ledger boundaries")
+def stage_contract():
+    problems = []
+    references = [SKILLS_DIR / f"memory-bank-{name}/references/stages.md"
+                  for name in ("init", "propose")]
+    if not all(path.is_file() for path in references):
+        return ["Init and Propose need complete bundle-local stage references"]
+    if references[0].read_bytes() != references[1].read_bytes():
+        problems.append("Init and Propose stage references differ")
+    source = references[0].read_text()
+    for token in ("one implicit stage", "STG-01", "tentative name",
+                  "future stage ideas have none", "stage label alone never defers"):
+        if token not in source:
+            problems.append(f"stage reference lacks {token!r}")
+    if (ROOT / "template/tabilet/stages.md").exists():
+        problems.append("the default template must not create optional stages")
+    for path in (INIT_SKILL, PROPOSE_SKILL):
+        if "references/stages.md" not in path.read_text():
+            problems.append(f"{path.relative_to(ROOT)} does not load its stage contract")
+    init = INIT_SKILL.read_text()
+    propose = PROPOSE_SKILL.read_text()
+    if "do not grill the user" not in init or "current stage" not in init:
+        problems.append("Init must accept preliminary later stages")
+    for token in ("--stages", "--stage STG-01", "untouched pending", "`[X]`"):
+        if token not in propose:
+            problems.append(f"Propose lacks stage selector or approved rescope {token!r}")
+    index = (ROOT / "harness/tabilet_index.py").read_text()
+    if "'tabilet/stages.md':'stages'" not in index or "if kind == 'stages':" not in index:
+        problems.append("SQLite source inventory must index stages without execution edges")
+    if "tabilet/stages.md" not in (ROOT / "AGENTS.md").read_text():
+        problems.append("repository policy lacks the optional stage rule")
+    return problems
+
 @check("planning contracts load before proposals and optional goal help stays bundled")
 def skill_resource_contract():
     problems = []

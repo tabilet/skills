@@ -3,7 +3,7 @@
 ## Authority and scope
 
 Markdown remains authoritative for active milestones, tasks, retired history,
-knowledge history, evolution, and optional context archives. SQLite contains
+knowledge history, evolution, optional stages, and optional context archives. SQLite contains
 an opt-in durable audit and a disposable current-source index. It never selects
 or authorizes a task, changes a marker, or replaces milestone acceptance.
 
@@ -136,7 +136,9 @@ proposal as proof of a file write.
 
 Index only declared v2 Markdown under `tabilet/`: current memory-bank documents,
 active statuses, retired records/indexes, knowledge history, evolution pairs,
-and optional archives. Do not traverse arbitrary project docs, caches, or vendor
+optional `tabilet/stages.md`, and optional archives. A stage is searchable text
+and sections; its tentative dependencies do not create executable task edges.
+Do not traverse arbitrary project docs, caches, or vendor
 folders. Read bounded UTF-8 files without symlink traversal and confirm stable
 metadata before and after reading. Reconcile the full inventory on each refresh,
 including deletion, retirement, and branch changes; reuse parsing only for matching
