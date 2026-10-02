@@ -238,9 +238,10 @@ def _validate_horizon(receipt: dict) -> tuple[list[dict], set[str]]:
         for task in milestone["tasks"]:
             if not isinstance(task, dict) or not isinstance(task.get("id"), str):
                 raise _UnresolvedDependency("receipt contains a malformed approved task row")
-            if task["id"] in task_ids:
+            task_key = (identity, task["id"])
+            if task_key in task_ids:
                 raise _UnresolvedDependency("receipt contains duplicate approved task IDs")
-            task_ids.add(task["id"])
+            task_ids.add(task_key)
             if not isinstance(task.get("approved_paths"), list) or not isinstance(task.get("verification"), list):
                 raise _UnresolvedDependency(f"approved task {task['id']} lacks paths or required checks")
             if f"tabilet/memory-bank/status-{identity}.md" not in task["approved_paths"]:
@@ -404,13 +405,18 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
             })
             continue
         approved_task_records = milestone["tasks"]
-        in_scope_ids = {task["id"] for task in approved_task_records}
         milestone_rows = [row for row in live["rows"] if row["milestone_id"] == identity and row["lifecycle"] == "active"]
-        for task_id in in_scope_ids:
+        tasks_by_row = {}
+        for task in approved_task_records:
+            task_id = task["id"]
             matches = [row for row in milestone_rows if row["task_id"] == task_id or row["label"] == task_id]
             if len(matches) != 1:
                 raise _UnresolvedDependency(f"approved task row {identity}/{task_id} is missing or ambiguous")
-        in_scope = [row for row in milestone_rows if row["task_id"] in in_scope_ids or row["label"] in in_scope_ids]
+            row_key = matches[0]["key"]
+            if row_key in tasks_by_row:
+                raise _UnresolvedDependency(f"approved task row {identity}/{task_id} is ambiguous")
+            tasks_by_row[row_key] = task
+        in_scope = [row for row in milestone_rows if row["key"] in tasks_by_row]
         if any(
             row["state"] in {"pending", "in_progress", "blocked"}
             for row in milestone_rows if row not in in_scope
@@ -437,7 +443,7 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
         if dependency_waiting:
             continue
 
-        if in_progress and in_progress[0]["task_id"] not in in_scope_ids:
+        if in_progress and in_progress[0]["key"] not in tasks_by_row:
             raise _UnresolvedDependency(
                 f"in-progress row {in_progress[0]['milestone_id']}/{in_progress[0]['task_id']} is outside the approved task rows"
             )
@@ -463,14 +469,14 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
             ready, reason = _row_ready(index, row, live, horizon_ids, approved_task_ids)
             if not ready:
                 raise _UnresolvedDependency(reason or "in-progress row dependency is not ready")
-            task = next(task for task in approved_task_records if task["id"] == row["task_id"])
+            task = tasks_by_row[row["key"]]
             return {"status": "row", "row": row, "task": task, "milestone": milestone, "live": live, "resumed": True}
 
         pending = [row for row in in_scope if row["state"] == "pending"]
         for row in pending:
             ready, reason = _row_ready(index, row, live, horizon_ids, approved_task_ids)
             if ready:
-                task = next(task for task in approved_task_records if task["id"] == row["task_id"])
+                task = tasks_by_row[row["key"]]
                 return {"status": "row", "row": row, "task": task, "milestone": milestone, "live": live, "resumed": False}
             # Another earlier dependency may be selected in the same horizon.
             if reason:

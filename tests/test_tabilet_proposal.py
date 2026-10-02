@@ -569,6 +569,26 @@ class ProposalTests(unittest.TestCase):
                 receipt_store=self.store, input_fn=lambda _prompt: "stop", output_fn=lambda _text: None,
             )
 
+    def test_task_ids_are_scoped_to_each_milestone(self):
+        plan = json.loads(json.dumps(self.plan))
+        first = plan["horizon"][0]
+        first["tasks"][0]["id"] = "T01"
+        second = json.loads(json.dumps(first))
+        second["id"] = "M02"
+        second["closure_paths"] = [
+            "tabilet/memory-bank/milestone.md",
+            "tabilet/memory-bank/status-M02.md",
+        ]
+        second["tasks"][0]["approved_paths"] = [
+            "src/second.py", "tabilet/memory-bank/status-M02.md",
+        ]
+        plan["horizon"].append(second)
+        plan["planned_commits"] = 3
+        validated = proposal_api.validate_proposal(plan)
+        self.assertEqual(["T01", "T01"], [
+            milestone["tasks"][0]["id"] for milestone in validated["horizon"]
+        ])
+
     def test_receipt_creation_is_exclusive_private_and_atomic_updates_stay_private(self):
         store = proposal_api.ReceiptStore(self.receipt_dir)
         receipt = {"schema": proposal_api.RECEIPT_SCHEMA, "receipt_id": "11111111-1111-4111-8111-111111111111"}

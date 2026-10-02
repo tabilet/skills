@@ -168,9 +168,10 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
                 raise ProposalError(f"tasks in {identifier} must be objects")
             for name in ("id", "owner", "description"):
                 _required_text(task.get(name), f"task {name}", 1000)
-            if task["id"] in task_ids:
-                raise ProposalError(f"duplicate task row ID in horizon: {task['id']}")
-            task_ids.add(task["id"])
+            task_key = (identifier, task["id"])
+            if task_key in task_ids:
+                raise ProposalError(f"duplicate task row ID in horizon: {identifier}/{task['id']}")
+            task_ids.add(task_key)
             acceptance = task.get("acceptance")
             if isinstance(acceptance, str):
                 _required_text(acceptance, "task acceptance", 8000)

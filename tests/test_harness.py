@@ -753,6 +753,27 @@ class ProjectLockTests(unittest.TestCase):
         self.assertIn("already holds the project lock", proc.stderr)
         self.assertEqual(api.requests, [])
 
+    def test_controller_lock_setup_failure_exits_26(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            operation = mock.Mock()
+            with mock.patch.dict(os.environ, {"XDG_STATE_HOME": "relative-state"}):
+                with self.assertRaises(SystemExit) as stopped:
+                    controller.run_with_project_lock(harness, repo, operation)
+            self.assertEqual(26, stopped.exception.code)
+            operation.assert_not_called()
+
+            state_home = pathlib.Path(tmp) / "state"
+            with mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(state_home)}):
+                with harness.project_lock(repo) as lock_path:
+                    pass
+                lock_path.unlink()
+                lock_path.mkdir()
+                with self.assertRaises(SystemExit) as stopped:
+                    controller.run_with_project_lock(harness, repo, operation)
+            self.assertEqual(26, stopped.exception.code)
+            operation.assert_not_called()
+
 
 class HarnessIntegrationTests(unittest.TestCase):
     def test_invalid_active_state_stops_before_api_or_completion(self) -> None:

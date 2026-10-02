@@ -99,6 +99,35 @@ class HorizonSelectionTests(unittest.TestCase):
         self.assertTrue(selected["resumed"])
         self.assertEqual("T02", selected["row"]["task_id"])
 
+    def test_approved_label_resolves_row_with_a_separate_explicit_id(self):
+        status = self.project / "tabilet/memory-bank/status-M01.md"
+        for state in ("`[ ]`", "`[~]`"):
+            with self.subTest(state=state):
+                status.write_text(
+                    "# Status\n\n| Item | State | ID | Notes |\n|---|---|---|---|\n"
+                    f"| Implement feature | {state} | T01 | Ready. |\n",
+                    encoding="utf-8",
+                )
+                receipt = self.receipt(tasks={"M01": ["Implement feature"]})
+                if state == "`[~]`":
+                    receipt["usage"] = {"rows_started_ids": ["M01/T01"]}
+                selected = horizon.select_next_row(core, self.project, receipt)
+                self.assertEqual("row", selected["status"])
+                self.assertEqual("T01", selected["row"]["task_id"])
+                self.assertEqual("Implement feature", selected["task"]["id"])
+                self.assertEqual(state == "`[~]`", selected["resumed"])
+
+    def test_reused_task_id_across_milestones_is_valid_in_receipt(self):
+        self.set_project([
+            ("M01", [("T01", "`[ ]`", "First milestone.")]),
+            ("M02", [("T01", "`[ ]`", "Second milestone.")]),
+        ])
+        selected = horizon.select_next_row(
+            core, self.project,
+            self.receipt(ids=("M01", "M02"), tasks={"M01": ["T01"], "M02": ["T01"]}),
+        )
+        self.assertEqual(("M01", "T01"), (selected["row"]["milestone_id"], selected["row"]["task_id"]))
+
     def test_in_scope_in_progress_row_without_receipt_provenance_needs_review(self):
         self.set_project([("M01", [("T01", "`[~]`", "Unproven in-progress row.")])])
         with self.assertRaisesRegex(horizon.HorizonError, "no receipt provenance"):

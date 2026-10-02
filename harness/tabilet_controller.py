@@ -688,3 +688,7 @@ def run_with_project_lock(core, repo: pathlib.Path, operation, *args, **kwargs):
             f"finish before starting a second run ({exc}).",
             19,
         )
+    except Exception as exc:
+        if isinstance(exc, getattr(core, "ProjectLockError", ())):
+            core.fail(str(exc), 26)
+        raise
