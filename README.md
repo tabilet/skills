@@ -21,6 +21,11 @@ Seven optional skills can do the mapping, copying, and filling for you; see
 yours from the moment they appear. You and your agent maintain them during
 authorized work; installing or updating the plugin does not migrate them.
 
+For a project with uncertain later delivery, the optional
+[`tabilet/stages.md`](#stage-planning) records broad stages. Init plans milestones
+for the current stage and can leave later stages as brief ideas. Without that
+file, the project has one implicit stage.
+
 [Release notes](docs/RELEASE_NOTES.md) include the v2 project layout and
 the explicit v1.5.0 migration.
 The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the published guides, with a [Simplified Chinese mirror](https://tabilet.github.io/skills/zh/).
@@ -284,6 +289,9 @@ If you installed [the seven skills](#install-the-seven-skills),
 lanes and milestones, waits for your approval, and then writes the files already
 filled in. The two routes below are the same work done by hand.
 
+For a medium or large project, Init asks about stages without requiring a
+detailed plan for distant work.
+
 ### Manual
 
 From a new project root:
@@ -308,6 +316,11 @@ Then edit the copied files in this order:
 6. `tabilet/evolution/prompt-v1.md`: record the initial direction.
 7. `tabilet/evolution/result-v1.md`: record the current starting state.
 8. `AGENTS.md`: replace placeholders with project-specific commands and rules.
+
+If the project needs multiple delivery stages, create `tabilet/stages.md` with
+a current `STG-` ID and brief entries for later stages, then associate the first
+milestones with the current stage. Leave the file absent for a one-stage project;
+see [Stage Planning](#stage-planning).
 
 Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
 
@@ -480,8 +493,10 @@ For a project with uncertain later work, Init can create an optional
 `tabilet/stages.md`. It plans milestones for the current stage's next verifiable
 outcome; later stages can begin as a tentative name and one-sentence idea.
 `STG-01` identifies a stage independently of milestone IDs such as `M01`.
-Without this file, the existing one-stage workflow applies. See the
-[Init guide](docs/init.md) for the staging question and output.
+The file names the current stage with `**Current stage.** STG-01`; later entries
+have their own stable IDs. A stage description does not create a task or advance
+the active milestone plan. Without this file, the existing one-stage workflow
+applies. The [Init guide](docs/init.md) describes the staging question and output.
 
 ## Propose A Requested Change
 
