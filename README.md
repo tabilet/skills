@@ -31,6 +31,7 @@ The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the pub
 - [What is in this repository](#what-is-in-this-repository)
 - [Filled-in example and memory-bank structure](#what-a-filled-in-memory-bank-looks-like)
 - [Set up a new project](#set-up-a-new-project) or [existing project](#set-up-an-existing-project)
+- [Stage planning](#stage-planning)
 - [Propose a change](#propose-a-requested-change) or [reconcile a review](#reconcile-a-new-review)
 - [Use the memory bank](#use-the-memory-bank)
 - [Install the seven skills](#install-the-seven-skills)
@@ -48,6 +49,7 @@ your-project/
 ├── docs/                     other project documentation
 └── tabilet/
     ├── GOAL.md               optional multi-milestone protocol
+    ├── stages.md             optional overview of delivery stages
     ├── memory-bank/           current facts and active work
     │   ├── product.md         product scope, domain model, and non-goals
     │   ├── architecture.md    layout, data flow, boundaries
@@ -472,7 +474,7 @@ The agent should:
 6. Leave unresolved gaps as pending or blocked rows in the matching
    `tabilet/memory-bank/status-<LANE><NN>.md` file.
 
-## Propose A Requested Change
+## Stage Planning
 
 For a project with uncertain later work, Init can create an optional
 `tabilet/stages.md`. It plans milestones for the current stage's next verifiable
@@ -480,6 +482,8 @@ outcome; later stages can begin as a tentative name and one-sentence idea.
 `STG-01` identifies a stage independently of milestone IDs such as `M01`.
 Without this file, the existing one-stage workflow applies. See the
 [Init guide](docs/init.md) for the staging question and output.
+
+## Propose A Requested Change
 
 When an initialized project needs a new feature, candidate promotion, or change
 to future direction, use `memory-bank-propose`. It inspects current records and
