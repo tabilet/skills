@@ -14,7 +14,7 @@ request preparation. Both use the same project files; there is no second ledger.
 
 ## Install the DSH companion
 
-The companion's v2.3.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
+The companion's v2.4.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
 with a locked dependency graph. An isolated rc.1 launcher with rc.2 components
 is a separate acceptance target. The all-rc.1 tests and v1.3.0 live evidence in
 this guide remain scoped to their original configuration.
@@ -27,7 +27,7 @@ the prebuilt GitHub archive in each profile where it is wanted. For Web:
 
 ```bash
 dsh plugin --profile web add \
-  https://github.com/tabilet/tabilet-skills/releases/download/v2.3.0/tabilet-skills-2.3.0.tgz \
+  https://github.com/tabilet/tabilet-skills/releases/download/v2.4.0/tabilet-skills-2.4.0.tgz \
   --ignore-scripts
 ```
 
@@ -51,10 +51,11 @@ counters remain separate from task-marker counts; terminal rows do not prove
 milestone acceptance. Documents render as literal text without active HTML or
 automatic external resources.
 
-The v2.3.0 shortcuts preview requests for seven skills. Propose has one
+The v2.4.0 shortcuts preview requests for seven skills. Propose has one
 required multiline change field and an optional stage focus for `--stages` or
-one stable `STG-` ID. The sidebar shows optional stage direction and SQLite
-setup guidance without opening the audit database. Goal requires explicit
+one stable `STG-` ID. The sidebar shows optional stage direction and browses
+the selected project's external SQLite database read-only when available.
+It links to the separately installed local Explorer. Goal requires explicit
 milestone order, completion conditions, and commit policy; its visible default is `task`
 and requests include `EXTERNAL_MUTATIONS: none`. Reconcile treats a review path
 or URL as request text and preserves its separate remote-fetch confirmation.
@@ -85,7 +86,7 @@ for the observed results and remaining limitations. SDK, ACP, minimal profiles,
 other platforms, and older releases are not certified here.
 
 DSH integration is included in **memory-bank v1.3.0**. Use a v1.3.0-or-newer
-checkout containing this guide. Use the v2.3.0 tag for a reproducible seven-skill
+checkout containing this guide. Use the v2.4.0 tag for a reproducible seven-skill
 installation. See the [release notes](RELEASE_NOTES.md) for upgrade
 guidance and the [project-upgrade procedure](../README.md#upgrade-an-existing-project).
 Updating installed skills does not migrate existing `AGENTS.md`,
@@ -111,7 +112,7 @@ DSH does not consume this repository's plugin manifest.
 
 ## Install the seven bundles
 
-These source-checkout commands target the v2.3.0 tree with seven skills.
+These source-checkout commands target the v2.4.0 tree with seven skills.
 
 The primary destination is `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`.
 Set `MEMORY_BANK_CHECKOUT` to the absolute release checkout path. Run the

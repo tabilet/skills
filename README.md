@@ -999,7 +999,7 @@ milestones](#run-an-ordered-set-of-milestones).
 ### DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
-packages the seven v2.3.0 skills and adds a native
+packages the seven v2.4.0 skills and adds a native
 Memory Bank sidebar with task, memory, acceptance, stage, history, and SQLite
 guidance views. It prepares workflow requests for
 your conversation; the user reviews and sends them. It makes no model calls or
@@ -1029,7 +1029,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.3.0` tag. A marketplace install or
+For a reproducible installation, use the `v2.4.0` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke

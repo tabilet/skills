@@ -1,3 +1,17 @@
+# memory-bank v2.4.0
+
+v2.4.0 keeps the seven skills, project format, and optional controller from
+v2.3.0. The optional SQLite index now reads frozen retirement records headed
+`## Full status document` as well as the older `## Status` heading. This
+normalization happens only while indexing: frozen Markdown keeps its original
+bytes and line numbers, and the execution runner's retirement validation stays
+strict. The bundled skills remain compatible with v2.3.0 projects; no project
+migration or database schema change is needed.
+
+The DSH companion v2.4.0 pins this release and adds read-only browsing of the
+selected project's external SQLite audit and Markdown index in its sidebar.
+Explorer installation and automatic API-runner auditing remain separate options.
+
 # memory-bank v2.3.0
 
 v2.3.0 combines optional stage-aware planning with the Tabilet API controller
