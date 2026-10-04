@@ -129,6 +129,8 @@ class IndexTests(unittest.TestCase):
             ('````', '## Status record', ''), ('~~~~', '## Status record', ''),
             ('````', '## Status', ''), ('~~~~', '## Status', ''),
             ('````', '## Status', 'markdown'), ('~~~~', '## Status', 'markdown'),
+            ('````', '## Full status document', ''),
+            ('~~~~', '## Full status document', 'markdown'),
         )
         for fence, heading, label in variants:
             with self.subTest(fence=fence, heading=heading, label=label):
@@ -148,7 +150,8 @@ class IndexTests(unittest.TestCase):
                                  ix.parser().retired_record(canonical, 'status-M01.md')['specification'])
         retired = h.retire_fixture(self.root)
         retired.write_text(canonical.replace('\n`````markdown\n', '\n`````\n')
-                          .replace('\n`````\n\n## Status record\n', '\n`````\n\n## Status\n'))
+                          .replace('\n`````\n\n## Status record\n',
+                                   '\n`````\n\n## Full status document\n'))
         before = self.hashes()
         state = self.sync()
         self.assertTrue(state['complete'])
@@ -171,6 +174,8 @@ class IndexTests(unittest.TestCase):
             valid.replace('`````\n# Status', '`````python\n# Status'),
             valid.rsplit('`````', 1)[0],
             valid.replace('| Implement feature', '`````\n| Implement feature'),
+            valid.replace('## Status\n', '## Full status document\n')
+                 .replace('**Review.** passed', '**Review.** failed'),
         )
         for text in bad_records:
             with self.subTest(text=text[:40]):

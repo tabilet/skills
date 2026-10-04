@@ -160,9 +160,10 @@ def external_milestone_links(text, source_path):
 def retired_record_for_index(text, name):
     """Read older literal envelopes without rewriting frozen source records.
 
-    Only the historical Status heading and unlabelled outer fences are
-    normalized in memory. The runner still validates metadata, literal fence
-    boundaries and closed task rows; execution keeps its canonical-only parser.
+    Only historical Status or Full status document headings and unlabelled
+    outer fences are normalized in memory. The runner still validates metadata,
+    literal fence boundaries and closed task rows; execution keeps its
+    canonical-only parser.
     Normalization preserves line numbers and the literal documents' bytes.
     """
     p = parser()
@@ -171,10 +172,11 @@ def retired_record_for_index(text, name):
                 if value.startswith('## ')]
     if [value for _, value in sections] in (
             ['## Milestone specification', '## Status record'],
-            ['## Milestone specification', '## Status']):
+            ['## Milestone specification', '## Status'],
+            ['## Milestone specification', '## Full status document']):
         for n, value in sections:
-            if value == '## Status':
-                lines[n - 1] = lines[n - 1].replace('## Status', '## Status record', 1)
+            if value in ('## Status', '## Full status document'):
+                lines[n - 1] = lines[n - 1].replace(value, '## Status record', 1)
             opening = next((i for i in range(n, len(lines)) if lines[i].strip()), None)
             if opening is not None:
                 fence = lines[opening].strip()

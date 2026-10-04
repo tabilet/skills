@@ -272,8 +272,9 @@ Older audit toolkit installations may report
 `expected one fenced markdown document` or
 `expected Milestone specification and Status record sections` when indexing
 frozen retirement records. The affected historical formats use unlabelled outer
-code fences or `## Status` instead of `## Status record`. Current canonical
-retirement records do not need this compatibility handling.
+code fences, `## Status`, or `## Full status document` instead of
+`## Status record`. Current canonical retirement records do not need this
+compatibility handling.
 
 Update your `skills` checkout to a revision containing the retirement-index
 compatibility fix. If the checkout is clean and tracks `origin/main`, use
