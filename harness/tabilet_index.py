@@ -25,6 +25,8 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 1
+INDEX_PROJECTION = 'v4'
+EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
 @functools.lru_cache(maxsize=1)
@@ -155,6 +157,70 @@ def external_milestone_links(text, source_path):
             found.setdefault(match[1],set()).add(parts[-5])
     return {identity:next(iter(packages)) for identity,packages in found.items()
             if len(packages)==1}
+
+
+def external_dependencies(value):
+    """Validate explicit, hash-bound historical lookup corrections."""
+    if (not isinstance(value,dict) or set(value)!={'schema','references'}
+            or value['schema']!=EXTERNAL_DEPENDENCIES_SCHEMA
+            or not isinstance(value['references'],list) or len(value['references'])>10000):
+        raise AuditError('invalid external dependencies: expected schema and bounded references list')
+    seen=set()
+    for reference in value['references']:
+        if not isinstance(reference,dict) or set(reference)!={'source_path','source_sha256','dependency_id','package'}:
+            raise AuditError('invalid external dependency reference fields')
+        path=reference['source_path'];digest=reference['source_sha256']
+        target=reference['dependency_id'];package=reference['package']
+        if (not isinstance(path,str)
+                or not re.fullmatch(r'tabilet/docs/history/status-[A-Z](?:0[1-9]|[1-9][0-9])\.md',path)
+                or not isinstance(digest,str) or not re.fullmatch(r'[0-9a-f]{64}',digest)
+                or not isinstance(target,str) or not STATUS.fullmatch(f'status-{target}.md')
+                or not isinstance(package,str) or len(package)>128
+                or not re.fullmatch(r'[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*',package)):
+            raise AuditError('invalid external dependency path, hash, milestone ID or package')
+        key=(path,target)
+        if key in seen:
+            raise AuditError('duplicate external dependency reference')
+        seen.add(key)
+    return value
+
+
+def read_external_dependencies(path):
+    descriptor=os.open(pathlib.Path(path).expanduser(),os.O_RDONLY | getattr(os,'O_NOFOLLOW',0) | getattr(os,'O_NONBLOCK',0))
+    with os.fdopen(descriptor,'rb') as source:
+        if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+            raise AuditError('external dependencies must be a bounded regular JSON file')
+        data=source.read(MAX_BYTES+1)
+    if len(data)>MAX_BYTES:
+        raise AuditError('external dependencies file exceeds index input limit')
+    return external_dependencies(strict_json_loads(data))
+
+
+def apply_external_dependencies(documents, parsed, mapping):
+    """Change only derived retired-record edges, never acceptance or sources."""
+    diagnostics=[]
+    for reference in mapping['references']:
+        path=reference['source_path'];doc=documents.get(path)
+        if (not doc or doc['kind']!='history_status'
+                or doc['sha256']!=reference['source_sha256']):
+            diagnostics.append(f'{path}: stale external dependency mapping: {reference["dependency_id"]}')
+            continue
+        identity=STATUS.fullmatch(pathlib.PurePosixPath(path).name)[1]
+        local='milestone:'+reference['dependency_id']
+        external=f'external:{reference["package"]}:{reference["dependency_id"]}'
+        matched=False
+        for relation in parsed[path]['index_relationships']:
+            if relation['source']!='milestone:'+identity or relation['relation']!='depends_on':
+                continue
+            target=relation['target']
+            if target==local or target==external:
+                relation['target']=external
+                matched=True
+            elif target.startswith('external:') and target.rsplit(':',1)[-1]==reference['dependency_id']:
+                raise AuditError(f'{path}: external dependency mapping conflicts with named owner')
+        if not matched:
+            raise AuditError(f'{path}: mapped external dependency is not declared: {reference["dependency_id"]}')
+    return diagnostics
 
 
 def retired_record_for_index(text, name):
@@ -297,13 +363,13 @@ def parse_document(path,kind,text,digest):
         # cannot create a milestone edge merely by naming an ID in prose.
         if value.startswith('|'):
             continue
-        dependency=re.search(r'(?:\*\*)?(?:Dependencies|Depends on|Successor|Supersedes)[.:]*(?:\*\*)?\s*:?\s*(.+)',value,re.I)
+        dependency=re.match(r'\s*(?:[-*+]\s+)?(?:\*\*)?(Dependencies|Depends on|Successor|Supersedes)[.:]*(?:\*\*)?\s*:?\s*(.+)',value,re.I)
         if dependency:
-            relation='depends_on' if dependency[0].lower().startswith(('depend','**depend')) else 'supersedes' if 'supersedes' in dependency[0].lower() else 'successor'
+            relation='depends_on' if dependency[1].lower().startswith('depend') else 'supersedes' if dependency[1].lower()=='supersedes' else 'successor'
             source=('milestone:'+current_identity) if current_identity else path
             if kind=='context_archive':source='archive:'+ARCHIVE.fullmatch(pathlib.Path(path).name)[1]
             line_targets=set()
-            for target_match in re.finditer(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[1]):
+            for target_match in re.finditer(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[2]):
                 target=target_match[0]
                 if target in line_targets:
                     continue
@@ -311,7 +377,7 @@ def parse_document(path,kind,text,digest):
                 package=external_links.get(target)
                 package_named=package and re.search(
                     r'(?i)(?:^|[^\w-])'+re.escape(package)+r'\s+$',
-                    dependency[1][:target_match.start()])
+                    dependency[2][:target_match.start()])
                 if kind=='context_archive':
                     target_key='archive:'+target
                 elif package_named:
@@ -447,7 +513,11 @@ def ensure_fts(connection):
 
 
 @atomic
-def publish(connection, workspace, documents, parsed, generation, context, attempted, diagnostics, force_literal=False, *, root, paths, stats):
+def publish(connection, workspace, documents, parsed, generation, context, attempted, diagnostics, force_literal=False, *, root, paths, stats, external_mapping=None, expected_external_mapping=None):
+    current_mapping=connection.execute('SELECT value FROM schema_meta WHERE key=?',
+                                       (f'index_external_dependencies:{workspace}',)).fetchone()
+    if current_mapping!=expected_external_mapping:
+        raise AuditError('external dependency mappings changed during refresh')
     if inventory(root)!=paths or git_context(root)!=context:
         raise AuditError("source inventory or Git context changed during refresh")
     for path,expected in stats.items():
@@ -473,12 +543,19 @@ def publish(connection, workspace, documents, parsed, generation, context, attem
     # explorer projections. Record readiness only after this publish has filled
     # the complete derived projection.
     connection.execute(
-        "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, 'v3')",
-        (f'index_projection:{workspace}',),
+        "INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?, ?)",
+        (f'index_projection:{workspace}',INDEX_PROJECTION),
     )
+    if external_mapping is not None:
+        key=f'index_external_dependencies:{workspace}'
+        if external_mapping['references']:
+            connection.execute('INSERT OR REPLACE INTO schema_meta(key,value) VALUES (?,?)',
+                               (key,canonical_json(external_mapping)))
+        else:
+            connection.execute('DELETE FROM schema_meta WHERE key=?',(key,))
 
 
-def sync(connection, project_root, *, rebuild=False, force_literal=False):
+def sync(connection, project_root, *, rebuild=False, force_literal=False, dependency_map=None):
     root=pathlib.Path(project_root).expanduser().resolve()
     context=git_context(root)
     existing=connection.execute('SELECT workspace_id FROM workspaces WHERE project_root=?',(str(root),)).fetchone()
@@ -490,6 +567,15 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
     attempted=utc_now()
     try:
         layout_check(root)
+        mapping_update=external_dependencies(dependency_map) if dependency_map is not None else None
+        saved=connection.execute('SELECT value FROM schema_meta WHERE key=?',
+                                 (f'index_external_dependencies:{workspace}',)).fetchone()
+        mapping=mapping_update
+        if mapping is None and saved:
+            mapping=external_dependencies(strict_json_loads(saved[0]))
+        # Replacing/clearing corrections must reconstruct original edges,
+        # including those previously cached after applying another mapping.
+        rebuild=rebuild or mapping_update is not None
         paths=inventory(root)
         documents={};parsed={};stats={};diagnostics=[]
         previous={r['path']:r for r in records(connection,'SELECT * FROM index_documents WHERE workspace_id=?',(workspace,))}
@@ -497,7 +583,7 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
             "SELECT value FROM schema_meta WHERE key=?",
             (f'index_projection:{workspace}',),
         ).fetchone()
-        projection_ready = projection == ('v3',)
+        projection_ready = projection == (INDEX_PROJECTION,)
         for path,kind in paths.items():
             text,digest,info=read_document(root,path)
             stats[path]=signature(info)
@@ -511,9 +597,11 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False):
                     parts[table]=[{k:v for k,v in row.items() if k not in ('workspace_id','path','search_id')} for row in records(connection,f'SELECT * FROM {table} WHERE workspace_id=? AND path=?',(workspace,path))]
                 parsed[path]=parts
             else:parsed[path]=parse_document(path,kind,text,digest)
+        if mapping is not None:
+            diagnostics.extend(apply_external_dependencies(documents,parsed,mapping))
         diagnostics.extend(validate_projection(documents,parsed))
         generation=str(uuid.uuid4())
-        publish(connection,workspace,documents,parsed,generation,context,attempted,diagnostics,force_literal,root=root,paths=paths,stats=stats)
+        publish(connection,workspace,documents,parsed,generation,context,attempted,diagnostics,force_literal,root=root,paths=paths,stats=stats,external_mapping=mapping_update,expected_external_mapping=saved)
         return status(connection,workspace)
     except (OSError,ValueError,sqlite3.Error,AuditError) as exc:
         with connection:

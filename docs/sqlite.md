@@ -321,6 +321,76 @@ a query has malformed FTS syntax. Search results label the query mode.
 An empty query lists entries matching the filters. `show` returns the indexed
 text, tasks, sections, milestone metadata, and explicit relationships.
 
+### Resolve historical sibling dependency warnings
+
+An index can report `complete: true` together with an
+`unresolved depends_on: milestone:M79` diagnostic. Older retirement records may
+name another repository's milestone without the owner and sibling-record link
+that the parser recognizes. IDs are repository-local: finding `M79` in another
+workspace alone does not establish which dependency the record means.
+
+The current parser recognizes labeled fields such as `**Dependencies.**` at
+the start of a line (including list items). Narrative references to
+"dependencies" inside scope or acceptance text do not create prerequisite
+edges. Installing this parser automatically reparses older cached projections
+on the next sync; it does not change the database schema or Markdown.
+
+Inspect the complete historical record and the owning repository's ledger first.
+For verified historical references, the toolkit accepts an explicit lookup map
+outside the project. It changes only derived dependency edges for the exact
+retired file hash. Active dependencies, milestone acceptance, execution gates,
+frozen Markdown and durable audit records remain unchanged. The index does not
+load the sibling repository or verify its acceptance through this mapping.
+
+For example, save this JSON as a private `dependencies.json`, replacing the
+source hash with the SHA-256 of the complete current retirement file:
+
+```json
+{
+  "schema": "tabilet.index.external-dependencies/v1",
+  "references": [
+    {
+      "source_path": "tabilet/docs/history/status-M01.md",
+      "source_sha256": "REPLACE_WITH_64_LOWERCASE_HEX_CHARACTERS",
+      "dependency_id": "M79",
+      "package": "apitools"
+    }
+  ]
+}
+```
+
+```bash
+sha256sum /absolute/project/tabilet/docs/history/status-M01.md
+tabilet-audit index sync /absolute/project --external-dependencies /absolute/private/dependencies.json
+tabilet-audit index status /absolute/project
+```
+
+`source_path` is relative to the project and must name a retired status file.
+Use one entry per source file/dependency pair. `package` is a lowercase logical
+repository identifier, for example `apitools` or `w8m-browser-operations`.
+Unknown fields, duplicate entries, undeclared dependencies and conflicts with
+an already named owner are rejected. The existing generation and mapping survive
+a failed replacement. A changed or missing historical file produces a stale-map
+diagnostic; its correction is not applied to the new bytes. Review it again
+before supplying a replacement hash.
+
+A successful sync saves the map as workspace-scoped index configuration in the
+existing external SQLite database, atomically with the new generation. Ordinary
+refreshes, audit completion and `--rebuild` retain it. Retain the JSON separately
+if you want to recreate the configuration in a new database. A new
+`--external-dependencies` file replaces the complete map. To remove it and
+reconstruct the original dependency edges:
+
+```bash
+tabilet-audit index sync /absolute/project --clear-external-dependencies
+```
+
+The mapping cannot authorize a sibling task, merge ledgers or satisfy an active
+dependency. Active external dependencies still require manual reconciliation
+against their own source/status records. No database schema or project migration
+is needed. Reinstall the optional toolkit using the commands above if your
+installed `index sync` does not recognize these options.
+
 ## Record a host workflow
 
 With `TABILET_AUDIT_DB` set, the API runner automatically records its own runs.

@@ -77,6 +77,9 @@ def arguments(argv=None):
         command=indexes.add_parser(name);command.add_argument('project')
         if name=='sync':
             command.add_argument('--rebuild',action='store_true');command.add_argument('--literal',action='store_true',help='Use literal-text search even if FTS5 is available.')
+            corrections=command.add_mutually_exclusive_group()
+            corrections.add_argument('--external-dependencies',metavar='JSON_FILE',help='Replace workspace lookup mappings for exact retired-record hashes; never execution authority.')
+            corrections.add_argument('--clear-external-dependencies',action='store_true',help='Clear saved historical lookup mappings and reconstruct original dependencies.')
         if name=='search':
             command.add_argument('query',nargs='?',default='');command.add_argument('--kind')
             command.add_argument('--milestone',dest='milestone_id');command.add_argument('--state',choices=sorted(audit.STATES))
@@ -212,7 +215,13 @@ def dispatch(args):
             else:audit.backup_database(connection,args.destination)
             return {'restored':str(pathlib.Path(args.destination).absolute())}
         if args.group=='index':
-            if action=='sync':return index.sync(connection,root,rebuild=args.rebuild,force_literal=args.literal)
+            if action=='sync':
+                mapping=None
+                if args.external_dependencies:
+                    mapping=index.read_external_dependencies(args.external_dependencies)
+                elif args.clear_external_dependencies:
+                    mapping={'schema':index.EXTERNAL_DEPENDENCIES_SCHEMA,'references':[]}
+                return index.sync(connection,root,rebuild=args.rebuild,force_literal=args.literal,dependency_map=mapping)
             workspace=index.workspace_id(connection,root)
             if action=='status':return index.status(connection,workspace)
             if action=='show':return index.show(connection,workspace,args.path)

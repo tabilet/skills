@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -91,6 +92,28 @@ class CliTests(unittest.TestCase):
             self.assertEqual(c.execute('SELECT COUNT(*) FROM captured_messages').fetchone()[0],0)
             self.assertEqual(c.execute('SELECT COUNT(*) FROM runs').fetchone()[0],7)
         finally:c.close()
+
+    def test_external_dependency_file_persists_across_finish_and_can_be_cleared(self):
+        source=self.repo/'tabilet/memory-bank/status-M01.md'
+        source.write_text(source.read_text().replace('`[ ]`','`[+]`')+'\n**Dependencies.** M79.\n')
+        h.retire_fixture(self.repo)
+        path='tabilet/docs/history/status-M01.md'
+        mapping={'schema':'tabilet.index.external-dependencies/v1','references':[{
+            'source_path':path,'source_sha256':hashlib.sha256((self.repo/path).read_bytes()).hexdigest(),
+            'dependency_id':'M79','package':'apitools'}]}
+        config=self.base/'dependencies.json';config.write_text(json.dumps(mapping))
+        before=(self.repo/path).read_bytes()
+        result=self.command('index','sync',self.repo,'--external-dependencies',config)
+        self.assertEqual(result['diagnostics'],[])
+        shown=self.command('index','show',self.repo,path)
+        self.assertEqual(shown['relationships'][0]['target'],'external:apitools:M79')
+        begun=self.command('audit','begin',self.repo,'next')
+        finished=self.command('audit','finish',begun['run_id'],'completed')
+        self.assertEqual(finished['index']['diagnostics'],[])
+        self.assertEqual((self.repo/path).read_bytes(),before)
+        cleared=self.command('index','sync',self.repo,'--clear-external-dependencies')
+        self.assertTrue(any('unresolved depends_on: milestone:M79' in d for d in cleared['diagnostics']))
+        self.assertIn('not allowed with argument',self.command('index','sync',self.repo,'--external-dependencies',config,'--clear-external-dependencies',ok=False))
 
     def test_events_apply_run_provenance_coverage_and_purge_filters(self):
         provenance={"invocation_kind":"interactive_skill","instruction_set_name":"memory-bank-next",

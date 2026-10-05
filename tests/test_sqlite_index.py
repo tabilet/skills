@@ -108,6 +108,33 @@ class IndexTests(unittest.TestCase):
         self.sync()
         self.assertEqual(self.c.execute("SELECT COUNT(*) FROM index_relationships WHERE source='milestone:M01' AND relation='depends_on' AND target='milestone:M02'").fetchone()[0],1)
 
+    def test_scope_prose_does_not_create_dependency_fields_in_active_or_retired_records(self):
+        self.source.write_text(self.source.read_text()+
+            '\n**Scope and compatibility.** Defer UI dependencies. This does not require future W28.\n'
+            'Narrative mentions a Successor M79 without declaring one.\n'
+            '\n- **Dependencies.** M02.\n')
+        self.sync()
+        self.assertEqual(set(self.c.execute("SELECT target FROM index_relationships WHERE relation='depends_on'")),{('milestone:M02',)})
+        self.assertEqual(self.c.execute("SELECT COUNT(*) FROM index_relationships WHERE relation='successor'").fetchone()[0],0)
+        self.source.write_text(self.source.read_text().replace('`[ ]`','`[+]`'))
+        h.retire_fixture(self.root)
+        state=self.sync()
+        self.assertEqual(len(state['diagnostics']),1)
+        self.assertIn('milestone:M02',state['diagnostics'][0])
+        self.assertEqual(set(self.c.execute("SELECT target FROM index_relationships WHERE relation='depends_on'")),{('milestone:M02',)})
+
+    def test_parser_revision_rebuilds_cached_prose_edges_automatically(self):
+        self.source.write_text(self.source.read_text()+
+            '\n**Scope.** Defer dependencies. W28 is not a prerequisite.\n')
+        baseline=self.sync();w=baseline['workspace_id']
+        with self.c:
+            self.c.execute('UPDATE schema_meta SET value=? WHERE key=?',('v3',f'index_projection:{w}'))
+            self.c.execute("INSERT INTO index_relationships VALUES (?,?,?,?,?,?)",(w,'tabilet/memory-bank/status-M01.md',8,'milestone:M01','depends_on','milestone:W28'))
+        state=self.sync()
+        self.assertEqual(state['diagnostics'],[])
+        self.assertEqual(self.c.execute("SELECT COUNT(*) FROM index_relationships WHERE target='milestone:W28'").fetchone()[0],0)
+        self.assertEqual(self.c.execute('SELECT value FROM schema_meta WHERE key=?',(f'index_projection:{w}',)).fetchone(),(ix.INDEX_PROJECTION,))
+
     def test_retired_sibling_dependencies_are_not_missing_local_milestones(self):
         self.source.write_text(self.source.read_text().replace('`[ ]`','`[+]`')+
             '\n**Dependencies.** Local M02, APItools M79, OpenUdon M89; the M89 implementation is published.\n'
@@ -206,6 +233,120 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(self.c.execute(
             "SELECT target FROM index_relationships WHERE relation='depends_on'").fetchone(),
             ('milestone:M79',))
+
+    def historical_mapping(self, dependency='M79', package='apitools'):
+        self.source.write_text(self.source.read_text().replace('`[ ]`','`[+]`')+
+                               f'\n**Dependencies.** {dependency}.\n')
+        h.retire_fixture(self.root)
+        path='tabilet/docs/history/status-M01.md'
+        return {'schema':ix.EXTERNAL_DEPENDENCIES_SCHEMA,'references':[{
+            'source_path':path,'source_sha256':hashlib.sha256((self.root/path).read_bytes()).hexdigest(),
+            'dependency_id':dependency,'package':package}]}
+
+    def test_explicit_historical_mapping_persists_without_source_or_audit_changes(self):
+        mapping=self.historical_mapping()
+        before=self.hashes();baseline=self.sync()
+        self.assertTrue(any('unresolved depends_on: milestone:M79' in d for d in baseline['diagnostics']))
+        run=a.start_run(self.c,baseline['workspace_id'],'next',run_id='map-observation')
+        audit_before=self.c.execute('SELECT * FROM runs').fetchall()
+        state=self.sync(dependency_map=mapping)
+        self.assertEqual(state['diagnostics'],[])
+        self.assertEqual(self.c.execute("SELECT target FROM index_relationships WHERE relation='depends_on'").fetchone(),('external:apitools:M79',))
+        self.assertEqual(self.hashes(),before)
+        self.assertEqual(self.c.execute('SELECT * FROM runs').fetchall(),audit_before)
+        self.assertEqual(ix.readiness(self.c,state['workspace_id'],self.root)['ready'],[])
+        # Ordinary audit-finish refreshes and later rebuilds retain the correction.
+        self.assertEqual(self.sync()['diagnostics'],[])
+        self.assertEqual(self.sync(rebuild=True)['diagnostics'],[])
+        self.assertEqual(self.c.execute('SELECT run_id FROM runs').fetchone(),(run,))
+
+    def test_clear_or_replace_historical_mapping_reconstructs_original_edges(self):
+        mapping=self.historical_mapping()
+        self.sync(dependency_map=mapping)
+        changed=json.loads(json.dumps(mapping));changed['references'][0]['package']='other-owner'
+        self.sync(dependency_map=changed)
+        self.assertEqual(self.c.execute("SELECT target FROM index_relationships WHERE relation='depends_on'").fetchone(),('external:other-owner:M79',))
+        empty={'schema':ix.EXTERNAL_DEPENDENCIES_SCHEMA,'references':[]}
+        state=self.sync(dependency_map=empty)
+        self.assertTrue(any('unresolved depends_on: milestone:M79' in d for d in state['diagnostics']))
+        self.assertEqual(self.c.execute("SELECT target FROM index_relationships WHERE relation='depends_on'").fetchone(),('milestone:M79',))
+        self.assertEqual(self.c.execute("SELECT COUNT(*) FROM schema_meta WHERE key LIKE 'index_external_dependencies:%'").fetchone()[0],0)
+        self.assertEqual(self.sync()['diagnostics'],state['diagnostics'])
+
+    def test_historical_mapping_does_not_change_active_dependencies_or_local_id_scope(self):
+        mapping=self.historical_mapping(dependency='M02')
+        status=self.root/'tabilet/memory-bank/status-M02.md'
+        status.write_text('| Item | State | Notes |\n|---|---|---|\n| Other | `[ ]` | pending |\n\n**Dependencies.** M79.\n')
+        milestone=self.root/'tabilet/memory-bank/milestone.md'
+        milestone.write_text(milestone.read_text()+'\n## M02 - Other\n\n**Acceptance.** Other works.\n')
+        baseline=self.sync()
+        readiness_before=ix.readiness(self.c,baseline['workspace_id'],self.root)
+        state=self.sync(dependency_map=mapping)
+        targets=set(self.c.execute("SELECT source,target FROM index_relationships WHERE relation='depends_on'"))
+        self.assertEqual(targets,{('milestone:M01','external:apitools:M02'),('milestone:M02','milestone:M79')})
+        self.assertTrue(any('unresolved depends_on: milestone:M79' in d for d in state['diagnostics']))
+        self.assertEqual(ix.readiness(self.c,state['workspace_id'],self.root)['ready'],readiness_before['ready'])
+        invalid=json.loads(json.dumps(mapping));invalid['references'][0]['source_path']='tabilet/memory-bank/status-M02.md'
+        with self.assertRaisesRegex(a.AuditError,'path, hash'):
+            self.sync(dependency_map=invalid)
+
+    def test_stale_historical_mapping_never_changes_dependency(self):
+        mapping=self.historical_mapping()
+        self.sync(dependency_map=mapping)
+        path=self.root/mapping['references'][0]['source_path']
+        path.write_text(path.read_text().replace('Keep this note.','A changed historical observation.'))
+        state=self.sync()
+        self.assertTrue(any('frozen source changed' in d for d in state['diagnostics']))
+        self.assertTrue(any('stale external dependency mapping' in d for d in state['diagnostics']))
+        self.assertTrue(any('unresolved depends_on: milestone:M79' in d for d in state['diagnostics']))
+        self.assertEqual(self.c.execute("SELECT target FROM index_relationships WHERE relation='depends_on'").fetchone(),('milestone:M79',))
+
+    def test_invalid_historical_mapping_retains_prior_generation_and_configuration(self):
+        mapping=self.historical_mapping()
+        baseline=self.sync(dependency_map=mapping)
+        config=self.c.execute("SELECT value FROM schema_meta WHERE key LIKE 'index_external_dependencies:%'").fetchone()
+        bad=json.loads(json.dumps(mapping));bad['references'][0]['dependency_id']='M80'
+        with self.assertRaisesRegex(a.AuditError,'not declared'):
+            self.sync(dependency_map=bad)
+        self.assertEqual(ix.status(self.c,baseline['workspace_id'])['generation'],baseline['generation'])
+        self.assertEqual(self.c.execute("SELECT value FROM schema_meta WHERE key LIKE 'index_external_dependencies:%'").fetchone(),config)
+        self.assertEqual(self.sync()['diagnostics'],[])
+        duplicates=json.loads(json.dumps(mapping));duplicates['references']*=2
+        with self.assertRaisesRegex(a.AuditError,'duplicate'):
+            self.sync(dependency_map=duplicates)
+
+    def test_historical_mapping_conflict_and_invalid_input_stay_visible(self):
+        mapping=self.historical_mapping()
+        path=self.root/mapping['references'][0]['source_path']
+        path.write_text(path.read_text().replace('**Dependencies.** M79.',
+            '**Dependencies.** Other M79.\n[Other M79](../../../other/tabilet/docs/history/status-M79.md)'))
+        mapping['references'][0]['source_sha256']=hashlib.sha256(path.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(a.AuditError,'conflicts with named owner'):
+            self.sync(dependency_map=mapping)
+        for field,value in [('package','../apitools'),('source_sha256','0'*63),('dependency_id','M00'),('source_path','tabilet/docs/history/../history/status-M01.md')]:
+            bad=json.loads(json.dumps(mapping));bad['references'][0][field]=value
+            with self.subTest(field=field),self.assertRaises(a.AuditError):
+                ix.external_dependencies(bad)
+        with self.assertRaises(a.AuditError):
+            ix.external_dependencies({'schema':'unsupported','references':[]})
+
+    def test_refresh_cannot_publish_against_concurrently_replaced_mapping(self):
+        mapping=self.historical_mapping()
+        baseline=self.sync(dependency_map=mapping)
+        key=f'index_external_dependencies:{baseline["workspace_id"]}'
+        replacement=json.loads(json.dumps(mapping));replacement['references'][0]['package']='other-owner'
+        original=ix.publish
+        def replace_before_publish(*args,**kwargs):
+            with self.c:
+                self.c.execute('UPDATE schema_meta SET value=? WHERE key=?',(a.canonical_json(replacement),key))
+            return original(*args,**kwargs)
+        with mock.patch.object(ix,'publish',side_effect=replace_before_publish):
+            with self.assertRaisesRegex(a.AuditError,'mappings changed during refresh'):
+                self.sync()
+        self.assertEqual(ix.status(self.c,baseline['workspace_id'])['generation'],baseline['generation'])
+        self.assertEqual(self.c.execute('SELECT value FROM schema_meta WHERE key=?',(key,)).fetchone(),(a.canonical_json(replacement),))
+        # An explicit replacement reparses original bytes before publication.
+        self.assertEqual(self.sync(dependency_map=replacement)['diagnostics'],[])
 
     def test_nested_milestone_heading_is_not_an_active_specification(self):
         milestone=self.root/'tabilet/memory-bank/milestone.md'
