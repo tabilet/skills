@@ -12,7 +12,7 @@
 智能体共享一份记录，写清项目是什么、已经做完什么、接下来该做什么——即使你
 开启新会话或换一个智能体，这份记录依然在。
 
-同一套项目文件可以配合 **Claude Code、Codex 或 DeepSeek Harness
+同一套项目文件可以配合 **Claude Code、Codex、agy (Antigravity) 或 DeepSeek Harness
 (DSH)** 使用。七个可选技能帮你创建和维护它们。文件留在你的仓库里，不用这些
 技能也照样能读能改。2.0.0 版本把项目自有的 Memory Bank 文件放在 `tabilet/`
 下。

@@ -35,13 +35,29 @@ The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the pub
 - [Getting started](#getting-started)
 - [What is in this repository](#what-is-in-this-repository)
 - [Filled-in example and memory-bank structure](#what-a-filled-in-memory-bank-looks-like)
-- [Set up a new project](#set-up-a-new-project) or [existing project](#set-up-an-existing-project)
-- [Stage planning](#stage-planning)
-- [Propose a change](#propose-a-requested-change) or [reconcile a review](#reconcile-a-new-review)
+- [Project setup](#set-up-a-new-project)
+  - [Set up a new project](#set-up-a-new-project) ([Wiring up your agent](#wiring-up-your-agent))
+  - [Set up an existing project](#set-up-an-existing-project) ([Archive a large package](#archive-a-large-existing-package))
+  - [Stage planning](#stage-planning)
+- [Planning and review workflows](#propose-a-requested-change)
+  - [Propose a requested change](#propose-a-requested-change)
+  - [Reconcile a new review](#reconcile-a-new-review)
 - [Use the memory bank](#use-the-memory-bank)
+  - [Status ID lanes](#status-id-lanes)
+  - [Keep long-term memory without growing the active plan](#keep-long-term-memory-without-growing-the-active-plan)
+  - [Upgrade an existing project](#upgrade-an-existing-project)
+  - [Run an ordered set of milestones (`tabilet/GOAL.md`)](#run-an-ordered-set-of-milestones)
 - [Install the seven skills](#install-the-seven-skills)
+  - [Suggested models](#suggested-models)
+  - [Supported agents (Claude Code, Codex, agy, DSH)](#install-the-seven-skills)
+  - [Plain files installation](#as-plain-files-you-own)
+  - [DSH installation](#dsh-installation)
+  - [Update installed skills](#update-installed-skills)
+  - [Uninstall or remove skills](#uninstall-or-remove-skills)
 - [Optional SQLite audit and lookup](#optional-sqlite-audit-and-lookup)
 - [Install the API harness](#install-the-api-harness)
+  - [First run & guardrails](#first-run)
+  - [API-only workflow](#api-only-workflow)
   - [Tabilet controller guide](docs/tabilet-controller.md)
   - [Execution harness reference](docs/EXECUTION.md)
 - [What the harness is](#what-the-harness-is) and [maintenance rules](#maintenance-rules)
@@ -328,7 +344,7 @@ Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
 
 `AGENTS.md` is an [open cross-vendor standard](https://agents.md) stewarded by
 the Agentic AI Foundation. Most coding agents read it with no setup at all,
-among them Codex, Cursor, Gemini CLI, GitHub Copilot's coding agent, Devin,
+among them Codex, Antigravity (`agy`), Cursor, Gemini CLI, GitHub Copilot's coding agent, Devin,
 Windsurf, Jules, Junie, Zed, Aider, VS Code, Warp, goose, opencode, and Amp.
 
 No vendor-specific file ships in `template/`. If your agent reads a different
@@ -927,9 +943,9 @@ horizon and every file action. You never see a bracketed placeholder, because
 the memory bank arrives filled in. *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
-Claude Code and Codex read the same `SKILL.md` format **and the same manifest**.
-DSH loads the same complete directories through its filesystem skill loader;
-see [DSH installation](#dsh-installation).
+Claude Code, Codex, and `agy` (Google Antigravity) read the same `SKILL.md` format
+**and the same manifest**. DSH loads the same complete directories through its
+filesystem skill loader; see [DSH installation](#dsh-installation).
 
 **Claude Code:**
 
@@ -951,22 +967,41 @@ across your configured marketplaces, so `memory-bank@tabilet` is the form worth
 learning. `codex plugin marketplace upgrade` refreshes the snapshot when a new
 version ships.
 
+**agy (Antigravity):**
+
+`agy` has a built-in plugin manager and natively imports `.claude-plugin/plugin.json`:
+
+```bash
+# From within the cloned skills repository:
+agy plugin install .
+
+# Or by directory path:
+agy plugin install /path/to/skills
+```
+
+`agy` registers all seven skills as slash commands and installs them into
+`~/.gemini/config/plugins/memory-bank`. Verify with `agy plugin list`.
+
 **Plugin installations are namespaced.** This follows current [Claude Code
-skill namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex
-skill invocation](https://developers.openai.com/plugins/build/skills):
+skill namespacing](https://code.claude.com/docs/en/slash-commands), [Codex
+skill invocation](https://developers.openai.com/plugins/build/skills), and
+`agy` slash command registration:
 
 | Agent | Archive | Init | Propose change | Upgrade rules | Reconcile review | Next row | Ordered milestones |
 |---|---|---|---|---|---|---|---|
 | Claude Code plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-propose` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
 | Codex plugin | `$memory-bank:memory-bank-archive` | `$memory-bank:memory-bank-init` | `$memory-bank:memory-bank-propose` | `$memory-bank:memory-bank-upgrade` | `$memory-bank:memory-bank-reconcile` | `$memory-bank:memory-bank-next` | `$memory-bank:memory-bank-goal` |
+| agy plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-propose` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
 | DSH filesystem | `/memory-bank-archive` | `/memory-bank-init` | `/memory-bank-propose` | `/memory-bank-upgrade` | `/memory-bank-reconcile` | `/memory-bank-next` | `/memory-bank-goal` |
 
-Plain English also works in both agents.
+Plain English also works across all agents.
 
+<a id="as-plain-files-you-own"></a>
 **As plain files you own** rather than a managed plugin, install into each
 agent's personal skill directory:
 
 ```bash
+# Codex and agy personal skill directory
 mkdir -p ~/.agents/skills
 curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
   | tar -xz --strip-components=2 -C ~/.agents/skills 'skills-main/skills'
@@ -978,9 +1013,9 @@ curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
 ```
 
 Plain-file skills are unnamespaced: `/memory-bank-archive` and
-`/memory-bank-init` in Claude Code, `$memory-bank-archive` and
+`/memory-bank-init` in Claude Code and agy, `$memory-bank-archive` and
 `$memory-bank-init` in Codex, with the same pattern for `upgrade`, `propose`, `reconcile`, `next`, and
-`goal`.
+`goal`. `agy` also scans project-local skills in `.agents/skills/`.
 
 To pin a published version, replace `refs/heads/main` with its tag path and
 match the archive's directory name. For tag `v1.3.0`, those are
@@ -1044,6 +1079,64 @@ todos, and native goal state never prove acceptance. Keep one execution owner
 for the active ledger. See [the DSH tutorial route](docs/TUTORIAL.md#dsh-route)
 and [detailed integration guide](docs/DSH.md) for prerequisites, permissions,
 resource loading, goal continuation, and verification.
+
+### Update installed skills
+
+Updating installed skills refreshes the tools available to your agent. Remember:
+**updating installed skills does not alter your project's memory bank files or rules**.
+To adopt newer workflow rules in an existing project, use `memory-bank-upgrade`
+after updating the skills.
+
+- **Claude Code:**
+  ```bash
+  /plugin marketplace update tabilet
+  /plugin update memory-bank@tabilet
+  /reload-plugins
+  ```
+- **Codex:**
+  ```bash
+  codex plugin marketplace upgrade tabilet
+  codex plugin add memory-bank@tabilet
+  ```
+  *(Start a new Codex session to load the updated skills.)*
+- **agy:**
+  Re-run install from the updated repository directory:
+  ```bash
+  agy plugin install /path/to/skills
+  # (or run `agy plugin install .` from within the updated repository clone)
+  ```
+- **DSH:**
+  Follow [update or removal](docs/DSH.md#update-or-remove) to update the companion package or replace the filesystem bundles under `$DSH_HOME/skills` with complete folders from the new release.
+- **Plain-file installs:**
+  Re-download or copy the updated `skills/` folders into `~/.agents/skills/` (or `~/.claude/skills/`).
+
+### Uninstall or remove skills
+
+Uninstalling removes the generator skills from your agent environment. Project
+Markdown files in your repositories remain untouched and continue to function as
+authoritative documentation and manual task tracking.
+
+- **Claude Code:**
+  ```bash
+  /plugin uninstall memory-bank@tabilet
+  # Optional: /plugin marketplace remove tabilet
+  ```
+- **Codex:**
+  ```bash
+  codex plugin remove memory-bank@tabilet
+  # Optional: codex plugin marketplace remove tabilet
+  ```
+- **agy:**
+  ```bash
+  agy plugin uninstall memory-bank
+  ```
+- **DSH:**
+  ```bash
+  dsh plugin --profile web remove tabilet-skills
+  ```
+  *(Remove the headless profile installation separately if installed there.)*
+- **Plain-file installs:**
+  Delete only the `memory-bank-*` directories from `~/.agents/skills/` (or `~/.claude/skills/`).
 
 ### If you already use `/grill-me`
 

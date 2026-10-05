@@ -21,7 +21,7 @@ illustrative.
 
 ## What You Need
 
-- **`git`**, and an agent — Claude Code, Codex, or DSH Web.
+- **`git`**, and an agent — Claude Code, Codex, `agy`, or DSH Web.
 - **An idea you can talk about for ten minutes.** That is the actual
   prerequisite. Everything else is mechanical.
 
@@ -48,9 +48,17 @@ codex plugin add memory-bank@tabilet
 Codex wants the `@marketplace` qualifier when the plugin name is not unique
 across your marketplaces, so `memory-bank@tabilet` is the form to learn.
 
+In `agy` (Google Antigravity), which natively imports local plugins from this repository:
+
+```bash
+agy plugin install .
+```
+(Or from any directory: `agy plugin install /path/to/skills`.)
+
 **Plugin invocation is namespaced.** Following current [Claude Code skill
-namespacing](https://code.claude.com/docs/en/slash-commands) and [Codex skill
-invocation](https://developers.openai.com/plugins/build/skills), Claude Code uses
+namespacing](https://code.claude.com/docs/en/slash-commands), [Codex skill
+invocation](https://developers.openai.com/plugins/build/skills), and `agy` slash
+command registration, Claude Code and `agy` use
 `/memory-bank:memory-bank-archive`, `/memory-bank:memory-bank-init`,
 `/memory-bank:memory-bank-upgrade`, `/memory-bank:memory-bank-propose`,
 `/memory-bank:memory-bank-reconcile`,
@@ -60,7 +68,7 @@ invocation](https://developers.openai.com/plugins/build/skills), Claude Code use
 `$memory-bank:memory-bank-upgrade`, `$memory-bank:memory-bank-propose`,
 `$memory-bank:memory-bank-reconcile`,
 `$memory-bank:memory-bank-next`, and
-`$memory-bank:memory-bank-goal`. Plain English also works in both.
+`$memory-bank:memory-bank-goal`. Plain English also works across all of them.
 
 Either agent can also take them as plain files you own instead of a managed
 plugin — no clone, no temp directory, nothing to clean up:
@@ -170,6 +178,20 @@ Optionally remove the marketplace once you no longer need anything from it:
 codex plugin marketplace remove tabilet
 ```
 
+### agy
+
+Re-run install from the updated repository checkout to update the installed plugin:
+
+```bash
+agy plugin install .
+```
+
+To uninstall the plugin:
+
+```bash
+agy plugin uninstall memory-bank
+```
+
 ## DSH route
 
 For the v1.5.0 sidebar route, install the
@@ -228,7 +250,7 @@ review count. Neither native todos nor goal completion replaces acceptance.
 ```bash
 mkdir stomper && cd stomper
 git init
-claude   # or: codex
+claude   # or: codex, or: agy
 ```
 
 Do not scaffold anything. The project's shape comes out of the conversation, not
@@ -242,7 +264,7 @@ archive skill maps every stable context at a clean commit and seeds current
 ## Step 3 — Run `memory-bank-init`
 
 ```text
-/memory-bank:memory-bank-init   # Claude Code plugin
+/memory-bank:memory-bank-init   # Claude Code or agy plugin
 $memory-bank:memory-bank-init   # Codex plugin
 ```
 
@@ -556,7 +578,7 @@ conversation. If a lane you expected shows `0`, its markers are wrong.
 **One row at a time**, which is the everyday mode:
 
 ```text
-/memory-bank:memory-bank-next   # Claude Code plugin
+/memory-bank:memory-bank-next   # Claude Code or agy plugin
 $memory-bank:memory-bank-next   # Codex plugin
 ```
 
@@ -575,7 +597,7 @@ the command just carries the full instruction instead of your paraphrase of it.
 $memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none.
 ```
 
-These are alternative requests for Claude Code and Codex. They follow
+These are alternative requests for Claude Code, Codex, and agy. They follow
 [GOAL.md](../GOAL.md) and explicitly select `COMMIT_POLICY: task` for per-row
 commits. Use `COMMIT_POLICY: none` when you want changes left uncommitted; it is
 the protocol's default, so the examples state their policy rather than relying

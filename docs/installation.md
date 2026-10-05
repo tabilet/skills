@@ -8,6 +8,7 @@ create or upgrade a project's memory bank.**
 |---|---|
 | Claude Code | The `memory-bank` plugin from the `tabilet` marketplace |
 | Codex | The same `memory-bank` plugin through the Codex CLI |
+| agy | The `memory-bank` plugin imported directly via `agy plugin install` |
 | DSH Web or headless | The `tabilet-skills` companion, or the seven source-checkout filesystem bundles |
 | Manual installation | Complete skill folders in your agent's skill directory |
 
@@ -51,6 +52,25 @@ $memory-bank:memory-bank-init
 
 The `@tabilet` qualifier identifies the marketplace. If your Codex build does
 not expose plugin commands, use the [plain-file route](#as-plain-files-you-own).
+
+## agy
+
+Run this **in a terminal**:
+
+```bash
+agy plugin install /path/to/skills
+# (or from within the cloned repository: agy plugin install .)
+```
+
+Open a fresh `agy` session in your project and send:
+
+```text
+/memory-bank:memory-bank-init
+```
+
+`agy` automatically loads `AGENTS.md` as a project rule and registers the seven
+skills as slash commands. If you prefer plain files, `agy` also discovers
+skills in `~/.agents/skills/`.
 
 ## DeepSeek Harness
 
@@ -108,9 +128,11 @@ depends on how you installed them:
 |---|---|
 | Claude Code plugin | `/memory-bank:memory-bank-next` |
 | Codex plugin | `$memory-bank:memory-bank-next` |
+| agy plugin | `/memory-bank:memory-bank-next` |
 | DSH companion or filesystem | `/memory-bank-next` |
 | Claude Code plain files | `/memory-bank-next` |
 | Codex plain files | `$memory-bank-next` |
+| agy plain files | `/memory-bank-next` |
 
 Substitute `init`, `archive`, `propose`, `reconcile`, `upgrade`, or `goal` for `next` as
 needed. The [skill guides](init.md) explain each input and approval boundary.
@@ -129,7 +151,7 @@ the destination for your agent:
 
 | Agent | Personal skill directory |
 |---|---|
-| Codex | `~/.agents/skills/` |
+| Codex and agy | `~/.agents/skills/` |
 | Claude Code | `~/.claude/skills/` |
 | DSH | `$DSH_HOME/skills/`, normally `~/.dsh/skills/` |
 
@@ -352,6 +374,8 @@ codex plugin marketplace upgrade tabilet
 codex plugin add memory-bank@tabilet
 ```
 
+For `agy`, re-run `agy plugin install /path/to/skills` (or `agy plugin install .` from the updated repository directory).
+
 For the DSH companion, install the chosen published release archive in each
 applicable profile, then restart it. For filesystem installs, stop sessions
 using the bundles, inspect and back up the installed folders, then replace them
@@ -370,6 +394,7 @@ Use the uninstall command for your installation:
 |---|---|
 | Claude Code plugin | `/plugin uninstall memory-bank@tabilet` in Claude Code |
 | Codex plugin | `codex plugin remove memory-bank@tabilet` in a terminal |
+| agy plugin | `agy plugin uninstall memory-bank` in a terminal |
 | DSH Web companion | `dsh plugin --profile web remove tabilet-skills` in a terminal |
 
 Remove the DSH headless installation separately if you installed it there.

@@ -7,6 +7,7 @@
 |---|---|
 | Claude Code | 装 `tabilet` 市场里的 `memory-bank` 插件 |
 | Codex | 用 Codex CLI 装同一个 `memory-bank` 插件 |
+| agy | 通过 `agy plugin install` 直接导入 `memory-bank` 插件 |
 | DSH Web 或无界面（headless） | 装 `tabilet-skills` 伴侣，或者用源码检出里的七个文件系统包 |
 | 手动安装 | 把完整的技能文件夹放进智能体的技能目录 |
 
@@ -49,6 +50,23 @@ $memory-bank:memory-bank-init
 
 `@tabilet` 这个限定符用来标明市场。如果你的 Codex 版本没有提供插件命令，就走
 [纯文件方式](#as-plain-files-you-own)。
+
+## agy {#agy}
+
+在**终端里**运行：
+
+```bash
+agy plugin install /path/to/skills
+#（或者在克隆的仓库根目录下运行：agy plugin install .）
+```
+
+然后在你的项目里新开一个 `agy` 会话并发送：
+
+```text
+/memory-bank:memory-bank-init
+```
+
+`agy` 会自动把 `AGENTS.md` 作为项目规则加载，并把七个技能注册为斜杠命令。如果你更倾向纯文件方式，`agy` 也会自动扫描 `~/.agents/skills/`。
 
 ## DeepSeek Harness {#deepseek-harness}
 
@@ -99,9 +117,11 @@ dsh plugin --profile web add \
 |---|---|
 | Claude Code 插件 | `/memory-bank:memory-bank-next` |
 | Codex 插件 | `$memory-bank:memory-bank-next` |
+| agy 插件 | `/memory-bank:memory-bank-next` |
 | DSH 伴侣或文件系统 | `/memory-bank-next` |
 | Claude Code 纯文件 | `/memory-bank-next` |
 | Codex 纯文件 | `$memory-bank-next` |
+| agy 纯文件 | `/memory-bank-next` |
 
 需要时把 `init`、`archive`、`propose`、`reconcile`、`upgrade` 或 `goal` 换成 `next`。
 每个技能的输入和审批边界，[技能指南](init.md)里都有说明。用 Goal 时，请求里要写上明确
@@ -119,7 +139,7 @@ git clone --branch v2.1.0 --depth 1 https://github.com/tabilet/skills.git
 
 | 智能体 | 个人技能目录 |
 |---|---|
-| Codex | `~/.agents/skills/` |
+| Codex 与 agy | `~/.agents/skills/` |
 | Claude Code | `~/.claude/skills/` |
 | DSH | `$DSH_HOME/skills/`，通常是 `~/.dsh/skills/` |
 
@@ -300,6 +320,8 @@ codex plugin marketplace upgrade tabilet
 codex plugin add memory-bank@tabilet
 ```
 
+对于 `agy`，从更新后的仓库目录重新运行 `agy plugin install /path/to/skills`（或在更新后的本地仓库中运行 `agy plugin install .`）。
+
 DSH 伴侣要在每个适用的配置里安装选定的已发布 release 归档，然后重启。文件系统安装的话，
 先停掉正在用这些包的会话，检查并备份已安装的文件夹，再用所选 release 里的完整文件夹替换。
 无关的技能要保留；项目或用户的覆盖设置可能压过新包，记得检查。
@@ -315,6 +337,7 @@ DSH 伴侣要在每个适用的配置里安装选定的已发布 release 归档�
 |---|---|
 | Claude Code 插件 | 在 Claude Code 里运行 `/plugin uninstall memory-bank@tabilet` |
 | Codex 插件 | 在终端里运行 `codex plugin remove memory-bank@tabilet` |
+| agy 插件 | 在终端里运行 `agy plugin uninstall memory-bank` |
 | DSH Web 伴侣 | 在终端里运行 `dsh plugin --profile web remove tabilet-skills` |
 
 如果你在无界面配置里也装过 DSH，那处安装要单独移除。纯文件安装只移除确定属于

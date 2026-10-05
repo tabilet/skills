@@ -11,7 +11,7 @@ Markdown. **Memory Bank** gives coding agents a shared record of what the
 project is, what has been done, and what should happen next—even when you start
 a new session or switch agents.
 
-Use the same project files with **Claude Code, Codex, or DeepSeek Harness
+Use the same project files with **Claude Code, Codex, agy (Antigravity), or DeepSeek Harness
 (DSH)**. Seven optional skills help create and maintain them. The files stay in
 your repository and remain usable without the skills. Version 2.0.0 keeps
 project-owned Memory Bank files under `tabilet/`.
