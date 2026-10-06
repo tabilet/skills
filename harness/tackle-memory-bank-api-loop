@@ -736,10 +736,25 @@ def table_rows(text: str) -> list[dict]:
     return rows
 
 
+def status_table_rows(status: str):
+    """Exclude review-iteration tables, whose State is not a task marker."""
+    in_review_table = False
+    previous_line = 0
+    for row in table_rows(status):
+        if row["line"] != previous_line + 1:
+            in_review_table = False
+        previous_line = row["line"]
+        cells = row["cells"]
+        if cells[1].lower() == "state":
+            in_review_table = cells[0].lower() == "iteration"
+        if not in_review_table:
+            yield row
+
+
 def status_rows(status: str) -> list[dict]:
     """Read state-bearing rows from Markdown tables outside fenced blocks."""
     rows = []
-    for row in table_rows(status):
+    for row in status_table_rows(status):
         cells = row["cells"]
         state = STATE_MARKERS.get(cells[1])
         if state:
@@ -767,7 +782,7 @@ def status_marker_problems(status: str) -> list[str]:
     problems = []
     in_task_table = False
     previous_line = 0
-    for row in table_rows(status):
+    for row in status_table_rows(status):
         cells = row["cells"]
         if row["line"] != previous_line + 1:
             in_task_table = False
@@ -798,7 +813,7 @@ def fenced_document(section: str) -> str:
     return "".join(lines[1:-1])
 
 
-def retired_record(text: str, name: str) -> dict:
+def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> dict:
     """Validate the portable retirement envelope; original documents stay literal."""
     if not re.fullmatch(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", name):
         raise ValueError("invalid retired status ID; use 01 through 99")
@@ -863,7 +878,10 @@ def retired_record(text: str, name: str) -> dict:
     rows = status_rows(status)
     if problems := status_marker_problems(status):
         raise ValueError("retired task has an " + "; ".join(problems))
-    if not rows or any(row["state"] in {"pending", "in_progress", "blocked"} for row in rows):
+    # Lookup may preserve inconsistent frozen evidence, with diagnostics. Every
+    # execution/retirement gate uses the strict default and rejects it.
+    if not rows or (not allow_unfinished and any(
+            row["state"] in {"pending", "in_progress", "blocked"} for row in rows)):
         raise ValueError("retired status must contain only closed task rows")
     for row in rows:
         if row["state"] == "historical" and not re.search(

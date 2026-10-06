@@ -304,12 +304,35 @@ instructions above if you use the browser explorer.
 
 The index reads these historical envelope variations in memory, preserving source
 bytes, task line numbers and durable audit records. It still rejects invalid
-metadata, broken fences and non-terminal retired tasks. The execution runner
-keeps its stricter canonical retirement validation. No database reset, frozen-record
+metadata, broken fences and malformed task markers. The execution runner
+keeps its stricter canonical retirement validation, including terminal task states. No database reset, frozen-record
 edit or project migration is required for this indexing fix. Refresh the index
 directly; do not replay completed work or finish an old run again to trigger it.
 If refresh still fails, inspect its diagnostic and the installed toolkit revision;
 retain the database and frozen evidence while diagnosing the remaining problem.
+
+Review tables headed `Iteration | State | Findings` describe review passes, not
+tasks. Their textual states (such as `passed` or `findings fixed`) and even task-like
+markers do not create tasks or malformed-task errors. Task tables still require
+the documented backticked markers; the shared runner and index use the same rule.
+
+A structurally valid frozen record may contain an inconsistent unfinished task
+marker. The lookup index preserves that marker and publishes a path/line diagnostic
+instead of preventing unrelated current documents and audit runs from being indexed.
+`complete: true` means the lookup refresh succeeded, not that the historical
+milestone was accepted. Its recorded outcome remains historical evidence; an
+unfinished retired row never appears as executable work and the milestone cannot
+satisfy a current milestone dependency. Dependent work requires review. The runner
+still rejects that retirement record, and no index option changes execution gates.
+Review the original evidence when resolving the discrepancy; never rewrite a frozen
+record or mark a task complete merely to silence a lookup warning.
+
+The 2026-10 retirement-state fix is separate from the earlier envelope-heading
+compatibility and frozen sibling-dependency lookup fixes. Reinstall all toolkit
+modules together and run the rebuild above; updating only the plugin cannot update
+the installed Python tools. A projection-version change also reparses unchanged
+documents on the next normal refresh. No audit-run replay or database deletion is
+needed. Failed structural validation now identifies the retired filename.
 
 Search filters include `--kind`, `--milestone`, and `--state`, with `--limit`
 (1–10000) and `--offset`. Kind `task` returns task rows; `section` returns headings;

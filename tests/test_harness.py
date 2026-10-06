@@ -177,6 +177,23 @@ def retire_fixture(repo: pathlib.Path, milestone_id: str = "M01", **fields: str)
 
 
 class RetirementTests(unittest.TestCase):
+    def test_review_state_table_is_not_a_task_table(self) -> None:
+        status = (
+            '| Item | State | Notes |\n|---|---|---|\n'
+            '| Deliver | `[+]` | done |\n\n## Milestone review\n\n'
+            '| Iteration | State | Findings |\n|---|---|---|\n'
+            '| 1 | findings fixed | checked |\n| 2 | passed | clean |\n'
+            '| 3 | `[~]` | a review marker is not an executable task |\n'
+        )
+        self.assertEqual(harness.status_marker_problems(status), [])
+        self.assertEqual([r['item'] for r in harness.status_rows(status)], ['Deliver'])
+        self.assertEqual(harness.retired_record(retirement_text(status), 'status-M01.md')['status'], status)
+        # Review prose must not hide a malformed task table that follows it.
+        bad = status + '\n| Task | State | Notes |\n|---|---|---|\n| Later | done | wrong |\n'
+        self.assertEqual(len(harness.status_marker_problems(bad)), 1)
+        with self.assertRaisesRegex(ValueError, 'non-backticked'):
+            harness.retired_record(retirement_text(bad), 'status-M01.md')
+
     def test_retired_specification_identity_cannot_be_substituted(self) -> None:
         text = retirement_text(f"| Task | {marker('[+]')} | Verified |\n")
         with self.assertRaisesRegex(ValueError, "specification does not match"):

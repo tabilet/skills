@@ -158,6 +158,24 @@ class CliTests(unittest.TestCase):
                  'capture_source':'agent','fidelity':'summarized'}
         self.command('audit','message',data=summary)
 
+    def test_finish_indexes_inconsistent_history_without_rewriting_source_or_audit(self):
+        source=self.repo/'tabilet/memory-bank/status-M01.md'
+        source.write_text(source.read_text().replace('`[ ]`', '`[~]`') +
+            '\n## Milestone review\n\n| Iteration | State | Findings |\n|---|---|---|\n'
+            '| 1 | findings fixed | evidence |\n| 2 | passed | clean |\n')
+        retired=h.retire_fixture(self.repo)
+        original=retired.read_bytes()
+        started=self.command('audit','begin',self.repo,'next')
+        finished=self.command('audit','finish',started['run_id'],'completed')
+        self.assertTrue(finished['index']['complete'])
+        state=self.command('index','status',self.repo)
+        self.assertTrue(state['complete'])
+        self.assertTrue(any('retired task retains in_progress' in d for d in state['diagnostics']))
+        audit_before=self.command('audit','export')
+        self.command('index','sync',self.repo,'--rebuild')
+        self.assertEqual(self.command('audit','export'),audit_before)
+        self.assertEqual(retired.read_bytes(),original)
+
     def test_packaged_toolkit_works_and_rebuild_preserves_audit(self):
         installation=self.base/'bin';installation.mkdir()
         for name in ('tabilet_audit.py','tabilet_index.py','tabilet_explorer.py','tackle-memory-bank-api-loop'):

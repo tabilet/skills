@@ -196,7 +196,7 @@ class IndexTests(unittest.TestCase):
         initial = self.sync()
         bad_records = (
             valid.replace('**Review.** passed', '**Review.** failed'),
-            valid.replace('`[+]`', '`[ ]`'),
+            valid.replace('`[+]`', '[+]'),
             valid.replace('## Status', '## Unknown'),
             valid.replace('`````\n# Status', '`````python\n# Status'),
             valid.rsplit('`````', 1)[0],
@@ -210,6 +210,65 @@ class IndexTests(unittest.TestCase):
                 with self.assertRaises(a.AuditError):
                     self.sync()
                 self.assertEqual(ix.status(self.c, initial['workspace_id'])['generation'], initial['generation'])
+
+    def test_unfinished_frozen_tasks_are_lookup_evidence_never_ready_or_accepted(self):
+        self.source.write_text(self.source.read_text().replace('`[ ]`', '`[+]`'))
+        retired = h.retire_fixture(self.root)
+        valid = retired.read_text()
+        active = self.root/'tabilet/memory-bank/status-M02.md'
+        active.write_text('| Item | State | Notes |\n|---|---|---|\n| Next | `[ ]` | |\n')
+        (self.root/'tabilet/memory-bank/milestone.md').write_text(
+            '# Milestones\n\n## M02 - Next\n\n**Dependencies.** M01.\n')
+        for marker, state in (('[ ]', 'pending'), ('[~]', 'in_progress'), ('[!]', 'blocked')):
+            with self.subTest(state=state):
+                retired.write_text(valid.replace('`[+]`', f'`{marker}`'))
+                before = self.hashes()
+                with self.assertRaisesRegex(ValueError, 'only closed task rows'):
+                    ix.parser().retired_record(retired.read_text(), retired.name)
+                synced = self.sync()
+                self.assertTrue(synced['complete'])
+                diagnostic = next(d for d in synced['diagnostics'] if 'retired task retains' in d)
+                task = ix.search(self.c, synced['workspace_id'], 'Implement feature', kind='task')['results'][0]
+                self.assertEqual(task['state'], state)
+                self.assertIn(f"{task['path']}:{task['line']}:", diagnostic)
+                self.assertIn('Implement feature', retired.read_text().splitlines()[task['line'] - 1])
+                ready = ix.readiness(self.c, synced['workspace_id'], self.root)
+                self.assertEqual(ready['resume'], [])
+                self.assertEqual(ready['ready'], [])
+                self.assertEqual(ready['blocked'], [])
+                self.assertEqual(len(ready['waiting']), 1)
+                self.assertIn('dependency requires review: M01', ready['waiting'][0]['reason'])
+                self.assertEqual(self.hashes(), before)
+                # Incremental reuse must retain the warning, not silently clear it.
+                self.assertIn(diagnostic, self.sync()['diagnostics'])
+        # Unrelated current work remains available despite inconsistent history.
+        active.write_text(active.read_text() + '\n')
+        (self.root/'tabilet/memory-bank/milestone.md').write_text('# Milestones\n\n## M02 - Next\n')
+        synced = self.sync()
+        self.assertEqual(len(ix.readiness(self.c, synced['workspace_id'], self.root)['ready']), 1)
+        # Consistent closure still satisfies the dependency without warnings.
+        retired.write_text(valid)
+        (self.root/'tabilet/memory-bank/milestone.md').write_text(
+            '# Milestones\n\n## M02 - Next\n\n**Dependencies.** M01.\n')
+        synced = self.sync()
+        self.assertFalse(any('retired task retains' in d for d in synced['diagnostics']))
+        self.assertEqual(len(ix.readiness(self.c, synced['workspace_id'], self.root)['ready']), 1)
+
+    def test_review_tables_index_without_becoming_tasks(self):
+        self.source.write_text(self.source.read_text().replace('`[ ]`', '`[+]`') +
+            '\n## Milestone review\n\n| Iteration | State | Findings |\n|---|---|---|\n'
+            '| 1 | findings fixed | evidence |\n| 2 | passed | clean |\n')
+        retired = h.retire_fixture(self.root)
+        before = self.hashes()
+        synced = self.sync()
+        self.assertTrue(synced['complete'])
+        self.assertEqual(synced['diagnostics'], [])
+        self.assertEqual(self.c.execute('SELECT COUNT(*) FROM index_tasks').fetchone()[0], 1)
+        self.assertEqual(self.hashes(), before)
+        retired.write_text(retired.read_text().replace('`[+]`', '`[?]`'))
+        with self.assertRaisesRegex(a.AuditError, 'status-M01.md: retired task'):
+            self.sync()
+        self.assertEqual(ix.status(self.c, synced['workspace_id'])['generation'], synced['generation'])
 
     def test_active_sibling_dependency_requires_manual_reconciliation(self):
         self.source.write_text(self.source.read_text()+

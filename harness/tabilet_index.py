@@ -25,7 +25,7 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 1
-INDEX_PROJECTION = 'v4'
+INDEX_PROJECTION = 'v5'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -228,8 +228,8 @@ def retired_record_for_index(text, name):
 
     Only historical Status or Full status document headings and unlabelled
     outer fences are normalized in memory. The runner still validates metadata,
-    literal fence boundaries and closed task rows; execution keeps its
-    canonical-only parser.
+    literal fence boundaries and task markers. Unfinished historical markers
+    stay literal and produce diagnostics; execution keeps strict closure checks.
     Normalization preserves line numbers and the literal documents' bytes.
     """
     p = parser()
@@ -249,7 +249,10 @@ def retired_record_for_index(text, name):
                 if re.fullmatch(r'`{3,}|~{3,}', fence):
                     lines[opening] = lines[opening].replace(fence, fence + 'markdown', 1)
     normalized = ''.join(lines)
-    record = p.retired_record(normalized, name)
+    try:
+        record = p.retired_record(normalized, name, allow_unfinished=True)
+    except ValueError as exc:
+        raise ValueError(f'{name}: {exc}') from exc
     offsets = {}
     for n, heading in p.unfenced_lines(normalized):
         if heading in ('## Milestone specification', '## Status record'):
@@ -452,10 +455,16 @@ def validate_projection(documents, parsed):
             if identity in specs:raise AuditError(f'retired specification remains active: {identity}')
             cells=history_rows.get(identity,[])
             path=f'tabilet/docs/history/status-{identity}.md'
-            record, _ = retired_record_for_index(documents[path]['text'], pathlib.Path(path).name)
+            record, offsets = retired_record_for_index(documents[path]['text'], pathlib.Path(path).name)
             meta = record['metadata']
             if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\(status-'+identity+r'\.md\)',cells[3]):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
+            for task in p.status_rows(record['status']):
+                if task['state'] in {'pending','in_progress','blocked'}:
+                    line = task['line'] + offsets['## Status record']
+                    diagnostics.append(f'{path}:{line}: retired task retains {task["state"]} '
+                                       'marker; frozen evidence only, not executable or accepted '
+                                       'as a completed dependency')
     # A current milestone specification is the maintained source for display
     # order, summary, and acceptance.  Status records still own task state and
     # retired envelopes still own closure evidence, so discard the duplicate
@@ -760,10 +769,12 @@ def _readiness(connection, workspace, project_root=None):
         target_rows=records(connection, "SELECT state FROM index_tasks WHERE workspace_id=? AND milestone_id=?", (workspace,target_id))
         unfinished=any(row['state'] in {'pending','in_progress','blocked'} for row in target_rows)
         unsafe_terminal=any(row['state'] in {'cancelled','historical'} for row in target_rows)
-        accepted = target['lifecycle'] == 'retired' and target.get('outcome') == 'completed'
+        accepted = (target['lifecycle'] == 'retired' and target.get('outcome') == 'completed'
+                    and bool(target_rows) and not unfinished)
         if not accepted:
             milestone_waiting.setdefault(source_id,[]).append(target_id)
-            if not target_rows or unsafe_terminal or (not unfinished and target['lifecycle'] == 'active'):
+            if (not target_rows or unsafe_terminal or target['lifecycle'] == 'retired'
+                    or (not unfinished and target['lifecycle'] == 'active')):
                 milestone_review.setdefault(source_id, []).append(target_id)
     milestone_cycles=[]
     milestone_colors={}
