@@ -2004,6 +2004,10 @@ def skill_resource_contract():
         problems.append("goal launcher must route to its bundled optional runtime help")
     if not (goal / "references/runtime-help.md").is_file():
         problems.append("goal runtime help is missing from its standalone bundle")
+    if "references/subagents.md" not in (goal / "SKILL.md").read_text():
+        problems.append("goal launcher must route to its bundled subagent execution reference")
+    if not (goal / "references/subagents.md").is_file():
+        problems.append("goal subagent reference is missing from its standalone bundle")
     return problems
 
 
