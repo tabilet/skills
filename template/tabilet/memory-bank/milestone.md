@@ -21,6 +21,13 @@ stage, and provisional later ideas. Give each active milestone specification
 its stage ID. An absent stages file means one implicit stage. Stage labels do
 not determine task readiness or prove milestone acceptance.
 
+Each active milestone specification defines scope, acceptance criteria, and
+optional boundaries and parallel safety: `Depends on`, `Downstream impacts`,
+`Write set`, `Contracts read`, and `Parallel-safe` (defaulting to `no`). A
+milestone is parallel-safe only when unordered against other active work, its
+write set is disjoint, and its inputs are frozen. Parallel safety never prunes
+downstream impact reconciliation.
+
 ## Status ID Pattern
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single
@@ -416,6 +423,13 @@ instruction. Never initialize Git merely to make retirement possible.
 
 **Acceptance.** [Clear completion condition.]
 
+**Boundaries and parallel safety.** (Optional; defaults to not parallel-safe)
+- Depends on: none
+- Downstream impacts: none
+- Write set: [paths and contracts changed]
+- Contracts read: none
+- Parallel-safe: no
+
 ## Additional milestone examples
 
 These specifications illustrate later allocations, not active work. Assign
@@ -433,6 +447,13 @@ permanent IDs only when the corresponding milestone is approved.
 
 **Acceptance.** [Clear completion condition.]
 
+**Boundaries and parallel safety.**
+- Depends on: M01
+- Downstream impacts: none
+- Write set: [paths and contracts changed]
+- Contracts read: [frozen contracts from M01]
+- Parallel-safe: no
+
 ## [A]01 - [Domain milestone name]
 
 **Goal.** [One sentence. Replace `[A]` with the lane letter for this domain.]
@@ -443,4 +464,11 @@ permanent IDs only when the corresponding milestone is approved.
 - [Scoped item.]
 
 **Acceptance.** [Clear completion condition.]
+
+**Boundaries and parallel safety.**
+- Depends on: M01
+- Downstream impacts: none
+- Write set: [domain paths and contracts changed]
+- Contracts read: [frozen contracts from M01]
+- Parallel-safe: yes — disjoint write set and frozen inputs
 ```

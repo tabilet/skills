@@ -701,6 +701,8 @@ def adaptive_init_contract():
         "discretionary",
         "Preserve every verified `tabilet/docs/archive-<LANE><NN>.md` byte-for-byte",
         "independent namespace",
+        "define optional boundaries and parallel safety",
+        "parallel-safe defaulting to no",
     ):
         if token not in write_contract_words:
             problems.append(f"write-contract.md: missing {token!r}")
@@ -713,6 +715,8 @@ def adaptive_init_contract():
         "## Candidate Directions",
         "have no lane, permanent status ID, status file",
         "obtain approval before allocating its permanent ID",
+        "Boundaries and parallel safety",
+        "Parallel-safe: no",
     ):
         if token not in milestone:
             problems.append(f"template/tabilet/memory-bank/milestone.md: missing {token!r}")
@@ -1948,6 +1952,10 @@ def propose_contract():
         problems.append("template milestone lacks requested-change procedure")
     if "memory-bank-propose" not in (ROOT / "AGENTS.md").read_text():
         problems.append("AGENTS.md lacks Propose boundary")
+    plan_update = (SKILLS_DIR / "memory-bank-propose/references/plan-update.md").read_text()
+    for token in ("never prune downstream impacts to force parallel safety", "parallel-safe defaults to no"):
+        if token not in plan_update:
+            problems.append(f"plan-update.md: missing {token!r}")
     return problems
 
 

@@ -94,7 +94,10 @@ In `tabilet/memory-bank/milestone.md`:
 
 - index exactly the approved active milestones and link each to its one status
   file;
-- state their dependency order, acceptance, and downstream relationships; and
+- state their dependency order, acceptance, and downstream relationships;
+- define optional boundaries and parallel safety (depends on, downstream
+  impacts, write set, contracts read, and parallel-safe defaulting to no);
+  never prune downstream impacts to force parallel-safe status; and
 - place later work in an explicitly unnumbered `Candidate Directions` section
   with columns for direction, why it is deferred, and its promotion trigger.
 - when stages exist, reference each active milestone's stage by its stable ID
