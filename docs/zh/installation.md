@@ -7,7 +7,7 @@
 |---|---|
 | Claude Code | 装 `tabilet` 市场里的 `memory-bank` 插件 |
 | Codex | 用 Codex CLI 装同一个 `memory-bank` 插件 |
-| agy | 通过 `agy plugin install` 直接导入 `memory-bank` 插件 |
+| agy | 直接运行 `agy plugin install https://github.com/tabilet/skills` 安装 |
 | DSH Web 或无界面（headless） | 装 `tabilet-skills` 伴侣，或者用源码检出里的七个文件系统包 |
 | 手动安装 | 把完整的技能文件夹放进智能体的技能目录 |
 
@@ -56,9 +56,10 @@ $memory-bank:memory-bank-init
 在**终端里**运行：
 
 ```bash
-agy plugin install /path/to/skills
-#（或者在克隆的仓库根目录下运行：agy plugin install .）
+agy plugin install https://github.com/tabilet/skills
 ```
+
+*（也可以在本地克隆目录中运行：`agy plugin install .`）*
 
 然后在你的项目里新开一个 `agy` 会话并发送：
 
@@ -320,7 +321,7 @@ codex plugin marketplace upgrade tabilet
 codex plugin add memory-bank@tabilet
 ```
 
-对于 `agy`，从更新后的仓库目录重新运行 `agy plugin install /path/to/skills`（或在更新后的本地仓库中运行 `agy plugin install .`）。
+对于 `agy`，重新运行 `agy plugin install https://github.com/tabilet/skills` 即可拉取最新版本。
 
 DSH 伴侣要在每个适用的配置里安装选定的已发布 release 归档，然后重启。文件系统安装的话，
 先停掉正在用这些包的会话，检查并备份已安装的文件夹，再用所选 release 里的完整文件夹替换。

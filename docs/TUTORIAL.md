@@ -48,12 +48,12 @@ codex plugin add memory-bank@tabilet
 Codex wants the `@marketplace` qualifier when the plugin name is not unique
 across your marketplaces, so `memory-bank@tabilet` is the form to learn.
 
-In `agy` (Google Antigravity), which natively imports local plugins from this repository:
+In `agy` (Google Antigravity), install directly from GitHub:
 
 ```bash
-agy plugin install .
+agy plugin install https://github.com/tabilet/skills
 ```
-(Or from any directory: `agy plugin install /path/to/skills`.)
+*(Or from a local clone: `agy plugin install .`)*
 
 **Plugin invocation is namespaced.** Following current [Claude Code skill
 namespacing](https://code.claude.com/docs/en/slash-commands), [Codex skill
@@ -180,10 +180,10 @@ codex plugin marketplace remove tabilet
 
 ### agy
 
-Re-run install from the updated repository checkout to update the installed plugin:
+Re-run install to pull the latest version from GitHub:
 
 ```bash
-agy plugin install .
+agy plugin install https://github.com/tabilet/skills
 ```
 
 To uninstall the plugin:

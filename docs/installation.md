@@ -8,7 +8,7 @@ create or upgrade a project's memory bank.**
 |---|---|
 | Claude Code | The `memory-bank` plugin from the `tabilet` marketplace |
 | Codex | The same `memory-bank` plugin through the Codex CLI |
-| agy | The `memory-bank` plugin imported directly via `agy plugin install` |
+| agy | Install directly via `agy plugin install https://github.com/tabilet/skills` |
 | DSH Web or headless | The `tabilet-skills` companion, or the seven source-checkout filesystem bundles |
 | Manual installation | Complete skill folders in your agent's skill directory |
 
@@ -58,9 +58,10 @@ not expose plugin commands, use the [plain-file route](#as-plain-files-you-own).
 Run this **in a terminal**:
 
 ```bash
-agy plugin install /path/to/skills
-# (or from within the cloned repository: agy plugin install .)
+agy plugin install https://github.com/tabilet/skills
 ```
+
+*(Or from a local clone: `agy plugin install .`)*
 
 Open a fresh `agy` session in your project and send:
 
@@ -374,7 +375,7 @@ codex plugin marketplace upgrade tabilet
 codex plugin add memory-bank@tabilet
 ```
 
-For `agy`, re-run `agy plugin install /path/to/skills` (or `agy plugin install .` from the updated repository directory).
+For `agy`, re-run `agy plugin install https://github.com/tabilet/skills` to pull the latest version.
 
 For the DSH companion, install the chosen published release archive in each
 applicable profile, then restart it. For filesystem installs, stop sessions

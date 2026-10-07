@@ -969,15 +969,13 @@ version ships.
 
 **agy (Antigravity):**
 
-`agy` has a built-in plugin manager and natively imports `.claude-plugin/plugin.json`:
+`agy` has a built-in plugin manager and can install directly from GitHub:
 
 ```bash
-# From within the cloned skills repository:
-agy plugin install .
-
-# Or by directory path:
-agy plugin install /path/to/skills
+agy plugin install https://github.com/tabilet/skills
 ```
+
+*(Or from a local clone: `agy plugin install .`)*
 
 `agy` registers all seven skills as slash commands and installs them into
 `~/.gemini/config/plugins/memory-bank`. Verify with `agy plugin list`.
@@ -1100,11 +1098,11 @@ after updating the skills.
   ```
   *(Start a new Codex session to load the updated skills.)*
 - **agy:**
-  Re-run install from the updated repository directory:
+  Re-run install to pull the latest version from GitHub:
   ```bash
-  agy plugin install /path/to/skills
-  # (or run `agy plugin install .` from within the updated repository clone)
+  agy plugin install https://github.com/tabilet/skills
   ```
+  *(Or run `agy plugin install .` from within an updated local clone.)*
 - **DSH:**
   Follow [update or removal](docs/DSH.md#update-or-remove) to update the companion package or replace the filesystem bundles under `$DSH_HOME/skills` with complete folders from the new release.
 - **Plain-file installs:**
