@@ -512,10 +512,14 @@ class ExplorerTests(unittest.TestCase):
 
     def test_timeline_child_filters_do_not_cross_workspace_boundary(self):
         self.bootstrap()
+        other_root = self.base / 'other-worktree'
+        import subprocess
+        subprocess.run(['git', '-C', str(self.project), 'worktree', 'add', '-b', 'scope-lease', str(other_root)],
+                       check=True, capture_output=True)
         with audit.open_database(self.database, project_roots=[self.project]) as connection:
             workspace = audit.ensure_workspace(connection, self.project)
             parent = audit.start_run(connection, workspace, 'goal', run_id='scoped-parent')
-            other = audit.ensure_workspace(connection, self.base / 'other-project')
+            other = audit.ensure_workspace(connection, other_root)
             connection.execute("""
                 INSERT INTO runs(run_id,workspace_id,operation,started_at,completed_at,
                                  recorder_version,capture_mode,parent_run_id,git_head,

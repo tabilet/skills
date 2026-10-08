@@ -306,6 +306,9 @@ spelling so an inbound link survives translation.
 - SQLite is optional external audit plus rebuildable Markdown lookup. Project
   Markdown remains authoritative; index refresh never rewrites it or durable
   audit records. New snapshot capture is deferred; existing evidence is preserved.
+  New storage uses one external database per project; registered linked
+  worktrees share that database, and unrelated projects cannot share writable
+  storage. `TABILET_AUDIT_DB=project` is explicit opt-in; the default stays off.
   The seven optional audit references stay byte-identical, and disabled auditing
   must preserve the documented single-file runner installation. The CLI package
   and source-lifecycle tests enforce these contracts.

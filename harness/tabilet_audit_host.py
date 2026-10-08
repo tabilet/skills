@@ -23,7 +23,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import tabilet_audit as audit
 import tabilet_index as index
 
-TOOLKIT_INTERFACE = 1
+TOOLKIT_INTERFACE = 2
 
 
 def check_toolkit(include_explorer=False):
@@ -41,7 +41,8 @@ def check_toolkit(include_explorer=False):
 
 def arguments(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--audit-db',default=os.environ.get('TABILET_AUDIT_DB') or str(audit.default_database_path()),help='External database; only write commands create or migrate it.')
+    parser.add_argument('--audit-db',default=os.environ.get('TABILET_AUDIT_DB') or 'project',help='project (default) selects this project\'s external database; an absolute path overrides it.')
+    parser.add_argument('--project',dest='routing_project',help='Select the project for commands without a positional project; otherwise the current directory selects it.')
     parser.add_argument('--event',help='Compatibility alias for audit event with inline JSON.')
     groups=parser.add_subparsers(dest='group')
     audits=groups.add_parser('audit').add_subparsers(dest='action',required=True)
@@ -180,11 +181,16 @@ def submit_event(connection, event):
 
 def dispatch(args):
     action=getattr(args,'action',None)
+    project=getattr(args,'project',None)
+    selected=project or args.routing_project
+    routing_root=pathlib.Path(selected or pathlib.Path.cwd()).expanduser().resolve()
+    if project and args.routing_project and audit.project_storage_root(project) != audit.project_storage_root(args.routing_project):
+        raise audit.AuditError('command and database selection name different projects')
+    database=audit.resolve_database_path(args.audit_db,project_root=routing_root)
     if args.group == 'explorer':
         from tabilet_explorer import serve
-        return serve(args.project, args.explorer_database or args.audit_db, args.host, args.port)
-    project=getattr(args,'project',None)
-    root=pathlib.Path(project).expanduser().resolve() if project else None
+        return serve(args.project, args.explorer_database or database, args.host, args.port)
+    root=pathlib.Path(selected).expanduser().resolve() if selected else None
     write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish')) or (args.group=='index' and action=='sync')
     if root and write:
         if not root.is_dir():raise audit.AuditError('project must be an existing directory')
@@ -192,7 +198,6 @@ def dispatch(args):
             try:
                 index.layout_check(root)
             except (OSError, ValueError) as exc:
-                database = pathlib.Path(args.audit_db).expanduser()
                 registered = False
                 if database.is_file():
                     with contextlib.closing(audit.open_readonly_database(database)) as readonly:
@@ -203,9 +208,10 @@ def dispatch(args):
                     raise exc
         else:
             index.layout_check(root)
-    if write and action in ('event','message','coverage','purge-message','finish') and not pathlib.Path(args.audit_db).expanduser().exists():
+    if write and action in ('event','message','coverage','purge-message','finish') and not database.exists():
         raise audit.AuditError('no audit database; start with audit begin PROJECT OPERATION')
-    connection=audit.open_database(args.audit_db,project_roots=[root] if root else []) if write else audit.open_readonly_database(args.audit_db)
+    write_roots=[root] if root else [routing_root] if str(args.audit_db).strip()=='project' else []
+    connection=audit.open_database(database,project_roots=write_roots) if write else audit.open_readonly_database(database,project_root=root)
     with contextlib.closing(connection):
         if args.group=='backup':
             audit.backup_database(connection,args.destination)
@@ -221,12 +227,12 @@ def dispatch(args):
                     mapping=index.read_external_dependencies(args.external_dependencies)
                 elif args.clear_external_dependencies:
                     mapping={'schema':index.EXTERNAL_DEPENDENCIES_SCHEMA,'references':[]}
-                return index.sync(connection,root,rebuild=args.rebuild,force_literal=args.literal,dependency_map=mapping)
+                return {**index.sync(connection,root,rebuild=args.rebuild,force_literal=args.literal,dependency_map=mapping), 'database_path':str(database)}
             workspace=index.workspace_id(connection,root)
-            if action=='status':return index.status(connection,workspace)
+            if action=='status':return {**index.status(connection,workspace), 'database_path':str(database)}
             if action=='show':return index.show(connection,workspace,args.path)
             return index.search(connection,workspace,args.query,kind=args.kind,milestone_id=args.milestone_id,state=args.state,limit=args.limit,offset=args.offset)
-        if action=='begin':return begin_run(connection,root,args)
+        if action=='begin':return {**begin_run(connection,root,args), 'database_path':str(database)}
         if action=='event':return submit_event(connection,submission(args))
         if action=='message':return {'message_id':audit.capture_message(connection,**submission(args))}
         if action=='coverage':return audit.record_coverage(connection,submission(args))
@@ -237,7 +243,11 @@ def dispatch(args):
             audit.finish_run(connection,args.run_id,args.result,completed_at=args.completed_at)
             root=connection.execute('SELECT w.project_root FROM runs r JOIN workspaces w USING(workspace_id) WHERE r.run_id=?',(args.run_id,)).fetchone()[0]
             return {'run_id':args.run_id,'result':args.result,'index':refresh(connection,root)}
-        workspace=index.workspace_id(connection,root) if root else getattr(args,'workspace_id',None)
+        workspace=getattr(args,'workspace_id',None)
+        # New project databases include the repository's linked-worktree runs.
+        # A legacy shared file selected for extraction retains its root filter.
+        if root and audit.bound_project(connection) is None:
+            workspace=index.workspace_id(connection,root)
         if action=='export':return audit.strict_json_loads(audit.export_json(connection,workspace_id=workspace,include_content=args.include_content))
         kwargs={key:getattr(args,key) for key in ('operation','milestone_id','task','since','until','limit','offset')}
         kwargs.update({key:getattr(args,key) for key in ('instruction_set','instruction_set_version','host','model','capture_method','coverage')})

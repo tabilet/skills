@@ -88,11 +88,12 @@ class StorageTests(unittest.TestCase):
         parent=a.start_run(self.c,self.w,'goal')
         child=a.start_run(self.c,self.w,'next',run_id='child',parent_run_id=parent)
         self.assertEqual(a.start_run(self.c,self.w,'next',run_id='child',parent_run_id=parent),child)
-        other=a.ensure_workspace(self.c,self.root/'other')
         with self.assertRaises(a.AuditError):
-            a.start_run(self.c,other,'next',parent_run_id=parent)
+            a.ensure_workspace(self.c,self.root/'other')
         with self.assertRaises(a.AuditError):
-            a.append_event(self.c,{**self.event(child,'bad'),'workspace_id':other})
+            a.start_run(self.c,self.w,'next',parent_run_id='missing-parent')
+        with self.assertRaises(a.AuditError):
+            a.append_event(self.c,{**self.event(child,'bad'),'workspace_id':'different-workspace'})
         a.finish_run(self.c,child,'blocked')
         a.finish_run(self.c,child,'blocked')
         self.assertEqual(len(a.query_events(self.c,child)),1)
@@ -346,7 +347,9 @@ audit.backup_database(source, sys.argv[2])
         import tabilet_index as index
         import test_harness as harness
         first = harness.make_repo(self.root / 'workspace-a')
-        second = harness.make_repo(self.root / 'workspace-b')
+        second = self.root / 'workspace-b'
+        subprocess.run(['git', '-C', str(first), 'worktree', 'add', '-b', 'index-lease', str(second)],
+                       check=True, capture_output=True)
         database = self.root / 'multi-workspace.db'
         connection = a.open_database(database)
         first_state = index.sync(connection, first)
@@ -359,6 +362,7 @@ audit.backup_database(source, sys.argv[2])
         connection.commit(); connection.close()
 
         connection = a.open_database(database)
+        self.addCleanup(connection.close)
         index.sync(connection, first)
         index.sync(connection, second)
         for workspace in (first_state['workspace_id'], second_state['workspace_id']):

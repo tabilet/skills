@@ -15,6 +15,7 @@ import stat
 import subprocess
 import uuid
 
+import tabilet_audit as audit_storage
 from tabilet_audit import AuditError, atomic, canonical_json, ensure_workspace, records, strict_json_loads, utc_now, pagination
 
 MAX_BYTES = 4 * 1024 * 1024
@@ -24,7 +25,7 @@ EVOLUTION = re.compile(r'(prompt|result)-v([1-9][0-9]*)\.md$')
 TABLES = ('index_documents','index_sections','index_milestones','index_tasks','index_relationships','index_search')
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
-TOOLKIT_INTERFACE = 1
+TOOLKIT_INTERFACE = 2
 INDEX_PROJECTION = 'v6'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
@@ -613,6 +614,7 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False, depend
     # workspaces record the failed refresh while retaining their last generation.
     if not existing:
         layout_check(root)
+    audit_storage.bind_project(connection, root)
     workspace=existing[0] if existing else ensure_workspace(connection,root,branch=context['branch'])
     attempted=utc_now()
     try:

@@ -1622,8 +1622,8 @@ class AuditRun:
                 ) from exc
             import tabilet_audit
             import tabilet_index
-            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 1
-                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 1):
+            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 2
+                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 2):
                 raise RuntimeError("incompatible audit toolkit modules; reinstall the toolkit files together")
             self.recorder = tabilet_audit
             if git_ref is None:
@@ -1877,7 +1877,7 @@ def parse_args(argv=None) -> argparse.Namespace:
               TOOL_ENV_ALLOW                     Comma-separated extra variables for shell tools.
               ALLOW_UNSANDBOXED_SHELL=1          Acknowledge model-controlled host shell access.
               ALLOW_DANGEROUS_COMMANDS=1         Disable the command guardrail.
-              TABILET_AUDIT_DB                  Opt-in external SQLite audit database path.
+              TABILET_AUDIT_DB                  Opt in with project, or an absolute external database path.
               TABILET_AUDIT_CAPTURE             'metadata' (default) or 'relevant'.
               TABILET_AUDIT_ARCHIVES            Obsolete; new snapshot capture is deferred.
             """

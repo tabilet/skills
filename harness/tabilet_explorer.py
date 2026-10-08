@@ -30,7 +30,7 @@ import tabilet_index as index
 MAX_BODY = 64 * 1024
 MAX_PAGE = 100
 POLL_SECONDS = 5
-TOOLKIT_INTERFACE = 1
+TOOLKIT_INTERFACE = 2
 TODO_GROUPS = ('resume', 'ready', 'waiting', 'blocked', 'needs_review')
 ASSET_DIR = pathlib.Path(__file__).with_name("explorer")
 INSTALLED_ASSET_DIR = pathlib.Path.home() / ".local" / "share" / "tabilet" / "explorer"
@@ -82,7 +82,7 @@ def _legacy_run_without_v4_evidence(run: dict[str, Any], provenance: dict[str, A
 class ExplorerApp:
     def __init__(self, project: pathlib.Path, database: pathlib.Path):
         self.project = project.expanduser().resolve()
-        self.database = audit.external_path(database, [self.project])
+        self.database = audit.external_path(database, [self.project, audit.project_storage_root(self.project)])
         self.token = secrets.token_urlsafe(32)
         self.refresh_lock = threading.Lock()
 
@@ -92,7 +92,7 @@ class ExplorerApp:
         if write:
             return audit.open_database(self.database, project_roots=[self.project])
         audit.external_path(self.database, [self.project])
-        return audit.open_readonly_database(self.database)
+        return audit.open_readonly_database(self.database, project_root=self.project)
 
     def _workspace(self, connection):
         row = connection.execute("SELECT * FROM workspaces WHERE project_root=?", (str(self.project),)).fetchone()
@@ -934,7 +934,7 @@ class ExplorerServer(http.server.ThreadingHTTPServer):
 
 
 def serve(project, database=None, host="127.0.0.1", port=8000):
-    app = ExplorerApp(pathlib.Path(project), pathlib.Path(database or audit.default_database_path()))
+    app = ExplorerApp(pathlib.Path(project), audit.resolve_database_path(database, project_root=project))
     try:
         server = ExplorerServer((host, port), app)
     except OSError as exc:

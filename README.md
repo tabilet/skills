@@ -1181,9 +1181,13 @@ to still know what it is next week.
 ## Optional SQLite audit and lookup
 
 Markdown remains authoritative. The optional `tabilet-audit` toolkit records
-workflow evidence in an external SQLite database and builds a disposable index
+workflow evidence in one external SQLite database per project and builds a disposable index
 of active milestones/tasks, retired history, evolution, and context archives.
 Indexing does not change project Markdown or require new task IDs.
+Linked Git worktrees share their repository's database, with separate workspace
+records. The default location is
+`${XDG_STATE_HOME:-~/.local/state}/tabilet/projects/<project-id>/audit.sqlite3`.
+Automatic auditing stays off until explicitly enabled.
 
 To enable auditing, run these commands from a `skills` checkout. Install the
 runner too: the lookup index uses its Markdown parser. Set the exports in the
@@ -1196,30 +1200,24 @@ install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
 install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+export TABILET_AUDIT_DB=project
 export TABILET_AUDIT_CAPTURE=metadata
 ```
 
-No project is needed to initialize an empty database. Use the installed
-module's writer, which creates and validates the Tabilet schema without
-registering a workspace or inventing an audit run:
+Create or refresh the project's lookup index with the existing command:
 
 ```bash
-PYTHONPATH="$HOME/.local/bin" python3 - <<'PY'
-import os
-from contextlib import closing
-import tabilet_audit
-
-with closing(tabilet_audit.open_database(os.environ["TABILET_AUDIT_DB"])):
-    pass
-PY
+tabilet-audit index sync /absolute/path/to/project
 ```
 
-Do not use `touch` to create the database; an empty file is not a valid Tabilet
-database. When you do have a project,
-`tabilet-audit index sync /absolute/path/to/project` also creates the database
-if needed and indexes that project's Markdown. The configured external database
-can hold separate records for multiple projects.
+The command returns the resolved database path. You may override it with an
+absolute external path through `TABILET_AUDIT_DB` or `--audit-db`; a writable
+database belongs to one project. Commands without a project argument use the
+current directory, or `tabilet-audit --project /absolute/path/to/project ...`.
+The older account-wide database is no longer selected by default.
+
+If you have an older shared database (including one from before v2.5.0), you can
+ask your LLM agent to extract this project's history and import it into its SQLite database.
 
 See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
 If older retired records make refresh fail with `expected one fenced markdown
@@ -1375,7 +1373,7 @@ Markdown searchable without replacing it.
 Enable the recorder before starting the runner:
 
 ```bash
-export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
+export TABILET_AUDIT_DB=project
 export TABILET_AUDIT_CAPTURE=metadata
 ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=your-model MAX_RUNS=1 \
   tackle-memory-bank-api-loop /absolute/path/to/project

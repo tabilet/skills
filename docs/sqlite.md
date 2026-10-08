@@ -18,9 +18,14 @@ Markdown files retain document history; current indexed text is replaceable.
 
 ## Storage and migration
 
-The optional account database defaults to
-`${XDG_STATE_HOME:-~/.local/state}/tabilet/audit.sqlite3`. Explicit configuration
-uses `TABILET_AUDIT_DB` or `--audit-db`. Installation and read commands never
+Each project has one optional external database under
+`${XDG_STATE_HOME:-~/.local/state}/tabilet/projects/<project-id>/audit.sqlite3`.
+The project ID is the full SHA-256 of its canonical root path. Registered linked
+Git worktrees share the main repository's location; independent clones and
+submodules remain separate projects. Explicit configuration uses
+`TABILET_AUDIT_DB=project` or `--audit-db project` for that default, or an absolute
+external path override. Automatic runner auditing remains off without explicit
+configuration. Installation and read commands never
 create a database. Database, WAL, and shared-memory files stay outside projects.
 New storage directories are private; existing parent permissions are unchanged.
 
@@ -32,6 +37,12 @@ while preserving durable records, message bytes, and snapshot bytes. Readers can
 open known older databases without writing; an explicit writer open performs the
 transactional migration. A failed migration rolls back the schema marker and
 leaves the earlier database readable.
+Writable databases bind to one project and retain workspace membership after
+temporary worktrees are removed. An older shared database spanning unrelated
+projects is read-only with this toolkit; new defaults start fresh and do not
+select the former account-wide `tabilet/audit.sqlite3`. Existing read/export
+commands can still inspect an explicitly selected old database for agent-assisted
+history extraction. No automatic cross-project data import is performed.
 Unknown or newer databases are rejected. The toolkit modules carry one
 interface version: the CLI reports an incompatible installation clearly, while
 the API runner reports an audit gap and preserves its task outcome. Backups and
@@ -61,7 +72,8 @@ prove acceptance. Timestamps use UTC RFC 3339.
 Caller-supplied run, event, and message IDs support retries. Identical retries
 return the original record, including generated timestamps and sequence values;
 conflicting reuse fails. Events require their run's workspace and operation;
-parent runs must belong to the same workspace. Sequence allocation and terminal
+parent runs must exist in the same project database, including linked worktree
+operations. Sequence allocation and terminal
 updates are serialized transactions. Audit references never point to disposable
 index rows, so edits or retirement cannot reattribute earlier evidence.
 
@@ -207,13 +219,21 @@ install -d ~/.local/share/tabilet/explorer
 install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
 install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+export TABILET_AUDIT_DB=project
 ```
 
-The database path must be outside every registered project. The same toolkit
-can index several checkouts; worktrees have separate identities. Copying project
-Markdown needs no database migration. A moved checkout registers a new workspace;
-its old audit records remain available under the original identity.
+The database path must be outside every registered project and its repository
+root. The same toolkit selects a different database for each unrelated project;
+linked worktrees share one database with separate workspace identities. Copying
+project Markdown needs no database migration. An independent clone or a moved
+repository root gets a fresh default path; its old history can be read explicitly.
+For commands without a positional project, use the project directory or pass
+the existing CLI's global `--project /absolute/project` selector. `audit begin`,
+`index sync`, and `index status` return the resolved `database_path`.
+Audit queries cover the project's linked worktrees; `--workspace-id` can narrow
+them to one checkout. Index and Explorer projections remain scoped to the
+selected checkout's Markdown. An explicitly selected legacy shared file retains
+its `--project` root filter for extracting that project's old history.
 
 ```bash
 tabilet-audit index sync /absolute/project
@@ -291,13 +311,14 @@ install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
 install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+export TABILET_AUDIT_DB=project
 tabilet-audit index sync /absolute/path/to/project --rebuild
 tabilet-audit index status /absolute/path/to/project
 ```
 
-Keep your existing `TABILET_AUDIT_DB` value if you configured another external
-database path. Verify that status reports `complete: true`. Completion refers to
+Keep an explicit external path only when that database belongs to this project;
+use `project` to start fresh instead of reusing an older shared database.
+Verify that status reports `complete: true`. Completion refers to
 this refresh; review any remaining diagnostics separately and reread live Markdown
 before acting. Reinstall the explorer module and assets using the installation
 instructions above if you use the browser explorer.
@@ -436,11 +457,11 @@ Do not record an API-runner operation a second time through a skill hook.
 
 ```bash
 tabilet-audit audit begin /absolute/project propose --run-id proposal-001
-tabilet-audit audit event --input /absolute/observed-event.json
-tabilet-audit audit finish proposal-001 completed
+tabilet-audit --project /absolute/project audit event --input /absolute/observed-event.json
+tabilet-audit --project /absolute/project audit finish proposal-001 completed
 ```
 
-Begin returns `run_id` and `workspace_id`. Event input uses the v1 envelope and
+Begin returns `run_id`, `workspace_id`, and `database_path`. Event input uses the v1 envelope and
 requires `details.capture_source` (`host`, `agent`, or `import`) and
 `details.fidelity` (`exact`, `redacted`, `summarized`, or `incomplete`). Agent
 submissions cannot claim exact host capture. Include a stable `event_id`; if
@@ -467,7 +488,7 @@ skill is enabled:
 ```bash
 tabilet-audit audit begin /absolute/project next --run-id RUN_ID \
   --provenance provenance.json
-tabilet-audit audit coverage --input coverage.json
+tabilet-audit --project /absolute/project audit coverage --input coverage.json
 ```
 
 Interactive skills use `instruction_driven` and report unavailable fingerprints
@@ -488,8 +509,8 @@ the run is open:
 ```bash
 tabilet-audit audit begin /absolute/project next \
   --run-id openudon-next-001 --capture relevant
-tabilet-audit audit message --input /absolute/message.json
-tabilet-audit audit finish openudon-next-001 completed
+tabilet-audit --project /absolute/project audit message --input /absolute/message.json
+tabilet-audit --project /absolute/project audit finish openudon-next-001 completed
 ```
 
 `/absolute/message.json` contains one selected message:
@@ -533,7 +554,7 @@ the index. A refresh gap does not change the recorded workflow outcome.
 
 ```bash
 tabilet-audit audit runs --project /absolute/project --operation next --limit 50
-tabilet-audit audit events --run-id RUN_ID --offset 0 --limit 100
+tabilet-audit --project /absolute/project audit events --run-id RUN_ID --offset 0 --limit 100
 tabilet-audit audit runs --project /absolute/project --milestone M01 --task 'Observed task label'
 umask 077
 install -d -m 700 /absolute/private-external-directory

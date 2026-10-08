@@ -1133,6 +1133,29 @@ def sqlite_bundle_contract():
     for reference in references:
         if "references/optional-audit.md" not in (reference.parent.parent / "SKILL.md").read_text():
             problems.append(f"{reference}: missing skill route")
+    root_rules = ' '.join((ROOT / 'AGENTS.md').read_text().split())
+    for token in ('one external database per project', 'registered linked worktrees',
+                  '`TABILET_AUDIT_DB=project` is explicit opt-in'):
+        if token not in root_rules:
+            problems.append(f'AGENTS.md: missing project storage rule {token!r}')
+    readme = (ROOT / 'README.md').read_text()
+    if 'export TABILET_AUDIT_DB=project' not in readme:
+        problems.append('README.md: project audit opt-in example is required')
+    if 'ask your LLM agent to extract this project' not in readme:
+        problems.append('README.md: older shared history extraction note is required')
+    reference_text = references[0].read_text()
+    if 'tabilet-audit --project /absolute/project audit finish' not in reference_text:
+        problems.append('optional audit reference must retain the project selector at finish')
+    versions = []
+    for name in ('tabilet_audit.py', 'tabilet_index.py', 'tabilet_audit_host.py', 'tabilet_explorer.py'):
+        tree = ast.parse((ROOT / 'harness' / name).read_text())
+        value = next((ast.literal_eval(node.value) for node in tree.body
+                      if isinstance(node, ast.Assign)
+                      and any(isinstance(target, ast.Name) and target.id == 'TOOLKIT_INTERFACE'
+                              for target in node.targets)), None)
+        versions.append(value)
+    if None in versions or len(set(versions)) != 1:
+        problems.append('audit, index, CLI, and explorer toolkit interfaces must agree')
     for name in (
         "tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py",
         "tabilet_controller.py", "tabilet_container.py", "tabilet_planning.py",

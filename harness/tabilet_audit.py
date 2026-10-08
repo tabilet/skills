@@ -26,7 +26,9 @@ from urllib.parse import quote
 SCHEMA_NAME = "tabilet.audit/v4"
 SCHEMA_VERSION = 4
 RECORDER_VERSION = "tabilet-audit/4"
-TOOLKIT_INTERFACE = 1
+TOOLKIT_INTERFACE = 2
+PROJECT_ROOT_KEY = 'project_root'
+PROJECT_WORKSPACE_PREFIX = 'project_workspace:'
 # The index publishes with an upsert (ON CONFLICT ... DO UPDATE), added in 3.24.0.
 MINIMUM_SQLITE = (3, 24, 0)
 
@@ -513,13 +515,67 @@ def schema_tables(connection: sqlite3.Connection) -> set[str]:
     }
 
 
-def default_database_path(environment: dict[str, str] | None = None) -> pathlib.Path:
-    """Return the opt-in user's database path without creating anything."""
+def _git_metadata(path):
+    """Read one bounded Git metadata line without executing Git or hooks."""
+    with pathlib.Path(path).open('rb') as source:
+        data = source.read(65537)
+    if len(data) > 65536:
+        raise AuditError('Git project metadata is too large')
+    value = data.decode('utf-8').rstrip('\r\n')
+    if not value or '\n' in value or '\r' in value:
+        raise AuditError('invalid Git project metadata')
+    return value
 
-    environment = environment or os.environ
-    state_home = environment.get("XDG_STATE_HOME")
-    base = pathlib.Path(state_home).expanduser() if state_home else pathlib.Path.home() / ".local" / "state"
-    return (base / "tabilet" / "audit.sqlite3").resolve()
+
+def project_storage_root(project_root=None):
+    """Canonical project identity; registered linked worktrees share their owner."""
+    root = pathlib.Path(project_root if project_root is not None else pathlib.Path.cwd()).expanduser().resolve()
+    for candidate in (root, *root.parents):
+        entry = candidate / '.git'
+        if entry.is_dir():
+            return candidate
+        if not entry.is_file():
+            continue
+        value = _git_metadata(entry)
+        if not value.startswith('gitdir: '):
+            raise AuditError('invalid .git project pointer')
+        gitdir = (candidate / value[8:]).resolve()
+        common_file = gitdir / 'commondir'
+        # Submodules and standalone external gitdirs remain independent projects.
+        if not common_file.is_file():
+            return candidate
+        common = (gitdir / _git_metadata(common_file)).resolve()
+        owner = common.parent
+        registered = gitdir / 'gitdir'
+        if (common.name != '.git' or not common.is_dir()
+                or gitdir.parent != common / 'worktrees'
+                or not registered.is_file()
+                or pathlib.Path(_git_metadata(registered)).resolve() != entry.resolve()
+                or (owner / '.git').resolve() != common):
+            raise AuditError('linked worktree has no valid project registration')
+        return owner
+    return root
+
+
+def default_database_path(environment: dict[str, str] | None = None, *, project_root=None) -> pathlib.Path:
+    """Resolve one external database per project without creating or enabling it."""
+    environment = os.environ if environment is None else environment
+    state_home = environment.get('XDG_STATE_HOME', '').strip()
+    state = pathlib.Path(state_home).expanduser() if state_home else None
+    base = state if state is not None and state.is_absolute() else pathlib.Path.home() / '.local' / 'state'
+    identity = hashlib.sha256(str(project_storage_root(project_root)).encode('utf-8')).hexdigest()
+    return base.resolve() / 'tabilet' / 'projects' / identity / 'audit.sqlite3'
+
+
+def resolve_database_path(path=None, *, project_root=None, environment=None):
+    environment = os.environ if environment is None else environment
+    configured = str(path if path is not None else environment.get('TABILET_AUDIT_DB') or 'project').strip()
+    if configured == 'project':
+        return default_database_path(environment, project_root=project_root)
+    database = pathlib.Path(configured).expanduser()
+    if not database.is_absolute():
+        raise AuditError('audit database must be project or an absolute external path')
+    return pathlib.Path(os.path.abspath(database))
 
 
 # Derived tables have no inbound references from durable audit records.
@@ -789,11 +845,70 @@ def _new_destination(path, roots=()):
 
 
 def database_roots(connection):
-    return [row[0] for row in connection.execute('SELECT project_root FROM workspaces')]
+    roots = [row[0] for row in connection.execute('SELECT project_root FROM workspaces')]
+    bound = connection.execute('SELECT value FROM schema_meta WHERE key=?', (PROJECT_ROOT_KEY,)).fetchone()
+    if bound:
+        roots.append(bound[0])
+    return roots
 
 
 def database_path(connection):
     return next((row[2] for row in connection.execute('PRAGMA database_list') if row[1] == 'main'), '')
+
+
+def bound_project(connection):
+    """Validate a recorded project binding without requiring old worktrees on disk."""
+    bound = connection.execute('SELECT value FROM schema_meta WHERE key=?', (PROJECT_ROOT_KEY,)).fetchone()
+    if not bound:
+        return None
+    owner = bound[0]
+    if not pathlib.Path(owner).is_absolute():
+        raise AuditError('invalid audit project binding')
+    for (workspace,) in connection.execute('SELECT workspace_id FROM workspaces'):
+        member = connection.execute('SELECT value FROM schema_meta WHERE key=?',
+                                    (PROJECT_WORKSPACE_PREFIX + workspace,)).fetchone()
+        if member != (owner,):
+            raise AuditError('workspace is not registered to this audit project')
+    return owner
+
+
+def _writer_project(connection, expected=None):
+    owner = bound_project(connection)
+    if owner is None:
+        roots = {str(project_storage_root(row[0])) for row in connection.execute(
+            'SELECT project_root FROM workspaces')}
+        if len(roots) > 1:
+            raise AuditError('older shared audit database contains multiple projects; '
+                             'use project storage and extract old history separately')
+        owner = next(iter(roots), None)
+    if expected is not None and owner is not None and owner != str(expected):
+        raise AuditError('audit database belongs to a different project; use project storage')
+    return owner
+
+
+@atomic
+def bind_project(connection, project_root):
+    """Bind one project family, preserving separate checkout/worktree records."""
+    owner = str(project_storage_root(project_root))
+    _writer_project(connection, owner)
+    location = database_path(connection)
+    if location:
+        external_path(location, [owner, project_root])
+    connection.execute('INSERT OR IGNORE INTO schema_meta VALUES (?,?)', (PROJECT_ROOT_KEY, owner))
+    for (workspace,) in connection.execute('SELECT workspace_id FROM workspaces'):
+        connection.execute('INSERT OR IGNORE INTO schema_meta VALUES (?,?)',
+                           (PROJECT_WORKSPACE_PREFIX + workspace, owner))
+    return owner
+
+
+def check_project(connection, project_root):
+    """Read-only project check. Legacy shared storage is readable for extraction."""
+    owner = bound_project(connection)
+    if owner is not None and owner != str(project_storage_root(project_root)):
+        raise AuditError('audit database belongs to a different project; use project storage')
+    location = database_path(connection)
+    if location:
+        external_path(location, [project_root, project_storage_root(project_root)])
 
 
 def _apply_v4_schema(connection):
@@ -970,6 +1085,7 @@ def validate_database(connection, *, version_override=None, allow_unmarked=False
             raise AuditError('corrupt audit database')
         if connection.execute('PRAGMA foreign_key_check').fetchone():
             raise AuditError('audit database has invalid foreign keys')
+        bound_project(connection)
     except sqlite3.DatabaseError as exc:
         raise AuditError(f'invalid audit database: {exc}') from exc
     return version
@@ -995,7 +1111,13 @@ def require_sqlite():
 def open_database(path=None, *, project_roots=()):
     """Explicit writer open. Existing databases are identified before mutation."""
     require_sqlite()
-    database = external_path(path if path is not None else default_database_path(), project_roots)
+    roots = tuple(pathlib.Path(root).expanduser().resolve() for root in project_roots)
+    automatic = path is None or str(path).strip() == 'project'
+    context = roots[0] if roots else pathlib.Path.cwd() if automatic else None
+    owners = {str(project_storage_root(root)) for root in roots}
+    if len(owners) > 1:
+        raise AuditError('one audit database can contain only one project')
+    database = external_path(resolve_database_path(path, project_root=context), (*roots, *owners))
     sidecars = {suffix: safe_path(str(database) + suffix) for suffix in ('-wal', '-shm', '-journal')}
     created = not database.exists()
     staging = None
@@ -1022,7 +1144,9 @@ def open_database(path=None, *, project_roots=()):
         connection.execute('PRAGMA foreign_keys = ON')
         connection.execute('PRAGMA busy_timeout = 5000')
         version = 0 if created else validate_database(connection)
+        recorded_owner = None
         if not created:
+            recorded_owner = _writer_project(connection, next(iter(owners), None))
             external_path(database, database_roots(connection))
         # New files are private before connect; only validated owned files are tightened.
         connect_path.chmod(0o600)
@@ -1065,6 +1189,8 @@ def open_database(path=None, *, project_roots=()):
             except BaseException:
                 connection.rollback()
                 raise
+        if context is not None or recorded_owner is not None:
+            bind_project(connection, context if context is not None else recorded_owner)
         if created:
             connection.close()
             connection = None
@@ -1118,6 +1244,7 @@ def ensure_workspace(connection, project_root, *, repository_id=None, branch=Non
         external_path(location, [root])
     timestamp = observed_at or utc_now()
     _timestamp(timestamp, 'observed_at')
+    owner = bind_project(connection, root)
     row = connection.execute('SELECT workspace_id FROM workspaces WHERE project_root=?', (root,)).fetchone()
     if row:
         connection.execute('UPDATE workspaces SET repository_id=COALESCE(?,repository_id), branch=?, last_seen_at=? WHERE workspace_id=?',
@@ -1125,6 +1252,7 @@ def ensure_workspace(connection, project_root, *, repository_id=None, branch=Non
         return row[0]
     identity = str(uuid.uuid4())
     connection.execute('INSERT INTO workspaces VALUES (?,?,?,?,?,?)', (identity, root, repository_id, branch, timestamp, timestamp))
+    connection.execute('INSERT INTO schema_meta VALUES (?,?)', (PROJECT_WORKSPACE_PREFIX + identity, owner))
     return identity
 
 
@@ -1146,9 +1274,9 @@ def start_run(connection, workspace_id, operation, *, run_id=None, capture_mode=
     if not connection.execute('SELECT 1 FROM workspaces WHERE workspace_id=?', (workspace_id,)).fetchone():
         raise AuditValidationError(f'unknown workspace: {workspace_id}')
     if parent_run_id:
-        parent = connection.execute('SELECT workspace_id FROM runs WHERE run_id=?', (parent_run_id,)).fetchone()
-        if parent != (workspace_id,):
-            raise AuditValidationError('parent run must belong to the same workspace')
+        parent = connection.execute('SELECT 1 FROM runs WHERE run_id=?', (parent_run_id,)).fetchone()
+        if not parent:
+            raise AuditValidationError('parent run must exist in the same project database')
     connection.execute('INSERT INTO runs(run_id,workspace_id,operation,capture_mode,parent_run_id,git_head,worktree_state,started_at,recorder_version) VALUES (?,?,?,?,?,?,?,?,?)',
                        (run_id, *values, RECORDER_VERSION))
     return run_id
@@ -1464,9 +1592,9 @@ def capture_snapshots(*args, **kwargs):
     raise AuditError('new snapshot capture is deferred; use index sync for Markdown lookup')
 
 
-def open_readonly_database(path):
+def open_readonly_database(path=None, *, project_root=None):
     require_sqlite()
-    database = safe_path(path)
+    database = safe_path(resolve_database_path(path, project_root=project_root))
     if not database.is_file():
         raise AuditError('read-only audit database must already exist')
     for suffix in ('-wal', '-shm', '-journal'):
@@ -1476,6 +1604,8 @@ def open_readonly_database(path):
         connection.execute('PRAGMA foreign_keys = ON')
         connection.execute('PRAGMA query_only = ON')
         validate_database(connection)
+        if project_root is not None:
+            check_project(connection, project_root)
         return connection
     except BaseException:
         connection.close()

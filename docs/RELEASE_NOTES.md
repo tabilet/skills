@@ -1,5 +1,12 @@
 # Unreleased
 
+The optional SQLite toolkit now defaults to one external database per project.
+Registered linked worktrees share the repository's database while keeping their
+workspace records distinct. `TABILET_AUDIT_DB=project` explicitly enables runner
+auditing at that location; ordinary runs remain unaudited by default. Writers
+reject cross-project database reuse, and older shared storage remains readable
+for agent-assisted extraction. Toolkit modules must be reinstalled together.
+
 Goal execution now distinguishes strict `STATUS_ORDER` from dependency-ready
 dispatch using `STATUS_PRIORITY`. Parallel contract checks cover reads and
 writes in both directions. Fresh-agent briefs carry the resolved goal policies,

@@ -1,7 +1,9 @@
 # Optional local audit
 
 Use this reference only when the user explicitly enabled `TABILET_AUDIT_DB` for
-interactive skill runs. It names an external SQLite file. The independently
+interactive skill runs. Set it to `project` to use this project's default external
+database, or to an absolute external file path. Linked worktrees share their
+repository's database; unrelated projects use separate databases. The independently
 installed `tabilet-audit` command is optional; do not install it or create project
 files to make logging work. If enabled but unavailable, report an audit gap and
 continue the authorized workflow. The API runner owns its own lifecycle; do not
@@ -16,7 +18,9 @@ or invoking this skill without audit configuration never creates a database.
 1. After the layout gate passes, start one run with the operation matching the
    skill suffix (`init`, `archive`, `propose`, `reconcile`, `next`, `goal`, or
    `upgrade`). Use the absolute project root. Generate a run ID once and retain
-   it in the conversation for retries. The command returns the workspace ID:
+   it in the conversation for retries. The command returns the workspace ID and
+   resolved database path. For later commands, retain the project selector even
+   if the shell's current directory changes:
 
    ```bash
    tabilet-audit audit begin /absolute/project next --run-id RUN_ID
@@ -38,9 +42,10 @@ or invoking this skill without audit configuration never creates a database.
 
    Capture defaults to metadata. Use `--capture relevant` only when selected
    message capture was explicitly enabled. A child operation in a recorded goal
-   uses `--parent-run-id PARENT_RUN_ID`; both must belong to the same workspace.
+   uses `--parent-run-id PARENT_RUN_ID`; both must belong to the same project
+   database, including registered linked worktree operations.
 
-2. Submit observed actions with `tabilet-audit audit event --input -`, sending
+2. Submit observed actions with `tabilet-audit --project /absolute/project audit event --input -`, sending
    a JSON object on stdin using the host's structured input mechanism or a
    safely quoted heredoc. Retain each event ID for retries. Never interpolate
    user text into executable shell syntax. A minimal event is:
@@ -97,7 +102,7 @@ credentials, or claims of a write that was not observed in this extension.
    when the observation time is unknown. The recorder supplies its own timestamp.
 
 3. For explicitly enabled relevant capture, submit selected messages with
-   `tabilet-audit audit message --input -`. Fields are `run_id`, `message_id`,
+   `tabilet-audit --project /absolute/project audit message --input -`. Fields are `run_id`, `message_id`,
    `role`, `text`, `capture_source`, and `fidelity`; optionally include
    `redaction_note`. Agent-authored request/output summaries use source `agent`
    and fidelity `summarized` or `incomplete`. Exact raw user/output text requires
@@ -118,12 +123,12 @@ credentials, or claims of a write that was not observed in this extension.
    afterward uses `imported` and retains its original fidelity:
 
    ```bash
-   tabilet-audit audit coverage --input - <<'JSON'
+   tabilet-audit --project /absolute/project audit coverage --input - <<'JSON'
    {"coverage_id":"RUN_ID:coverage","run_id":"RUN_ID","scope":"skill_conversation","coverage":"missing","content_state":"none","capture_method":"instruction_driven","reason":"host did not provide visible message text"}
    JSON
    ```
 
-4. Finish with `tabilet-audit audit finish RUN_ID RESULT`. Results are
+4. Finish with `tabilet-audit --project /absolute/project audit finish RUN_ID RESULT`. Results are
    `completed`, `blocked`, `failed`, `cancelled`, `interrupted`, or `unknown`.
    Choose from observed evidence, independently of process exit or a commit.
    Finish refreshes the current Markdown index; failures are reported as gaps.

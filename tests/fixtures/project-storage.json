@@ -1,0 +1,17 @@
+{
+  "schema": "tabilet.project-storage/v1",
+  "vectors": [
+    {
+      "canonical_root": "/tabilet-project-fixture/alpha",
+      "project_id": "40dea5f6a79cf57fcbef8979695d029e1648c94d1cb90e93aa832f868e4958f1"
+    },
+    {
+      "canonical_root": "/tabilet-project-fixture/beta",
+      "project_id": "723889e1fce1e207e4a768e9f383b4a010d9c7c02608aa38b66c03950c3a9c83"
+    },
+    {
+      "canonical_root": "/tabilet-project-fixture/café",
+      "project_id": "548b1e9feeb7f96c1b15466af1bb10cc8fc6a0faaee5333441fadd51afea9c51"
+    }
+  ]
+}
