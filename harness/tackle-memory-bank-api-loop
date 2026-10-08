@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime
-import fcntl
 import functools
 import hashlib
 import json
@@ -44,6 +43,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+
+try:
+    import fcntl
+except ImportError:  # Windows: the audit CLI imports the parsers; execution is POSIX-only
+    fcntl = None
 
 
 sys.dont_write_bytecode = True
@@ -236,6 +240,8 @@ class ProjectLockError(OSError):
 def project_lock(repo: pathlib.Path):
     """Hold the shared per-project lock used by Tabilet launchers."""
 
+    if fcntl is None:
+        raise ProjectLockError("the shared project lock needs POSIX file locking, which this platform lacks")
     try:
         canonical = pathlib.Path(repo).expanduser().resolve(strict=True)
         state_home = pathlib.Path(os.environ.get("XDG_STATE_HOME", "~/.local/state")).expanduser()

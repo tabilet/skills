@@ -50,6 +50,25 @@ class AuditPlatformTests(unittest.TestCase):
             self.assertEqual((first/'tabilet/.gitignore').read_text(), '/audit.sqlite3*\n')
             self.assertFalse((root/'obsolete.sqlite3').exists())
 
+    def test_runner_parsers_import_without_posix_file_locking(self):
+        """The audit CLI loads the runner for its parsers, including on Windows."""
+        script = (
+            "import sys, importlib.machinery as m, importlib.util as u, pathlib\n"
+            "sys.modules['fcntl'] = None\n"
+            "path = sys.argv[1]\n"
+            "loader = m.SourceFileLoader('runner_probe', path)\n"
+            "module = u.module_from_spec(u.spec_from_loader(loader.name, loader))\n"
+            "loader.exec_module(module)\n"
+            "try:\n"
+            "    with module.project_lock(pathlib.Path('.')): pass\n"
+            "except module.ProjectLockError: print('lock-refused')\n"
+        )
+        runner = CLI.with_name('tackle-memory-bank-api-loop')
+        process = subprocess.run([sys.executable, '-B', '-c', script, str(runner)],
+                                 capture_output=True, encoding='utf-8')
+        self.assertEqual(process.returncode, 0, process.stderr)
+        self.assertEqual(process.stdout.strip(), 'lock-refused')
+
 
 if __name__ == '__main__':
     unittest.main()
