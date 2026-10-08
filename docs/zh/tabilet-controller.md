@@ -114,7 +114,7 @@ tabilet extend-limit /absolute/path/to/project \
 
 ## 可选审计 {#optional-audit}
 
-设置 `TABILET_AUDIT_DB` 时，控制器负责其工作范围的审计生命周期。运行器或技能记录器不得再创建重复运行。审计失败会报告为
+用户手动为项目启用审计后，控制器负责其工作范围的审计生命周期。运行器或技能记录器不得再创建重复运行。审计失败会报告为
 缺口，但不会改变收据状态、验证结果或退出状态。Markdown 和私有收据仍是控制器的工作流数据源。
 
 ## 验收 {#acceptance}

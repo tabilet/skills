@@ -218,8 +218,8 @@ run another agent against the same active ledger at the same time.
 
 ### API-only workflow
 
-An API-only setup uses the project's Markdown as authoritative memory and an
-external SQLite database for observed workflow history. The runner rereads
+An API-only setup uses the project's Markdown as authoritative memory and the
+`tabilet/audit.sqlite3` database for observed workflow history. The runner rereads
 `AGENTS.md`, active milestones and tasks, current facts, retired history, and
 evolution files on each run. SQLite records its observed lifecycle, task
 transitions, verification, and commits, while its index makes current and
@@ -228,8 +228,7 @@ historical Markdown searchable.
 Enable the recorder before starting the runner:
 
 ```bash
-export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
-export TABILET_AUDIT_CAPTURE=metadata
+tabilet-audit audit enable /absolute/path/to/project
 ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
   ~/.local/bin/tackle-memory-bank-api-loop /absolute/path/to/project
 ```
@@ -237,7 +236,7 @@ ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
 Run `tabilet-audit index sync /absolute/path/to/project` after Markdown changes
 and use `tabilet-audit audit runs --project /absolute/path/to/project` to review
 recorded runs. The API runner owns its own audit lifecycle; do not start a
-duplicate manual run. Keep the SQLite file outside the project.
+duplicate manual run. Commit the setup ignore file before a clean-Git workflow.
 
 `metadata` is the default. `TABILET_AUDIT_CAPTURE=relevant` retains selected
 visible messages supplied by the runner. It does not capture every API prompt,
@@ -277,8 +276,8 @@ The controller never pulls or builds images. It resolves the selected local tag
 to an immutable image ID before any provider call. The image must contain
 `/usr/bin/env`, `/bin/sh`, and the tools and packages required for the task.
 Commands run with networking disabled, a read-only container root, a private
-writable `/tmp`, and the project mounted writable with `.git` read-only. The
-proposal shows the 4 CPU, 8 GiB memory, 512 process, and 300-second per-command
+writable `/tmp`, and the project mounted writable with `.git` and existing audit
+files read-only. The proposal shows the 4 CPU, 8 GiB memory, 512 process, and 300-second per-command
 limits. Provider credentials remain on the host and are not passed into the
 container.
 
@@ -308,19 +307,19 @@ host Git protections, and exits.
 
 ## Optional SQLite audit and lookup {#optional-sqlite}
 
-Markdown stays authoritative. The optional toolkit stores a local audit outside
-projects and builds a rebuildable index of milestones, tasks, history, evolution,
-and archives.
+Markdown stays authoritative. The optional toolkit stores a local audit at
+`tabilet/audit.sqlite3` and builds a rebuildable index of milestones, tasks,
+history, evolution, and archives.
 
-It needs Linux or macOS and **Python 3.9 or later with the `sqlite3` module,
+It needs **Python 3.9 or later with the `sqlite3` module,
 built with SQLite 3.24.0 or later**. The python.org, Homebrew, and standard Linux
 distribution builds include it; a Python compiled from source without the SQLite
 development headers does not. Check with
 `python3 -c 'import sqlite3; print(sqlite3.sqlite_version)'`. Text search uses
 SQLite's FTS5 when available and otherwise falls back to literal matching.
-Windows is untested. The audit is optional: if `TABILET_AUDIT_DB` is set but
-these requirements are missing, the API runner and skills report an audit gap
-and continue unchanged.
+The same Python CLI commands support Linux, macOS, and Windows. The audit is
+optional: if enabled project storage or these requirements are unavailable, the
+API runner and skills report an audit gap and continue unchanged.
 
 From a checkout containing this feature:
 
@@ -333,14 +332,19 @@ install -d ~/.local/share/tabilet/explorer
 install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
 install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+tabilet-audit audit enable /absolute/project
 tabilet-audit index sync /absolute/project
 tabilet-audit index search /absolute/project 'authentication' --kind task
 tabilet-audit explorer /absolute/project --port 8000
 ```
 
-Setting the database path enables audit hooks in the API runner and interactive
-skill instructions. Installing skills alone never creates it. Relevant message
+The user manually enables each project; the saved setting survives new sessions.
+Commit the generated `tabilet/.gitignore` with `/audit.sqlite3*`; the database and
+its sidecars remain ignored. Index creation does not enable audit, and disabling
+preserves history. Deleting storage leaves audit disabled. Installing skills
+alone never creates storage. For Windows or an uninstalled CLI, run the same
+commands with `py -3 C:\path\to\skills\harness\tabilet_audit_host.py` instead of
+`tabilet-audit`. Relevant message
 capture is separately opt-in; exact chat text requires host capture. The index
 stores current Markdown text even in metadata-only audit mode. Index results
 show the last refresh and source location; reread live Markdown before execution.
@@ -352,8 +356,8 @@ audit runs and the current derived index while Markdown remains authoritative.
 Timeline groups goal children and keeps its filters and selected detail in the
 URL. To-do keeps blockers, dependencies, and closure evidence visible even when
 the live ledger requires further review. Refresh is explicit, migrates supported
-older databases, and writes only the external SQLite database. Follow-up buttons
-prepare copyable prompts after rechecking live source hashes; they never run an
+older databases, and writes the project SQLite database. Setup also adds its Git
+exclusion. Follow-up buttons prepare copyable prompts after rechecking live source hashes; they never run an
 agent or edit project files. From a Chromebook, tunnel a remote server
 with `ssh -N -L 8000:127.0.0.1:8000 user@host` and open `http://localhost:8000/`.
 Missing captures and stale sources remain visible as diagnostics, and the live

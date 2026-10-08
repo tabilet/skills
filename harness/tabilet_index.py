@@ -25,7 +25,7 @@ EVOLUTION = re.compile(r'(prompt|result)-v([1-9][0-9]*)\.md$')
 TABLES = ('index_documents','index_sections','index_milestones','index_tasks','index_relationships','index_search')
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
-TOOLKIT_INTERFACE = 2
+TOOLKIT_INTERFACE = 3
 INDEX_PROJECTION = 'v6'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 

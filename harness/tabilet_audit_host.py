@@ -23,7 +23,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import tabilet_audit as audit
 import tabilet_index as index
 
-TOOLKIT_INTERFACE = 2
+TOOLKIT_INTERFACE = 3
 
 
 def check_toolkit(include_explorer=False):
@@ -41,11 +41,13 @@ def check_toolkit(include_explorer=False):
 
 def arguments(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--audit-db',default=os.environ.get('TABILET_AUDIT_DB') or 'project',help='project (default) selects this project\'s external database; an absolute path overrides it.')
     parser.add_argument('--project',dest='routing_project',help='Select the project for commands without a positional project; otherwise the current directory selects it.')
     parser.add_argument('--event',help='Compatibility alias for audit event with inline JSON.')
     groups=parser.add_subparsers(dest='group')
     audits=groups.add_parser('audit').add_subparsers(dest='action',required=True)
+    for name in ('enable', 'disable', 'status'):
+        command=audits.add_parser(name)
+        command.add_argument('project',nargs='?',help='Project directory; defaults to --project or the current directory.')
     begin=audits.add_parser('begin')
     begin.add_argument('project');begin.add_argument('operation',choices=sorted(audit.OPERATIONS))
     begin.add_argument('--run-id');begin.add_argument('--parent-run-id')
@@ -93,7 +95,6 @@ def arguments(argv=None):
     explorer.add_argument('project')
     explorer.add_argument('--host', default='127.0.0.1')
     explorer.add_argument('--port', type=int, default=8000)
-    explorer.add_argument('--database', dest='explorer_database', help='external database (defaults to --audit-db)')
     args=parser.parse_args(argv)
     if args.event is not None:
         if args.group:parser.error('--event cannot be combined with a command group')
@@ -186,10 +187,32 @@ def dispatch(args):
     routing_root=pathlib.Path(selected or pathlib.Path.cwd()).expanduser().resolve()
     if project and args.routing_project and audit.project_storage_root(project) != audit.project_storage_root(args.routing_project):
         raise audit.AuditError('command and database selection name different projects')
-    database=audit.resolve_database_path(args.audit_db,project_root=routing_root)
+    database=audit.default_database_path(project_root=routing_root)
+    if args.group == 'audit' and action in ('enable', 'disable', 'status'):
+        if not routing_root.is_dir():raise audit.AuditError('project must be an existing directory')
+        if action == 'status':return audit.audit_status(routing_root, database)
+        index.layout_check(routing_root)
+        if action == 'disable' and not database.exists():return audit.audit_status(routing_root, database)
+        owner = audit.project_storage_root(routing_root)
+        if action == 'enable':
+            audit.safe_path(database.parent/'.gitignore')
+        if action == 'enable' and (owner/'.git').exists():
+            tracked = index.parser().git_local(['ls-files', '--', 'tabilet'], owner)
+            if tracked.returncode:
+                raise audit.AuditError('cannot verify audit storage is untracked')
+            if any(path.startswith('tabilet/audit.sqlite3') for path in tracked.stdout.splitlines()):
+                raise audit.AuditError('audit storage is tracked by Git; remove it from the index before enabling')
+        with contextlib.closing(audit.open_database(database, project_roots=[routing_root])) as connection:
+            if action == 'enable':
+                audit.ensure_project_ignore(routing_root, database)
+            audit.set_audit_enabled(connection, routing_root, action == 'enable')
+        result = audit.audit_status(routing_root, database)
+        if action == 'enable':
+            result['gitignore_path'] = str(database.parent/'.gitignore')
+        return result
     if args.group == 'explorer':
         from tabilet_explorer import serve
-        return serve(args.project, args.explorer_database or database, args.host, args.port)
+        return serve(args.project, host=args.host, port=args.port)
     root=pathlib.Path(selected).expanduser().resolve() if selected else None
     write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish')) or (args.group=='index' and action=='sync')
     if root and write:
@@ -210,9 +233,21 @@ def dispatch(args):
             index.layout_check(root)
     if write and action in ('event','message','coverage','purge-message','finish') and not database.exists():
         raise audit.AuditError('no audit database; start with audit begin PROJECT OPERATION')
-    write_roots=[root] if root else [routing_root] if str(args.audit_db).strip()=='project' else []
+    write_roots=[routing_root]
+    if args.group == 'audit' and write and not database.exists():
+        raise audit.AuditError('audit is disabled; manually run tabilet-audit audit enable PROJECT first')
+    if args.group == 'audit' and write:
+        with contextlib.closing(audit.open_readonly_database(database, project_root=root)) as readonly:
+            if not audit.audit_enabled(readonly):
+                raise audit.AuditError('audit is disabled; manually run tabilet-audit audit enable PROJECT first')
+    if args.group == 'index' and action == 'sync':
+        audit.safe_path(database.parent/'.gitignore')
     connection=audit.open_database(database,project_roots=write_roots) if write else audit.open_readonly_database(database,project_root=root)
     with contextlib.closing(connection):
+        if args.group == 'index' and action == 'sync':
+            audit.ensure_project_ignore(routing_root, database)
+        if args.group == 'audit' and write and not audit.audit_enabled(connection):
+            raise audit.AuditError('audit is disabled; manually run tabilet-audit audit enable PROJECT first')
         if args.group=='backup':
             audit.backup_database(connection,args.destination)
             return {'backup':str(pathlib.Path(args.destination).absolute())}
@@ -261,6 +296,8 @@ def dispatch(args):
 def main(argv=None):
     args=arguments(argv)
     try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
         check_toolkit(args.group == 'explorer')
         print(audit.canonical_json(dispatch(args)))
         return 0

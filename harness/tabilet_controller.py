@@ -225,7 +225,6 @@ def _execute_horizon_locked(
         audit_instruction_args.audit_capture = getattr(
             args, "audit_capture", os.environ.get("TABILET_AUDIT_CAPTURE", "metadata"),
         )
-        audit_instruction_args.audit_db = getattr(args, "audit_db", None) or os.environ.get("TABILET_AUDIT_DB")
         audit = core.AuditRun(
             audit_instruction_args, repo, "next", core.git_head(repo),
             "clean" if core.git_clean(repo) else "dirty",

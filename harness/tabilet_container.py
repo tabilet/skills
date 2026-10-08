@@ -313,6 +313,16 @@ class DockerExecutor:
             f"type=bind,source={self.repo / '.git'},target={CONTAINER_ROOT}/.git,"
             "readonly,bind-propagation=rprivate,bind-recursive=disabled"
         )
+        audit_mounts = []
+        for suffix in ('', '-wal', '-shm', '-journal'):
+            record = self.repo / 'tabilet' / ('audit.sqlite3' + suffix)
+            if record.is_symlink():
+                raise SandboxUnavailable('symlink audit storage is unsupported')
+            if record.exists():
+                if not record.is_file() or (record.parent.is_symlink()):
+                    raise SandboxUnavailable('audit storage must be regular files under tabilet/')
+                audit_mounts.extend(['--mount',
+                    f'type=bind,source={record},target={CONTAINER_ROOT}/tabilet/{record.name},readonly'])
         command = [
             self.docker, "--host", self.endpoint, "run", "--pull=never", "--rm", "--name", name,
             "--network", "none", "--read-only",
@@ -320,7 +330,7 @@ class DockerExecutor:
             "--user", f"{os.getuid()}:{os.getgid()}",
             "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
             "--cpus", CPU_LIMIT, "--memory", MEMORY_LIMIT, "--pids-limit", PROCESS_LIMIT,
-            "--mount", project_mount, "--mount", git_mount,
+            "--mount", project_mount, "--mount", git_mount, *audit_mounts,
             "--workdir", CONTAINER_ROOT,
             "--entrypoint", "/usr/bin/env", self.image,
             "-i", "HOME=/tmp", "TMPDIR=/tmp", f"PATH={CONTAINER_PATH}", "LANG=C",

@@ -206,7 +206,8 @@ verified closure passed and the receipt is `completed`.
 
 The runner remains a single-file installation when auditing is disabled. To opt
 in, install the [optional toolkit](sqlite.md#install-and-use-the-optional-toolkit)
-and set `TABILET_AUDIT_DB` to an external database path or pass `--audit-db`.
+and run `tabilet-audit audit enable PROJECT` manually for each project.
+The fixed database is `tabilet/audit.sqlite3`; index refresh never enables audit.
 `--audit-capture metadata` is the default; `relevant` also stores the selected
 host-observed output. The recorder captures task transitions, successful commits,
 validation evidence, and terminal outcomes, then refreshes the Markdown index.

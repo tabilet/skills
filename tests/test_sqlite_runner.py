@@ -18,7 +18,7 @@ class RunnerRepairs(unittest.TestCase):
     def test_incompatible_audit_toolkit_is_gap_without_changing_task_outcome(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo=h.make_repo(Path(tmp)/'repo')
-            database=Path(tmp)/'audit.db'
+            database=repo/'tabilet/audit.sqlite3'
             sys.path.insert(0,str(h.HARNESS.parent))
             import tabilet_index  # ensure its real audit dependency is loaded first
             def model(*args):
@@ -30,7 +30,7 @@ class RunnerRepairs(unittest.TestCase):
                 return {'final':'done'}
             env=h.HarnessIntegrationTests().harness_env(tmp,ALLOW_UNSANDBOXED_SHELL='1')
             stderr=io.StringIO()
-            with (mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo),'--audit-db',str(database)]),
+            with (mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo)]),
                   mock.patch.dict(os.environ,env,clear=True),
                   mock.patch.object(h.harness,'one_agent_run',side_effect=model),
                   mock.patch.dict(sys.modules,{'tabilet_audit':types.SimpleNamespace(TOOLKIT_INTERFACE=99)}),
@@ -43,7 +43,7 @@ class RunnerRepairs(unittest.TestCase):
     def test_missing_sqlite_module_is_gap_without_changing_task_outcome(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo=h.make_repo(Path(tmp)/'repo')
-            database=Path(tmp)/'audit.db'
+            database=repo/'tabilet/audit.sqlite3'
             def model(*args):
                 source=repo/'tabilet/memory-bank/status-M01.md'
                 source.write_text(source.read_text().replace(h.marker('[ ]'),h.marker('[+]')))
@@ -55,7 +55,7 @@ class RunnerRepairs(unittest.TestCase):
             stderr=io.StringIO()
             # A None entry makes `import sqlite3` raise ImportError, as on a
             # Python built without SQLite.
-            with (mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo),'--audit-db',str(database)]),
+            with (mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo)]),
                   mock.patch.dict(os.environ,env,clear=True),
                   mock.patch.object(h.harness,'one_agent_run',side_effect=model),
                   mock.patch.dict(sys.modules,{'sqlite3':None}),
@@ -71,7 +71,7 @@ class RunnerRepairs(unittest.TestCase):
             for failure,expected in (('dirty',5),('no_commit',6),('history',9),('transition',8)):
                 with self.subTest(audited=audited,failure=failure), tempfile.TemporaryDirectory() as tmp:
                     repo=h.make_repo(Path(tmp)/'repo')
-                    database=Path(tmp)/'audit.db'
+                    database=repo/'tabilet/audit.sqlite3'
                     def model(*args):
                         source=repo/'tabilet/memory-bank/status-M01.md'
                         source.write_text(source.read_text().replace(h.marker('[ ]'),h.marker('[~]')))
@@ -82,7 +82,9 @@ class RunnerRepairs(unittest.TestCase):
                             self.assertEqual(commit.returncode,0,commit.stderr)
                         return {'final':'done'}
                     env=h.HarnessIntegrationTests().harness_env(tmp,ALLOW_UNSANDBOXED_SHELL='1')
-                    argv=[str(h.HARNESS),str(repo)] + (['--audit-db',str(database)] if audited else [])
+                    if audited:
+                        database=h.enable_audit(repo)
+                    argv=[str(h.HARNESS),str(repo)]
                     patches=[mock.patch.object(sys,'argv',argv),mock.patch.dict(os.environ,env,clear=True),mock.patch.object(h.harness,'one_agent_run',side_effect=model)]
                     if failure=='no_commit':patches.append(mock.patch.object(h.harness,'git_clean',return_value=True))
                     with patches[0],patches[1],patches[2]:
@@ -113,7 +115,14 @@ class RunnerRepairs(unittest.TestCase):
         for outcome in ('blocked','dirty','unexpected','inside','long'):
             with self.subTest(outcome=outcome),tempfile.TemporaryDirectory() as tmp:
                 repo=h.make_repo(Path(tmp)/'repo',h.marker('[~]'))
-                database=(repo if outcome=='inside' else Path(tmp))/'audit.db'
+                database=repo/'tabilet/audit.sqlite3'
+                if outcome != 'inside':
+                    database=h.enable_audit(repo)
+                else:
+                    database.write_bytes(b'not a SQLite database')
+                    (repo/'tabilet/.gitignore').write_text('/audit.sqlite3*\n')
+                    h.run('git','add','tabilet/.gitignore',cwd=repo)
+                    h.run('git','commit','-qm','Ignore broken audit',cwd=repo)
                 def model(*args):
                     if outcome=='unexpected':raise RuntimeError('test interruption')
                     self.assertEqual(h.run('git','status','--porcelain',cwd=repo).stdout,'')
@@ -125,10 +134,10 @@ class RunnerRepairs(unittest.TestCase):
                     if outcome=='dirty':(repo/'uncommitted').write_text('changed')
                     return {'final':'x' * 1025 if outcome=='long' else 'Blocked by a missing prerequisite.'}
                 env=h.HarnessIntegrationTests().harness_env(tmp,ALLOW_UNSANDBOXED_SHELL='1')
-                with mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo),'--audit-db',str(database),'--audit-capture','relevant']),mock.patch.dict(os.environ,env,clear=True),mock.patch.object(h.harness,'one_agent_run',side_effect=model):
+                with mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo),'--audit-capture','relevant']),mock.patch.dict(os.environ,env,clear=True),mock.patch.object(h.harness,'one_agent_run',side_effect=model):
                     with self.assertRaises((SystemExit,RuntimeError)) as stopped:h.harness.main()
                 if outcome=='inside':
-                    self.assertFalse(database.exists())
+                    self.assertEqual(database.read_bytes(),b'not a SQLite database')
                     self.assertEqual(stopped.exception.code,7)
                     continue
                 c=sqlite3.connect(database)

@@ -1,17 +1,27 @@
 # Optional local audit
 
-Use this reference only when the user explicitly enabled `TABILET_AUDIT_DB` for
-interactive skill runs. Set it to `project` to use this project's default external
-database, or to an absolute external file path. Linked worktrees share their
-repository's database; unrelated projects use separate databases. The independently
-installed `tabilet-audit` command is optional; do not install it or create project
-files to make logging work. If enabled but unavailable, report an audit gap and
-continue the authorized workflow. The API runner owns its own lifecycle; do not
-submit a duplicate run for work already being recorded by that runner.
+The user manually enables each project with `tabilet-audit audit enable PROJECT`.
+The saved opt-in lives in that project's `tabilet/audit.sqlite3`; absent or
+index-only storage leaves auditing disabled. Linked worktrees share their
+repository's database and setting. Its location is fixed; environment variables
+do not enable auditing or select another database.
+
+If the optional `tabilet-audit` command is installed, inspect the current setting:
+
+```bash
+tabilet-audit audit status /absolute/project
+```
+
+Continue this reference only if the returned `enabled` is true. A disabled or
+missing database creates no audit run. Never enable auditing, change `.gitignore`,
+install the toolkit, or create storage to make logging work. If explicitly enabled
+storage is unavailable or invalid, report an audit gap and continue the authorized
+workflow. The API runner owns its own lifecycle; do not submit a duplicate run
+for work already being recorded by that runner.
 
 The database records observations, never authorization. All project write,
 review-fetch, commit, and external-action approval rules still apply. Installing
-or invoking this skill without audit configuration never creates a database.
+or invoking this skill without a saved opt-in never creates a database.
 
 ## Lifecycle
 
@@ -142,7 +152,7 @@ write, reread the live Markdown even if an index lookup helped locate it.
 
 ## Explorer
 
-The optional local explorer reads the same external database and never grants
+The optional local explorer reads the same project database and never grants
 write or execution authority. Install the server and browser assets, then run:
 
 ```bash

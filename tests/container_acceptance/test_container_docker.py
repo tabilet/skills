@@ -126,6 +126,21 @@ class LocalDockerAcceptanceTests(unittest.TestCase):
         self.assertEqual("8g", command[command.index("--memory") + 1])
         self.assertEqual("512", command[command.index("--pids-limit") + 1])
 
+    def test_project_audit_database_and_sidecars_cannot_be_changed(self):
+        (self.root/'tabilet').mkdir()
+        for suffix in ('', '-wal', '-shm', '-journal'):
+            (self.root/'tabilet'/('audit.sqlite3'+suffix)).write_bytes(b'preserved audit')
+        command = (
+            'for f in tabilet/audit.sqlite3 tabilet/audit.sqlite3-wal '
+            'tabilet/audit.sqlite3-shm tabilet/audit.sqlite3-journal; do '
+            'if (printf changed >> "$f") 2>/dev/null; then exit 91; fi; '
+            'if rm "$f" 2>/dev/null; then exit 92; fi; done'
+        )
+        result = self.run_command(command)
+        self.assertEqual(result['exit_code'], 0, result['stderr'])
+        for suffix in ('', '-wal', '-shm', '-journal'):
+            self.assertEqual((self.root/'tabilet'/('audit.sqlite3'+suffix)).read_bytes(), b'preserved audit')
+
     def test_timeout_removes_container(self):
         known = "tabilet-timeoutacceptance"
         with mock.patch.object(container.uuid, "uuid4", return_value=type("UUID", (), {"hex": known.removeprefix("tabilet-")})()):
@@ -170,7 +185,7 @@ executor = container.prepare_executor(core, repo, image)
 executor(repo, "sleep 60", 300, 1024, False)
 '''
         process = subprocess.Popen(
-            [sys.executable, "-c", script, str(ROOT), str(self.root), DOCKER_IMAGE, name],
+            [sys.executable, "-B", "-c", script, str(ROOT), str(self.root), DOCKER_IMAGE, name],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

@@ -1,4 +1,4 @@
-"""Project-local external storage, worktree identity, and legacy read boundaries."""
+"""Project-local storage, worktree identity, and legacy read boundaries."""
 from __future__ import annotations
 
 import concurrent.futures
@@ -12,6 +12,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+import types
+from unittest import mock
 import unittest
 
 sys.dont_write_bytecode = True
@@ -40,7 +42,7 @@ class ProjectStorageTests(unittest.TestCase):
         return json.loads(result.stdout) if ok else result.stderr
 
     def path(self, project=None):
-        return audit.default_database_path(self.environment, project_root=project or self.project)
+        return audit.default_database_path(project_root=project or self.project)
 
     def lease(self):
         target = self.base / 'project.goal' / 'A01'
@@ -52,8 +54,7 @@ class ProjectStorageTests(unittest.TestCase):
         other = harness.make_repo(self.base / 'other' / 'project')
         first = self.path(); second = self.path(other)
         self.assertNotEqual(first, second)
-        self.assertEqual(first.parent.name, hashlib.sha256(str(self.project).encode()).hexdigest())
-        self.assertEqual(first, self.base / 'state/tabilet/projects' / first.parent.name / 'audit.sqlite3')
+        self.assertEqual(first, self.project / 'tabilet/audit.sqlite3')
         self.assertFalse(first.exists()); self.assertFalse(second.exists())
         alias = self.base / 'alias'; alias.symlink_to(self.project, target_is_directory=True)
         self.assertEqual(self.path(alias), first)
@@ -61,12 +62,15 @@ class ProjectStorageTests(unittest.TestCase):
         self.assertIn('must already exist', self.command('index', 'status', self.project, ok=False))
         self.assertFalse(first.exists())
 
-    def test_project_ids_match_the_shared_cross_language_contract(self):
+    def test_project_location_matches_the_shared_cross_language_contract(self):
         fixture = json.loads((CLI.parents[1] / 'tests/fixtures/project-storage.json').read_text())
-        self.assertEqual(fixture['schema'], 'tabilet.project-storage/v1')
-        for vector in fixture['vectors']:
-            path = audit.default_database_path(self.environment, project_root=vector['canonical_root'])
-            self.assertEqual(path.parent.name, vector['project_id'])
+        self.assertEqual(fixture['schema'], 'tabilet.project-storage/v2')
+        self.assertEqual(self.path(), self.project / fixture['database_relative'])
+        self.command('audit', 'enable', self.project)
+        self.assertIn(fixture['ignore_pattern'], (self.project/'tabilet/.gitignore').read_text())
+        with contextlib.closing(audit.open_readonly_database(self.path())) as connection:
+            self.assertEqual(connection.execute('SELECT value FROM schema_meta WHERE key=?',
+                                                (fixture['enable_key'],)).fetchone(), ('1',))
 
     def test_worktrees_share_database_and_keep_durable_membership_after_cleanup(self):
         lease = self.lease()
@@ -80,7 +84,7 @@ class ProjectStorageTests(unittest.TestCase):
             child = audit.start_run(connection, child_workspace, 'next', parent_run_id=parent)
             self.assertEqual(connection.execute('SELECT parent_run_id FROM runs WHERE run_id=?',
                                                 (child,)).fetchone(), (parent,))
-        runs = self.command('--project', self.project, '--audit-db', self.path(), 'audit', 'runs')['results']
+        runs = self.command('--project', self.project, 'audit', 'runs')['results']
         self.assertEqual({row['run_id'] for row in runs}, {parent, child})
         removed = harness.run('git', 'worktree', 'remove', str(lease), cwd=self.project)
         self.assertEqual(removed.returncode, 0, removed.stderr)
@@ -136,7 +140,8 @@ class ProjectStorageTests(unittest.TestCase):
         original = old.read_bytes()
         with self.assertRaisesRegex(audit.AuditError, 'older shared audit database'):
             audit.open_database(old, project_roots=[self.project])
-        self.assertEqual(stat.S_IMODE(old.stat().st_mode), 0o644)
+        if os.name != 'nt':
+            self.assertEqual(stat.S_IMODE(old.stat().st_mode), 0o644)
         with contextlib.closing(audit.open_readonly_database(old)) as connection:
             exported = audit.strict_json_loads(audit.export_json(connection))
             self.assertEqual(exported['runs'], [])
@@ -147,6 +152,7 @@ class ProjectStorageTests(unittest.TestCase):
         self.assertTrue(self.path().is_file())
 
     def test_cli_selects_project_for_finish_events_and_overrides_without_new_commands(self):
+        self.command('audit', 'enable', self.project)
         started = self.command('audit', 'begin', self.project, 'goal', '--run-id', 'project-run')
         self.assertEqual(started['database_path'], str(self.path()))
         finished = self.command('--project', self.project, 'audit', 'finish', 'project-run', 'completed')
@@ -157,9 +163,8 @@ class ProjectStorageTests(unittest.TestCase):
         self.environment['TABILET_AUDIT_DB'] = 'project'
         self.assertEqual(self.command('index', 'status', self.project)['database_path'], str(self.path()))
         override = self.base / 'state/custom.sqlite3'
-        result = self.command('--audit-db', override, 'index', 'sync', self.project)
-        self.assertEqual(result['database_path'], str(override))
-        self.assertTrue(override.is_file())
+        self.command('--audit-db', override, 'index', 'sync', self.project, ok=False)
+        self.assertFalse(override.exists())
         other = harness.make_repo(self.base / 'other')
         self.assertIn('different projects', self.command('--project', other, 'index', 'sync', self.project, ok=False))
 
@@ -169,9 +174,102 @@ class ProjectStorageTests(unittest.TestCase):
         (gitdir / 'gitdir').write_text(str(self.base / 'wrong/.git') + '\n')
         with self.assertRaisesRegex(audit.AuditError, 'no valid project registration'):
             self.path(lease)
-        with self.assertRaisesRegex(audit.AuditError, 'absolute external path'):
+        with self.assertRaisesRegex(audit.AuditError, 'absolute path'):
             audit.resolve_database_path('relative.sqlite3', project_root=self.project)
         self.assertFalse(self.path().exists())
+
+    def test_manual_opt_in_is_per_repository_and_indexing_does_not_enable(self):
+        other = harness.make_repo(self.base / 'other')
+        self.environment['TABILET_AUDIT_DB'] = str(self.path())
+        self.assertFalse(self.command('audit', 'status', self.project)['enabled'])
+        self.assertFalse(self.command('audit', 'disable', self.project)['exists'])
+        self.assertFalse(self.path().exists())
+        self.command('index', 'sync', other)
+        self.assertFalse(self.command('audit', 'status', other)['enabled'])
+        before = self.path(other).read_bytes()
+        self.command('audit', 'begin', other, 'next', ok=False)
+        self.assertEqual(self.path(other).read_bytes(), before)
+        self.assertTrue(self.command('audit', 'enable', self.project)['enabled'])
+        args = types.SimpleNamespace(audit_capture='metadata', provider='openai', model='test')
+        with mock.patch.dict(os.environ, {'TABILET_AUDIT_DB': str(self.path())}):
+            with harness.harness.AuditRun(args, self.project, 'next', None, 'clean') as recorder:
+                self.assertIsNotNone(recorder.run_id)
+                recorder.finish('completed')
+            with harness.harness.AuditRun(args, other, 'next', None, 'clean') as recorder:
+                self.assertIsNone(recorder.run_id)
+                recorder.finish('completed')
+        self.assertEqual(self.path(other).read_bytes(), before)
+        self.assertEqual(len(self.command('--project', self.project, 'audit', 'runs')['results']), 1)
+
+    def test_disable_and_delete_stop_recording_without_losing_markdown(self):
+        original = {p: p.read_bytes() for p in self.project.rglob('*.md')}
+        self.command('audit', 'enable', self.project)
+        run = self.command('audit', 'begin', self.project, 'next')
+        self.command('--project', self.project, 'audit', 'finish', run['run_id'], 'completed')
+        before = self.command('--project', self.project, 'audit', 'export')
+        self.command('audit', 'disable', self.project)
+        self.assertEqual(self.command('--project', self.project, 'audit', 'export'), before)
+        self.command('audit', 'begin', self.project, 'next', ok=False)
+        for file in self.path().parent.glob('audit.sqlite3*'):
+            file.unlink()
+        self.assertFalse(self.command('audit', 'status', self.project)['enabled'])
+        self.command('index', 'sync', self.project)
+        self.assertFalse(self.command('audit', 'status', self.project)['enabled'])
+        self.assertEqual({p: p.read_bytes() for p in original}, original)
+
+    def test_worktrees_share_opt_in_and_ignore_rules_preserve_existing_content(self):
+        lease = self.lease()
+        ignored = self.project/'tabilet/.gitignore'
+        original = b'keep-existing-rule\n!/audit.sqlite3\n'
+        ignored.write_bytes(original)
+        self.command('audit', 'enable', lease)
+        self.assertTrue(self.command('audit', 'status', self.project)['enabled'])
+        self.assertEqual(ignored.read_bytes(), original+b'/audit.sqlite3*\n')
+        self.command('audit', 'enable', lease)
+        self.assertEqual(ignored.read_bytes(), original+b'/audit.sqlite3*\n')
+        for suffix in ('', '-wal', '-shm', '-journal', '.init-test'):
+            self.assertEqual(harness.run('git', 'check-ignore', '-q',
+                'tabilet/audit.sqlite3'+suffix, cwd=self.project).returncode, 0)
+        self.command('audit', 'disable', lease)
+        self.assertFalse(self.command('audit', 'status', self.project)['enabled'])
+
+    def test_unsafe_ignore_and_non_reserved_database_paths_are_rejected(self):
+        outside = self.base/'outside';outside.write_bytes(b'preserve')
+        (self.project/'tabilet/.gitignore').symlink_to(outside)
+        self.command('audit', 'enable', self.project, ok=False)
+        self.assertFalse(self.path().exists())
+        self.assertEqual(outside.read_bytes(), b'preserve')
+        with self.assertRaisesRegex(audit.AuditError, 'only tabilet/audit.sqlite3'):
+            audit.open_database(self.project/'tabilet/other.sqlite3', project_roots=[self.project])
+
+    def test_disabling_a_live_recorder_stops_further_events(self):
+        self.command('audit', 'enable', self.project)
+        args = types.SimpleNamespace(audit_capture='metadata', provider='openai', model='test')
+        with harness.harness.AuditRun(args, self.project, 'next', None, 'clean') as recorder:
+            self.assertIsNotNone(recorder.run_id)
+            self.command('audit', 'disable', self.project)
+            recorder.emit('verification_observed', details={'result':'after disable'})
+            recorder.finish('completed')
+        events = self.command('--project', self.project, 'audit', 'events')['results']
+        self.assertEqual([event['event_type'] for event in events], ['run_started'])
+
+    def test_tracked_database_cannot_be_enabled_or_changed_by_setup(self):
+        with contextlib.closing(audit.open_database(self.path(), project_roots=[self.project])):
+            pass
+        harness.run('git', 'add', '-f', 'tabilet/audit.sqlite3', cwd=self.project)
+        original = self.path().read_bytes()
+        self.assertIn('tracked by Git', self.command('audit', 'enable', self.project, ok=False))
+        self.assertEqual(self.path().read_bytes(), original)
+        self.assertFalse(self.command('audit', 'status', self.project)['enabled'])
+
+    def test_recording_never_rewrites_project_ignore_configuration(self):
+        self.command('audit', 'enable', self.project)
+        ignore = self.project/'tabilet/.gitignore'
+        original = b'/audit.sqlite3*\n# A user-owned addition\nother-output\n'
+        ignore.write_bytes(original)
+        started = self.command('audit', 'begin', self.project, 'propose')
+        self.command('--project', self.project, 'audit', 'finish', started['run_id'], 'completed')
+        self.assertEqual(ignore.read_bytes(), original)
 
     def test_default_database_symlink_does_not_redirect_a_writer(self):
         path = self.path()
@@ -179,7 +277,7 @@ class ProjectStorageTests(unittest.TestCase):
         with contextlib.closing(audit.open_database(actual, project_roots=[self.project])) as connection:
             audit.ensure_workspace(connection, self.project)
         original = actual.read_bytes()
-        path.parent.mkdir(parents=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.symlink_to(actual)
         self.assertEqual(self.path(), path)
         with self.assertRaisesRegex(audit.AuditError, 'symlink destination rejected'):

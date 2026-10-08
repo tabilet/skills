@@ -197,7 +197,7 @@ API 运行器要求每次运行都留下一次提交。碰到脏状态、缺少�
 
 ### 仅使用 API 的工作流 {#api-only-workflow}
 
-仅使用 API 时，项目 Markdown 是权威记忆，项目外的 SQLite 数据库保存观察到的工作流历史。
+仅使用 API 时，项目 Markdown 是权威记忆，`tabilet/audit.sqlite3` 数据库保存观察到的工作流历史。
 运行器每次都会重新读取 `AGENTS.md`、活跃里程碑和任务、当前事实、已退休的历史以及演进文件。
 SQLite 记录运行器观察到的生命周期、任务转换、验证和提交；它的索引让当前和历史 Markdown
 可以检索，但不会取代这些文件。
@@ -205,8 +205,7 @@ SQLite 记录运行器观察到的生命周期、任务转换、验证和提交�
 启动运行器前先启用记录器：
 
 ```bash
-export TABILET_AUDIT_DB="$HOME/.local/state/tabilet/audit.sqlite3"
-export TABILET_AUDIT_CAPTURE=metadata
+tabilet-audit audit enable /absolute/path/to/project
 ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
   ~/.local/bin/tackle-memory-bank-api-loop /absolute/path/to/project
 ```
@@ -265,15 +264,15 @@ docker pull python:3.12-slim
 
 ## 可选的 SQLite 审计与检索 {#optional-sqlite}
 
-Markdown 仍是权威来源。可选工具将本地审计存储在项目外，并为里程碑、任务、
+Markdown 仍是权威来源。可选工具将本地审计存储在 `tabilet/audit.sqlite3`，并为里程碑、任务、
 历史、演进和归档建立可重建的索引。
 
-它需要 Linux 或 macOS，以及 **Python 3.9 或更高版本，并带有 `sqlite3` 模块，
+它需要 **Python 3.9 或更高版本，并带有 `sqlite3` 模块，
 其内置 SQLite 为 3.24.0 或更高版本**。python.org、Homebrew 和常见 Linux 发行版自带的
 Python 都包含该模块；从源码编译、且编译时缺少 SQLite 开发头文件的 Python 则没有。可用
 `python3 -c 'import sqlite3; print(sqlite3.sqlite_version)'` 检查。文本搜索在可用时使用
-SQLite 的 FTS5，否则回退为字面匹配。Windows 未经测试。审计是可选的：如果设置了
-`TABILET_AUDIT_DB` 但不满足这些要求，API 运行器和技能会报告审计缺口，然后照常继续。
+SQLite 的 FTS5，否则回退为字面匹配。同一 Python CLI 支持 Linux、macOS 和 Windows。
+审计是可选的：已启用的数据库或所需能力不可用时，API 运行器和技能报告审计缺口，然后照常继续。
 
 在包含此功能的仓库检出目录中运行：
 
@@ -286,22 +285,25 @@ install -d ~/.local/share/tabilet/explorer
 install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
 install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB="${XDG_STATE_HOME:-$HOME/.local/state}/tabilet/audit.sqlite3"
+tabilet-audit audit enable /absolute/project
 tabilet-audit index sync /absolute/project
 tabilet-audit index search /absolute/project 'authentication' --kind task
 tabilet-audit explorer /absolute/project --port 8000
 ```
 
-设置数据库路径会启用 API 运行器及交互式技能指令中的审计步骤。
-仅安装技能不会创建数据库。相关消息捕获需单独启用；原始聊天文本必须由宿主提供。
+用户必须为每个项目手动启用审计；数据库保存该设置，新会话沿用它。
+提交 `tabilet/.gitignore` 中的 `/audit.sqlite3*`，让数据库及旁文件保持未跟踪。
+创建或刷新索引不会启用审计。`audit disable` 保留历史；删除数据库后审计保持关闭。
+仅安装技能不会创建数据库。Windows 或未安装命令时，用
+`py -3 C:\path\to\skills\harness\tabilet_audit_host.py` 运行同样的子命令。相关消息捕获需单独启用；原始聊天文本必须由宿主提供。
 即使审计仅记录元数据，索引仍保存当前 Markdown 文本。
 索引结果显示上次刷新时间和来源位置，执行前仍须重新读取磁盘上的 Markdown。
 暂不新增完整文件快照，已有快照证据会保留。工具仅使用 Python 标准库，无需 npm 包。
 
-仅监听回环地址的浏览器探索器提供总览、时间线和待办视图。它读取外部 SQLite
+仅监听回环地址的浏览器探索器提供总览、时间线和待办视图。它读取项目 SQLite
 审计和索引，Markdown 仍是权威来源。时间线会组合 goal 的子运行，并把筛选条件
 和所选详情保存在 URL 中。待办视图仅供参考，显示阻塞、
-依赖和关闭审查证据。刷新操作可迁移受支持的旧数据库，但只写外部数据库。
+依赖和关闭审查证据。刷新操作可迁移受支持的旧数据库，写入项目数据库，首次设置还会加入 Git 排除规则。
 后续操作会重新检查实时来源并生成可复制的提示词，但不会运行代理、修改项目
 文件或创建任务。非回环地址的 `--host` 值会被拒绝。如果浏览器在
 Chromebook 上，请使用 `ssh -N -L 8000:127.0.0.1:8000 user@host`，然后打开

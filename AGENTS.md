@@ -79,7 +79,7 @@ Out of scope:
 - Provider SDKs and agent frameworks -> not this repository. The optional
   `tabilet` controller is the specific local CLI exception: it uses the Python
   standard library, Git, and Docker, and adds no background service or
-  project-owned state. The harness talks to HTTP APIs with the standard library
+  controller-owned project state. The harness talks to HTTP APIs with the standard library
   only.
 
 Non-goals — things this repository has deliberately decided not to grow. The
@@ -303,15 +303,19 @@ spelling so an inbound link survives translation.
 
 ## Hard Rules
 
-- SQLite is optional external audit plus rebuildable Markdown lookup. Project
+- SQLite is optional project-local audit plus rebuildable Markdown lookup. Project
   Markdown remains authoritative; index refresh never rewrites it or durable
   audit records. New snapshot capture is deferred; existing evidence is preserved.
-  New storage uses one external database per project; registered linked
-  worktrees share that database, and unrelated projects cannot share writable
-  storage. `TABILET_AUDIT_DB=project` is explicit opt-in; the default stays off.
-  The seven optional audit references stay byte-identical, and disabled auditing
-  must preserve the documented single-file runner installation. The CLI package
-  and source-lifecycle tests enforce these contracts.
+  Use one database per project at `tabilet/audit.sqlite3`; registered linked
+  worktrees share the primary checkout's file and saved opt-in. Each project
+  requires manual `tabilet-audit audit enable`; the default stays off and index
+  creation never enables recording. Database path options and environment overrides
+  are removed. Setup preserves `tabilet/.gitignore` and appends `/audit.sqlite3*`;
+  commit the ignore file, never the database or its sidecars. Deleting storage
+  returns the project to disabled. Controller commands mount existing audit files
+  read-only alongside read-only `.git`. The seven optional audit references stay
+  byte-identical, and disabled auditing preserves the single-file runner install.
+  CLI packaging, project preference, and source-lifecycle tests enforce this.
 
 - The optional account-level `tabilet` controller is a separate combined path:
   one visible proposal and `confirm` may authorize its exact planning diff and

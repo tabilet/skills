@@ -41,20 +41,23 @@ class CliTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.base=Path(self.tmp.name)
         self.repo=h.make_repo(self.base/'project')
-        self.db=self.base/'state/audit.db'
+        self.db=self.repo/'tabilet/audit.sqlite3'
         self.cli=CLI
 
     def command(self,*arguments,data=None,ok=True):
         env=dict(os.environ)
         env.pop('TABILET_AUDIT_CAPTURE',None)
-        result=subprocess.run([sys.executable,'-B',str(self.cli),'--audit-db',str(self.db),*map(str,arguments)],input=json.dumps(data) if data is not None else None,text=True,capture_output=True,env=env)
+        result=subprocess.run([sys.executable,'-B',str(self.cli),'--project',str(self.repo),*map(str,arguments)],input=json.dumps(data) if data is not None else None,text=True,capture_output=True,env=env)
         self.assertEqual(result.returncode,0 if ok else 2,result.stderr)
         self.assertNotIn('Traceback',result.stderr)
         return json.loads(result.stdout) if ok else result.stderr
 
     def test_fresh_complete_lifecycle_retries_queries_and_capture(self):
+        self.command('audit', 'enable', self.repo)
         started=self.command('audit','begin',self.repo,'goal','--run-id','parent','--capture','relevant')
+        self.command('audit', 'enable', self.repo)
         self.assertEqual(started,self.command('audit','begin',self.repo,'goal','--run-id','parent','--capture','relevant'))
+        self.command('audit', 'enable', self.repo)
         child=self.command('audit','begin',self.repo,'next','--parent-run-id','parent','--run-id','child')
         event={'schema':'tabilet.audit.event/v1','event_id':'event1','run_id':'child','workspace_id':child['workspace_id'],'operation':'next','event_type':'task_observed','subject':{'milestone_id':'M01','task_label':'Implement feature'},'details':{'schema':'tabilet.audit.details/v1','capture_source':'agent','fidelity':'summarized'}}
         first=self.command('audit','event',data=event)
@@ -85,6 +88,7 @@ class CliTests(unittest.TestCase):
         self.command('index','status',self.repo,ok=False)
         self.assertFalse(self.db.exists())
         for operation in ('init','archive','propose','reconcile','next','goal','upgrade'):
+            self.command('audit', 'enable', self.repo)
             result=self.command('audit','begin',self.repo,operation)
             self.command('audit','finish',result['run_id'],'completed')
         c=sqlite3.connect(self.db)
@@ -107,6 +111,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result['diagnostics'],[])
         shown=self.command('index','show',self.repo,path)
         self.assertEqual(shown['relationships'][0]['target'],'external:apitools:M79')
+        self.command('audit', 'enable', self.repo)
         begun=self.command('audit','begin',self.repo,'next')
         finished=self.command('audit','finish',begun['run_id'],'completed')
         self.assertEqual(finished['index']['diagnostics'],[])
@@ -120,8 +125,10 @@ class CliTests(unittest.TestCase):
                     "instruction_set_version":"1","host_agent":"test-host","model":"test-model",
                     "capture_method":"instruction_driven","fingerprint_fidelity":"unavailable"}
         provenance_file=self.base/'provenance.json';provenance_file.write_text(json.dumps(provenance))
+        self.command('audit', 'enable', self.repo)
         begun=self.command('audit','begin',self.repo,'next','--run-id','filtered','--capture','relevant',
                            '--provenance',provenance_file)
+        self.command('audit', 'enable', self.repo)
         self.command('audit','begin',self.repo,'next','--run-id','other')
         for run, identifier in [('filtered','matching-event'),('other','other-event')]:
             self.command('audit','event',data={"schema":"tabilet.audit.event/v1","event_id":identifier,
@@ -147,6 +154,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.command('audit','events','--coverage','complete')['results'],[])
 
     def test_relevant_message_capture_rejects_oversized_text(self):
+        self.command('audit', 'enable', self.repo)
         self.command('audit','begin',self.repo,'next','--run-id','bounded','--capture','relevant')
         oversized={
             'run_id':'bounded','message_id':'too-long','role':'user',
@@ -165,6 +173,7 @@ class CliTests(unittest.TestCase):
             '| 1 | findings fixed | evidence |\n| 2 | passed | clean |\n')
         retired=h.retire_fixture(self.repo)
         original=retired.read_bytes()
+        self.command('audit', 'enable', self.repo)
         started=self.command('audit','begin',self.repo,'next')
         finished=self.command('audit','finish',started['run_id'],'completed')
         self.assertTrue(finished['index']['complete'])
@@ -183,6 +192,7 @@ class CliTests(unittest.TestCase):
         self.command('index', 'sync', self.repo)
         retired.write_text(retired.read_text().replace('`[+]`', '`[x]`'))
         original = retired.read_bytes()
+        self.command('audit', 'enable', self.repo)
         started = self.command('audit', 'begin', self.repo, 'reconcile')
         finished = self.command('audit', 'finish', started['run_id'], 'completed')
         self.assertEqual(finished['result'], 'completed')
@@ -198,6 +208,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(retired.read_bytes(), original)
         stable = self.command('index', 'status', self.repo)['generation']
         retired.write_text(retired.read_text().replace('`[x]`', '`[?]`'))
+        self.command('audit', 'enable', self.repo)
         invalid = self.command('audit', 'begin', self.repo, 'reconcile')
         failed = self.command('audit', 'finish', invalid['run_id'], 'completed')
         self.assertEqual(failed['result'], 'completed')
@@ -216,6 +227,7 @@ class CliTests(unittest.TestCase):
             shutil.copy(CLI.with_name(name),installation/name)
         shutil.copytree(CLI.with_name('explorer'), installation/'explorer')
         self.cli=installation/'tabilet-audit';shutil.copy(CLI,self.cli)
+        self.command('audit', 'enable', self.repo)
         start=self.command('audit','begin',self.repo,'propose')
         self.command('audit','finish',start['run_id'],'completed')
         prior=self.command('audit','export')
@@ -224,7 +236,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.command('index','search',self.repo,'feature')['index']['search_mode'],'literal')
         environment=dict(os.environ);environment['HOME']=str(self.base/'home');Path(environment['HOME']).mkdir()
         process=subprocess.Popen(
-            [sys.executable,'-B',str(self.cli),'--audit-db',str(self.db),'explorer',str(self.repo),'--port','0'],
+            [sys.executable,'-B',str(self.cli),'--project',str(self.repo),'explorer',str(self.repo),'--port','0'],
             stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=environment,
         )
         try:
@@ -239,7 +251,7 @@ class CliTests(unittest.TestCase):
             process.stdout.close();process.stderr.close()
         (installation/'explorer/index.html').unlink()
         process=subprocess.Popen(
-            [sys.executable,'-B',str(self.cli),'--audit-db',str(self.db),'explorer',str(self.repo),'--port','0'],
+            [sys.executable,'-B',str(self.cli),'--project',str(self.repo),'explorer',str(self.repo),'--port','0'],
             stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=environment,
         )
         try:
@@ -254,19 +266,19 @@ class CliTests(unittest.TestCase):
             process.stdout.close();process.stderr.close()
         self.assertFalse(list(installation.rglob('__pycache__')))
 
-    def test_internal_database_and_legacy_project_stop_before_writes(self):
-        self.db=self.repo/'audit.db'
-        self.command('audit','begin',self.repo,'init',ok=False)
-        self.assertFalse(self.db.exists())
-        self.db=self.base/'elsewhere.db'
+    def test_removed_database_option_and_legacy_project_stop_before_writes(self):
+        self.command('--audit-db', self.repo/'audit.db', 'audit', 'enable', self.repo, ok=False)
+        self.assertFalse((self.repo/'audit.db').exists())
         (self.repo/'memory-bank').mkdir()
-        self.command('audit','begin',self.repo,'upgrade',ok=False)
+        self.command('audit','enable',self.repo,ok=False)
         self.command('index','sync',self.repo,ok=False)
         self.assertFalse(self.db.exists())
 
     def test_begin_retry_reuses_recorded_identity_after_project_changes(self):
+        self.command('audit', 'enable', self.repo)
         first = self.command('audit', 'begin', self.repo, 'goal', '--run-id', 'stable-run')
         (self.repo / 'work-started-after-begin').write_text('changed after the recorded start')
+        self.command('audit', 'enable', self.repo)
         second = self.command('audit', 'begin', self.repo, 'goal', '--run-id', 'stable-run')
         self.assertEqual(second, first)
 

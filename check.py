@@ -1134,13 +1134,13 @@ def sqlite_bundle_contract():
         if "references/optional-audit.md" not in (reference.parent.parent / "SKILL.md").read_text():
             problems.append(f"{reference}: missing skill route")
     root_rules = ' '.join((ROOT / 'AGENTS.md').read_text().split())
-    for token in ('one external database per project', 'registered linked worktrees',
-                  '`TABILET_AUDIT_DB=project` is explicit opt-in'):
+    for token in ('one database per project at `tabilet/audit.sqlite3`', 'registered linked worktrees',
+                  'manual `tabilet-audit audit enable`', '`/audit.sqlite3*`'):
         if token not in root_rules:
             problems.append(f'AGENTS.md: missing project storage rule {token!r}')
     readme = (ROOT / 'README.md').read_text()
-    if 'export TABILET_AUDIT_DB=project' not in readme:
-        problems.append('README.md: project audit opt-in example is required')
+    if 'tabilet-audit audit enable' not in readme:
+        problems.append('README.md: manual project audit opt-in example is required')
     if 'ask your LLM agent to extract this project' not in readme:
         problems.append('README.md: older shared history extraction note is required')
     reference_text = references[0].read_text()
@@ -1413,7 +1413,7 @@ def api_controller_contract_problems(
     required = (
         "optional account-level `tabilet` controller",
         "Python standard library, Git, and Docker",
-        "adds no background service or project-owned state",
+        "adds no background service or controller-owned project state",
         "does not add a second execution engine",
         "temporary flat planning drafts",
         "do not create an exception or authorize a repository memory bank",

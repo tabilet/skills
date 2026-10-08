@@ -1181,18 +1181,12 @@ to still know what it is next week.
 ## Optional SQLite audit and lookup
 
 Markdown remains authoritative. The optional `tabilet-audit` toolkit records
-workflow evidence in one external SQLite database per project and builds a disposable index
-of active milestones/tasks, retired history, evolution, and context archives.
-Indexing does not change project Markdown or require new task IDs.
-Linked Git worktrees share their repository's database, with separate workspace
-records. The default location is
-`${XDG_STATE_HOME:-~/.local/state}/tabilet/projects/<project-id>/audit.sqlite3`.
-Automatic auditing stays off until explicitly enabled.
+workflow evidence in **one database per project**, always at
+`tabilet/audit.sqlite3`, and builds a disposable Markdown lookup index.
+Linked Git worktrees share the primary checkout's database and enabled setting.
+Audit is disabled by default and must be enabled manually in each project.
 
-To enable auditing, run these commands from a `skills` checkout. Install the
-runner too: the lookup index uses its Markdown parser. Set the exports in the
-environment that launches your agent or API runner; restart an existing agent
-session if it does not inherit the new variables.
+Install the toolkit from a `skills` checkout:
 
 ```bash
 install -d "$HOME/.local/bin"
@@ -1200,21 +1194,46 @@ install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
 install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB=project
-export TABILET_AUDIT_CAPTURE=metadata
 ```
 
-Create or refresh the project's lookup index with the existing command:
+Then enable only the project you choose:
+
+```bash
+tabilet-audit audit enable /absolute/path/to/project
+tabilet-audit audit status /absolute/path/to/project
+```
+
+The same commands work on Linux and macOS. On Windows, or without installing a
+shell launcher, invoke the existing Python CLI from the checkout:
+
+```powershell
+py -3 C:\path\to\skills\harness\tabilet_audit_host.py audit enable C:\path\to\project
+py -3 C:\path\to\skills\harness\tabilet_audit_host.py audit status C:\path\to\project
+```
+
+Setup creates or preserves `tabilet/.gitignore` and appends `/audit.sqlite3*`.
+Commit that ignore file; the database, WAL, shared-memory, journal, and temporary
+initialization files remain untracked. No environment variable or database-path
+option is needed. The saved setting survives new agent sessions; enabling A
+leaves B disabled.
+
+Create or refresh lookup data independently:
 
 ```bash
 tabilet-audit index sync /absolute/path/to/project
 ```
 
-The command returns the resolved database path. You may override it with an
-absolute external path through `TABILET_AUDIT_DB` or `--audit-db`; a writable
-database belongs to one project. Commands without a project argument use the
-current directory, or `tabilet-audit --project /absolute/path/to/project ...`.
-The older account-wide database is no longer selected by default.
+Index refresh **does not enable auditing**. To stop recording:
+
+```bash
+tabilet-audit audit disable /absolute/path/to/project
+```
+
+To discard a broken database, stop its agents and Explorer, disable audit if the
+database is readable, and delete `tabilet/audit.sqlite3` and its `-wal`, `-shm`,
+and `-journal` sidecars. Missing storage leaves audit disabled. You can rebuild
+lookup data without enabling audit; deleted audit history is not rebuilt from
+Markdown. This changes no Markdown or frozen records.
 
 If you have an older shared database (including one from before v2.5.0), you can
 ask your LLM agent to extract this project's history and import it into its SQLite database.
@@ -1363,8 +1382,8 @@ retired exits `0`. The full table is in
 
 ### API-only workflow
 
-An API-only setup uses the project's Markdown as authoritative memory and an
-external SQLite database for observed workflow history. The API runner rereads
+An API-only setup uses the project's Markdown as authoritative memory and the
+`tabilet/audit.sqlite3` database for observed workflow history. The API runner rereads
 `AGENTS.md`, active milestones and tasks, current facts, retired history, and
 evolution files on each run. SQLite records its observed lifecycle, task
 transitions, verification, and commits; its index makes current and historical
@@ -1373,8 +1392,7 @@ Markdown searchable without replacing it.
 Enable the recorder before starting the runner:
 
 ```bash
-export TABILET_AUDIT_DB=project
-export TABILET_AUDIT_CAPTURE=metadata
+tabilet-audit audit enable /absolute/path/to/project
 ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=your-model MAX_RUNS=1 \
   tackle-memory-bank-api-loop /absolute/path/to/project
 ```
@@ -1382,7 +1400,8 @@ ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=your-model MAX_RUNS=1 \
 Run `tabilet-audit index sync /absolute/path/to/project` after Markdown changes
 and use `tabilet-audit audit runs --project /absolute/path/to/project` to review
 recorded runs. The API runner owns its own audit lifecycle; do not start a
-duplicate manual run. Keep the SQLite file outside the project.
+duplicate manual run. Commit the setup ignore file before running against a
+clean Git baseline.
 
 `metadata` is the safe default. Set `TABILET_AUDIT_CAPTURE=relevant` to retain
 selected visible messages that the runner supplies. This does not capture every

@@ -7,7 +7,7 @@ knowledge history, evolution, optional stages, and optional context archives. SQ
 an opt-in durable audit and a disposable current-source index. It never selects
 or authorizes a task, changes a marker, or replaces milestone acceptance.
 
-The durable audit, rebuildable index, and local Explorer share one external
+The durable audit, rebuildable index, and local Explorer share one project
 SQLite database. Audit records are retained while index tables can be rebuilt.
 This keeps installation and backup simple, but a large index shares the audit
 file and its writer lock; an index refresh must never rewrite audit evidence.
@@ -18,16 +18,21 @@ Markdown files retain document history; current indexed text is replaceable.
 
 ## Storage and migration
 
-Each project has one optional external database under
-`${XDG_STATE_HOME:-~/.local/state}/tabilet/projects/<project-id>/audit.sqlite3`.
-The project ID is the full SHA-256 of its canonical root path. Registered linked
-Git worktrees share the main repository's location; independent clones and
-submodules remain separate projects. Explicit configuration uses
-`TABILET_AUDIT_DB=project` or `--audit-db project` for that default, or an absolute
-external path override. Automatic runner auditing remains off without explicit
-configuration. Installation and read commands never
-create a database. Database, WAL, and shared-memory files stay outside projects.
-New storage directories are private; existing parent permissions are unchanged.
+Each project has one database, always at `tabilet/audit.sqlite3`. Registered
+linked Git worktrees resolve to the primary checkout's file and share its saved
+enabled setting; separate clones and submodules remain separate projects.
+There is no database-path option or environment override. Existing
+`TABILET_AUDIT_DB` exports have no effect.
+
+The user manually runs `tabilet-audit audit enable PROJECT` for each project.
+This saves `audit_enabled=1` in SQLite metadata. A missing setting or database
+means disabled; creating or refreshing an index never enables audit. `audit
+status PROJECT` is read-only, and `audit disable PROJECT` saves disabled without
+removing evidence. Setup preserves `tabilet/.gitignore` and appends
+`/audit.sqlite3*`, excluding the database, sidecars, and initialization files.
+Commit the ignore file before launching a workflow that requires clean Git.
+Unix database files are created with mode 0600; Windows uses the directory's
+inherited access controls. Existing parent permissions are unchanged.
 
 The database identity is `tabilet.audit/v4`, with SQLite `user_version=4`.
 Writers validate identity, version, required column constraints, uniqueness,
@@ -38,11 +43,12 @@ open known older databases without writing; an explicit writer open performs the
 transactional migration. A failed migration rolls back the schema marker and
 leaves the earlier database readable.
 Writable databases bind to one project and retain workspace membership after
-temporary worktrees are removed. An older shared database spanning unrelated
-projects is read-only with this toolkit; new defaults start fresh and do not
-select the former account-wide `tabilet/audit.sqlite3`. Existing read/export
-commands can still inspect an explicitly selected old database for agent-assisted
-history extraction. No automatic cross-project data import is performed.
+temporary worktrees are removed. New defaults do not select old account-wide
+or external databases. Existing low-level readers can still inspect old storage
+for agent-assisted extraction; no automatic history import is performed.
+Copying a database to a different repository root does not rewrite its binding;
+start fresh or extract history explicitly when moving a project.
+
 Unknown or newer databases are rejected. The toolkit modules carry one
 interface version: the CLI reports an incompatible installation clearly, while
 the API runner reports an audit gap and preserves its task outcome. Backups and
@@ -219,21 +225,35 @@ install -d ~/.local/share/tabilet/explorer
 install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
 install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB=project
 ```
 
-The database path must be outside every registered project and its repository
-root. The same toolkit selects a different database for each unrelated project;
-linked worktrees share one database with separate workspace identities. Copying
-project Markdown needs no database migration. An independent clone or a moved
-repository root gets a fresh default path; its old history can be read explicitly.
-For commands without a positional project, use the project directory or pass
-the existing CLI's global `--project /absolute/project` selector. `audit begin`,
-`index sync`, and `index status` return the resolved `database_path`.
-Audit queries cover the project's linked worktrees; `--workspace-id` can narrow
-them to one checkout. Index and Explorer projections remain scoped to the
-selected checkout's Markdown. An explicitly selected legacy shared file retains
-its `--project` root filter for extracting that project's old history.
+The CLI works with Python 3.9+ and SQLite 3.24.0+ on Linux, macOS, and
+Windows. Without a shell launcher, run the existing source directly:
+
+```bash
+python3 /path/to/skills/harness/tabilet_audit_host.py audit enable /path/to/project
+```
+
+On Windows, use the Python launcher (quote paths containing spaces):
+
+```powershell
+py -3 "C:\path\to\skills\harness\tabilet_audit_host.py" audit enable "C:\path\to\project"
+```
+
+Use the same entrypoint for `audit status`, `audit disable`, and index commands.
+The native audit CLI is independent from the Linux-only Docker controller.
+
+```bash
+tabilet-audit audit enable /absolute/project
+tabilet-audit audit status /absolute/project
+tabilet-audit audit disable /absolute/project
+```
+
+Only the explicitly selected project's saved setting changes. From another
+folder, pass the project argument or global `--project /absolute/project`.
+`audit begin`, `index sync`, and `index status` return `database_path`.
+Audit queries cover registered linked-worktree runs; `--workspace-id` narrows
+results. Index and Explorer projections remain scoped to the selected checkout.
 
 ```bash
 tabilet-audit index sync /absolute/project
@@ -254,7 +274,7 @@ state is bookmarkable. Search, To-do, and run-detail page positions are included
 in that URL, and each detail URL names one selected record. Source links show a
 numbered excerpt around their exact line. To-do explains resume, ready, waiting, blocked, and
 review-required evidence with prerequisite and dependent links. Refresh is explicit,
-migrates supported older databases, and writes only the external database.
+migrates supported older databases, and writes the project database. Initial setup also adds its Git exclusion.
 The groups remain advisory when freshness or closure evidence needs review.
 Follow-up buttons require an unambiguous task or review milestone and revalidate
 current source hashes before preparing text for copying. Their prompts ask the
@@ -311,13 +331,12 @@ install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
 install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
 export PATH="$HOME/.local/bin:$PATH"
-export TABILET_AUDIT_DB=project
 tabilet-audit index sync /absolute/path/to/project --rebuild
 tabilet-audit index status /absolute/path/to/project
 ```
 
-Keep an explicit external path only when that database belongs to this project;
-use `project` to start fresh instead of reusing an older shared database.
+Refresh selects `tabilet/audit.sqlite3` and leaves its enabled setting unchanged.
+Older external databases are not selected or modified.
 Verify that status reports `complete: true`. Completion refers to
 this refresh; review any remaining diagnostics separately and reread live Markdown
 before acting. Reinstall the explorer module and assets using the installation
@@ -431,7 +450,7 @@ diagnostic; its correction is not applied to the new bytes. Review it again
 before supplying a replacement hash.
 
 A successful sync saves the map as workspace-scoped index configuration in the
-existing external SQLite database, atomically with the new generation. Ordinary
+existing project SQLite database, atomically with the new generation. Ordinary
 refreshes, audit completion and `--rebuild` retain it. Retain the JSON separately
 if you want to recreate the configuration in a new database. A new
 `--external-dependencies` file replaces the complete map. To remove it and
@@ -449,7 +468,7 @@ installed `index sync` does not recognize these options.
 
 ## Record a host workflow
 
-With `TABILET_AUDIT_DB` set, the API runner automatically records its own runs.
+After the user manually enables the project, the API runner automatically records its own runs.
 The seven interactive skills use the optional CLI when available, following their
 bundled audit reference. This is an instruction-driven integration, not an
 installed host transcript hook. Native goal protocols can use the same CLI.
@@ -574,9 +593,30 @@ exit codes, task markers, or commit policy.
 
 ## Backup and recovery
 
+To discard damaged local storage, stop all of this project's agents and Explorer.
+Disable audit when the database is readable, then delete the database and sidecars:
+
+```bash
+tabilet-audit audit disable /absolute/project
+rm -f /absolute/project/tabilet/audit.sqlite3 /absolute/project/tabilet/audit.sqlite3-wal /absolute/project/tabilet/audit.sqlite3-shm /absolute/project/tabilet/audit.sqlite3-journal
+```
+
+PowerShell uses the same disable command through `py -3`, followed by:
+
+```powershell
+Remove-Item -LiteralPath "C:\path\to\project\tabilet\audit.sqlite3", "C:\path\to\project\tabilet\audit.sqlite3-wal", "C:\path\to\project\tabilet\audit.sqlite3-shm", "C:\path\to\project\tabilet\audit.sqlite3-journal" -ErrorAction SilentlyContinue
+```
+
+If corruption prevents `audit disable`, deleting storage still leaves audit off.
+For linked worktrees, use the primary checkout path reported by `audit status`.
+Markdown and frozen records stay intact. Rebuilding the index does not restore
+deleted audit history or re-enable recording; use `audit enable` explicitly to
+start a new audit. No audit history is replayed automatically.
+
+
 ```bash
 tabilet-audit backup /absolute/external-backup.sqlite3
-tabilet-audit --audit-db /absolute/external-backup.sqlite3 restore /absolute/recovered.sqlite3
+tabilet-audit --project /absolute/project restore /absolute/recovered.sqlite3
 tabilet-audit restore /absolute/recovered-record.md --snapshot-id SNAPSHOT_ID
 ```
 

@@ -1,11 +1,14 @@
 # Unreleased
 
-The optional SQLite toolkit now defaults to one external database per project.
-Registered linked worktrees share the repository's database while keeping their
-workspace records distinct. `TABILET_AUDIT_DB=project` explicitly enables runner
-auditing at that location; ordinary runs remain unaudited by default. Writers
-reject cross-project database reuse, and older shared storage remains readable
-for agent-assisted extraction. Toolkit modules must be reinstalled together.
+Each project manually enables audit with `tabilet-audit audit enable PROJECT`.
+The saved preference and audit/index data live in `tabilet/audit.sqlite3`;
+registered linked worktrees share the primary checkout's file. Setup preserves
+`tabilet/.gitignore` and adds `/audit.sqlite3*`. Index refresh never enables
+recording. `audit disable` preserves history, while deleting the database returns
+the project to disabled. Database path options and environment overrides are
+removed. The Python CLI provides the same commands on Linux, macOS, and Windows.
+The seven skills check the saved setting; runners preserve their row gates when
+audit fails. Controller containers mount existing audit files read-only.
 
 Goal execution now distinguishes strict `STATUS_ORDER` from dependency-ready
 dispatch using `STATUS_PRIORITY`. Parallel contract checks cover reads and

@@ -61,7 +61,7 @@ project writes or execution. Direct the user to preview and explicitly apply
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
 Installing v2 never migrates a project automatically.
 
-When `TABILET_AUDIT_DB` explicitly enables auditing, use exactly one recorder
+Auditing requires the user's saved per-project opt-in. Use exactly one recorder
 owner. Inside the API runner, the runner owns the audit lifecycle: do not look
 for an interactive skill's `references/optional-audit.md`, invoke
 `tabilet-audit`, or start a duplicate run. In an interactive skill run, read the
@@ -1610,9 +1610,13 @@ class AuditRun:
         self.invocation_kind = invocation_kind
         self.instruction_set_name = instruction_set_name
         self.host_agent = host_agent
-        if not args.audit_db:
-            return
         try:
+            try:
+                import tabilet_audit
+            except ImportError:
+                if not (repo / 'tabilet' / 'audit.sqlite3').exists():
+                    return  # The single-file installation still works with auditing off.
+                raise
             try:
                 import sqlite3  # noqa: F401 -- optional; some Python builds omit it
             except ImportError as exc:
@@ -1620,17 +1624,24 @@ class AuditRun:
                     "Python's sqlite3 module is unavailable; the audit needs a Python "
                     "built with SQLite 3.24.0 or later"
                 ) from exc
-            import tabilet_audit
             import tabilet_index
-            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 2
-                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 2):
+            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 3
+                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 3):
                 raise RuntimeError("incompatible audit toolkit modules; reinstall the toolkit files together")
             self.recorder = tabilet_audit
+            setting = self.recorder.audit_status(repo)
+            if not setting['enabled']:
+                return
+            self.database_path = setting['database_path']
             if git_ref is None:
                 head = git_local(["rev-parse", "HEAD"], repo)
                 git_ref = head.stdout.strip() if head.returncode == 0 else None
                 self.git_ref = git_ref
-            self.connection = self.recorder.open_database(args.audit_db, project_roots=[repo])
+            self.connection = self.recorder.open_database(setting['database_path'], project_roots=[repo])
+            if not self.recorder.audit_enabled(self.connection):
+                self.connection.close()
+                self.connection = None
+                return
             self.workspace_id = self.recorder.ensure_workspace(self.connection, repo, branch=git_branch(repo))
             self.run_id = self.recorder.start_run(
                 self.connection, self.workspace_id, operation, capture_mode=self.capture,
@@ -1676,7 +1687,7 @@ class AuditRun:
         return False
 
     def emit(self, event_type, *, subject=None, details=None):
-        if self.connection is None or self.closed:
+        if not self.recording():
             return
         timestamp = self.recorder.utc_now()
         event = {"schema": "tabilet.audit.event/v1", "event_id": str(uuid.uuid4()),
@@ -1689,7 +1700,7 @@ class AuditRun:
             self.gap(f"record {event_type}", exc)
 
     def message(self, role, text, *, source, fidelity):
-        if self.connection is None or self.closed or self.capture != "relevant":
+        if not self.recording() or self.capture != "relevant":
             return
         try:
             evidence, bounded = self.recorder.bounded_message_evidence(text)
@@ -1702,7 +1713,7 @@ class AuditRun:
             self.gap("record message", exc)
 
     def observe_commits(self):
-        if self.connection is None or self.closed or self.failure:
+        if not self.recording() or self.failure:
             return
         try:
             head = git_local(["rev-parse", "HEAD"], self.repo)
@@ -1724,7 +1735,7 @@ class AuditRun:
         if self.closed:
             return
         try:
-            if self.connection is not None:
+            if self.recording():
                 self.observe_commits()
                 if self.failure:
                     self.emit("audit_gap", details={"error": self.failure})
@@ -1770,6 +1781,22 @@ class AuditRun:
                     self.connection.close()
                 except Exception as exc:
                     self.gap("close recorder", exc)
+
+    def recording(self):
+        if self.connection is None or self.closed:
+            return False
+        try:
+            if pathlib.Path(self.database_path).is_file() and self.recorder.audit_enabled(self.connection):
+                return True
+        except Exception as exc:
+            self.gap('read saved audit setting', exc)
+        try:
+            self.connection.close()
+        except Exception as exc:
+            self.gap('close disabled recorder', exc)
+        finally:
+            self.connection = None
+        return False
 
 
 def positive_int(value: str) -> int:
@@ -1877,7 +1904,6 @@ def parse_args(argv=None) -> argparse.Namespace:
               TOOL_ENV_ALLOW                     Comma-separated extra variables for shell tools.
               ALLOW_UNSANDBOXED_SHELL=1          Acknowledge model-controlled host shell access.
               ALLOW_DANGEROUS_COMMANDS=1         Disable the command guardrail.
-              TABILET_AUDIT_DB                  Opt in with project, or an absolute external database path.
               TABILET_AUDIT_CAPTURE             'metadata' (default) or 'relevant'.
               TABILET_AUDIT_ARCHIVES            Obsolete; new snapshot capture is deferred.
             """
@@ -1905,11 +1931,6 @@ def parse_args(argv=None) -> argparse.Namespace:
         default=os.environ.get("ALLOW_UNSANDBOXED_SHELL") == "1",
     )
     parser.add_argument("--allow-dangerous", action="store_true", default=os.environ.get("ALLOW_DANGEROUS_COMMANDS") == "1")
-    parser.add_argument(
-        "--audit-db",
-        default=os.environ.get("TABILET_AUDIT_DB") or None,
-        help="Enable the external SQLite audit recorder at this path.",
-    )
     parser.add_argument(
         "--audit-capture",
         choices=["metadata", "relevant"],

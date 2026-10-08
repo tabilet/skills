@@ -47,7 +47,6 @@ def _add_model_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--max-history-chars", type=int, default=500000)
     parser.add_argument("--temperature", type=float)
-    parser.add_argument("--audit-db")
     parser.add_argument("--audit-capture", choices=("metadata", "relevant"))
     parser.add_argument("--allow-dangerous", action="store_true")
 
@@ -59,7 +58,7 @@ def _runner_args(core, options, project: pathlib.Path):
         ("api_key", "--api-key"), ("max_turns", "--max-turns"),
         ("max_tokens", "--max-tokens"), ("api_timeout", "--api-timeout"),
         ("max_retries", "--max-retries"), ("max_history_chars", "--max-history-chars"),
-        ("temperature", "--temperature"), ("audit_db", "--audit-db"),
+        ("temperature", "--temperature"),
         ("audit_capture", "--audit-capture"),
     )
     for name, flag in mapping:

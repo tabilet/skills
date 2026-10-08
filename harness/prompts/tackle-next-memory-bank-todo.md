@@ -5,7 +5,7 @@ project writes or execution. Direct the user to preview and explicitly apply
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`.
 Installing v2 never migrates a project automatically.
 
-When `TABILET_AUDIT_DB` explicitly enables auditing, use exactly one recorder
+Auditing requires the user's saved per-project opt-in. Use exactly one recorder
 owner. Inside the API runner, the runner owns the audit lifecycle: do not look
 for an interactive skill's `references/optional-audit.md`, invoke
 `tabilet-audit`, or start a duplicate run. In an interactive skill run, read the

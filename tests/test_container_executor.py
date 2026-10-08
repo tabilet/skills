@@ -216,6 +216,29 @@ class DockerPreparationTests(unittest.TestCase):
             with self.assertRaisesRegex(container.SandboxUnavailable, "not a local Unix-socket"):
                 container.local_docker_endpoint()
 
+    def test_existing_project_audit_files_are_mounted_readonly(self):
+        (self.root/'tabilet').mkdir()
+        for suffix in ('', '-wal', '-shm', '-journal'):
+            (self.root/'tabilet'/('audit.sqlite3'+suffix)).write_bytes(b'host audit')
+        executor = object.__new__(container.DockerExecutor)
+        executor.core = core
+        executor.repo = self.root
+        executor.image = 'sha256:' + 'a'*64
+        executor.docker = 'docker'
+        executor.endpoint = 'unix:///not-used'
+        process = mock.Mock(returncode=0)
+        process.communicate.return_value = ('', '')
+        with mock.patch.object(executor, '_spawn_cleanup_watchdog', return_value=None), \
+                mock.patch.object(executor, '_cleanup'), \
+                mock.patch.object(container.subprocess, 'Popen', return_value=process) as launch:
+            self.assertEqual(executor(self.root, 'true', 1, 4096, False, {})['exit_code'], 0)
+        arguments = launch.call_args.args[0]
+        mounts = [arguments[n+1] for n, value in enumerate(arguments[:-1]) if value == '--mount']
+        audits = [mount for mount in mounts if '/tabilet/audit.sqlite3' in mount]
+        self.assertEqual(len(audits), 4)
+        self.assertTrue(all('readonly' in mount for mount in audits))
+        self.assertTrue(all('source='+str(self.root/'tabilet') in mount for mount in audits))
+
     def test_daemon_override_is_rejected_before_context_inspection(self):
         with mock.patch.dict(os.environ, {"DOCKER_HOST": "tcp://remote.example:2376"}):
             with mock.patch.object(container, "_run_docker") as run_docker:

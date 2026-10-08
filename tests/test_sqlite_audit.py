@@ -208,8 +208,11 @@ class SqliteAuditContractTests(unittest.TestCase):
 
     def test_host_adapter_accepts_structured_host_event(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            database = Path(temporary) / "audit.sqlite3"
-            connection = audit.open_database(database)
+            project = Path(temporary) / "project"
+            project.mkdir()
+            database = project / "tabilet/audit.sqlite3"
+            connection = audit.open_database(database, project_roots=[project])
+            audit.set_audit_enabled(connection, project, True)
             self.addCleanup(connection.close)
             workspace_id = audit.ensure_workspace(connection, Path(temporary) / "project")
             run_id = audit.start_run(connection, workspace_id, "archive", run_id="run-1")
@@ -224,7 +227,7 @@ class SqliteAuditContractTests(unittest.TestCase):
                 "details": {"schema": "tabilet.audit.details/v1", "capture_source": "host", "fidelity": "summarized"},
             })
             process = subprocess.run(
-                [sys.executable, str(ROOT / "harness/tabilet_audit_host.py"), "--audit-db", str(database), "--event", payload],
+                [sys.executable, str(ROOT / "harness/tabilet_audit_host.py"), "--project", str(project), "--event", payload],
                 text=True, capture_output=True, check=False,
             )
             self.assertEqual(process.returncode, 0, process.stderr)

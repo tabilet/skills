@@ -26,9 +26,10 @@ from urllib.parse import quote
 SCHEMA_NAME = "tabilet.audit/v4"
 SCHEMA_VERSION = 4
 RECORDER_VERSION = "tabilet-audit/4"
-TOOLKIT_INTERFACE = 2
+TOOLKIT_INTERFACE = 3
 PROJECT_ROOT_KEY = 'project_root'
 PROJECT_WORKSPACE_PREFIX = 'project_workspace:'
+AUDIT_ENABLED_KEY = 'audit_enabled'
 # The index publishes with an upsert (ON CONFLICT ... DO UPDATE), added in 3.24.0.
 MINIMUM_SQLITE = (3, 24, 0)
 
@@ -557,24 +558,20 @@ def project_storage_root(project_root=None):
     return root
 
 
-def default_database_path(environment: dict[str, str] | None = None, *, project_root=None) -> pathlib.Path:
-    """Resolve one external database per project without creating or enabling it."""
-    environment = os.environ if environment is None else environment
-    state_home = environment.get('XDG_STATE_HOME', '').strip()
-    state = pathlib.Path(state_home).expanduser() if state_home else None
-    base = state if state is not None and state.is_absolute() else pathlib.Path.home() / '.local' / 'state'
-    identity = hashlib.sha256(str(project_storage_root(project_root)).encode('utf-8')).hexdigest()
-    return base.resolve() / 'tabilet' / 'projects' / identity / 'audit.sqlite3'
+def default_database_path(*, project_root=None) -> pathlib.Path:
+    """Resolve the repository's local database without creating or enabling it."""
+    return project_storage_root(project_root) / 'tabilet' / 'audit.sqlite3'
 
 
-def resolve_database_path(path=None, *, project_root=None, environment=None):
-    environment = os.environ if environment is None else environment
-    configured = str(path if path is not None else environment.get('TABILET_AUDIT_DB') or 'project').strip()
+def resolve_database_path(path=None, *, project_root=None):
+    # Explicit paths are internal primitives for old-history extraction and backups.
+    # Public commands always use the repository location; environment is ignored.
+    configured = str(path if path is not None else 'project').strip()
     if configured == 'project':
-        return default_database_path(environment, project_root=project_root)
+        return default_database_path(project_root=project_root)
     database = pathlib.Path(configured).expanduser()
     if not database.is_absolute():
-        raise AuditError('audit database must be project or an absolute external path')
+        raise AuditError('audit database must be project or an absolute path')
     return pathlib.Path(os.path.abspath(database))
 
 
@@ -817,6 +814,49 @@ def external_path(path, roots=()):
     return path
 
 
+def project_database_path(path, roots=(), *, staging=False):
+    """Allow the reserved project database; reject other in-project locations."""
+    path = safe_path(path)
+    for root in roots:
+        root = pathlib.Path(root).expanduser().resolve()
+        if path.is_relative_to(root):
+            expected = default_database_path(project_root=root)
+            if path != expected and not (staging and path.parent == expected.parent
+                                         and path.name.startswith(expected.name + '.init-')):
+                raise AuditError(f'only tabilet/audit.sqlite3 is allowed inside project: {root}')
+    return path
+
+
+def ensure_project_ignore(project_root, database):
+    """Preserve existing rules and append the reserved database exclusion last."""
+    if pathlib.Path(database) != default_database_path(project_root=project_root):
+        return
+    target = safe_path(pathlib.Path(database).parent / '.gitignore')
+    previous = target.read_bytes() if target.exists() else None
+    meaningful = [line.strip() for line in (previous or b'').splitlines()
+                  if line.strip() and not line.lstrip().startswith(b'#')]
+    if meaningful and meaningful[-1] == b'/audit.sqlite3*':
+        return
+    data = previous or b''
+    data += (b'' if not data or data.endswith(b'\n') else b'\n') + b'/audit.sqlite3*\n'
+    temporary = target.with_name('.gitignore.audit-' + uuid.uuid4().hex)
+    try:
+        descriptor = private_create(temporary)
+        with os.fdopen(descriptor, 'wb') as stream:
+            if previous is not None:
+                os.chmod(temporary, target.stat().st_mode & 0o777)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        current = target.read_bytes() if target.exists() else None
+        if current != previous:
+            raise AuditError('tabilet/.gitignore changed during setup; retry')
+        os.replace(temporary, target)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
 def private_create(path):
     """Create exclusively; do not chmod an existing parent."""
     missing = []
@@ -893,7 +933,7 @@ def bind_project(connection, project_root):
     _writer_project(connection, owner)
     location = database_path(connection)
     if location:
-        external_path(location, [owner, project_root])
+        project_database_path(location, [owner, project_root], staging=True)
     connection.execute('INSERT OR IGNORE INTO schema_meta VALUES (?,?)', (PROJECT_ROOT_KEY, owner))
     for (workspace,) in connection.execute('SELECT workspace_id FROM workspaces'):
         connection.execute('INSERT OR IGNORE INTO schema_meta VALUES (?,?)',
@@ -908,7 +948,33 @@ def check_project(connection, project_root):
         raise AuditError('audit database belongs to a different project; use project storage')
     location = database_path(connection)
     if location:
-        external_path(location, [project_root, project_storage_root(project_root)])
+        project_database_path(location, [project_root, project_storage_root(project_root)])
+
+
+def audit_enabled(connection):
+    value = connection.execute('SELECT value FROM schema_meta WHERE key=?', (AUDIT_ENABLED_KEY,)).fetchone()
+    if value is not None and value[0] not in ('0', '1'):
+        raise AuditError('invalid saved audit setting')
+    return value == ('1',)
+
+
+def audit_status(project_root, path=None):
+    """Read the saved opt-in without creating storage or changing evidence."""
+    owner = project_storage_root(project_root)
+    database = project_database_path(resolve_database_path(path, project_root=project_root), [owner, project_root])
+    result = {'enabled': False, 'exists': database.exists(),
+              'project_root': str(owner), 'database_path': str(database)}
+    if result['exists']:
+        with contextlib.closing(open_readonly_database(database, project_root=project_root)) as connection:
+            result['enabled'] = audit_enabled(connection)
+    return result
+
+
+@atomic
+def set_audit_enabled(connection, project_root, enabled):
+    bind_project(connection, project_root)
+    connection.execute('INSERT OR REPLACE INTO schema_meta VALUES (?,?)',
+                       (AUDIT_ENABLED_KEY, '1' if enabled else '0'))
 
 
 def _apply_v4_schema(connection):
@@ -1117,7 +1183,7 @@ def open_database(path=None, *, project_roots=()):
     owners = {str(project_storage_root(root)) for root in roots}
     if len(owners) > 1:
         raise AuditError('one audit database can contain only one project')
-    database = external_path(resolve_database_path(path, project_root=context), (*roots, *owners))
+    database = project_database_path(resolve_database_path(path, project_root=context), (*roots, *owners))
     sidecars = {suffix: safe_path(str(database) + suffix) for suffix in ('-wal', '-shm', '-journal')}
     created = not database.exists()
     staging = None
@@ -1147,7 +1213,7 @@ def open_database(path=None, *, project_roots=()):
         recorded_owner = None
         if not created:
             recorded_owner = _writer_project(connection, next(iter(owners), None))
-            external_path(database, database_roots(connection))
+            project_database_path(database, database_roots(connection))
         # New files are private before connect; only validated owned files are tightened.
         connect_path.chmod(0o600)
         # Set this before legacy envelope text is moved or deleted.
@@ -1241,7 +1307,7 @@ def ensure_workspace(connection, project_root, *, repository_id=None, branch=Non
     root = str(pathlib.Path(project_root).expanduser().resolve())
     location = database_path(connection)
     if location:
-        external_path(location, [root])
+        project_database_path(location, [root])
     timestamp = observed_at or utc_now()
     _timestamp(timestamp, 'observed_at')
     owner = bind_project(connection, root)

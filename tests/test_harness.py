@@ -44,6 +44,20 @@ def run(*cmd: str, cwd: pathlib.Path, env: dict[str, str] | None = None):
     )
 
 
+def enable_audit(repo):
+    sys.path.insert(0, str(HARNESS.parent))
+    import tabilet_audit as audit
+    database = audit.default_database_path(project_root=repo)
+    with contextlib.closing(audit.open_database(database, project_roots=[repo])) as connection:
+        audit.ensure_project_ignore(repo, database)
+        audit.set_audit_enabled(connection, repo, True)
+    run('git', 'add', 'tabilet/.gitignore', cwd=repo)
+    result = run('git', 'commit', '-qm', 'Enable optional audit ignore rules', cwd=repo)
+    if result.returncode:
+        raise RuntimeError(result.stderr)
+    return database
+
+
 def marker(value: str) -> str:
     return BACKTICK + value + BACKTICK
 
@@ -923,8 +937,8 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_audited_no_commit_failure_keeps_runner_exit_and_records_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
-            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
-            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database)]), \
+            database = enable_audit(repo)
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo)]), \
                     mock.patch.dict(os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True), \
                     mock.patch.object(harness, "one_agent_run", return_value={"final": "No commit."}), \
                     self.assertRaises(SystemExit) as stopped:
@@ -941,8 +955,8 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_audited_interrupt_records_interrupted_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
-            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
-            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database)]), \
+            database = enable_audit(repo)
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo)]), \
                     mock.patch.dict(os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True), \
                     mock.patch.object(harness, "one_agent_run", side_effect=KeyboardInterrupt), \
                     self.assertRaises(KeyboardInterrupt):
@@ -958,9 +972,9 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_unavailable_audit_database_leaves_runner_gate_unchanged(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
-            database_directory = pathlib.Path(tmp) / "audit.sqlite3"
+            database_directory = repo / "tabilet/audit.sqlite3"
             database_directory.mkdir()
-            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database_directory)]), \
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo)]), \
                     mock.patch.dict(os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True), \
                     mock.patch.object(harness, "one_agent_run", return_value={"final": "No commit."}), \
                     self.assertRaises(SystemExit) as stopped:
@@ -1077,7 +1091,7 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_opt_in_audit_records_successful_lifecycle_and_relevant_result(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
-            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
+            database = enable_audit(repo)
 
             def close_row(args, target, number, summary, current):
                 source = target / "tabilet/memory-bank" / "status-M01.md"
@@ -1091,7 +1105,7 @@ class HarnessIntegrationTests(unittest.TestCase):
                 return {"final": "Completed the row."}
 
             with mock.patch.object(sys, "argv", [
-                str(HARNESS), str(repo), "--audit-db", str(database), "--audit-capture", "relevant",
+                str(HARNESS), str(repo), "--audit-capture", "relevant",
             ]), mock.patch.dict(
                 os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True
             ), mock.patch.object(harness, "one_agent_run", side_effect=close_row), self.assertRaises(
@@ -1117,8 +1131,8 @@ class HarnessIntegrationTests(unittest.TestCase):
     def test_opt_in_audit_records_blocked_gate_without_model_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[!]"))
-            database = pathlib.Path(tmp) / "state" / "audit.sqlite3"
-            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo), "--audit-db", str(database)]), \
+            database = enable_audit(repo)
+            with mock.patch.object(sys, "argv", [str(HARNESS), str(repo)]), \
                     mock.patch.dict(os.environ, self.harness_env(tmp), clear=True), \
                     self.assertRaises(SystemExit) as stopped:
                 harness.main()

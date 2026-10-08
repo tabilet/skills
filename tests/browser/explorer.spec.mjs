@@ -10,13 +10,13 @@ const host = join(root, 'harness/tabilet_audit_host.py');
 let temporary, project, database, server, baseURL;
 
 function cli(args, input) {
-  const result = spawnSync('python3', ['-B', host, '--audit-db', database, ...args], { input, encoding: 'utf8' });
+  const result = spawnSync('python3', ['-B', host, '--project', project, ...args], { input, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(result.stderr || result.stdout);
   return JSON.parse(result.stdout);
 }
 
 async function launch() {
-  server = spawn('python3', ['-B', host, '--audit-db', database, 'explorer', project, '--port', '0'], { stdio: ['ignore', 'pipe', 'pipe'] });
+  server = spawn('python3', ['-B', host, '--project', project, 'explorer', project, '--port', '0'], { stdio: ['ignore', 'pipe', 'pipe'] });
   const lines = createInterface({ input: server.stdout });
   return await new Promise((resolveURL, reject) => {
     const timer = setTimeout(() => reject(new Error('explorer did not start')), 10000);
@@ -27,12 +27,13 @@ async function launch() {
 
 test.beforeAll(async () => {
   temporary = mkdtempSync(join(tmpdir(), 'tabilet-browser-'));
-  project = join(temporary, 'project'); database = join(temporary, 'state/audit.sqlite3');
+  project = join(temporary, 'project'); database = join(project, 'tabilet/audit.sqlite3');
   mkdirSync(join(project, 'tabilet/memory-bank'), { recursive: true });
   writeFileSync(join(project, 'AGENTS.md'), '# Browser fixture\n');
   writeFileSync(join(project, 'tabilet/memory-bank/milestone.md'), '# Milestones\n\n## M01 - Browser explorer\n\nBrowser milestone summary.\n\n**Acceptance.** Browser paths work.\n');
   writeFileSync(join(project, 'tabilet/memory-bank/status-M01.md'), '# Status\n\n| ID | State | Notes |\n|---|---|---|\n| TASK-A | `[ ]` | First task |\n| TASK-B | `[!]` | Waiting for operator |\n');
   cli(['index', 'sync', project]);
+  cli(['audit', 'enable', project]);
   const run = cli(['audit', 'begin', project, 'propose', '--run-id', 'browser-propose', '--capture', 'relevant']);
   cli(['audit', 'message'], JSON.stringify({ run_id: run.run_id, message_id: 'browser-request', role: 'user', text: 'Please prepare the browser milestone', capture_source: 'host', fidelity: 'exact' }));
   cli(['audit', 'message'], JSON.stringify({ run_id: run.run_id, message_id: 'browser-output', role: 'assistant', text: 'Prepared M01 and its tasks', capture_source: 'host', fidelity: 'exact' }));

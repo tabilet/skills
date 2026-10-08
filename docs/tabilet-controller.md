@@ -150,8 +150,8 @@ validation failed, and `25` means recovery needs manual review.
 
 ## Optional audit
 
-When `TABILET_AUDIT_DB` is set, the controller owns the audit lifecycle for its
-horizon. The standalone runner or skill recorder must not create a duplicate
+When the user manually enables audit for the project, the controller owns the
+audit lifecycle for its horizon. The standalone runner or skill recorder must not create a duplicate
 run. Audit failure is reported as a gap and does not change receipt state,
 verification, or exit status. Markdown and private receipts remain the
 controller's workflow sources.
