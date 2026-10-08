@@ -41,6 +41,7 @@ import sys
 import textwrap
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -1287,6 +1288,182 @@ def _post_json(
     fail(f"{label} request exhausted retries.", 21)
 
 
+class PrefixedText(str):
+    """Message text whose first `cache_prefix` characters are stable across requests.
+
+    It behaves as plain text everywhere (equality, JSON, concatenation), so
+    providers that cache automatically see the same bytes as before. Only the
+    Anthropic request builder reads `cache_prefix` to place a cache breakpoint
+    at the end of the reusable part of a prompt.
+    """
+
+    cache_prefix = 0
+
+    def __new__(cls, text: str, cache_prefix: int = 0):
+        value = super().__new__(cls, text)
+        value.cache_prefix = cache_prefix
+        return value
+
+
+# The smallest cacheable prefix of any current Claude model is 512 tokens
+# (about 2,000 characters); a breakpoint on anything shorter caches nothing.
+PROMPT_CACHE_MIN_CHARS = 2048
+PROMPT_CACHE_MODES = ("auto", "on", "off")
+PROMPT_CACHE_TTLS = ("5m", "1h")
+
+
+def prompt_cache_policy(provider: str, api_base: str, env=None) -> dict | None:
+    """Decide whether to send explicit prompt-cache markers.
+
+    Only Claude's Messages API needs them: OpenAI and DeepSeek cache a matching
+    prefix automatically, so the harness sends them nothing extra. `auto`
+    enables markers for the official Anthropic host only, because a gateway
+    may reject a field it does not know; `on` is the explicit opt-in for a
+    gateway that supports them; `off` never sends them. Returns None when no
+    markers should be sent, otherwise {"ttl": "5m" | "1h"}.
+    """
+
+    env = os.environ if env is None else env
+    mode = (env.get("LLM_PROMPT_CACHE") or "auto").strip().lower()
+    ttl = (env.get("LLM_PROMPT_CACHE_TTL") or "5m").strip().lower()
+    if mode not in PROMPT_CACHE_MODES:
+        raise ValueError("LLM_PROMPT_CACHE must be auto, on, or off")
+    if ttl not in PROMPT_CACHE_TTLS:
+        raise ValueError("LLM_PROMPT_CACHE_TTL must be 5m or 1h")
+    if provider != "anthropic" or mode == "off":
+        return None
+    if mode == "auto":
+        host = urllib.parse.urlsplit(api_base).hostname or ""
+        if host != "api.anthropic.com":
+            return None
+    return {"ttl": ttl}
+
+
+def _cache_marker(policy: dict) -> dict:
+    marker = {"type": "ephemeral"}
+    if policy["ttl"] == "1h":
+        marker["ttl"] = "1h"
+    return marker
+
+
+def apply_anthropic_cache(system_parts: list[str], chat: list[dict], policy: dict):
+    """Return (system, chat) with up to two cache breakpoints.
+
+    The first marks the end of the reusable prefix: the stable start of the
+    first user message when it declares one (which also covers the system
+    prompt before it), otherwise the stable part of the system prompt, and only
+    when that prefix is long enough to be cacheable. The second marks the last
+    block of the newest message, so each turn reuses everything before it. Two
+    of the four allowed breakpoints are used, and each turn adds only a couple
+    of messages, well inside the 20-block lookback window.
+    """
+
+    marker = _cache_marker(policy)
+    system_text = "\n\n".join(system_parts)
+    system: str | list[dict] = system_text
+    chat = [dict(message) for message in chat]
+
+    def blocks(text: str, prefix: int) -> list[dict]:
+        if 0 < prefix < len(text):
+            return [{"type": "text", "text": text[:prefix]}, {"type": "text", "text": text[prefix:]}]
+        return [{"type": "text", "text": text}]
+
+    first = chat[0] if chat and chat[0]["role"] == "user" else None
+    first_prefix = getattr(first["content"], "cache_prefix", 0) if first else 0
+    system_prefix = getattr(system_parts[0], "cache_prefix", 0) if len(system_parts) == 1 else 0
+    if first is not None and 0 < first_prefix < len(first["content"]) and (
+        len(system_text) + first_prefix >= PROMPT_CACHE_MIN_CHARS
+    ):
+        pieces = blocks(first["content"], first_prefix)
+        pieces[0]["cache_control"] = marker
+        first["content"] = pieces
+    elif system_text:
+        cut = system_prefix if 0 < system_prefix < len(system_text) else len(system_text)
+        if cut >= PROMPT_CACHE_MIN_CHARS:
+            pieces = blocks(system_text, cut)
+            pieces[0]["cache_control"] = marker
+            system = pieces
+
+    if chat:
+        last = chat[-1]
+        content = last["content"]
+        if isinstance(content, str) and content.strip():
+            last["content"] = [{"type": "text", "text": str(content), "cache_control": marker}]
+        elif isinstance(content, list) and content and content[-1].get("text", "").strip():
+            content[-1] = dict(content[-1], cache_control=marker)
+    return system, chat
+
+
+def _token_count(value) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def normalize_usage(provider: str, usage) -> dict:
+    """Map a provider's usage object to one shape; None means "not reported".
+
+    Fields: input_total (all input tokens, cached or not), cached_read (input
+    served from the provider's cache), cache_write (input newly written to it),
+    and output. A missing field is None, never 0, so an unreported count is not
+    mistaken for a cache miss.
+    """
+
+    usage = usage if isinstance(usage, dict) else {}
+    output = _token_count(usage.get("output_tokens", usage.get("completion_tokens")))
+    if provider == "anthropic":
+        # Claude's input_tokens excludes cached tokens; the total adds them back.
+        base = _token_count(usage.get("input_tokens"))
+        write = _token_count(usage.get("cache_creation_input_tokens"))
+        read = _token_count(usage.get("cache_read_input_tokens"))
+        total = None if base is None else base + (write or 0) + (read or 0)
+        return {"input_total": total, "cached_read": read, "cache_write": write, "output": output}
+    details = usage.get("prompt_tokens_details") or usage.get("input_tokens_details")
+    details = details if isinstance(details, dict) else {}
+    hit = _token_count(usage.get("prompt_cache_hit_tokens"))  # DeepSeek
+    miss = _token_count(usage.get("prompt_cache_miss_tokens"))
+    cached = hit if hit is not None else _token_count(details.get("cached_tokens"))
+    total = _token_count(usage.get("prompt_tokens", usage.get("input_tokens")))
+    if total is None and hit is not None and miss is not None:
+        total = hit + miss
+    return {
+        "input_total": total,
+        "cached_read": cached,
+        "cache_write": _token_count(details.get("cache_write_tokens")),
+        "output": output,
+    }
+
+
+USAGE_FIELDS = ("input_total", "cached_read", "cache_write", "output")
+
+
+def format_usage(normalized: dict) -> str:
+    """Render normalized usage, or "" when the provider reported nothing."""
+
+    if all(normalized.get(name) is None for name in USAGE_FIELDS):
+        return ""
+    labels = {"input_total": "input", "cached_read": "cached", "cache_write": "cache_write", "output": "output"}
+    return ", ".join(
+        f"{labels[name]}={'unknown' if normalized.get(name) is None else normalized[name]}"
+        for name in USAGE_FIELDS
+    )
+
+
+class UsageTotals:
+    """Running totals of normalized usage; a field stays None until reported."""
+
+    def __init__(self):
+        self.values = dict.fromkeys(USAGE_FIELDS)
+        self.turns = 0
+
+    def add(self, normalized: dict) -> None:
+        self.turns += 1
+        for name in USAGE_FIELDS:
+            value = normalized.get(name)
+            if value is not None:
+                self.values[name] = (self.values[name] or 0) + value
+
+
 def call_openai(
     api_base: str,
     api_key: str,
@@ -1357,7 +1534,15 @@ def call_anthropic(
     # with HTTP 400, so sending a default would break every current model.
     if temperature is not None:
         payload["temperature"] = temperature
-    if system_parts:
+    try:
+        cache_policy = prompt_cache_policy("anthropic", api_base)
+    except ValueError as exc:
+        fail(str(exc), 2)
+    if cache_policy is not None:
+        system, payload["messages"] = apply_anthropic_cache(system_parts, chat, cache_policy)
+        if system:
+            payload["system"] = system
+    elif system_parts:
         payload["system"] = "\n\n".join(system_parts)
 
     headers = {
@@ -1437,36 +1622,34 @@ def initial_user_message(
             "No row is currently in progress. Select one dependency-ready "
             "pending row and mark it `[~]` before implementation.\n"
         )
-    return (
-        f"Repository: {repo}\n"
-        f"Run: {run}/{max_runs}\n"
-        "\n"
+    # Everything identical from run to run comes first, so a provider that
+    # caches a matching prefix can reuse it across runs; the repository path,
+    # run counter, lane counts, and row selection follow it.
+    stable = (
         "Embedded instruction:\n"
         "\n"
         f"{EMBEDDED_TASK}\n"
+        "Start by reading AGENTS.md and the memory bank. Read\n"
+        "tabilet/memory-bank/milestone.md for the lane meanings and milestone priority\n"
+        "before choosing a row. Use the JSON command protocol. Work on exactly\n"
+        "one actionable row in one status lane file.\n"
+        "\n"
+    )
+    variable = (
+        f"Repository: {repo}\n"
+        f"Run: {run}/{max_runs}\n"
+        "\n"
         "Status lanes in this repository:\n"
         "\n"
         f"{lane_table(summary)}\n"
         "\n"
-        "Start by reading AGENTS.md and the memory bank. Read\n"
-        "tabilet/memory-bank/milestone.md for the lane meanings and milestone priority\n"
-        "before choosing a row. "
         f"{selection}"
-        "Use the JSON command protocol. Work on exactly\n"
-        "one actionable row in one status lane file.\n"
     )
+    return PrefixedText(stable + variable, len(stable))
 
 
 def message_chars(messages: list[dict]) -> int:
     return sum(len(m.get("content", "")) for m in messages)
-
-
-def usage_line(usage: dict) -> str:
-    fields = []
-    for key, value in usage.items():
-        if isinstance(value, (int, float, str, bool)) or value is None:
-            fields.append(f"{key}={value}")
-    return ", ".join(fields)
 
 
 def one_agent_run(
@@ -1482,7 +1665,9 @@ def one_agent_run(
     before_provider_attempt=None,
     before_command=None,
     after_command=None,
+    after_model_response=None,
 ) -> dict[str, object]:
+    totals = UsageTotals()
     messages = [
         {"role": "system", "content": system_prompt},
         {
@@ -1522,9 +1707,13 @@ def one_agent_run(
             response = call_llm(*llm_args, before_attempt=before_provider_attempt)
         content = response["content"]
         stop_reason = response.get("stop_reason")
-        usage = usage_line(response.get("usage") or {})
+        normalized = normalize_usage(args.provider, response.get("usage"))
+        totals.add(normalized)
+        usage = format_usage(normalized)
         if usage:
             print(f"  LLM usage: {usage}")
+        if after_model_response is not None:
+            after_model_response(normalized)
         if response.get("refusal"):
             fail(f"Model refused the request (stop reason: {stop_reason or 'unknown'}).", 23)
         if not content.strip():
@@ -1553,6 +1742,9 @@ def one_agent_run(
 
         if isinstance(command.get("final"), str):
             print(command["final"])
+            total = format_usage(totals.values)
+            if total and totals.turns > 1:
+                print(f"  LLM usage total ({totals.turns} turns): {total}")
             return command
 
         if command.get("tool") != "run_shell" or not isinstance(command.get("cmd"), str):
@@ -1901,6 +2093,10 @@ def parse_args(argv=None) -> argparse.Namespace:
               MAX_HISTORY_CHARS                  Conversation character limit. Default: 500000.
               LLM_TEMPERATURE                    Sampling temperature. Unset by default:
                                                  current Claude models reject it.
+              LLM_PROMPT_CACHE                   Claude cache markers: 'auto' (default; official
+                                                 Anthropic host only), 'on', or 'off'. OpenAI and
+                                                 DeepSeek cache automatically and need no marker.
+              LLM_PROMPT_CACHE_TTL               Claude cache lifetime: '5m' (default) or '1h'.
               TOOL_ENV_ALLOW                     Comma-separated extra variables for shell tools.
               ALLOW_UNSANDBOXED_SHELL=1          Acknowledge model-controlled host shell access.
               ALLOW_DANGEROUS_COMMANDS=1         Disable the command guardrail.
@@ -1951,6 +2147,10 @@ def parse_args(argv=None) -> argparse.Namespace:
 
     if args.provider not in {"openai", "anthropic"}:
         parser.error("LLM_PROVIDER must be 'openai' or 'anthropic'")
+    try:
+        prompt_cache_policy(args.provider, args.api_base or "")
+    except ValueError as exc:
+        parser.error(str(exc))
 
     if not args.api_base:
         args.api_base = (

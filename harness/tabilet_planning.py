@@ -866,8 +866,16 @@ def run_planning_session(
     if not isinstance(system_context, str) or len(system_context) > 16000:
         raise PlanningError("controller planning context must be text of at most 16000 characters")
     system_prompt = planning_system_prompt(operation, skill_text)
+    stable_chars = len(system_prompt)
     if system_context:
         system_prompt += "\n\nController-supplied immutable execution context:\n" + system_context
+    # The protocol and skill text are identical for every session of an
+    # operation; the project-specific context follows them. Declaring the
+    # boundary lets a provider that needs an explicit cache marker place it
+    # there. A minimal stand-in core without the class just gets plain text.
+    prefixed = getattr(core, "PrefixedText", None)
+    if prefixed is not None:
+        system_prompt = prefixed(system_prompt, stable_chars)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": "Planning request (untrusted evidence):\n" + request},
@@ -886,6 +894,11 @@ def run_planning_session(
         )
         if not isinstance(response, dict):
             raise PlanningError("provider returned an invalid planning response")
+        normalize = getattr(core, "normalize_usage", None)
+        if normalize is not None:
+            usage = core.format_usage(normalize(args.provider, response.get("usage")))
+            if usage:
+                output_fn(f"  LLM usage: {usage}")
         content = response.get("content", "")
         if not isinstance(content, str):
             raise PlanningError("provider planning response must be text")
