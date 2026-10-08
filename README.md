@@ -55,6 +55,7 @@ The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the pub
   - [Update installed skills](#update-installed-skills)
   - [Uninstall or remove skills](#uninstall-or-remove-skills)
 - [Optional SQLite audit and lookup](#optional-sqlite-audit-and-lookup)
+  - [Sync and Repair](#sync-and-repair)
 - [Install the API harness](#install-the-api-harness)
   - [First run & guardrails](#first-run)
   - [API-only workflow](#api-only-workflow)
@@ -1217,34 +1218,14 @@ initialization files remain untracked. No environment variable or database-path
 option is needed. The saved setting survives new agent sessions; enabling A
 leaves B disabled.
 
-Create or refresh lookup data independently:
-
-```bash
-tabilet-audit index sync /absolute/path/to/project
-```
-
-Index refresh **does not enable auditing**. To stop recording:
+To stop recording:
 
 ```bash
 tabilet-audit audit disable /absolute/path/to/project
 ```
 
-To discard a broken database, stop its agents and Explorer, disable audit if the
-database is readable, and delete `tabilet/audit.sqlite3` and its `-wal`, `-shm`,
-and `-journal` sidecars. Missing storage leaves audit disabled. You can rebuild
-lookup data without enabling audit; deleted audit history is not rebuilt from
-Markdown. This changes no Markdown or frozen records.
-
-If you have an older shared database (including one from before v2.5.0), you can
-ask your LLM agent to extract this project's history and import it into its SQLite database.
-
 See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
-If older retired records make refresh fail with `expected one fenced markdown
-document` or `expected Milestone specification and Status record sections`,
-follow [retirement-index recovery](docs/sqlite.md#recover-a-failed-retirement-index):
-update the checkout, reinstall the optional toolkit, and rebuild the index.
-Updating the plugin alone does not update `~/.local/bin`; preserve frozen Markdown
-and the audit database during recovery.
+
 The API runner records enabled runs; interactive skills can use the same optional
 CLI. Exact chat capture requires text supplied by the host. Default audit capture
 stores metadata; the lookup index separately contains current Markdown text.
@@ -1262,6 +1243,50 @@ evidence visible when it withholds recommendations, rechecks live source hashes,
 and prepares follow-up text for copying only. It does not launch an agent, change
 Markdown, or create task rows. From a remote server, use
 `ssh -N -L 8000:127.0.0.1:8000 user@host` and browse to `http://localhost:8000/`.
+
+### Sync and Repair
+
+`audit enable` already creates the database if needed. `index sync` builds or
+refreshes its Markdown lookup tables. Run it:
+
+- After initializing the memory bank, to populate the first searchable index.
+- After manual Markdown edits or changes made outside an audited workflow.
+- When the SQLite sidebar or Explorer reports stale or incomplete lookup data.
+
+```bash
+tabilet-audit index sync /absolute/path/to/project
+tabilet-audit index status /absolute/path/to/project
+```
+
+From the project folder, use `.` instead of the absolute path. Audited workflows
+normally refresh the index when they finish, so a manual sync is not required
+after every task. **Sync preserves the enable/disable setting:** enabled stays
+enabled, disabled stays disabled, and a new database created by sync starts with
+audit disabled. It does not change project Markdown or durable audit history.
+
+If older retired records make refresh fail with `expected one fenced markdown
+document` or `expected Milestone specification and Status record sections`,
+follow [retirement-index recovery](docs/sqlite.md#recover-a-failed-retirement-index):
+update the checkout, reinstall the optional toolkit, and rebuild the index.
+Updating the plugin alone does not update `~/.local/bin`; preserve frozen Markdown
+and the audit database during recovery.
+
+```bash
+tabilet-audit index sync /absolute/path/to/project --rebuild
+tabilet-audit index status /absolute/path/to/project
+```
+
+Inspect the reported diagnostics if the refresh remains incomplete.
+
+To discard a broken database, stop its agents and Explorer, disable audit if the
+database is readable, and delete `tabilet/audit.sqlite3` and its `-wal`, `-shm`,
+and `-journal` sidecars. For linked worktrees, use the primary checkout's database
+path reported by `audit status`. Missing storage leaves audit disabled. You can
+rebuild lookup data without enabling audit; deleted audit history is not rebuilt
+from Markdown. This changes no Markdown or frozen records.
+
+If you have an older shared database (including one from before v2.5.0), you can
+ask your LLM agent to extract this project's history and import it into its SQLite database.
 
 ## Install The API Harness
 
@@ -1397,8 +1422,8 @@ ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=your-model MAX_RUNS=1 \
   tackle-memory-bank-api-loop /absolute/path/to/project
 ```
 
-Run `tabilet-audit index sync /absolute/path/to/project` after Markdown changes
-and use `tabilet-audit audit runs --project /absolute/path/to/project` to review
+See [Sync and Repair](#sync-and-repair) for manual index refresh and recovery.
+Use `tabilet-audit audit runs --project /absolute/path/to/project` to review
 recorded runs. The API runner owns its own audit lifecycle; do not start a
 duplicate manual run. Commit the setup ignore file before running against a
 clean Git baseline.
