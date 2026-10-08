@@ -9,7 +9,10 @@ The controller executes its approved horizon serially. The v2.5 `GOAL.md`
 sub-agent protocol is used through a hosting agent with delegation capabilities;
 it does not add a parallel scheduler to this command. The controller's receipt
 and host-commit rules govern execution. Provider prompt caching follows the
-shared runner's [current caching behavior](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#prompt-caching-and-context).
+shared runner's [caching behavior and settings](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#prompt-caching-and-context).
+Progress lines and `tabilet status` show running token totals (input, cached,
+cache-write, output; `unknown` when a provider does not report one). They are
+reporting only and never affect limits or gates.
 
 The controller uses the canonical Init, Propose, or Reconcile skill bundle as
 its planning contract. Planning tools are read-only. Direct skill invocations

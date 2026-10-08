@@ -6,7 +6,9 @@ Docker 容器中执行获批任务。现有 API 运行器仍是另一条在宿�
 
 控制器串行执行获批工作范围。v2.5 的 `GOAL.md` 子智能体协议需要承载它的智能体支持委派，
 不会为本命令增加并行调度器。执行遵守控制器收据及宿主提交规则。提供方提示缓存沿用
-共享运行器的[当前缓存行为](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#prompt-caching-and-context)。
+共享运行器的[缓存行为与设置](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#prompt-caching-and-context)。
+进度行和 `tabilet status` 会显示累计的 token 用量（输入、缓存读取、缓存写入、输出；提供方未报告的项显示为
+`unknown`）。这些数据仅用于报告，不影响任何上限或检查门。
 
 控制器使用规范的 Init、Propose 或 Reconcile 技能包作为规划契约。规划工具只读。直接调用技能仍然只负责规划；
 控制器的 `confirm` 是一项单独授权，授权范围是展示的精确规划差异和一个有界的本地工作范围。

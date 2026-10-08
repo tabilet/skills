@@ -1425,16 +1425,16 @@ each API call still generates a response against the supplied context. Tabilet
 has no local LLM response cache, and SQLite audit/index storage is separate.
 
 Supported [OpenAI models](https://developers.openai.com/api/docs/guides/prompt-caching)
-and [DeepSeek](https://api-docs.deepseek.com/guides/kv_cache/) provide automatic
-prompt caching. [Claude caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
-requires `cache_control`; the harness currently does not send it. Other
-OpenAI-compatible servers and gateways follow their own caching rules.
+and [DeepSeek](https://api-docs.deepseek.com/guides/kv_cache/) cache a matching
+prefix automatically; the harness orders every request so the identical part
+comes first and adds nothing else. For direct [Claude](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+it sends `cache_control` markers on the official Anthropic host. Other
+OpenAI-compatible servers and gateways follow their own caching rules and
+receive an unchanged request unless you set `LLM_PROMPT_CACHE=on`.
 
-The harness appends history within each row and starts a fresh conversation for
-the next row. Changing run metadata precedes the embedded instruction, limiting
-reuse across rows. Cache keys, breakpoints, retention controls, and normalized
-cache-hit reporting are not implemented. See
-[caching behavior and limits](docs/EXECUTION.md#prompt-caching-and-context).
+The runner prints input, cached, cache-write, and output tokens for every
+turn, showing `unknown` for anything the provider did not report. See
+[caching behavior and settings](docs/EXECUTION.md#prompt-caching-and-context).
 
 ### First run
 

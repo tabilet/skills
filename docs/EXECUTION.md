@@ -59,7 +59,7 @@ It:
 - permits separate review commits but rejects history rewrites,
 - stops if the model leaves uncommitted changes,
 - stops if the model makes no commit,
-- retries transient API failures, reports provider usage, and limits loop turns
+- retries transient API failures, reports normalized provider usage including cache hits, and limits loop turns
   and conversation size.
 
 After a project adopts retirement, the agent performs it as part of the closing
@@ -158,28 +158,54 @@ audit redesign requires the updated source toolkit.
 
 Tabilet sends HTTP requests to the configured provider. It has no local model
 response cache and stores no model KV cache in SQLite. Provider prompt caching
-reuses processing of a matching prefix while generating a new response. Cache
-hits still count as provider attempts and never bypass verification or commits.
+reuses processing of a matching prefix while generating a new response. Every
+call is still a fresh model decision: cache hits count as provider attempts and
+turns, and never bypass limits, verification, or commits.
 
-| Provider | Current behavior |
+**Request layout.** Each mode puts text that is identical from request to
+request first and text that changes after it. In the standalone runner the
+first message is the embedded instruction followed by the repository path, run
+counter, lane counts, and row selection, so consecutive runs share roughly
+1,500 to 2,200 tokens of prefix (depending on the provider's tokenizer) instead
+of about 250. Within a row, messages are only
+appended, so each turn extends the previous request byte for byte. A new row
+starts a fresh conversation. Standalone execution, controller planning, and
+controller task and closure runs keep separate prefixes with their own
+authority rules; the harness never merges them to gain cache hits.
+
+| Provider | Behavior |
 |---|---|
-| OpenAI | Prompt caching is automatic for supported models. The harness sends no explicit cache keys, breakpoints, or retention options. See [official OpenAI documentation](https://developers.openai.com/api/docs/guides/prompt-caching). |
-| DeepSeek | Context caching is automatic on DeepSeek's API; the harness can use the provider's cache without opting in. See [DeepSeek's guide](https://api-docs.deepseek.com/guides/kv_cache/). |
-| Direct Claude API | Prompt caching requires `cache_control`. The current Anthropic payload sends none, so the harness does not explicitly enable Claude prompt caching. See [Claude's guide](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). |
-| Other compatible servers or gateways | Behavior depends on that service; API compatibility does not establish identical cache support. |
+| OpenAI | Caching is automatic for supported models once a prompt reaches the provider's minimum length (1,024 tokens for GPT-5.6 and later). The harness adds no cache fields. See [official OpenAI documentation](https://developers.openai.com/api/docs/guides/prompt-caching). |
+| DeepSeek | Caching is automatic; the stable prefix is the whole benefit. No request change. See [DeepSeek's guide](https://api-docs.deepseek.com/guides/kv_cache/). |
+| Direct Claude API | Caching needs `cache_control`. For the official `api.anthropic.com` host the harness places up to two breakpoints: one at the end of the stable prefix (when that prefix is long enough to cache) and one on the newest message, which moves forward each turn. See [Claude's guide](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). |
+| Other compatible servers or gateways | The request is unchanged unless you opt in below; API compatibility does not establish identical cache support. |
 
-Within a row, messages are appended without rewriting earlier conversation
-turns. A new row starts a fresh conversation. In the standalone initial message,
-repository/run metadata comes before the large embedded instruction, so its
-changing prefix limits instruction reuse across rows. Current request layout
-does not promise an optimized cache hit rate.
+`LLM_PROMPT_CACHE` is `auto` (default: markers on the official Anthropic host
+only), `on` (send markers to a gateway you know supports them), or `off`.
+`LLM_PROMPT_CACHE_TTL` is `5m` (default) or `1h`. Writes cost about 1.25x the
+normal input price for `5m` and 2x for `1h`; reads cost a small fraction of it,
+so two requests in a row already pay off at `5m`. A single-request call pays
+the write premium without a read. The default `TOOL_TIMEOUT` of 300 seconds
+equals the default five-minute lifetime, so one long command can let a
+conversation's cache expire; set `1h` only if commands routinely run that long.
+Either setting only applies when the provider is `anthropic`; an invalid value
+exits with code `2`. Minimum cacheable prefixes differ by model, from 512 to
+4,096 tokens, and a shorter prefix silently caches nothing.
 
-The runner prints scalar usage fields returned by the provider, including
-DeepSeek's cache-hit/miss counters when supplied. It does not flatten nested
-OpenAI `prompt_tokens_details.cached_tokens` or maintain a cache accounting
-dashboard. Inspect provider usage diagnostics for complete cache reporting.
-Stable prompt prefixes, provider-specific opt-in controls, and normalized cache
-metrics would be separate harness improvements. Fresh contexts and SQLite
+**Reporting.** Each response's usage is normalized to total input, cached
+input, cache writes, and output tokens, and printed per turn as
+`LLM usage: input=…, cached=…, cache_write=…, output=…`, with a total line for a
+multi-turn run. A count the provider did not report prints as `unknown`, never
+`0`. OpenAI's nested `prompt_tokens_details.cached_tokens`, DeepSeek's
+hit/miss counters, and Claude's cache fields are all read; Claude's own
+`input_tokens` excludes cached tokens, so the total adds them back. OpenAI
+reports no write count. This needs no SQLite. The controller adds the same
+totals to its progress line and keeps four running integers under `usage.tokens`
+in the receipt; they are reporting only, and no limit, gate, or recovery check
+reads them. Whether a real cache hit occurred is shown only by what the
+provider reports.
+
+SQLite audit records do not carry token counts, and fresh contexts and SQLite
 lookup refresh serve different purposes from provider prompt caching.
 
 ### Exit Codes
@@ -192,7 +218,7 @@ control back to a human.
 |---|---|
 | `0` | No actionable rows remain, including a valid all-retired project. |
 | `1` | An unexpected internal harness failure occurred. |
-| `2` | `LLM_MODEL` is unset, or `LLM_PROVIDER` is not `openai`/`anthropic`. |
+| `2` | `LLM_MODEL` is unset, `LLM_PROVIDER` is not `openai`/`anthropic`, or `LLM_PROMPT_CACHE`/`LLM_PROMPT_CACHE_TTL` has an unsupported value. |
 | `3` | Only blocked rows remain. A human needs to unblock them. |
 | `4` | The worktree was dirty before a run. Commit or stash first. |
 | `5` | The agent left uncommitted changes. |
