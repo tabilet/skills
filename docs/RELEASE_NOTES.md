@@ -1,3 +1,12 @@
+# memory-bank v2.6.1
+
+v2.6.1 is a patch release following v2.6.0. Planning's remote-review fetch no
+longer crashes on Python 3.9 when an HTTP redirect or error response has no body:
+it closes the error only when a body exists, and still reports the redirect or
+status as a planning error. The Docker endpoint unit test now stubs the `docker`
+lookup instead of requiring Docker to be installed. The full unit suite passes on
+Python 3.9. No project, skill, or schema changes.
+
 # memory-bank v2.6.0
 
 v2.6.0 keeps the seven skills and the v2 project layout. It adds project-local
