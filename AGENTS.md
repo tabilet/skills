@@ -334,7 +334,9 @@ spelling so an inbound link survives translation.
   closure without an `awaiting_acceptance` state or final accept/reject command.
   The suggested caps are 5 rows, 100 provider attempts, 40 turns per row, 15
   commits, and 2 hours; they may be raised only in a newly confirmed proposal
-  and promise no dollar ceiling. Docker limits are 4 CPUs, 8 GiB, 512 processes,
+  or by `tabilet extend-limit`, which needs a separate exact `confirm` of one
+  strictly higher value at a clean, receipt-proved paused checkpoint and is
+  recorded in the receipt's `limit_extensions`. They promise no dollar ceiling. Docker limits are 4 CPUs, 8 GiB, 512 processes,
   and 300 seconds per command. External actions are excluded from the general
   confirmation.
 - Controller exit codes are 16–19 and 24–25. Code 19 is the shared Tabilet
