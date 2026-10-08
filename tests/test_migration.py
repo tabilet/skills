@@ -114,7 +114,7 @@ class MigrationTests(unittest.TestCase):
             self.assertFalse((repo / "tabilet").exists())
             result = self.migrate(repo, "--apply")
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual((repo / "tabilet/GOAL.md").read_bytes(), (ROOT / "GOAL.md").read_bytes())
+            self.assertEqual(hashlib.sha256((repo / "tabilet/GOAL.md").read_bytes()).hexdigest(), "b312ffc76c1727a2fc5403ae7de9ad5f2392cdfb3608ca6263b467bd020847e3")
             self.assertNotIn("Review these files", result.stdout)
             for name, sha in protected.items():
                 self.assertEqual(hashlib.sha256((repo / "tabilet" / name).read_bytes()).hexdigest(), sha)

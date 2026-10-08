@@ -138,10 +138,16 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   because a later review concerns it.
 - Treat each row in the matching `tabilet/memory-bank/status-<LANE><NN>.md` file as a
   commit unit. See that file for status markers and commit rules.
-- Across the active ledger, keep zero or one general row in progress. Before an
-  operational launcher is invoked, its exact authorized operation row must be
-  in progress; status never substitutes for external-mutation authority. Never
-  retry a row retained as closed historical evidence.
+- Across the active ledger, keep zero or one general row in progress unless an
+  authorized goal request explicitly defines safe parallel ownership: in
+  concurrent lease execution under `tabilet/GOAL.md`, each external lease
+  maintains at most one `[~]` row in its own status file, only the orchestrator
+  writes the main line and shared memory documents (`architecture.md`,
+  `product.md`, `tech-stack.md`, `lessons.md`), and integration occurs
+  strictly via rebase and fast-forward. Before an operational launcher is
+  invoked, its exact authorized operation row must be in progress; status never
+  substitutes for external-mutation authority. Never retry a row retained as
+  closed historical evidence.
 - Treat each section in [tabilet/memory-bank/milestone.md](tabilet/memory-bank/milestone.md) as a
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the
@@ -166,6 +172,9 @@ restored or the required answer or approval is supplied. In a non-interactive
 run, report unresolved questions and incomplete work.
 
 Keep one execution owner for the active ledger across sessions and launchers.
+In concurrent lease execution under `tabilet/GOAL.md`, the orchestrator remains
+the sole execution owner of the integrated ledger on the primary branch, while
+isolated leases execute within dedicated external worktrees (`../<repo>.goal/<ID>`).
 Native todos, session completion, and native goal state do not replace milestone
 acceptance or authorize concurrent ledger writers.
 

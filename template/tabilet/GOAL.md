@@ -68,6 +68,8 @@ DOWNSTREAM_IMPACTS:
 F01 -> P01, O01
 S01 -> P01, X01
 
+PARALLELISM: 3
+INTEGRATION: local-rebase-ff
 COMMIT_POLICY: none
 EXTERNAL_MUTATIONS: none
 ```
@@ -102,6 +104,16 @@ Input rules:
   preserve the original list.
 - Treat the supplied impact map as a minimum. Reconcile additional consumers
   discovered from implementation and review.
+- `PARALLELISM` is optional. It sets the maximum number of concurrent milestone
+  leases (defaults to 3 when present without a value). Concurrent execution is
+  active only when project instructions explicitly define safe parallel
+  ownership, `COMMIT_POLICY` is `task` or `milestone`, and `INTEGRATION` is
+  authorized.
+- `INTEGRATION` is optional. When set to `local-rebase-ff`, it authorizes local
+  lease branches (`goal/<ID>`), external worktrees outside the project root
+  (`../<repo>.goal/<ID>`), rebasing unpublished lease commits onto the current
+  main line, and fast-forward-only integration into the primary branch (`git
+  merge --ff-only`). It does not authorize push, publishing, or merge commits.
 
 ## Initialization
 
@@ -133,7 +145,44 @@ Before the first milestone:
 
 Execute the following loop for each required or triggered conditional status.
 Keep at most one milestone in active implementation at a time unless project
-instructions explicitly define safe parallel ownership.
+instructions explicitly define safe parallel ownership and the goal request
+authorizes concurrent execution (via `PARALLELISM` and `INTEGRATION: local-rebase-ff`
+under `COMMIT_POLICY: task` or `milestone`).
+
+### Safe Parallel Execution (Concurrent Leases)
+
+When project instructions define safe parallel ownership and the goal request
+authorizes concurrent execution:
+
+1. **Eligibility**: A milestone may be dispatched as a concurrent lease only if
+   its active specification declares `Parallel-safe: yes`, no ordering path
+   connects it to any currently running lease, its write set is disjoint from all
+   running leases, and it reads no contract modified by a running lease.
+2. **External Worktrees**: Each lease executes in an isolated Git worktree
+   located outside the project root (`../<repo>.goal/<ID>`) on a dedicated local
+   branch (`goal/<ID>`). At most one row is `[~]` in progress within each lease.
+   Leases use isolated verification resources (such as ports, database names,
+   and caches).
+3. **Authoritative Review Gate**: The single authoritative bounded review-fix
+   gate (iterations 1–10) runs in the lease on the diff after rebasing onto the
+   current main line, recording its iteration counter in the lease's status
+   notes.
+4. **Fast-Forward Integration**: The execution owner integrates completed leases
+   into the primary branch strictly via fast-forward (`git merge --ff-only goal/<ID>`),
+   preserving linear history and one commit per status row. Never create merge
+   commits. If the primary branch advanced during the review pass, the lease
+   rebases and re-verifies; re-review is repeated only if newly landed commits
+   touch the lease's write set or contracts read.
+5. **Consolidation**: After integration, the execution owner reconciles
+   downstream impacts from the actual integrated implementation diff, applies
+   shared-memory updates (`architecture.md`, `product.md`, `tech-stack.md`,
+   `lessons.md`), and retires the milestone.
+6. **Failure & Resume**: Git worktrees and `goal/*` branches serve as durable
+   lease records. A blocker, conflict, or iteration-10 failure halts that lease
+   only; its worktree and branch are retained for inspection, its dependents
+   stay unscheduled, and independent sibling leases continue. Interrupted
+   sessions resume by listing worktrees (`git worktree list`) and continuing each
+   lease from its status file.
 
 ### 1. Reconcile Before Starting
 
@@ -303,7 +352,8 @@ conditional. A required pending milestone prevents overall goal completion.
 
 Never commit unrelated user changes. Do not amend, rewrite history, push, merge,
 tag, publish, or open a change request unless the goal request explicitly
-authorizes that action.
+authorizes that action (such as rebasing unpublished lease commits and
+fast-forward integration authorized under `INTEGRATION: local-rebase-ff`).
 
 `EXTERNAL_MUTATIONS` defaults to `none`. Code implementation does not authorize
 deployment, account/provider changes, credential rotation, live traffic,

@@ -336,6 +336,13 @@ spelling so an inbound link survives translation.
   provider-failure codes 20 or 21. The standalone runner retains its existing
   post-commit gate meanings and precedence.
 
+- Tier 1 safe parallel ownership is an opt-in execution protocol under `GOAL.md`
+  and project instructions: concurrent leases execute in external worktrees outside
+  the project root (`../<repo>.goal/<ID>`), integrate strictly via rebase and
+  fast-forward (`git merge --ff-only`), and require `COMMIT_POLICY: task` or `milestone`
+  with `INTEGRATION: local-rebase-ff`. The orchestrator remains the sole execution
+  owner of `main` and shared memory files (`architecture.md`, `product.md`,
+  `tech-stack.md`, `lessons.md`).
 - Keep the harness dependency-free: Python standard library only.
 - v2 project-owned files live under `tabilet/`; only `AGENTS.md` stays at the
   project root. Installing v2 never migrates v1.5.0 projects. The Upgrade

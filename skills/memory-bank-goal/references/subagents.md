@@ -101,3 +101,90 @@ When a milestone closes:
 3. Each analyst returns a proposed specification diff.
 4. The owner reviews the proposed diffs, applies validated updates to the
    pending consumer status files, and updates the roadmap.
+
+
+## 4. Tier 1: Concurrent Leases (Opt-In)
+
+Tier 1 executes multiple parallel-safe milestones concurrently in isolated
+**leases**: each lease runs in its own external worktree and dedicated branch.
+
+### Preconditions
+
+All conditions must be satisfied, or execution automatically falls back to Tier 0:
+1. **Project Opt-In**: The project's `AGENTS.md` explicitly defines safe parallel
+   ownership (one `[~]` row per external lease, sole orchestrator writing the
+   main line and shared memory docs, integration strictly via rebase and
+   fast-forward).
+2. **Goal Request Authorization**: The invoking goal request explicitly supplies:
+   ```text
+   PARALLELISM: 3
+   INTEGRATION: local-rebase-ff
+   COMMIT_POLICY: task
+   ```
+   `INTEGRATION: local-rebase-ff` authorizes local lease branches (`goal/<ID>`),
+   external worktrees (`../<repo>.goal/<ID>`), rebasing unpublished lease
+   commits onto the current main line, and fast-forward-only integration. It does
+   not authorize push or merge commits. `PARALLELISM` caps concurrent leases
+   (default 3).
+3. **Commit Policy**: `COMMIT_POLICY` must be `task` or `milestone`. Under `none`,
+   no commits carry work between worktrees, so Tier 1 is disabled.
+4. **Milestone Safety**: Every concurrently dispatched milestone must be
+   `Parallel-safe: yes`, have no ordering dependency on any running lease, have a
+   disjoint write set from all running leases, and read no contract modified by a
+   running lease.
+
+### Lease Lifecycle
+
+1. **Dispatch & Worktree Creation**:
+   The owner dispatches ready, parallel-safe milestones:
+   ```bash
+   git worktree add -b goal/<ID> ../<repo>.goal/<ID> <base-sha>
+   ```
+   Worktrees must always reside outside the project root (`../<repo>.goal/<ID>`).
+2. **Isolated Implementation**:
+   The lease implements tasks row-by-row, keeping at most one `[~]` row in
+   progress within its lease status file, and commits each row under
+   `COMMIT_POLICY`. Leases use isolated verification resources (ports, database
+   names, temporary caches).
+3. **Rebase & Re-Verification**:
+   Upon completing all task rows, the lease rebases onto the current main line:
+   ```bash
+   git rebase main
+   ```
+   The lease runs its isolated verification suite on the rebased tree.
+4. **Authoritative Review Gate**:
+   The lease executes the full bounded review-fix gate (iterations 1–10) on the
+   rebased diff, persisting the counter in its own status notes.
+5. **Linear Integration**:
+   The owner inspects whether `main` moved since the lease's rebase:
+   - If `main` has not moved: fast-forward merge immediately:
+     ```bash
+     git merge --ff-only goal/<ID>
+     ```
+   - If `main` moved, but touches only disjoint write sets and unrelated
+     contracts: the lease rebases and re-verifies; the review pass remains valid.
+   - If `main` moved and touched contracts read or overlapping paths: the lease
+     rebases, re-verifies, and re-reviews.
+   Never create merge commits (`--no-ff`).
+6. **Consolidation & Closure**:
+   After fast-forward integration, the owner runs integration verification,
+   reconciles downstream impacts from the actual integrated diff, applies
+   shared-memory updates (`architecture.md`, `product.md`, `tech-stack.md`,
+   `lessons.md`), and retires the milestone.
+7. **Cleanup**:
+   Remove the completed worktree and delete the local branch:
+   ```bash
+   git worktree remove ../<repo>.goal/<ID>
+   git branch -d goal/<ID>
+   ```
+
+### Failure & Resume Semantics
+
+- **Durable Records**: Git is the durable record. `git worktree list` and the
+  `goal/*` branches survive server and session restarts. Resuming means listing
+  worktrees and continuing each lease from its status file and persisted review
+  counter.
+- **Failure Isolation**: A blocked row, conflict, or iteration-10 review failure
+  stops that lease only. Its worktree and branch are retained for inspection, its
+  dependents stay unscheduled, independent siblings continue, and the owner
+  reports the blocker.

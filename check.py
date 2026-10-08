@@ -321,9 +321,17 @@ def goal_copies():
     if "\n/goal\nUsing GOAL.md" in goal:
         problems.append("GOAL.md: portable input must not embed an empty /goal command")
     flat_goal = " ".join(goal.split())
-    for token in ("ordinary request", "built-in `/goal`", "does not replace this protocol"):
+    for token in (
+        "ordinary request",
+        "built-in `/goal`",
+        "does not replace this protocol",
+        "PARALLELISM: 3",
+        "INTEGRATION: local-rebase-ff",
+        "Safe Parallel Execution (Concurrent Leases)",
+        "../<repo>.goal/",
+    ):
         if token not in flat_goal:
-            problems.append(f"GOAL.md: missing launcher boundary {token!r}")
+            problems.append(f"GOAL.md: missing protocol contract {token!r}")
     return problems
 
 
@@ -1912,6 +1920,22 @@ def capability_contract():
                       "one execution owner", "do not replace milestone acceptance"):
             if token not in text:
                 problems.append(f"{path.relative_to(ROOT)}: missing capability contract {token!r}")
+
+    agents_template = " ".join((ROOT / "template/AGENTS.md").read_text().split())
+    for token in ("safe parallel ownership", "../<repo>.goal/"):
+        if token not in agents_template:
+            problems.append(f"template/AGENTS.md: missing Tier 1 opt-in contract {token!r}")
+
+    subagents_ref = " ".join((SKILLS_DIR / "memory-bank-goal/references/subagents.md").read_text().split())
+    for token in ("Tier 1: Concurrent Leases", "../<repo>.goal/", "git merge --ff-only"):
+        if token not in subagents_ref:
+            problems.append(f"memory-bank-goal subagents.md: missing Tier 1 contract {token!r}")
+
+    root_agents = " ".join((ROOT / "AGENTS.md").read_text().split())
+    for token in ("Tier 1 safe parallel ownership", "../<repo>.goal/", "git merge --ff-only"):
+        if token not in root_agents:
+            problems.append(f"AGENTS.md: missing Tier 1 rule {token!r}")
+
     return problems
 
 

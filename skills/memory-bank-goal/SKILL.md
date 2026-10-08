@@ -99,8 +99,8 @@ persisted milestone review counter.
 For invocation syntax or optional native goal continuation, read
 [references/runtime-help.md](references/runtime-help.md). This help is not needed
 for an already resolved ordinary request. When sub-agents are available, read
-[references/subagents.md](references/subagents.md) for fresh-context handoff and
-read-only parallel review and reconciliation.
+[references/subagents.md](references/subagents.md) for Tier 0 fresh-context handoff,
+read-only parallel review and reconciliation, and opt-in Tier 1 concurrent lease execution.
 
 Report which milestones closed, verification, commits, skipped conditional
 milestones, and remaining blockers. Session completion alone proves none of them.
