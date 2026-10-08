@@ -1,3 +1,31 @@
+# memory-bank v2.5.0
+
+v2.5.0 introduces the complete sub-agent execution architecture and parallel-safe
+milestone modeling for multi-milestone workflows under `tabilet/GOAL.md`.
+
+- **Tier 0 Sequential Handoff & Read-Only Parallel Fan-Out:** Ephemeral sub-agents
+  receive fresh, distilled context briefs per milestone, completely bounding prompt
+  growth and eliminating quadratic context inflation. Review gates fan out across
+  orthogonal, read-only inspection lenses (Correctness, Security, Tests) and
+  downstream reconciliation in parallel, compressing review cycles from 12–15
+  minutes to approximately 3 minutes while catching complementary defects.
+- **Tier 1 Concurrent Worktree Leases (Opt-In):** Projects can opt into concurrent
+  leases executed in isolated external worktrees outside the project root
+  (`../<repo>.goal/<ID>`) with `PARALLELISM: N` and `INTEGRATION: local-rebase-ff`.
+  Each lease implements tasks with one `[~]` row at a time, verifies in isolation,
+  rebases onto `main`, and runs its authoritative review gate inside the lease.
+  Integration into `main` uses fast-forward only (`git merge --ff-only`), strictly
+  preserving one commit per status row and linear Git history without merge commits.
+- **Parallel-Safety Specification Fields:** Milestone specifications declare
+  `Write set`, `Contracts read`, `Shared verification resources`, and
+  `Parallel-safe` (defaulting to `no`). Two milestones run concurrently only when
+  unconnected by dependencies, with disjoint write sets, and reading no contracts
+  the other changes.
+- **Documentation & Bilingual Mirror:** Shipped the Sub-Agent Milestone Execution
+  guide (`docs/subagents.md`) and its complete Simplified Chinese translation
+  (`docs/zh/subagents.md`) with 1-to-1 parity, explicit ASCII heading anchors, and
+  strict navigation integration.
+
 # memory-bank v2.4.0
 
 v2.4.0 keeps the seven skills, project format, and optional controller from
