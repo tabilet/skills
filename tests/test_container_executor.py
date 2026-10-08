@@ -212,7 +212,8 @@ class DockerPreparationTests(unittest.TestCase):
 
     def test_remote_context_is_rejected(self):
         completed = subprocess.CompletedProcess([], 0, "tcp://remote.example:2376\n", "")
-        with mock.patch.object(container, "_run_docker", return_value=completed):
+        with mock.patch.object(container.shutil, "which", return_value="/usr/bin/docker"), \
+                mock.patch.object(container, "_run_docker", return_value=completed):
             with self.assertRaisesRegex(container.SandboxUnavailable, "not a local Unix-socket"):
                 container.local_docker_endpoint()
 

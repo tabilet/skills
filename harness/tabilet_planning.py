@@ -702,7 +702,8 @@ class ReadOnlyPlanningTools:
                     text = body.decode("utf-8", errors="replace")
                 content_type = response.headers.get_content_type()
         except urllib.error.HTTPError as exc:
-            exc.close()
+            if exc.fp is not None:
+                exc.close()
             if 300 <= exc.code < 400:
                 raise PlanningError("remote review redirected; inspect and separately confirm its new exact URL") from exc
             raise PlanningError(f"remote review returned HTTP {exc.code}") from exc
