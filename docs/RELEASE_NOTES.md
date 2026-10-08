@@ -1,3 +1,18 @@
+# memory-bank v2.5.1
+
+v2.5.1 is a protocol and documentation patch release following v2.5.0:
+
+- **Protocol Specification Fix:** Resolved a contradiction in the portable
+  `GOAL.md` header example where `COMMIT_POLICY: none` was shown alongside
+  `PARALLELISM: 3` and `INTEGRATION: local-rebase-ff`. Tier 1 safe parallel
+  execution requires `COMMIT_POLICY: task` or `milestone`; the portable example
+  now specifies `COMMIT_POLICY: task` across all byte-identical copies.
+- **Review Fan-Out Timing Accuracy:** Clarified review fan-out timing in
+  `docs/subagents.md` and release notes to reflect measured parallel cycle times
+  (~3 minutes per iteration) without unbenchmarked serial duration claims.
+- **Migration Test Clarity:** Added explanatory commentary in the migration test
+  suite documenting the stock v2.0 baseline goal hash invariant.
+
 # memory-bank v2.5.0
 
 v2.5.0 introduces the complete sub-agent execution architecture and parallel-safe
@@ -7,8 +22,8 @@ milestone modeling for multi-milestone workflows under `tabilet/GOAL.md`.
   receive fresh, distilled context briefs per milestone, completely bounding prompt
   growth and eliminating quadratic context inflation. Review gates fan out across
   orthogonal, read-only inspection lenses (Correctness, Security, Tests) and
-  downstream reconciliation in parallel, compressing review cycles from 12–15
-  minutes to approximately 3 minutes while catching complementary defects.
+  downstream reconciliation in parallel, completing review cycles in approximately
+  3 minutes per iteration while catching complementary defects.
 - **Tier 1 Concurrent Worktree Leases (Opt-In):** Projects can opt into concurrent
   leases executed in isolated external worktrees outside the project root
   (`../<repo>.goal/<ID>`) with `PARALLELISM: N` and `INTEGRATION: local-rebase-ff`.

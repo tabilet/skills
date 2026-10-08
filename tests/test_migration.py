@@ -114,6 +114,8 @@ class MigrationTests(unittest.TestCase):
             self.assertFalse((repo / "tabilet").exists())
             result = self.migrate(repo, "--apply")
             self.assertEqual(result.returncode, 0, result.stderr)
+            # migrate-v1.5-to-v2.py migrates strictly to the baseline stock v2.0 protocol
+            # (STOCK_V2_GOAL_SHA256); subsequent workflow rules are adopted via memory-bank-upgrade.
             self.assertEqual(hashlib.sha256((repo / "tabilet/GOAL.md").read_bytes()).hexdigest(), "b312ffc76c1727a2fc5403ae7de9ad5f2392cdfb3608ca6263b467bd020847e3")
             self.assertNotIn("Review these files", result.stdout)
             for name, sha in protected.items():

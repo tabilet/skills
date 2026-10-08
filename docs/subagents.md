@@ -56,8 +56,8 @@ Empirical validation using SQLite audit tracking (`tabilet-audit`) verified:
 1. **Context bounding:** Starting each milestone with a distilled context brief
    prevents prompt inflation across tasks.
 2. **Wall-clock compression:** Parallel read-only fan-out across review lenses
-   and downstream reconciliation compresses 12–15 minutes of serial passes into
-   approximately 3 minutes.
+   and downstream reconciliation completes in approximately 3 minutes per
+   iteration without compounding serial inspection wait times.
 3. **Defect coverage:** Decomposing reviews into orthogonal lenses (Correctness,
    Security, Tests) catches complementary defects that single monolithic reviews
    frequently overlook.

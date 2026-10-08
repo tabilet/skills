@@ -1062,7 +1062,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.5.0` tag. A marketplace install or
+For a reproducible installation, use the `v2.5.1` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke
