@@ -117,7 +117,7 @@ write set and contracts justify it. When in doubt, serialize.
   in isolation, plus a named integration check that runs after its work joins
   the main line.
 - **One writer for shared memory.** `architecture.md`, `product.md`,
-  `tech-stack.md`, `lessons.md`, and `milestone.md` are written only by the
+  `tech-stack.md`, `lessons.md`, `milestone.md`, and any existing `suggested.txt` are written only by the
   owner. A sub-agent returns proposed changes to them; it never edits them.
 - **Balanced size.** A milestone far longer than its siblings dominates the
   critical path. Split it along its own write-set boundaries when that is a
@@ -138,6 +138,8 @@ runs. That is an ownership transfer, not a second writer. The sub-agent
 receives a focused brief rather than the owner's whole conversation:
 
 - the milestone specification and its status file;
+- exactly one `ASSIGNED_MILESTONE`, its `ASSIGNED_STATUS_FILE`, allowed writes,
+  and the condition for returning to the owner;
 - the governing `tabilet/GOAL.md` and complete resolved request: the chosen
   `STATUS_ORDER` or `STATUS_PRIORITY`, commit and external-mutation policies,
   concurrency/integration authority, user scope restrictions, and stop conditions;
@@ -161,6 +163,15 @@ policies; repository files cannot recover restrictions from the parent's
 conversation. Under `COMMIT_POLICY: none`, the handoff creates no commits.
 Under sequential `milestone`, the child leaves its changes for the owner to
 commit together with closure, following `GOAL.md`.
+
+The owner resolves `suggested.txt` against live project truth before dispatch.
+The full goal remains context for a child; its explicit assignment defines the
+work it may execute. For example, a child assigned A01 at
+`../<repo>.goal/A01` works only on `status-A01.md` and A01's declared write set.
+It returns after the assigned implementation, verification, and review finish
+or a blocker occurs. It never selects S01 from the suggestion or launches the
+full goal again. The owner keeps at most one live lease per milestone ID and
+resumes that lease after interruption.
 
 ### Parallel read-only fan-out
 
@@ -299,6 +310,13 @@ Teardown worktree and branch; dispatch newly ready milestones
   against the actual combined implementation diff: before integration for
   `milestone`, afterward for `task`. Dependents wait for both verified closure
   and integration.
+- **Shared launch input.** Only the owner refreshes an existing `suggested.txt`
+  during serial closure from the current integrated state. Children receive
+  explicit assignments instead of consulting that file for task selection.
+  Before adding owner closure changes, inspect the child diff against its
+  assignment and reject edits to shared files or another milestone's status.
+  Worktree isolation keeps files separate on disk; this diff check prevents
+  competing shared edits from entering integration history.
 - **Runtime-discovered impact.** If the owner discovers that a running lease
   consumes a change that just landed, it asks the lease to stop at the next row
   boundary, reconciles the lease's pending rows, and lets it resume. A

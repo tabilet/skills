@@ -33,6 +33,13 @@ Offer one-row work or a user-supplied protocol without starting either workflow.
 
 ## Resolve the request
 
+For delegated execution, obey the owner's explicit `ASSIGNED_MILESTONE` and
+`ASSIGNED_STATUS_FILE`. The full parent horizon is read-only context; perform
+only the assigned milestone work and return at its specified completion or
+blocker condition. Do not select another milestone or launch the whole goal
+from `suggested.txt`. Only the owner refreshes `suggested.txt`; children never
+edit it. Missing or conflicting assignment identity stops execution.
+
 Read explicit order and policies from the invoking request itself, without
 runtime argument substitution. Explicit milestone order in the invoking request replaces
 `tabilet/memory-bank/suggested.txt`'s `STATUS_ORDER`. The suggestion is disposable input,

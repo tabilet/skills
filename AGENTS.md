@@ -387,6 +387,9 @@ spelling so an inbound link survives translation.
   active truth. Do not ship a static copy in `template/`, add it to `AGENTS.md`'s
   required read order, or let `memory-bank-goal` use it without reconciling it
   against the current milestone and status files.
+  During delegated goal execution, only the orchestrator refreshes it; each
+  child executes its explicitly assigned milestone and never selects work from
+  this shared reference.
 - `memory-bank-init` discovers one delivery boundary with a dependency-aware
   design tree and frontier rounds; its coverage roots are not a fixed question
   sequence or ceiling. It assigns permanent status IDs only to the approved

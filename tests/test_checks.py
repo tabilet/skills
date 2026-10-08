@@ -46,6 +46,12 @@ class CheckHelperTests(unittest.TestCase):
                     ("skills/memory-bank-goal/references/subagents.md",
                      'git rebase "$goal_review_base"', "git rebase main",
                      "captured integration reference"),
+                    ("GOAL.md", "Only the owner refreshes `suggested.txt`",
+                     "Children refresh `suggested.txt`", "GOAL.md"),
+                    ("skills/memory-bank-goal/references/subagents.md",
+                     "`ASSIGNED_MILESTONE`", "`UNSPECIFIED_MILESTONE`", "sub-agent brief"),
+                    ("GOAL.md", "Dispatch at most one live lease per milestone ID",
+                     "Dispatch multiple leases for the same milestone ID", "GOAL.md"),
                 )
                 for relative, old, new, diagnostic in regressions:
                     with self.subTest(regression=old):

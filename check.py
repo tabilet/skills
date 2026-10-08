@@ -351,6 +351,10 @@ def parallel_goal_contract():
             "no second closure commit",
             "git symbolic-ref --quiet HEAD",
             "changed integration target stops integration",
+            "Only the owner refreshes `suggested.txt`",
+            "Dispatch at most one live lease per milestone ID",
+            "The full parent horizon is read-only context",
+            "Reject child edits to `suggested.txt`",
         ),
         "skills/memory-bank-goal/references/subagents.md": (
             "candidate reads must not intersect running writes",
@@ -361,14 +365,19 @@ def parallel_goal_contract():
             'git rebase "$goal_review_base"',
             'git rev-parse --verify "${goal_integration_ref}^{commit}"',
             "symbolic `HEAD` equals the captured `INTEGRATION_REF`",
+            "Only the owner refreshes `suggested.txt`",
+            "Dispatch at most one live lease per milestone ID",
+            "Reject child edits to `suggested.txt`",
         ),
         "skills/memory-bank-goal/SKILL.md": (
             "An explicit `STATUS_PRIORITY` also replaces the suggested `STATUS_ORDER`",
             "Pass this resolved authority to every child brief",
             "user scope restrictions",
+            "only the assigned milestone work",
+            "Only the owner refreshes `suggested.txt`",
         ),
-        "AGENTS.md": ("owner of the captured integration branch",),
-        "template/AGENTS.md": ("writes the captured integration branch",),
+        "AGENTS.md": ("owner of the captured integration branch", "only the orchestrator refreshes it"),
+        "template/AGENTS.md": ("writes the captured integration branch", "only the orchestrator refreshes"),
         "docs/subagents.md": ("STATUS_PRIORITY: M01, A01, S01, P01", "INTEGRATION_REF"),
         "docs/zh/subagents.md": ("STATUS_PRIORITY: M01, A01, S01, P01", "INTEGRATION_REF"),
     }
@@ -389,7 +398,9 @@ def parallel_goal_contract():
     for token in ("governing `tabilet/GOAL.md`", "complete resolved goal request",
                   "`COMMIT_POLICY`", "`EXTERNAL_MUTATIONS`", "`PARALLELISM`",
                   "`INTEGRATION`", "User scope restrictions", "read-only",
-                  "`INTEGRATION_REF`", "takes precedence over repository defaults"):
+                  "`INTEGRATION_REF`", "takes precedence over repository defaults",
+                  "`ASSIGNED_MILESTONE`", "`ASSIGNED_STATUS_FILE`",
+                  "The full parent horizon is read-only context"):
         if token not in brief:
             problems.append(f"sub-agent brief: missing resolved authority {token!r}")
     return problems

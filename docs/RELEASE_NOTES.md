@@ -7,6 +7,9 @@ user restrictions, and actual integration branch instead of assuming `main`.
 Under milestone commit policy, one unpublished aggregate checkpoint supports
 lease review; the owner includes verified closure before finalizing and
 fast-forwarding a single milestone commit.
+Delegated execution now assigns one explicit milestone and status file to each
+child. Only the orchestrator refreshes shared `suggested.txt` launch input, and
+child diffs are checked for writes outside their assignment before integration.
 
 # memory-bank v2.5.1
 

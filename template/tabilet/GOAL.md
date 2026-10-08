@@ -43,6 +43,9 @@ Native todos, session completion, and native goal state do not replace milestone
 acceptance or authorize concurrent ledger writers.
 Under explicitly authorized concurrent leases, that owner controls the
 integrated ledger and each child writes only its assigned isolated ledger.
+Only the owner refreshes `suggested.txt` when the project uses that disposable
+launch reference. Resolve it against live project truth before dispatch; children
+never edit it or use it to choose their assignment.
 
 Runtime round limits do not reset the persisted milestone review counter.
 
@@ -199,6 +202,15 @@ authorizes concurrent execution:
    `INTEGRATION_REF`. Repository defaults cannot replace the resolved request.
    Review and reconciliation children receive the same authority context with
    an explicitly read-only assignment.
+   Dispatch at most one live lease per milestone ID. Before dispatch, inspect
+   existing lease branches, worktrees, and assignments; resume an existing lease
+   for that ID rather than creating another owner. Every execution brief names
+   exactly one `ASSIGNED_MILESTONE`, its `ASSIGNED_STATUS_FILE`, worktree, branch,
+   allowed writes, and return condition. The full parent horizon is read-only
+   context; the child executes only its assigned milestone and returns when its
+   delegated work is complete or blocked. It must not select a sibling milestone
+   or launch the full goal again. Missing or conflicting assignment identity
+   stops child execution until the owner resolves it.
 3. **Authoritative Review Gate**: The single authoritative bounded review-fix
    gate (iterations 1–10) runs in the lease on the diff after rebasing onto the
    captured integration branch, recording its full reviewed baseline and
@@ -212,6 +224,11 @@ authorizes concurrent execution:
    advanced during the review pass, the lease rebases and re-verifies;
    re-review is repeated only if newly landed commits
    touch the lease's write set or contracts read.
+   Before owner closure, inspect the actual child diff against its assignment
+   and declared write set. Reject child edits to `suggested.txt`, shared memory,
+   or another milestone's status; preserve and report unexpected edits for
+   correction before integration. Owner closure may then update shared files
+   serially from the current integrated state.
    Under `milestone`, before fast-forward integration the owner reserves the
    serial integration slot, pauses the lease writer, and performs integration
    verification, downstream reconciliation, shared-memory updates, and adopted

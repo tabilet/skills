@@ -39,6 +39,9 @@ request. Carry these values explicitly, including defaults:
   grants no external action.
 - The child's role and write ownership. Reviewers and analysts are explicitly
   read-only. Only the owner changes shared memory documents.
+- For execution, exactly one `ASSIGNED_MILESTONE`, its `ASSIGNED_STATUS_FILE`,
+  allowed write set, and return condition. The full parent horizon is read-only
+  context; the child completes only that assignment, then returns to the owner.
 - For a lease, the captured `INTEGRATION_REF`, primary worktree path, full base
   commit, branch/worktree identity, and persisted review count.
 
@@ -55,6 +58,10 @@ owner for the resolved values. The focused project context also contains:
 - The concrete verification commands required for acceptance.
 
 The sub-agent may inspect any other source files in the project as needed.
+Only the owner refreshes `suggested.txt`; children never edit it or use it to
+select work. A child never selects another milestone from the parent horizon or
+launches the full goal again. Missing or conflicting assignment identity stops
+execution until the owner resolves it.
 
 ### Milestone Execution
 
@@ -183,6 +190,21 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
    git worktree add -b goal/<ID> ../<repo>.goal/<ID> <base-sha>
    ```
    Worktrees must always reside outside the project root (`../<repo>.goal/<ID>`).
+   Dispatch at most one live lease per milestone ID. Check existing `goal/<ID>`
+   branches, worktrees, and recorded assignments first; resume an existing lease
+   instead of issuing a second assignment. Pass the assigned ID, status path,
+   worktree, branch, and write boundaries explicitly. For example:
+   ```text
+   ROLE: milestone-executor
+   ASSIGNED_MILESTONE: A01
+   ASSIGNED_STATUS_FILE: tabilet/memory-bank/status-A01.md
+   WORKTREE: /absolute/path/to/project.goal/A01
+   LEASE_BRANCH: goal/A01
+   RETURN_WHEN: assigned implementation, verification, and review finish, or a blocker occurs
+   ```
+   Attach the resolved policies and allowed write set described in the brief.
+   The child resumes its own in-progress row or chooses a dependency-ready row
+   only inside its assigned status file.
 2. **Isolated Implementation**:
    The lease implements tasks row-by-row, keeping at most one `[~]` row in
    progress within its lease status file. Under `task`, it commits each verified
@@ -207,6 +229,10 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
    rebased diff, persisting the counter in its own status notes. Under
    `milestone`, fixes and review evidence amend the aggregate checkpoint.
 5. **Baseline Check & Closure**:
+   Before making owner closure changes, inspect the actual child diff against
+   its assignment. Reject child edits to `suggested.txt`, shared memory, or
+   another milestone's status. Report unexpected edits and have them corrected
+   before integration, preserving unrelated work.
    The owner compares the current full tip of `INTEGRATION_REF` with the recorded
    reviewed baseline:
    - If it has not moved: the lease is eligible for the policy-specific closure
@@ -218,7 +244,9 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
    Under `milestone`, before fast-forward integration the owner reserves the
    serial integration slot, pauses the lease writer, performs integration
    verification on the combined lease tree, reconciles downstream impacts,
-   applies shared-memory updates, and completes adopted retirement in the lease.
+   applies shared-memory updates (including any existing `suggested.txt`), and
+   completes adopted retirement in the lease. Refresh shared launch input from
+   the current integrated state, never from a child's stale worktree copy.
    After verifying closure, the owner amends the checkpoint into one finalized
    milestone commit. No provisional checkpoint may be integrated. Unexpected
    target movement stops integration until closure is reconciled and verified

@@ -148,6 +148,10 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   invoked, its exact authorized operation row must be in progress; status never
   substitutes for external-mutation authority. Never retry a row retained as
   closed historical evidence.
+- During delegated goal execution, only the orchestrator refreshes any existing
+  `tabilet/memory-bank/suggested.txt`. Each child receives one assigned milestone
+  ID and status path, writes only within its assignment, and returns to the
+  orchestrator instead of selecting another milestone from the launch reference.
 - Treat each section in [tabilet/memory-bank/milestone.md](tabilet/memory-bank/milestone.md) as a
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the
