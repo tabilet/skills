@@ -30,7 +30,7 @@ listed, run `codex features enable goals`. See the official [Claude Code goal
 documentation](https://code.claude.com/docs/en/goal) and [OpenAI Codex goal
 guide](https://learn.chatgpt.com/use-cases/follow-goals).
 
-If `suggested.txt` is absent, put the resolved order, file map, and downstream
+If `suggested.txt` is absent, put the resolved order or priority, file map, and downstream
 impacts directly in the request instead. Invoking `memory-bank-goal` directly
 remains the portable non-persistent launcher: use
 `/memory-bank:memory-bank-goal` or `/memory-bank-goal` in Claude Code, and

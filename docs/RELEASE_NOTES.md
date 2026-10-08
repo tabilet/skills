@@ -1,3 +1,13 @@
+# Unreleased
+
+Goal execution now distinguishes strict `STATUS_ORDER` from dependency-ready
+dispatch using `STATUS_PRIORITY`. Parallel contract checks cover reads and
+writes in both directions. Fresh-agent briefs carry the resolved goal policies,
+user restrictions, and actual integration branch instead of assuming `main`.
+Under milestone commit policy, one unpublished aggregate checkpoint supports
+lease review; the owner includes verified closure before finalizing and
+fast-forwarding a single milestone commit.
+
 # memory-bank v2.5.1
 
 v2.5.1 is a protocol and documentation patch release following v2.5.0:

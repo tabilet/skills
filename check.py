@@ -335,6 +335,66 @@ def goal_copies():
     return problems
 
 
+@check("goal dispatch, delegation, and lease integration preserve authority")
+def parallel_goal_contract():
+    requirements = {
+        "GOAL.md": (
+            "`STATUS_ORDER` is strict execution order",
+            "List position adds no ordering edge",
+            "Supply exactly one of `STATUS_ORDER` and `STATUS_PRIORITY`",
+            "Keep `STATUS_PRIORITY` outside this graph",
+            "candidate reads must not intersect running writes",
+            "candidate writes must not intersect running reads",
+            "before fast-forward integration",
+            "verifies closure and amends the aggregate checkpoint",
+            "one finalized milestone commit",
+            "no second closure commit",
+            "git symbolic-ref --quiet HEAD",
+            "changed integration target stops integration",
+        ),
+        "skills/memory-bank-goal/references/subagents.md": (
+            "candidate reads must not intersect running writes",
+            "candidate writes must not intersect running reads",
+            "before fast-forward integration",
+            "owner amends the checkpoint into one finalized milestone commit",
+            "No provisional checkpoint may be integrated",
+            'git rebase "$goal_review_base"',
+            'git rev-parse --verify "${goal_integration_ref}^{commit}"',
+            "symbolic `HEAD` equals the captured `INTEGRATION_REF`",
+        ),
+        "skills/memory-bank-goal/SKILL.md": (
+            "An explicit `STATUS_PRIORITY` also replaces the suggested `STATUS_ORDER`",
+            "Pass this resolved authority to every child brief",
+            "user scope restrictions",
+        ),
+        "AGENTS.md": ("owner of the captured integration branch",),
+        "template/AGENTS.md": ("writes the captured integration branch",),
+        "docs/subagents.md": ("STATUS_PRIORITY: M01, A01, S01, P01", "INTEGRATION_REF"),
+        "docs/zh/subagents.md": ("STATUS_PRIORITY: M01, A01, S01, P01", "INTEGRATION_REF"),
+    }
+    problems = []
+    for relative, tokens in requirements.items():
+        text = (ROOT / relative).read_text()
+        flat = " ".join(text.split())
+        for token in tokens:
+            if token not in flat:
+                problems.append(f"{relative}: missing goal authority contract {token!r}")
+        if relative in ("GOAL.md", "skills/memory-bank-goal/references/subagents.md"):
+            if re.search(r"\bgit rebase main\b", text):
+                problems.append(f"{relative}: lease rebase must use the captured integration reference")
+
+    reference = (ROOT / "skills/memory-bank-goal/references/subagents.md").read_text()
+    brief = " ".join(reference.split("### Distilled Context Brief", 1)[-1]
+                     .split("### Milestone Execution", 1)[0].split())
+    for token in ("governing `tabilet/GOAL.md`", "complete resolved goal request",
+                  "`COMMIT_POLICY`", "`EXTERNAL_MUTATIONS`", "`PARALLELISM`",
+                  "`INTEGRATION`", "User scope restrictions", "read-only",
+                  "`INTEGRATION_REF`", "takes precedence over repository defaults"):
+        if token not in brief:
+            problems.append(f"sub-agent brief: missing resolved authority {token!r}")
+    return problems
+
+
 @check("milestone review-fix gate is bounded and aligned")
 def review_fix_gate():
     goal = " ".join((ROOT / "GOAL.md").read_text().split())

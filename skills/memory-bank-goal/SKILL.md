@@ -2,7 +2,7 @@
 name: memory-bank-goal
 description: Execute or resume ordered memory-bank milestones using the project's tabilet/GOAL.md protocol.
 disable-model-invocation: false
-argument-hint: M01 -> S01 -> A01?
+argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01"
 ---
 
 # Run An Ordered Set Of Milestones
@@ -24,7 +24,7 @@ Read the project's `tabilet/GOAL.md` and follow it. That protocol owns sequencin
 verification, review, reconciliation, closure, and commit policy. This skill
 resolves the launch request; it does not define a second execution loop.
 When `tabilet/stages.md` exists, consult it before deriving an order from the
-active milestone index. Stage IDs never enter `STATUS_ORDER`, and provisional
+active milestone index. Stage IDs never enter `STATUS_ORDER` or `STATUS_PRIORITY`, and provisional
 future stages do not add status files. Preserve the protocol's dependency gate.
 
 If `tabilet/GOAL.md` is missing, stop ordered execution. It ships beside the
@@ -39,6 +39,11 @@ runtime argument substitution. Explicit milestone order in the invoking request 
 not a source of truth. Reuse its file map and downstream impacts only where the
 request has not supplied them, after checking every ID, path, dependency,
 conditional trigger, and impact against the current memory bank and implementation.
+An explicit `STATUS_PRIORITY` also replaces the suggested `STATUS_ORDER`; do not
+carry the suggested strict order into that request. Preserve `STATUS_ORDER` as
+strict precedence and use `STATUS_PRIORITY` only to choose among dependency-ready
+milestones under the project's protocol. If the invoking request supplies both,
+resolve the conflict before execution rather than weakening its strict order.
 
 Resolve historical IDs and stale paths through the project's history index.
 Retired records are evidence, never executable rows. Cancellation or supersession
@@ -59,6 +64,8 @@ STATUS_FILE_MAP:
 DOWNSTREAM_IMPACTS:
 <known source-to-pending-consumer impacts, or none>
 
+PARALLELISM: <resolved cap, or 1>
+INTEGRATION: <resolved authority, or none>
 COMMIT_POLICY: task
 EXTERNAL_MUTATIONS: none
 
@@ -71,9 +78,16 @@ Preserve explicitly supplied commit and external-mutation policies. The example'
 `task` policy must not override a request for `none`. `COMMIT_POLICY` governs
 commits for the whole run: `none` means no commits; `task` means per-row commits.
 Use the protocol's request precedence and other policy definitions.
+When priority was supplied, replace the block's `STATUS_ORDER` with the complete
+`STATUS_PRIORITY` list. Include all resolved user scope restrictions and
+external-action limits. For leases, capture and preserve the actual
+`INTEGRATION_REF`, primary worktree path, and full baseline as the protocol
+requires. Pass this resolved authority to every child brief, including read-only
+review and reconciliation assignments; do not expect repository files to
+recover conversation-only restrictions.
 
-When no order was supplied, prefer a valid suggested order, otherwise derive one
-from `tabilet/memory-bank/milestone.md`. Show the complete resolved request and obtain
+When neither order nor priority was supplied, prefer a valid suggested order,
+otherwise derive one from `tabilet/memory-bank/milestone.md`. Show the complete resolved request and obtain
 confirmation before starting. Ask for an order if none is unambiguous.
 A trailing `?` marks a conditional milestone: when its documented trigger is
 absent, skip it without completing or cancelling it.

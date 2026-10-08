@@ -22,6 +22,12 @@ its documented trigger is absent, without being completed or cancelled. Later
 candidate directions are not conditional milestones and do not belong in an
 execution order.
 
+For opt-in concurrent execution, `GOAL.md` also accepts `STATUS_PRIORITY`, a
+comma-separated list that chooses among dependency-ready milestones without
+adding ordering edges. `STATUS_ORDER` remains strict even when parallelism is
+enabled. Use exactly one field; the [sub-agent guide](subagents.md#preconditions)
+shows a concurrent request and its safety requirements.
+
 ## When to use it
 
 When several milestones should run in a defined order, rather than one task at
@@ -67,7 +73,10 @@ protocol remains optional for the project.
     That is correct behavior, not a conflict.
 
 Write `task` when you want the usual per-row commits, or `none` when you want
-the changes left uncommitted. The request takes precedence over `tabilet/GOAL.md`, which
+the changes left uncommitted. Use `milestone` to commit implementation and
+closure together. For concurrent leases, `GOAL.md` defines the unpublished
+checkpoint and owner finalization needed to integrate one milestone commit.
+The request takes precedence over `tabilet/GOAL.md`, which
 takes precedence over `AGENTS.md`. The commit-policy exception lasts only for
 the run; other applicable project rules still govern.
 

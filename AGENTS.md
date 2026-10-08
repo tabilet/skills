@@ -341,8 +341,8 @@ spelling so an inbound link survives translation.
   the project root (`../<repo>.goal/<ID>`), integrate strictly via rebase and
   fast-forward (`git merge --ff-only`), and require `COMMIT_POLICY: task` or `milestone`
   with `INTEGRATION: local-rebase-ff`. The orchestrator remains the sole execution
-  owner of `main` and shared memory files (`architecture.md`, `product.md`,
-  `tech-stack.md`, `lessons.md`).
+  owner of the captured integration branch and shared memory files
+  (`architecture.md`, `product.md`, `tech-stack.md`, `lessons.md`).
 - Keep the harness dependency-free: Python standard library only.
 - v2 project-owned files live under `tabilet/`; only `AGENTS.md` stays at the
   project root. Installing v2 never migrates v1.5.0 projects. The Upgrade

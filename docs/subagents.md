@@ -138,6 +138,11 @@ runs. That is an ownership transfer, not a second writer. The sub-agent
 receives a focused brief rather than the owner's whole conversation:
 
 - the milestone specification and its status file;
+- the governing `tabilet/GOAL.md` and complete resolved request: the chosen
+  `STATUS_ORDER` or `STATUS_PRIORITY`, commit and external-mutation policies,
+  concurrency/integration authority, user scope restrictions, and stop conditions;
+- the child's role and owned write boundaries, plus the captured integration
+  reference, primary worktree path, and full baseline when using a lease;
 - `AGENTS.md` read order, essential commands, and hard rules;
 - the reconciled contracts it consumes; and
 - the required verification commands.
@@ -151,6 +156,11 @@ actual diff, applies shared-memory changes, and retires the milestone.
 
 If the sub-agent stops early, its status file is the resume point. The persisted
 review counter never resets.
+Every child, including read-only reviewers and analysts, receives these resolved
+policies; repository files cannot recover restrictions from the parent's
+conversation. Under `COMMIT_POLICY: none`, the handoff creates no commits.
+Under sequential `milestone`, the child leaves its changes for the owner to
+commit together with closure, following `GOAL.md`.
 
 ### Parallel read-only fan-out
 
@@ -187,7 +197,7 @@ Tier 0:
    ```text
    Using tabilet/GOAL.md, execute this loop.
 
-   STATUS_ORDER: M01 -> A01 -> S01 -> P01
+   STATUS_PRIORITY: M01, A01, S01, P01
    DOWNSTREAM_IMPACTS:
    M01 -> A01, S01
    A01 -> P01
@@ -203,39 +213,54 @@ Tier 0:
    unpublished lease commits, and fast-forward-only integration. It does not
    authorize pushing or merge commits. `PARALLELISM` caps concurrent leases and
    defaults to 3 when the field is present without a value.
+   `STATUS_PRIORITY` chooses among ready milestones; it adds no dependencies.
+   This example lets A01 and S01 run together after M01 closes, with P01 waiting
+   for both. A request using `STATUS_ORDER: M01 -> A01 -> S01 -> P01` instead
+   requires that strict sequence, even with parallelism enabled. Use exactly
+   one selection field, as specified by `GOAL.md`.
 3. `COMMIT_POLICY` is `task` or `milestone`. Under `none` there are no commits to
    carry work between worktrees, so Tier 1 is disabled.
+   For `milestone`, local integration authority permits one unpublished aggregate
+   checkpoint and its amendments for rebase and review. The owner includes
+   closure before integrating one finalized milestone commit. A request that
+   forbids interim commits or amendment uses sequential execution instead.
 4. Every milestone dispatched concurrently is `Parallel-safe: yes` and passes
    the three conditions in Part A against every other running lease.
 
 ### Lease lifecycle
 
 ```text
-Owner: dispatch ready, parallel-safe milestone
+Owner: capture actual integration branch and baseline; dispatch ready milestone
   │
   ▼
 Create branch goal/ID and worktree at ../<repo>.goal/<ID>
   │
   ▼
-Lease: implement rows, one [~] at a time, commit per row
+Lease: implement rows, one [~] at a time; task commits or aggregate checkpoint
   │
   ▼
 Lease: verify with lease-isolated resources
   │
   ▼
-Lease: rebase onto current main line and re-verify
+Lease: rebase onto captured INTEGRATION_REF and re-verify
   │
   ▼
 Lease: run authoritative review-fix gate on rebased diff
   │
   ▼
-Has main moved since that rebase?
-  ├── No  ───► Owner: fast-forward merge (git merge --ff-only)
-  ├── Yes (disjoint) ───► Lease: rebase + re-verify only ───► fast-forward
+Has the captured integration branch moved since that rebase?
+  ├── No  ───► Continue with the policy-specific closure below
+  ├── Yes (disjoint) ───► Lease: rebase + re-verify only
   └── Yes (touches write set/contracts) ───► Lease: rebase + re-verify + re-review
   │
   ▼
-Owner: integration check, reconcile impacts, update memory docs, retire
+Owner under milestone: pause lease writer, close in lease, finalize one commit
+  │
+  ▼
+Owner: fast-forward the captured integration branch (git merge --ff-only)
+  │
+  ▼
+Owner under task: integration check, reconcile impacts, update memory docs, retire
   │
   ▼
 Teardown worktree and branch; dispatch newly ready milestones
@@ -248,18 +273,32 @@ Teardown worktree and branch; dispatch newly ready milestones
   into test discovery, and accumulate as a generated directory.
 - **Durable lease record.** Git is the record. `git worktree list` and the
   `goal/*` branches survive a session or server restart, and each lease's status
-  file shows its progress and review counter. Resuming means listing both and
+  file shows its progress and review counter. Existing goal/status notes retain
+  the actual `INTEGRATION_REF`, primary worktree path, and full baseline.
+  Resuming means listing worktrees and rechecking those identities before
   continuing each lease from its status file. No new file is created.
 - **One authoritative review.** The bounded review-fix gate runs once, in the
   lease, on the diff after rebasing onto the current main line, with its counter
   in the lease's status notes. When other work lands before integration, the
   lease rebases and re-verifies; the review is repeated only when the newly
   landed commits touch the lease's write set or contracts read.
-- **Linear integration.** Rebase plus fast-forward keeps history linear and
-  preserves one commit per status row. Never create merge commits (`--no-ff`).
-- **Reconciliation from code.** After integration, the owner reconciles every
-  downstream impact against the integrated implementation, not against the
-  lease's report alone.
+- **Linear integration.** Rebase and advancement checks use the captured branch,
+  whether named `main`, `master`, `trunk`, or a release branch. The owner checks
+  its symbolic `HEAD` and tip before integration. Fast-forward preserves the
+  selected commit policy: task commits under `task`, one finalized milestone
+  commit under `milestone`. Never create merge commits (`--no-ff`).
+- **Closure and commit policy.** `GOAL.md` owns the sequence. Under `task`, the
+  owner closes after integration and commits substantive closure changes only
+  when files change. Under `milestone`, the owner reserves the serial integration
+  slot, pauses the child, verifies the combined lease tree, reconciles impacts,
+  updates shared memory, and completes adopted retirement in the lease. It then
+  finalizes the checkpoint with that closure and fast-forwards; no provisional
+  checkpoint lands and no second closure commit is created. Unexpected target
+  movement requires reconciling and verifying closure on the new baseline.
+- **Reconciliation from code.** The owner reconciles every downstream impact
+  against the actual combined implementation diff: before integration for
+  `milestone`, afterward for `task`. Dependents wait for both verified closure
+  and integration.
 - **Runtime-discovered impact.** If the owner discovers that a running lease
   consumes a change that just landed, it asks the lease to stop at the next row
   boundary, reconciles the lease's pending rows, and lets it resume. A
@@ -282,7 +321,7 @@ Teardown worktree and branch; dispatch newly ready milestones
 
 | Approach | Why it was rejected |
 |---|---|
-| Merge commits to integrate leases | `GOAL.md` forbids merging unless the request authorizes it, and merge commits break one commit per status row |
+| Merge commits to integrate leases | They violate the authorized fast-forward integration and linear commit history |
 | Declaring fewer impacts to unlock parallelism | Removes real reconciliation obligations; `GOAL.md` treats the impact map as a minimum |
 | Transitive reduction of the impact list | Skips direct reconciliation of a consumer against the original producer |
 | Worktrees inside the project | Dirty worktree, test-discovery leakage, accumulated generated folders |

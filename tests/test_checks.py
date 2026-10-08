@@ -4,6 +4,7 @@ import importlib.util
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -14,6 +15,50 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_parallel_goal_contract_rejects_review_regressions(self) -> None:
+        paths = (
+            "GOAL.md", "AGENTS.md", "template/AGENTS.md",
+            "skills/memory-bank-goal/SKILL.md",
+            "skills/memory-bank-goal/references/subagents.md",
+            "docs/subagents.md", "docs/zh/subagents.md",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in paths:
+                target = fixture / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / relative).read_bytes())
+
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual(repository_checks.parallel_goal_contract(), [])
+                regressions = (
+                    ("GOAL.md", "List position adds no ordering edge",
+                     "List position adds an ordering edge", "GOAL.md"),
+                    ("docs/subagents.md", "STATUS_PRIORITY: M01, A01, S01, P01",
+                     "STATUS_ORDER: M01 -> A01 -> S01 -> P01", "docs/subagents.md"),
+                    ("GOAL.md", "not intersect running reads",
+                     "overlap running reads", "GOAL.md"),
+                    ("skills/memory-bank-goal/references/subagents.md",
+                     "before fast-forward integration", "after fast-forward integration",
+                     "references/subagents.md"),
+                    ("skills/memory-bank-goal/references/subagents.md",
+                     "`EXTERNAL_MUTATIONS`", "`OMITTED_POLICY`", "sub-agent brief"),
+                    ("skills/memory-bank-goal/references/subagents.md",
+                     'git rebase "$goal_review_base"', "git rebase main",
+                     "captured integration reference"),
+                )
+                for relative, old, new, diagnostic in regressions:
+                    with self.subTest(regression=old):
+                        path = fixture / relative
+                        original = path.read_text()
+                        self.assertIn(old, original)
+                        path.write_text(original.replace(old, new))
+                        try:
+                            problems = repository_checks.parallel_goal_contract()
+                            self.assertTrue(any(diagnostic in p for p in problems), problems)
+                        finally:
+                            path.write_text(original)
+
     def test_goal_invocations_in_bare_and_tagged_fences_are_visible(self) -> None:
         text = (
             "```\nUsing GOAL.md without the policy\n```\n"

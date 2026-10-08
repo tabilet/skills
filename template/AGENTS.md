@@ -142,8 +142,8 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   authorized goal request explicitly defines safe parallel ownership: in
   concurrent lease execution under `tabilet/GOAL.md`, each external lease
   maintains at most one `[~]` row in its own status file, only the orchestrator
-  writes the main line and shared memory documents (`architecture.md`,
-  `product.md`, `tech-stack.md`, `lessons.md`), and integration occurs
+  writes the captured integration branch and shared memory documents
+  (`architecture.md`, `product.md`, `tech-stack.md`, `lessons.md`), and integration occurs
   strictly via rebase and fast-forward. Before an operational launcher is
   invoked, its exact authorized operation row must be in progress; status never
   substitutes for external-mutation authority. Never retry a row retained as
