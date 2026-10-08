@@ -195,6 +195,13 @@ Commands return JSON; errors go to stderr with nonzero status. The former
 `--event` host submission remains an alias. Lifecycle calls work from a fresh
 database and support all seven operations and parent/child goal runs.
 
+The API runner and controller add one `usage_observed` event per run, before
+`run_finished`, with `details.usage` holding `input_total`, `cached_read`,
+`cache_write`, `output` (each `null` when the provider did not report it) and
+`turns`. It carries token counts only, never prompts or responses, and nothing
+reads it to gate work. It needs toolkit interface 4: the runner refuses to
+record against older audit modules with the usual reinstall-together message.
+
 Enabled API and skill workflows record observed evidence and request index refresh
 on completion. Skill instructions use an independently installed optional toolkit;
 missing tools or failed logging produce visible gaps without changing approvals,

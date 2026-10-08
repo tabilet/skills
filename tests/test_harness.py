@@ -1029,7 +1029,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             with self.subTest(path=relative), tempfile.TemporaryDirectory() as tmp:
                 repo = make_repo(pathlib.Path(tmp) / "repo")
 
-                def damage_instructions(args, target, number, summary, current):
+                def damage_instructions(args, target, number, summary, current, **kwargs):
                     source = target / "tabilet/memory-bank/status-M01.md"
                     source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
                     (target / relative).unlink()
@@ -1067,7 +1067,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
             evidence = run("git", "rev-parse", "HEAD", cwd=repo).stdout.strip()
 
-            def close_and_retire(args, target, number, summary, current):
+            def close_and_retire(args, target, number, summary, current, **kwargs):
                 self.assertEqual(current["key"], ("status-M01.md", "Implement feature", 1))
                 source = target / "tabilet/memory-bank" / "status-M01.md"
                 source.write_text(source.read_text().replace(marker("[~]"), marker("[+]")))
@@ -1093,7 +1093,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
             database = enable_audit(repo)
 
-            def close_row(args, target, number, summary, current):
+            def close_row(args, target, number, summary, current, **kwargs):
                 source = target / "tabilet/memory-bank" / "status-M01.md"
                 source.write_text(source.read_text().replace(marker("[~]"), marker("[+]")))
                 run("git", "add", "-A", cwd=target)

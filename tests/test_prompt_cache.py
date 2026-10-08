@@ -341,6 +341,29 @@ class ReceiptTotalsTests(unittest.TestCase):
             "; tokens input=10 cached=unknown cache_write=unknown output=2",
         )
 
+    def test_usage_observer_sees_each_response_the_receipt_counts(self):
+        import types
+        from unittest import mock
+        seen = []
+        counted = {"input_total": 5, "cached_read": 4, "cache_write": None, "output": 1}
+
+        class Controller:
+            @staticmethod
+            def run_controller_agent(*_args, after_model_response=None, **_kwargs):
+                after_model_response(counted)
+                return {"final": "ok"}
+
+        receipt = {"usage": {}, "limits": {"max_turns_per_row": 5}}
+        args = types.SimpleNamespace(usage_observer=seen.append)
+        with mock.patch.object(self.horizon, "_args_for_turn_cap", return_value=args):
+            self.horizon._run_agent(
+                types.SimpleNamespace(), Controller, args, None, receipt,
+                types.SimpleNamespace(reserve_turn=None, reserve_provider_attempt=None, check_time=None),
+                None, "go", "M01/T01",
+            )
+        self.assertEqual(seen, [counted])
+        self.assertEqual(receipt["usage"]["tokens"], {"input_total": 5, "cached_read": 4, "output": 1})
+
 
 if __name__ == "__main__":
     unittest.main()

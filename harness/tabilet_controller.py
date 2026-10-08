@@ -232,6 +232,7 @@ def _execute_horizon_locked(
             instruction_set_name="tabilet-controller/system-prompt",
             host_agent="tabilet-controller",
         )
+        args.usage_observer = getattr(audit, "add_usage", None)
         audit.emit("task_observed", details={
             "controller": "tabilet-api-horizon",
             "receipt_id": receipt.get("receipt_id"),

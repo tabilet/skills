@@ -202,8 +202,10 @@ hit/miss counters, and Claude's cache fields are all read; Claude's own
 reports no write count. This needs no SQLite. The controller adds the same
 totals to its progress line and keeps four running integers under `usage.tokens`
 in the receipt; they are reporting only, and no limit, gate, or recovery check
-reads them. Whether a real cache hit occurred is shown only by what the
-provider reports.
+reads them. When audit is enabled, the runner and controller also record the
+run's totals once as a `usage_observed` event (counts only, `null` for an
+unreported field, plus the turn count; see [SQLite](sqlite.md)). Whether a real
+cache hit occurred is shown only by what the provider reports.
 
 SQLite audit records do not carry token counts, and fresh contexts and SQLite
 lookup refresh serve different purposes from provider prompt caching.

@@ -26,7 +26,7 @@ from urllib.parse import quote
 SCHEMA_NAME = "tabilet.audit/v4"
 SCHEMA_VERSION = 4
 RECORDER_VERSION = "tabilet-audit/4"
-TOOLKIT_INTERFACE = 3
+TOOLKIT_INTERFACE = 4
 PROJECT_ROOT_KEY = 'project_root'
 PROJECT_WORKSPACE_PREFIX = 'project_workspace:'
 AUDIT_ENABLED_KEY = 'audit_enabled'
@@ -41,6 +41,7 @@ EVENT_TYPES = frozenset({
     "task_observed",
     "task_transition",
     "verification_observed",
+    "usage_observed",
     "commit_observed",
     "run_finished",
     "run_blocked",

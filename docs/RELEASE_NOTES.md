@@ -1,3 +1,19 @@
+# memory-bank v2.7.0
+
+v2.7.0 records API token usage in the optional audit. When audit is enabled, the
+runner and controller write one `usage_observed` event per run, just before
+`run_finished`, with total input, cached-read, cache-write, and output tokens
+and the turn count. Counts only; an unreported field is `null`, and nothing gates
+on it. Failed and interrupted runs keep the totals gathered so far.
+
+The event type raises the toolkit interface from 3 to 4. Reinstall the runner,
+controller, and the audit, index, host, and Explorer modules together; the runner
+refuses to record against older audit modules and reports the usual
+reinstall-together gap without changing any row gate. No database schema change
+or migration is needed, existing databases keep working, and `prompt_cache_key`
+is not sent: OpenAI documents it for Responses, not Chat Completions, and
+routing is automatic on current models.
+
 # memory-bank v2.6.2
 
 v2.6.2 is a patch release following v2.6.1. It fixes the optional SQLite audit

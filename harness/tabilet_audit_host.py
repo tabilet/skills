@@ -23,7 +23,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import tabilet_audit as audit
 import tabilet_index as index
 
-TOOLKIT_INTERFACE = 3
+TOOLKIT_INTERFACE = 4
 
 
 def check_toolkit(include_explorer=False):

@@ -951,6 +951,9 @@ def _run_agent(core, controller, args, repo, receipt, reservations, executor, us
         output_fn(f"  command result: exit {result.get('exit_code')}; {summary}")
     def after_response(normalized):
         _add_token_usage(receipt, normalized)
+        observer = getattr(args, "usage_observer", None)
+        if observer is not None:
+            observer(normalized)
     return controller.run_controller_agent(
         core, _args_for_turn_cap(args, turns, left), repo, turns + 1, [], None, executor,
         user_message, before_model_turn=before_turn,

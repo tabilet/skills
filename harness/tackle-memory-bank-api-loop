@@ -1804,6 +1804,7 @@ class AuditRun:
         self.closed = False
         self.failure = None
         self.observed_commits = set()
+        self.usage = UsageTotals()
         self.capture = args.audit_capture
         self.invocation_kind = invocation_kind
         self.instruction_set_name = instruction_set_name
@@ -1823,8 +1824,8 @@ class AuditRun:
                     "built with SQLite 3.24.0 or later"
                 ) from exc
             import tabilet_index
-            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 3
-                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 3):
+            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 4
+                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 4):
                 raise RuntimeError("incompatible audit toolkit modules; reinstall the toolkit files together")
             self.recorder = tabilet_audit
             setting = self.recorder.audit_status(repo)
@@ -1929,12 +1930,25 @@ class AuditRun:
         except Exception as exc:
             self.gap("observe commits", exc)
 
+    def add_usage(self, normalized):
+        """Accumulate one response's normalized token counts; never raises."""
+        try:
+            self.usage.add(normalized)
+        except Exception:
+            pass
+
+    def emit_usage(self):
+        """Record the run's token totals once: counts only, `None` when unreported."""
+        if self.usage.turns:
+            self.emit("usage_observed", details={"usage": {**self.usage.values, "turns": self.usage.turns}})
+
     def finish(self, result):
         if self.closed:
             return
         try:
             if self.recording():
                 self.observe_commits()
+                self.emit_usage()
                 if self.failure:
                     self.emit("audit_gap", details={"error": self.failure})
                 try:
@@ -2332,7 +2346,9 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
             print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
             started = time.time()
             try:
-                run_result = one_agent_run(args, repo, run, summary, in_progress)
+                run_result = one_agent_run(
+                    args, repo, run, summary, in_progress, after_model_response=audit.add_usage,
+                )
             except KeyboardInterrupt:
                 audit.emit("run_interrupted", details={"reason": "keyboard interrupt"})
                 audit.finish("interrupted")

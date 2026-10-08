@@ -21,7 +21,7 @@ class RunnerRepairs(unittest.TestCase):
             database=repo/'tabilet/audit.sqlite3'
             sys.path.insert(0,str(h.HARNESS.parent))
             import tabilet_index  # ensure its real audit dependency is loaded first
-            def model(*args):
+            def model(*args, **kwargs):
                 source=repo/'tabilet/memory-bank/status-M01.md'
                 source.write_text(source.read_text().replace(h.marker('[ ]'),h.marker('[+]')))
                 h.run('git','add','-A',cwd=repo)
@@ -44,7 +44,7 @@ class RunnerRepairs(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo=h.make_repo(Path(tmp)/'repo')
             database=repo/'tabilet/audit.sqlite3'
-            def model(*args):
+            def model(*args, **kwargs):
                 source=repo/'tabilet/memory-bank/status-M01.md'
                 source.write_text(source.read_text().replace(h.marker('[ ]'),h.marker('[+]')))
                 h.run('git','add','-A',cwd=repo)
@@ -72,7 +72,7 @@ class RunnerRepairs(unittest.TestCase):
                 with self.subTest(audited=audited,failure=failure), tempfile.TemporaryDirectory() as tmp:
                     repo=h.make_repo(Path(tmp)/'repo')
                     database=repo/'tabilet/audit.sqlite3'
-                    def model(*args):
+                    def model(*args, **kwargs):
                         source=repo/'tabilet/memory-bank/status-M01.md'
                         source.write_text(source.read_text().replace(h.marker('[ ]'),h.marker('[~]')))
                         if failure in ('history','transition'):
@@ -111,6 +111,36 @@ class RunnerRepairs(unittest.TestCase):
             result=subprocess.run([sys.executable,'-B',str(target),'--help'],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
 
+    def test_token_totals_are_recorded_once_as_usage_observed(self):
+        for reported in (True, False):
+            with self.subTest(reported=reported), tempfile.TemporaryDirectory() as tmp:
+                repo=h.make_repo(Path(tmp)/'repo',h.marker('[~]'))
+                database=h.enable_audit(repo)
+                def model(*args, after_model_response=None, **kwargs):
+                    if reported:
+                        after_model_response({'input_total':1200,'cached_read':1000,'cache_write':None,'output':30})
+                        after_model_response({'input_total':1300,'cached_read':1200,'cache_write':None,'output':40})
+                    source=repo/'tabilet/memory-bank/status-M01.md'
+                    source.write_text(source.read_text().replace(h.marker('[~]'),h.marker('[!]')))
+                    h.run('git','add','-A',cwd=repo)
+                    h.run('git','-c','user.name=Test','-c','user.email=test@example.test','commit','-qm','blocked',cwd=repo)
+                    return {'final':'Blocked by a missing prerequisite.'}
+                env=h.HarnessIntegrationTests().harness_env(tmp,ALLOW_UNSANDBOXED_SHELL='1')
+                with mock.patch.object(sys,'argv',[str(h.HARNESS),str(repo)]),mock.patch.dict(os.environ,env,clear=True),mock.patch.object(h.harness,'one_agent_run',side_effect=model):
+                    with self.assertRaises(SystemExit):h.harness.main()
+                c=sqlite3.connect(database)
+                try:
+                    rows=c.execute("SELECT details_json FROM events WHERE event_type='usage_observed'").fetchall()
+                    kinds=[row[0] for row in c.execute('SELECT event_type FROM events ORDER BY sequence')]
+                finally:c.close()
+                if not reported:
+                    self.assertEqual(rows,[])
+                    continue
+                self.assertEqual(len(rows),1)
+                self.assertEqual(json.loads(rows[0][0])['usage'],
+                                 {'input_total':2500,'cached_read':2200,'cache_write':None,'output':70,'turns':2})
+                self.assertLess(kinds.index('usage_observed'),kinds.index('run_finished'))
+
     def test_blocked_transition_and_commit_before_failed_gate(self):
         for outcome in ('blocked','dirty','unexpected','inside','long'):
             with self.subTest(outcome=outcome),tempfile.TemporaryDirectory() as tmp:
@@ -123,7 +153,7 @@ class RunnerRepairs(unittest.TestCase):
                     (repo/'tabilet/.gitignore').write_text('/audit.sqlite3*\n')
                     h.run('git','add','tabilet/.gitignore',cwd=repo)
                     h.run('git','commit','-qm','Ignore broken audit',cwd=repo)
-                def model(*args):
+                def model(*args, **kwargs):
                     if outcome=='unexpected':raise RuntimeError('test interruption')
                     self.assertEqual(h.run('git','status','--porcelain',cwd=repo).stdout,'')
                     source=repo/'tabilet/memory-bank/status-M01.md'

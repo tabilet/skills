@@ -30,7 +30,7 @@ import tabilet_index as index
 MAX_BODY = 64 * 1024
 MAX_PAGE = 100
 POLL_SECONDS = 5
-TOOLKIT_INTERFACE = 3
+TOOLKIT_INTERFACE = 4
 TODO_GROUPS = ('resume', 'ready', 'waiting', 'blocked', 'needs_review')
 ASSET_DIR = pathlib.Path(__file__).with_name("explorer")
 INSTALLED_ASSET_DIR = pathlib.Path.home() / ".local" / "share" / "tabilet" / "explorer"
