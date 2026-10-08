@@ -1,3 +1,13 @@
+# memory-bank v2.6.2
+
+v2.6.2 is a patch release following v2.6.1. It fixes the optional SQLite audit
+and index CLI on Windows: v2.6.0 and v2.6.1 failed every `index` command with
+`ModuleNotFoundError: No module named 'fcntl'`, because the CLI loads the runner
+for its parsers and the runner imported `fcntl` unconditionally. The import is now
+optional. Where POSIX file locking is unavailable the shared project lock refuses
+cleanly, and API-runner execution remains POSIX-only. A regression test and the
+Windows CI job cover it. No project, skill, or schema changes.
+
 # memory-bank v2.6.1
 
 v2.6.1 is a patch release following v2.6.0. Planning's remote-review fetch no
