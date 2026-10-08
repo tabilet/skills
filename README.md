@@ -57,6 +57,9 @@ The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the pub
 - [Optional SQLite audit and lookup](#optional-sqlite-audit-and-lookup)
   - [Sync and Repair](#sync-and-repair)
 - [Install the API harness](#install-the-api-harness)
+  - [Changes since v2.4.0](#api-changes-since-v240)
+  - [Setup and Run](#setup-and-run)
+  - [LLM prompt caching](#llm-prompt-caching)
   - [First run & guardrails](#first-run)
   - [API-only workflow](#api-only-workflow)
   - [Tabilet controller guide](docs/tabilet-controller.md)
@@ -826,6 +829,13 @@ resolved request for confirmation, and falls back to deriving the order from
 Plain-file installations use `/memory-bank-goal` in Claude Code and
 `$memory-bank-goal` in Codex. Plain English remains valid everywhere.
 
+Since v2.5.0, agents that support delegation can use fresh milestone contexts,
+read-only review fan-out, and explicitly approved concurrent worktree leases.
+See [Sub-Agent Milestone Execution](docs/subagents.md). `STATUS_ORDER` remains
+strict; `STATUS_PRIORITY` chooses among dependency-ready milestones. These are
+`GOAL.md` capabilities of the hosting agent. The standalone API runner and
+`tabilet` controller remain serial and keep their own commit requirements.
+
 #### Keep a long run active
 
 Both [Claude Code](https://code.claude.com/docs/en/goal) and
@@ -1298,6 +1308,32 @@ that for you.
 The API harness is account-level because it can drive any project that follows
 this memory-bank shape. It needs Python 3.9 or later and nothing else.
 
+### API changes since v2.4.0
+
+The v2.5 goal protocol adds sub-agent execution instructions for capable agents.
+The two API paths retain their existing execution scope:
+
+| Path | Execution and context | Commit policy |
+|---|---|---|
+| Standalone `tackle-memory-bank-api-loop` | Serial, one actionable row per run; fresh conversation for each row. | A commit is required per run. |
+| Optional `tabilet` controller | Serial rows within one approved horizon; separate planning, task, and closure conversations. | Host commits and required closure follow the approved receipt. |
+| Agent running `tabilet/GOAL.md` | Delegation and concurrency depend on the agent's capabilities and explicit project/request authorization. | The resolved goal `COMMIT_POLICY` governs. |
+
+Neither API path adds a native sub-agent scheduler. The controller still rejects
+linked worktrees, so it does not execute the goal protocol's concurrent leases.
+See the [execution reference](docs/EXECUTION.md#changes-since-v240).
+
+The current **unreleased** audit redesign uses `tabilet/audit.sqlite3` and manual
+per-project enable/disable commands. Database-path options and environment
+overrides are removed. Reinstall the optional toolkit files together; updating
+skills alone does not update the installed runner or controller. Index
+compatibility fixes do not relax the runner's status/history validation.
+See [SQLite setup](#optional-sqlite-audit-and-lookup) and
+[Sync and Repair](#sync-and-repair). Published v2.4.0 and v2.5.x tags retain the
+storage behavior documented in their release notes.
+
+### Setup and Run
+
 ```bash
 mkdir -p ~/.local/bin
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
@@ -1381,6 +1417,24 @@ alias and `claude-opus-5`; consult the official [OpenAI model
 catalog](https://developers.openai.com/api/docs/models) and [Anthropic model
 catalog](https://platform.claude.com/docs/en/about-claude/models/overview) when
 selecting a model for a real run.
+
+### LLM prompt caching
+
+Prompt caching reuses provider-side processing of a matching input prefix;
+each API call still generates a response against the supplied context. Tabilet
+has no local LLM response cache, and SQLite audit/index storage is separate.
+
+Supported [OpenAI models](https://developers.openai.com/api/docs/guides/prompt-caching)
+and [DeepSeek](https://api-docs.deepseek.com/guides/kv_cache/) provide automatic
+prompt caching. [Claude caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+requires `cache_control`; the harness currently does not send it. Other
+OpenAI-compatible servers and gateways follow their own caching rules.
+
+The harness appends history within each row and starts a fresh conversation for
+the next row. Changing run metadata precedes the embedded instruction, limiting
+reuse across rows. Cache keys, breakpoints, retention controls, and normalized
+cache-hit reporting are not implemented. See
+[caching behavior and limits](docs/EXECUTION.md#prompt-caching-and-context).
 
 ### First run
 

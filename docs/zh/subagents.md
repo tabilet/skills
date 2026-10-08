@@ -3,6 +3,10 @@
 本指南定义了在 [`tabilet/GOAL.md`](goal.md) 协议下多里程碑工作流的子智能体执行架构。
 它规定了如何通过独立上下文的任务移交与只读并行扇出（Tier 0），以及选择性开启的并发工作树租约（Tier 1）来加速里程碑交付，同时严格维护里程碑质量、验证严密性以及单一账本执行所有者的核心不变量。
 
+本协议要求承载工作流的智能体支持委派。独立 Python API 运行器和可选 `tabilet` 控制器没有原生
+子智能体调度器，仍串行执行并遵守各自的提交契约。控制器拒绝链接工作树。详见
+[API 执行范围](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#changes-since-v240)。
+
 ## 目标与非目标 {#goals-and-non-goals}
 
 目标：

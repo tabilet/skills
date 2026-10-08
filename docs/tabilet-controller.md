@@ -5,6 +5,12 @@ one exact confirmation, and executes approved task rows in local Docker
 containers. The existing API runner remains a separate host-shell workflow.
 The seven skills also work without this controller.
 
+The controller executes its approved horizon serially. The v2.5 `GOAL.md`
+sub-agent protocol is used through a hosting agent with delegation capabilities;
+it does not add a parallel scheduler to this command. The controller's receipt
+and host-commit rules govern execution. Provider prompt caching follows the
+shared runner's [current caching behavior](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#prompt-caching-and-context).
+
 The controller uses the canonical Init, Propose, or Reconcile skill bundle as
 its planning contract. Planning tools are read-only. Direct skill invocations
 remain planning-only; the controller's `confirm` is a separate authorization
@@ -123,8 +129,9 @@ interactive agents.
 
 Each command receives a fresh networkless container with a read-only root, a
 private writable `/tmp`, bounded CPU, memory, process count, and command time.
-Only the project is mounted writable; its in-tree `.git` directory is mounted
-read-only. Provider credentials, host home, and the Docker socket are not
+Only the project is mounted writable; its in-tree `.git` directory and existing
+`tabilet/audit.sqlite3` database and sidecars are mounted read-only.
+Provider credentials, host home, and the Docker socket are not
 mounted into the container. The daemon must be local.
 
 This release supports standard repositories with an in-tree `.git` directory.
@@ -151,8 +158,13 @@ validation failed, and `25` means recovery needs manual review.
 ## Optional audit
 
 When the user manually enables audit for the project, the controller owns the
-audit lifecycle for its horizon. The standalone runner or skill recorder must not create a duplicate
-run. Audit failure is reported as a gap and does not change receipt state,
+audit lifecycle for its horizon. The standalone runner or skill recorder must
+not create a duplicate run. The current unreleased redesign fixes storage at
+`tabilet/audit.sqlite3`; no database-path flag or environment override remains.
+Enable or disable it manually with `tabilet-audit audit enable PROJECT` or
+`tabilet-audit audit disable PROJECT`. Index sync preserves that setting.
+Commit the setup ignore file before launching a clean-Git workflow.
+Audit failure is reported as a gap and does not change receipt state,
 verification, or exit status. Markdown and private receipts remain the
 controller's workflow sources.
 

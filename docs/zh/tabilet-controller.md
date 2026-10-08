@@ -4,6 +4,10 @@
 Docker 容器中执行获批任务。现有 API 运行器仍是另一条在宿主 shell 中执行的工作流。即使不安装控制器，
 七个技能也能独立使用。
 
+控制器串行执行获批工作范围。v2.5 的 `GOAL.md` 子智能体协议需要承载它的智能体支持委派，
+不会为本命令增加并行调度器。执行遵守控制器收据及宿主提交规则。提供方提示缓存沿用
+共享运行器的[当前缓存行为](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#prompt-caching-and-context)。
+
 控制器使用规范的 Init、Propose 或 Reconcile 技能包作为规划契约。规划工具只读。直接调用技能仍然只负责规划；
 控制器的 `confirm` 是一项单独授权，授权范围是展示的精确规划差异和一个有界的本地工作范围。
 
@@ -96,7 +100,8 @@ tabilet extend-limit /absolute/path/to/project \
 ## 沙箱和 Git 边界 {#sandbox-and-git-boundary}
 
 每条命令都在新建的无网络容器中运行，具有只读根文件系统、私有可写 `/tmp`，以及 CPU、内存、进程数和命令时间上限。
-只有项目以可写方式挂载；项目内 `.git` 以只读方式挂载。提供方凭据、宿主机 home 和 Docker 套接字都不会挂入容器。
+只有项目以可写方式挂载；项目内 `.git`、已有的 `tabilet/audit.sqlite3` 及 SQLite 旁文件以只读方式挂载。
+提供方凭据、宿主机 home 和 Docker 套接字都不会挂入容器。
 守护进程必须位于本地。
 
 此版本支持 `.git` 位于仓库内的标准仓库。它会拒绝链接工作树、子模块、外部 Git 目录、嵌套主机挂载，以及正在使用的
@@ -116,6 +121,10 @@ tabilet extend-limit /absolute/path/to/project \
 
 用户手动为项目启用审计后，控制器负责其工作范围的审计生命周期。运行器或技能记录器不得再创建重复运行。审计失败会报告为
 缺口，但不会改变收据状态、验证结果或退出状态。Markdown 和私有收据仍是控制器的工作流数据源。
+
+当前尚未发布的存储重设计将数据库固定在 `tabilet/audit.sqlite3`，移除了数据库路径参数和环境覆盖。
+用 `tabilet-audit audit enable PROJECT` 或 `tabilet-audit audit disable PROJECT` 手动改变设置；
+索引同步保留该设置。需要干净 Git 基线的工作流开始前，请提交设置生成的忽略文件。
 
 ## 验收 {#acceptance}
 

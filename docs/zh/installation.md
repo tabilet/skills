@@ -210,9 +210,11 @@ ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
   ~/.local/bin/tackle-memory-bank-api-loop /absolute/path/to/project
 ```
 
-Markdown 改动后运行 `tabilet-audit index sync /absolute/path/to/project`，用
-`tabilet-audit audit runs --project /absolute/path/to/project` 查看已记录的运行。
-API 运行器自己负责审计运行的开始、事件和结束，不要再手动启动一个重复运行。SQLite 文件要放在项目之外。
+已启用审计的工作流通常会在结束时刷新索引。手动修改或检索数据过期时，请参见
+[同步和修复说明](https://github.com/tabilet/skills/blob/main/README.md#sync-and-repair)。
+用 `tabilet-audit audit runs --project /absolute/path/to/project` 查看已记录的运行。
+API 运行器自己负责审计运行的开始、事件和结束，不要再手动启动一个重复运行。
+数据库固定为 `tabilet/audit.sqlite3`；需要干净 Git 基线的工作流开始前，请提交设置生成的忽略文件。
 
 `metadata` 是默认模式。设为 `TABILET_AUDIT_CAPTURE=relevant` 后，运行器提供的部分可见消息会被保留。
 它不会捕获每个 API 提示词、工具结果、隐藏推理或会话外的聊天。要保存精确的原始文本，必须由宿主按

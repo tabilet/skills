@@ -28,6 +28,12 @@ adding ordering edges. `STATUS_ORDER` remains strict even when parallelism is
 enabled. Use exactly one field; the [sub-agent guide](subagents.md#preconditions)
 shows a concurrent request and its safety requirements.
 
+Delegation depends on the hosting agent's capabilities. The standalone API
+runner and optional `tabilet` controller execute serially and keep their own
+commit rules; a goal `COMMIT_POLICY` does not override either API path. The
+controller rejects linked worktrees. See the
+[API execution scope](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#changes-since-v240).
+
 ## When to use it
 
 When several milestones should run in a defined order, rather than one task at

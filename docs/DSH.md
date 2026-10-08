@@ -65,6 +65,12 @@ No button submits, approves, edits status, or starts another ledger writer.
 The v2 sidebar displays v1.5.0 projects read-only with a migration warning;
 workflow previews are offered after explicit migration.
 
+The current unreleased companion instead reads the fixed project database at
+`tabilet/audit.sqlite3` and displays its saved manual audit setting. Existing
+v2.4.0 installations keep the released external-storage behavior until updated;
+the [companion acceptance record](https://github.com/tabilet/tabilet-skills/blob/main/docs/ACCEPTANCE.md)
+distinguishes published artifacts from the source candidate.
+
 The bundle's filesystem provider has default-root discovery disabled and runs at
 bundled priority. Project/user overrides retain their normal precedence. The
 Compatibility view reports winning sources and known shadowing; review duplicates

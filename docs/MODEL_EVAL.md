@@ -61,6 +61,12 @@ approval explicitly. Keep one ledger writer across all runtimes.
 
 Record component versions, model, usage, conservative cost, scenario outcomes,
 and residual failures in [acceptance evidence](DSH.md#acceptance-evidence).
+
+For API cost comparisons, also record the provider's prompt-cache configuration
+and reported cache reads/writes when available. SQLite audit records do not
+establish a provider cache hit, and current console output omits nested OpenAI
+cache details. Use provider usage diagnostics for complete accounting; see
+[current caching behavior](EXECUTION.md#prompt-caching-and-context).
 The live suite has a US$10 total ceiling and must be explicitly invoked with
 enforceable budget controls. It never runs automatically on pull requests.
 Missing credentials, controls, or budget leave it incomplete, even when all

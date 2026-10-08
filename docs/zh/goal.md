@@ -21,6 +21,11 @@
 里程碑中选择派发优先级，不增加先后关系。即使开启并发，`STATUS_ORDER` 仍要求严格按顺序执行。
 两个字段只能选择一个；[子智能体指南](subagents.md#preconditions) 给出了并发请求及其安全前提。
 
+委派能力取决于承载工作流的智能体。独立 API 运行器和可选 `tabilet` 控制器仍串行执行，
+并遵守各自的提交规则；goal 的 `COMMIT_POLICY` 不会覆盖这两条 API 路径。
+控制器拒绝链接工作树。详见
+[API 执行范围](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#changes-since-v240)。
+
 ## 何时使用
 
 当多个里程碑需要按既定顺序依次跑完，而不是一次只做一个任务时。

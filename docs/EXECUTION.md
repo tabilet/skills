@@ -123,6 +123,65 @@ seconds), `LLM_MAX_RETRIES` (default `2` retries after the first attempt), and
 `MAX_HISTORY_CHARS` (default `500000`). `MAX_TOOL_OUTPUT` remains the combined
 stdout/stderr character budget for each command.
 
+### Changes since v2.4.0
+
+The v2.5 `GOAL.md` protocol describes delegation and approved concurrent leases
+for agents that can create and manage sub-agents. It is an instruction protocol;
+the Python API paths have no native sub-agent scheduler:
+
+- The standalone runner invokes `one_agent_run` serially, starts a fresh
+  conversation for each row, and preserves its one-row transition and commit
+  gates. Goal `COMMIT_POLICY: none` does not remove its commit requirement.
+- The controller executes approved rows serially, with separate planning,
+  task, and closure conversations. Receipt limits, host commits, and review
+  gates govern it. It still rejects linked worktrees and cannot execute the
+  goal protocol's concurrent worktree leases.
+
+Use the [goal protocol and sub-agent guide](subagents.md) through a capable
+hosting agent when requesting delegation. Those instructions do not turn an
+ordinary API-loop invocation into a goal run.
+
+Current unreleased source also changes audit storage and activation. Each
+repository manually enables `tabilet/audit.sqlite3`; linked worktrees share the
+primary checkout's database and setting. Database-path flags and environment
+overrides are removed. Reinstall the toolkit modules together; updating the
+skills alone does not update installed executables. The controller installer
+updates its separate runtime modules. Existing controller audit files and
+SQLite sidecars are mounted read-only in Docker alongside `.git`.
+
+Historical lookup compatibility can improve index completeness without changing
+frozen Markdown. The execution runner's status and retirement validation stays
+strict. Published v2.4.0 and v2.5.x tags retain their released behavior; the local
+audit redesign requires the updated source toolkit.
+
+### Prompt caching and context
+
+Tabilet sends HTTP requests to the configured provider. It has no local model
+response cache and stores no model KV cache in SQLite. Provider prompt caching
+reuses processing of a matching prefix while generating a new response. Cache
+hits still count as provider attempts and never bypass verification or commits.
+
+| Provider | Current behavior |
+|---|---|
+| OpenAI | Prompt caching is automatic for supported models. The harness sends no explicit cache keys, breakpoints, or retention options. See [official OpenAI documentation](https://developers.openai.com/api/docs/guides/prompt-caching). |
+| DeepSeek | Context caching is automatic on DeepSeek's API; the harness can use the provider's cache without opting in. See [DeepSeek's guide](https://api-docs.deepseek.com/guides/kv_cache/). |
+| Direct Claude API | Prompt caching requires `cache_control`. The current Anthropic payload sends none, so the harness does not explicitly enable Claude prompt caching. See [Claude's guide](https://platform.claude.com/docs/en/build-with-claude/prompt-caching). |
+| Other compatible servers or gateways | Behavior depends on that service; API compatibility does not establish identical cache support. |
+
+Within a row, messages are appended without rewriting earlier conversation
+turns. A new row starts a fresh conversation. In the standalone initial message,
+repository/run metadata comes before the large embedded instruction, so its
+changing prefix limits instruction reuse across rows. Current request layout
+does not promise an optimized cache hit rate.
+
+The runner prints scalar usage fields returned by the provider, including
+DeepSeek's cache-hit/miss counters when supplied. It does not flatten nested
+OpenAI `prompt_tokens_details.cached_tokens` or maintain a cache accounting
+dashboard. Inspect provider usage diagnostics for complete cache reporting.
+Stable prompt prefixes, provider-specific opt-in controls, and normalized cache
+metrics would be separate harness improvements. Fresh contexts and SQLite
+lookup refresh serve different purposes from provider prompt caching.
+
 ### Exit Codes
 
 The harness signals every outcome through its exit code. Codes 3 through 7 are

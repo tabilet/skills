@@ -233,8 +233,9 @@ ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=openai LLM_MODEL=your-model MAX_RUNS=1 \
   ~/.local/bin/tackle-memory-bank-api-loop /absolute/path/to/project
 ```
 
-Run `tabilet-audit index sync /absolute/path/to/project` after Markdown changes
-and use `tabilet-audit audit runs --project /absolute/path/to/project` to review
+Audited workflows normally refresh the index when they finish. For manual edits
+or stale lookup data, use the [sync and repair guidance](https://github.com/tabilet/skills/blob/main/README.md#sync-and-repair).
+Use `tabilet-audit audit runs --project /absolute/path/to/project` to review
 recorded runs. The API runner owns its own audit lifecycle; do not start a
 duplicate manual run. Commit the setup ignore file before a clean-Git workflow.
 

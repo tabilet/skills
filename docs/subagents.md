@@ -7,6 +7,12 @@ fan-out (Tier 0), as well as opt-in concurrent worktree leases (Tier 1), while
 strictly preserving milestone quality, verification rigor, and the
 single-ledger execution owner invariant.
 
+This protocol requires a hosting agent that can delegate. The standalone Python
+API runner and optional `tabilet` controller have no native sub-agent scheduler;
+they retain serial execution and their own commit contracts. The controller
+rejects linked worktrees. See the
+[API execution scope](https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#changes-since-v240).
+
 ## Goals and non-goals
 
 Goals:
