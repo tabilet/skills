@@ -1,8 +1,8 @@
-# A Minimal Engineering Harness
+# Tabilet: A Minimal Engineering Harness
 
 Coding agents work better when a project can explain itself: what it is, what is
-done, and what comes next. This repository gives you a small set of plain-text
-files, mostly markdown, that do exactly that. You copy them into your project and
+done, and what comes next. The **Tabilet Harness** gives you a small set of plain-text
+files—a **Tabilet memory bank**—that does exactly that. You copy them into your project and
 own them from that moment on.
 
 Everything here is plain text, so `git` is the only tool you need. You can read
@@ -19,7 +19,7 @@ Six months from now, the only files you are maintaining are still your own.
 Seven optional skills can do the mapping, copying, and filling for you; see
 [Install The Seven Skills](#install-the-seven-skills). The files they write are
 yours from the moment they appear. You and your agent maintain them during
-authorized work; installing or updating the plugin does not migrate them.
+authorized work; installing or updating the Tabilet plugin does not migrate them.
 
 For a project with uncertain later delivery, the optional
 [`tabilet/stages.md`](#stage-planning) records broad stages. Init plans milestones
@@ -32,39 +32,39 @@ The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the pub
 
 ## Contents
 
-- [Getting started](#getting-started)
-- [What is in this repository](#what-is-in-this-repository)
-- [Filled-in example and memory-bank structure](#what-a-filled-in-memory-bank-looks-like)
-- [Project setup](#set-up-a-new-project)
-  - [Set up a new project](#set-up-a-new-project) ([Wiring up your agent](#wiring-up-your-agent))
-  - [Set up an existing project](#set-up-an-existing-project) ([Archive a large package](#archive-a-large-existing-package))
-  - [Stage planning](#stage-planning)
-- [Planning and review workflows](#propose-a-requested-change)
-  - [Propose a requested change](#propose-a-requested-change)
-  - [Reconcile a new review](#reconcile-a-new-review)
-- [Use the memory bank](#use-the-memory-bank)
-  - [Status ID lanes](#status-id-lanes)
-  - [Keep long-term memory without growing the active plan](#keep-long-term-memory-without-growing-the-active-plan)
-  - [Upgrade an existing project](#upgrade-an-existing-project)
-  - [Run an ordered set of milestones (`tabilet/GOAL.md`)](#run-an-ordered-set-of-milestones)
-- [Install the seven skills](#install-the-seven-skills)
-  - [Suggested models](#suggested-models)
-  - [Supported agents (Claude Code, Codex, agy, DSH)](#install-the-seven-skills)
-  - [Plain files installation](#as-plain-files-you-own)
-  - [DSH installation](#dsh-installation)
-  - [Update installed skills](#update-installed-skills)
-  - [Uninstall or remove skills](#uninstall-or-remove-skills)
-- [Optional SQLite audit and lookup](#optional-sqlite-audit-and-lookup)
-  - [Sync and Repair](#sync-and-repair)
-- [Install the API harness](#install-the-api-harness)
-  - [Changes since v2.4.0](#api-changes-since-v240)
-  - [Setup and Run](#setup-and-run)
-  - [LLM prompt caching](#llm-prompt-caching)
-  - [First run & guardrails](#first-run)
-  - [API-only workflow](#api-only-workflow)
-  - [Tabilet controller guide](docs/tabilet-controller.md)
-  - [Execution harness reference](docs/EXECUTION.md)
-- [What the harness is](#what-the-harness-is) and [maintenance rules](#maintenance-rules)
+1. [Getting started](#chapter-1-getting-started)
+2. [What is in this repository](#chapter-2-what-is-in-this-repository)
+3. [Filled-in example and memory-bank structure](#chapter-3-what-a-filled-in-memory-bank-looks-like)
+4. [Project setup](#chapter-4-project-setup)
+    - 4.1 [Set up a new project](#41-set-up-a-new-project) ([Wiring up your agent](#wiring-up-your-agent))
+    - 4.2 [Set up an existing project](#42-set-up-an-existing-project) ([Archive a large package](#archive-a-large-existing-package))
+    - 4.3 [Stage planning](#43-stage-planning)
+5. [Planning and review workflows](#chapter-5-planning-and-review-workflows)
+    - 5.1 [Propose a requested change](#51-propose-a-requested-change)
+    - 5.2 [Reconcile a new review](#52-reconcile-a-new-review)
+6. [Use the memory bank](#chapter-6-use-the-memory-bank)
+    - 6.1 [Status ID lanes](#61-status-id-lanes)
+    - 6.2 [Keep long-term memory without growing the active plan](#62-keep-long-term-memory-without-growing-the-active-plan)
+    - 6.3 [Upgrade an existing project](#63-upgrade-an-existing-project)
+    - 6.4 [Run an ordered set of milestones (`tabilet/GOAL.md`)](#64-run-an-ordered-set-of-milestones)
+7. [Install the seven skills](#chapter-7-install-the-seven-skills)
+    - 7.1 [Suggested models](#71-suggested-models)
+    - 7.2 [Supported agents (Claude Code, Codex, agy, DSH)](#72-supported-agents-claude-code-codex-agy-dsh)
+    - 7.3 [Plain files installation](#73-plain-files-installation)
+    - 7.4 [DSH installation](#74-dsh-installation)
+    - 7.5 [Update installed skills](#75-update-installed-skills)
+    - 7.6 [Uninstall or remove skills](#76-uninstall-or-remove-skills)
+8. [Optional SQLite audit and lookup](#chapter-8-optional-sqlite-audit-and-lookup)
+    - 8.1 [Sync and Repair](#81-sync-and-repair)
+9. [Install the API harness](#chapter-9-install-the-api-harness)
+    - 9.1 [Changes since v2.4.0](#91-changes-since-v240)
+    - 9.2 [Setup and Run](#92-setup-and-run)
+    - 9.3 [LLM prompt caching](#93-llm-prompt-caching)
+    - 9.4 [First run & guardrails](#94-first-run-guardrails)
+    - 9.5 [API-only workflow](#95-api-only-workflow)
+    - 9.6 [Tabilet controller guide](docs/tabilet-controller.md)
+    - 9.7 [Execution harness reference](docs/EXECUTION.md)
+10. [What the harness is](#chapter-10-what-the-harness-is) and [maintenance rules](#101-maintenance-rules)
 
 Your project ends up looking like this:
 
@@ -75,6 +75,7 @@ your-project/
 └── tabilet/
     ├── GOAL.md               optional multi-milestone protocol
     ├── stages.md             optional overview of delivery stages
+    ├── audit.sqlite3         optional local audit database and index
     ├── memory-bank/           current facts and active work
     │   ├── product.md         product scope, domain model, and non-goals
     │   ├── architecture.md    layout, data flow, boundaries
@@ -91,19 +92,20 @@ your-project/
         └── result-v1.md
 ```
 
-The term *memory bank* was popularised by [Cline](https://docs.cline.bot/best-practices/memory-bank); this is a different
+The term *memory bank* was popularised by [Cline](https://docs.cline.bot/best-practices/memory-bank); the **Tabilet memory bank** is a different
 implementation of the same idea, in plain files with no runtime.
 
 Throughout, **harness** means a repeatable command that proves something works,
 such as your test suite, a CI job, or a script. Your project defines its own in
-`tech-stack.md`. This repository also ships two optional API paths: a standalone
+`tech-stack.md`. The **Tabilet Harness** also ships two optional API paths: a standalone
 loop that drives an agent through one row using the host shell, and a
 Docker-backed controller that shows the proposed plan and limits before
 confirmation, then resumes through verified milestone closure. Required manual
 evidence pauses completion until it is supplied. See the
 [controller guide](docs/tabilet-controller.md).
 
-## Getting Started
+<a id="getting-started"></a>
+## Chapter 1. Getting Started
 
 **New to this?** [docs/TUTORIAL.md](docs/TUTORIAL.md) walks a toy project from
 an empty directory to a first committed task in twenty minutes, using
@@ -114,7 +116,7 @@ Already have a project or a new review? [Skill use cases](docs/USE_CASES.md)
 shows individual and combined workflows, including automatic retirement versus
 explicit context snapshots.
 
-The memory bank is plain Markdown and needs no runtime to read or maintain.
+The Tabilet memory bank is plain Markdown and needs no runtime to read or maintain.
 Git is required by the usual per-task commit workflow and the optional API
 harness. A permitted no-commit workflow can maintain the same files without
 Git, including their retired records.
@@ -131,9 +133,9 @@ Installing v2 does not move project files.
 The existing-project instructions below also use
 [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) for the initial inventory.
 
-The quickest way to start does not require cloning anything. Install the plugin
+The quickest way to start does not require cloning anything. Install the Tabilet plugin
 and let its namespaced `memory-bank-init` skill interview you and write the
-memory bank for you:
+Tabilet memory bank for you:
 
 ```bash
 /plugin marketplace add tabilet/skills
@@ -158,7 +160,8 @@ cd skills
 Nothing runs from the clone itself. You copy files out of it: `template/` into a
 project, `harness/` into your home directory.
 
-## What Is In This Repository
+<a id="what-is-in-this-repository"></a>
+## Chapter 2. What Is In This Repository
 
 Project-level sample files in [template/](template/), copied into a project
 root:
@@ -215,16 +218,17 @@ launch reference when no compatible protocol exists instead of naming a missing
 or incompatible file.
 
 `.claude-plugin/` holds the compatibility manifest used to install the same
-plugin in Claude Code and Codex. Nothing in `template/` is vendor-specific.
+Tabilet plugin in Claude Code and Codex. Nothing in `template/` is vendor-specific.
 
 Harness references:
 
 - [Execution Harness](docs/EXECUTION.md)
 - [Model Eval Harness](docs/MODEL_EVAL.md)
 
-## What A Filled-In Memory Bank Looks Like
+<a id="what-a-filled-in-memory-bank-looks-like"></a>
+## Chapter 3. What A Filled-In Memory Bank Looks Like
 
-The template ships placeholders. Here is the same memory bank filled in for a
+The template ships placeholders. Here is the same Tabilet memory bank filled in for a
 small shopping service, so you can see the destination before the directions.
 
 `tabilet/memory-bank/product.md` starts as `[project-name] is [one or two sentences
@@ -302,7 +306,10 @@ Empty or unreadable status files also stop the run. Older separately installed
 runners can silently overlook malformed rows; updating skills does not update
 that runner.
 
-## Set Up A New Project
+## Chapter 4. Project Setup
+
+<a id="set-up-a-new-project"></a>
+### 4.1 Set Up A New Project
 
 If you installed [the seven skills](#install-the-seven-skills),
 `memory-bank-init` does everything in this section: it interviews you, proposes
@@ -312,7 +319,7 @@ filled in. The two routes below are the same work done by hand.
 For a medium or large project, Init asks about stages without requiring a
 detailed plan for distant work.
 
-### Manual
+#### 4.1.1 Manual
 
 From a new project root:
 
@@ -344,7 +351,8 @@ see [Stage Planning](#stage-planning).
 
 Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
 
-### Wiring up your agent
+<a id="wiring-up-your-agent"></a>
+#### 4.1.2 Wiring up your agent
 
 `AGENTS.md` is an [open cross-vendor standard](https://agents.md) stewarded by
 the Agentic AI Foundation. Most coding agents read it with no setup at all,
@@ -364,7 +372,7 @@ that will drift:
 On Windows, symlinks need Administrator or Developer Mode, so prefer the import
 form there.
 
-### With Help Of An AI Agent
+#### 4.1.3 With Help Of An AI Agent
 
 For a new project, you can use the sample files as the initial structure and ask
 an AI agent to fill them in after you describe the product.
@@ -401,7 +409,8 @@ status ID lanes in tabilet/memory-bank/milestone.md, and make tabilet/memory-ban
 contain the first actionable milestone rows.
 ```
 
-## Set Up An Existing Project
+<a id="set-up-an-existing-project"></a>
+### 4.2 Set Up An Existing Project
 
 `memory-bank-init` handles a small existing package directly. It reads what the
 repository already states in the README, tests, build and CI files, interfaces,
@@ -414,7 +423,8 @@ contexts, or cannot be evidenced reliably in one initialization pass, it stops
 before writing and requires `memory-bank-archive` as a preflight. This is an
 adaptive evidence boundary, not a file-count or line-count threshold.
 
-### Archive A Large Existing Package
+<a id="archive-a-large-existing-package"></a>
+#### 4.2.1 Archive A Large Existing Package
 
 Start from a clean Git commit and run:
 
@@ -446,7 +456,7 @@ After the archive index shows every selected context as verified, run
 summaries, interviews the remaining decisions, and creates the milestone/status
 harness.
 
-### Manual
+#### 4.2.2 Manual
 
 For an existing project, read before writing:
 
@@ -468,7 +478,7 @@ Then:
    and one `tabilet/memory-bank/status-<LANE><NN>.md` file per milestone.
 6. Keep known gaps visible in the matching status file instead of hiding them.
 
-### With Help Of An AI Agent
+#### 4.2.3 With Help Of An AI Agent
 
 For an existing project, the agent can do the inventory and first memory-bank
 draft. This works best when the project already has useful README, docs, package
@@ -507,7 +517,8 @@ The agent should:
 6. Leave unresolved gaps as pending or blocked rows in the matching
    `tabilet/memory-bank/status-<LANE><NN>.md` file.
 
-## Stage Planning
+<a id="stage-planning"></a>
+### 4.3 Stage Planning
 
 For a project with uncertain later work, Init can create an optional
 `tabilet/stages.md`. It plans milestones for the current stage's next verifiable
@@ -518,7 +529,10 @@ have their own stable IDs. A stage description does not create a task or advance
 the active milestone plan. Without this file, the existing one-stage workflow
 applies. The [Init guide](docs/init.md) describes the staging question and output.
 
-## Propose A Requested Change
+## Chapter 5. Planning And Review Workflows
+
+<a id="propose-a-requested-change"></a>
+### 5.1 Propose A Requested Change
 
 When an initialized project needs a new feature, candidate promotion, or change
 to future direction, use `memory-bank-propose`. It inspects current records and
@@ -534,7 +548,8 @@ ask explicitly to plan milestones when ready. A stage label alone does not
 defer approved pending work. Propose can present an explicit rescope for
 approval, preserving the old task record and reconciling its dependencies.
 
-## Reconcile A New Review
+<a id="reconcile-a-new-review"></a>
+### 5.2 Reconcile A New Review
 
 After a project has its milestone/status harness, a new code, architecture,
 security, or engineering review should change the plan only after its findings
@@ -565,16 +580,17 @@ whole active horizon when a compatible `tabilet/GOAL.md` exists. It does not imp
 commit, or launch the fixes; use `memory-bank-next` or `memory-bank-goal` after
 approving the reconciled plan.
 
-## Use The Memory Bank
+<a id="use-the-memory-bank"></a>
+## Chapter 6. Use The Memory Bank
 
-There are four ways to execute against the memory bank, and all of them are
+There are four ways to execute against the Tabilet memory bank, and all of them are
 optional, because the memory bank is plain markdown and works on its own:
 
 | Way to execute | Scope | Needs |
 |---|---|---|
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
 | [`memory-bank-next`](#install-the-seven-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
-| [The API harness](#install-the-api-harness) | One row per run, unattended | Python 3.9+ |
+| [The Tabilet API harness](#install-the-api-harness) | One row per run, unattended | Python 3.9+ |
 | [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `tabilet/GOAL.md` and an agent request or optional skill |
 
 With an agent such as Codex or Claude Code, the user-facing workflow can be as
@@ -624,7 +640,8 @@ Under the surface, the normal agent workflow is:
 10. Check `tabilet/evolution/` and add a new version only when the review finds a real
    direction, boundary, milestone, or contract change.
 
-### Status ID lanes
+<a id="status-id-lanes"></a>
+### 6.1 Status ID lanes
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. The lane letter
 classifies the work and the number is zero-padded to two digits, so accounting
@@ -671,9 +688,10 @@ for audit, and name the accepted successor in the row notes. Before invoking an
 operational launcher, its exact authorized operation row must be `[~]`; that
 marker records the selection but does not grant external-mutation authority.
 
-### Keep long-term memory without growing the active plan
+<a id="keep-long-term-memory-without-growing-the-active-plan"></a>
+### 6.2 Keep long-term memory without growing the active plan
 
-The memory bank is the working context, not a lifetime log. Keep current facts,
+The Tabilet memory bank is the working context, not a lifetime log. Keep current facts,
 active plans, and applicable learning there; preserve retired evidence under
 `tabilet/docs/history/` and consult it on demand. This prevents accumulated history
 from growing the startup read indefinitely. It does not impose a hard token or
@@ -743,7 +761,8 @@ For when to invoke each skill, see [skill use cases](docs/USE_CASES.md), especia
 [automatic retirement](docs/USE_CASES.md#6-automatic-retirement-during-normal-work)
 and [explicit successor snapshots](docs/USE_CASES.md#7-explicitly-snapshot-a-materially-changed-system).
 
-### Upgrade an existing project
+<a id="upgrade-an-existing-project"></a>
+### 6.3 Upgrade an existing project
 
 Use `memory-bank-upgrade` after updating the installed skills. It compares an
 existing project's rules with its bundled template, shows a complete merge
@@ -783,7 +802,8 @@ to compare this project's rules with the bundled contract. Preserve our
 plans, custom instructions, IDs, and history. Show the complete file actions
 before writing.” This request does not authorize implementation tasks or commits.
 
-### Run an ordered set of milestones
+<a id="run-an-ordered-set-of-milestones"></a>
+### 6.4 Run an ordered set of milestones
 
 The workflow above advances one row at a time. To work through several
 milestones in a defined order, [GOAL.md](template/tabilet/GOAL.md) is one protocol for
@@ -815,7 +835,7 @@ COMMIT_POLICY: task
 ```
 
 You can paste that block into any agent as an ordinary request. If you installed
-the plugin, its goal skill supplies the same protocol and commit policy:
+the Tabilet plugin, its goal skill supplies the same protocol and commit policy:
 
 ```text
 /memory-bank:memory-bank-goal M01 -> S01 -> A01?   # Claude Code plugin
@@ -836,7 +856,7 @@ strict; `STATUS_PRIORITY` chooses among dependency-ready milestones. These are
 `GOAL.md` capabilities of the hosting agent. The standalone API runner and
 `tabilet` controller remain serial and keep their own commit requirements.
 
-#### Keep a long run active
+#### 6.4.1 Keep a long run active
 
 Both [Claude Code](https://code.claude.com/docs/en/goal) and
 [Codex](https://learn.chatgpt.com/use-cases/follow-goals) provide a built-in
@@ -863,7 +883,7 @@ prompts](https://learn.chatgpt.com/docs/custom-prompts) are deprecated in favor
 of skills, so this repository does not install or recommend a separate
 `goal.md` prompt.
 
-#### Any other agent
+#### 6.4.2 Any other agent
 
 Paste the block as an ordinary request. Naming the file is all the protocol
 needs; nothing depends on a slash command existing.
@@ -895,7 +915,8 @@ not because anything here depends on it. If you have your own, point the two
 <a id="install-the-five-skills"></a>
 <a id="install-the-six-skills"></a>
 
-## Install The Seven Skills
+<a id="install-the-seven-skills"></a>
+## Chapter 7. Install The Seven Skills
 
 Version 2.0.0 publishes all seven skills under the new project layout. Existing projects
 adopt its requested-change procedure through an approved Upgrade proposal.
@@ -914,7 +935,8 @@ paraphrase of it.
 | `memory-bank-next` | Execute or resume one row, verify, and commit under the governing policy. |
 | `memory-bank-goal` | When you want several milestones run in order. |
 
-### Suggested models
+<a id="suggested-models"></a>
+### 7.1 Suggested models
 
 The skills do not require, select, or bundle a particular language model. Each
 skill runs with the model chosen by its host agent, and the project files remain
@@ -954,9 +976,11 @@ horizon and every file action. You never see a bracketed placeholder, because
 the memory bank arrives filled in. *(Interview technique adapted from the `grilling` skill in
 [mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
 
+### 7.2 Supported agents (Claude Code, Codex, agy, DSH)
+
 Claude Code, Codex, and `agy` (Google Antigravity) read the same `SKILL.md` format
 **and the same manifest**. DSH loads the same complete directories through its
-filesystem skill loader; see [DSH installation](#dsh-installation).
+filesystem skill loader; see [DSH installation](#74-dsh-installation).
 
 **Claude Code:**
 
@@ -1006,6 +1030,8 @@ skill invocation](https://developers.openai.com/plugins/build/skills), and
 Plain English also works across all agents.
 
 <a id="as-plain-files-you-own"></a>
+### 7.3 Plain files installation
+
 **As plain files you own** rather than a managed plugin, install into each
 agent's personal skill directory:
 
@@ -1031,7 +1057,7 @@ match the archive's directory name. For tag `v1.3.0`, those are
 `refs/tags/v1.3.0` and `skills-1.3.0` respectively: the extracted directory omits
 the tag's leading `v`. A tag download is available only after publication.
 
-The plugin installs the *generator*, not the output. What it writes into your
+The Tabilet plugin installs the *generator*, not the output. What it writes into your
 project is yours, is never updated from here, and survives uninstalling it.
 
 The skill is deliberately not named `goal`: Claude Code and Codex reserve
@@ -1040,7 +1066,8 @@ built-in `/goal` for keeping a durable objective active, while
 work together; see [Run an ordered set of
 milestones](#run-an-ordered-set-of-milestones).
 
-### DSH installation
+<a id="dsh-installation"></a>
+### 7.4 DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
 packages the seven v2.4.0 skills and adds a native
@@ -1089,7 +1116,8 @@ for the active ledger. See [the DSH tutorial route](docs/TUTORIAL.md#dsh-route)
 and [detailed integration guide](docs/DSH.md) for prerequisites, permissions,
 resource loading, goal continuation, and verification.
 
-### Update installed skills
+<a id="update-installed-skills"></a>
+### 7.5 Update installed skills
 
 Updating installed skills refreshes the tools available to your agent. Remember:
 **updating installed skills does not alter your project's memory bank files or rules**.
@@ -1119,7 +1147,8 @@ after updating the skills.
 - **Plain-file installs:**
   Re-download or copy the updated `skills/` folders into `~/.agents/skills/` (or `~/.claude/skills/`).
 
-### Uninstall or remove skills
+<a id="uninstall-or-remove-skills"></a>
+### 7.6 Uninstall or remove skills
 
 Uninstalling removes the generator skills from your agent environment. Project
 Markdown files in your repositories remain untouched and continue to function as
@@ -1189,7 +1218,8 @@ no project, such as an architecture argument, a hiring plan, or a talk outline. 
 `memory-bank-init` when the thing you are grilling about is a codebase that has
 to still know what it is next week.
 
-## Optional SQLite audit and lookup
+<a id="optional-sqlite-audit-and-lookup"></a>
+## Chapter 8. Optional SQLite Audit And Lookup
 
 Markdown remains authoritative. The optional `tabilet-audit` toolkit records
 workflow evidence in **one database per project**, always at
@@ -1254,7 +1284,8 @@ and prepares follow-up text for copying only. It does not launch an agent, chang
 Markdown, or create task rows. From a remote server, use
 `ssh -N -L 8000:127.0.0.1:8000 user@host` and browse to `http://localhost:8000/`.
 
-### Sync and Repair
+<a id="sync-and-repair"></a>
+### 8.1 Sync and Repair
 
 `audit enable` already creates the database if needed. `index sync` builds or
 refreshes its Markdown lookup tables. Run it:
@@ -1278,7 +1309,7 @@ If older retired records make refresh fail with `expected one fenced markdown
 document` or `expected Milestone specification and Status record sections`,
 follow [retirement-index recovery](docs/sqlite.md#recover-a-failed-retirement-index):
 update the checkout, reinstall the optional toolkit, and rebuild the index.
-Updating the plugin alone does not update `~/.local/bin`; preserve frozen Markdown
+Updating the Tabilet plugin alone does not update `~/.local/bin`; preserve frozen Markdown
 and the audit database during recovery.
 
 ```bash
@@ -1298,17 +1329,19 @@ from Markdown. This changes no Markdown or frozen records.
 If you have an older shared database (including one from before v2.6.0), you can
 ask your LLM agent to extract this project's history and import it into its SQLite database.
 
-## Install The API Harness
+<a id="install-the-api-harness"></a>
+## Chapter 9. Install The API Harness
 
-This section is optional. Everything above works without it, because the harness
+This section is optional. Everything above works without it, because the Tabilet Harness
 only adds an unattended loop that drives an agent through the API instead of you
 typing into one. Skip it if Codex, Claude Code, or another agent already does
 that for you.
 
-The API harness is account-level because it can drive any project that follows
+The Tabilet API harness is account-level because it can drive any project that follows
 this memory-bank shape. It needs Python 3.9 or later and nothing else.
 
-### API changes since v2.4.0
+<a id="api-changes-since-v240"></a>
+### 9.1 Changes since v2.4.0
 
 The v2.5 goal protocol adds sub-agent execution instructions for capable agents.
 The two API paths retain their existing execution scope:
@@ -1332,7 +1365,8 @@ See [SQLite setup](#optional-sqlite-audit-and-lookup) and
 [Sync and Repair](#sync-and-repair). Published v2.4.0 and v2.5.x tags retain the
 storage behavior documented in their release notes.
 
-### Setup and Run
+<a id="setup-and-run"></a>
+### 9.2 Setup and Run
 
 ```bash
 mkdir -p ~/.local/bin
@@ -1418,7 +1452,8 @@ catalog](https://developers.openai.com/api/docs/models) and [Anthropic model
 catalog](https://platform.claude.com/docs/en/about-claude/models/overview) when
 selecting a model for a real run.
 
-### LLM prompt caching
+<a id="llm-prompt-caching"></a>
+### 9.3 LLM prompt caching
 
 Prompt caching reuses provider-side processing of a matching input prefix;
 each API call still generates a response against the supplied context. Tabilet
@@ -1436,7 +1471,8 @@ The runner prints input, cached, cache-write, and output tokens for every
 turn, showing `unknown` for anything the provider did not report. See
 [caching behavior and settings](docs/EXECUTION.md#prompt-caching-and-context).
 
-### First run
+<a id="first-run"></a>
+### 9.4 First run & guardrails
 
 A run starts by printing the repository, provider, model, and API endpoint, then
 works one row:
@@ -1459,7 +1495,8 @@ check filenames and the history index. A valid project with all milestones
 retired exits `0`. The full table is in
 [Execution Harness](docs/EXECUTION.md#exit-codes).
 
-### API-only workflow
+<a id="api-only-workflow"></a>
+### 9.5 API-only workflow
 
 An API-only setup uses the project's Markdown as authoritative memory and the
 `tabilet/audit.sqlite3` database for observed workflow history. The API runner rereads
@@ -1498,9 +1535,10 @@ confirmed logical content purge while retaining the immutable envelope and
 tombstone. Markdown remains authoritative, and purge cannot remove copies in
 backups or exports.
 
-## What The Harness Is
+<a id="what-the-harness-is"></a>
+## Chapter 10. What The Harness Is
 
-For normal project work, `tackle-memory-bank-api-loop` is an execution harness:
+For normal project work, the Tabilet Harness (`tackle-memory-bank-api-loop`) is an execution harness:
 it repeatedly runs an agent against a repository, gives it shell access through a
 JSON command protocol, and checks git state between runs. It requires the target
 to be the git worktree root, requires history to advance without a rewrite, and
@@ -1530,7 +1568,8 @@ Read more:
 - [Execution Harness](docs/EXECUTION.md)
 - [Model Eval Harness](docs/MODEL_EVAL.md)
 
-## Maintenance Rules
+<a id="maintenance-rules"></a>
+### 10.1 Maintenance Rules
 
 - Keep `AGENTS.md` short.
 - Keep project `README.md` user-facing.
