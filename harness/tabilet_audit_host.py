@@ -237,12 +237,12 @@ def dispatch(args):
     if args.group == 'audit' and write and not database.exists():
         raise audit.AuditError('audit is disabled; manually run tabilet-audit audit enable PROJECT first')
     if args.group == 'audit' and write:
-        with contextlib.closing(audit.open_readonly_database(database, project_root=root)) as readonly:
+        with contextlib.closing(audit.open_readonly_database(database, project_root=root or routing_root)) as readonly:
             if not audit.audit_enabled(readonly):
                 raise audit.AuditError('audit is disabled; manually run tabilet-audit audit enable PROJECT first')
     if args.group == 'index' and action == 'sync':
         audit.safe_path(database.parent/'.gitignore')
-    connection=audit.open_database(database,project_roots=write_roots) if write else audit.open_readonly_database(database,project_root=root)
+    connection=audit.open_database(database,project_roots=write_roots) if write else audit.open_readonly_database(database,project_root=root or routing_root)
     with contextlib.closing(connection):
         if args.group == 'index' and action == 'sync':
             audit.ensure_project_ignore(routing_root, database)

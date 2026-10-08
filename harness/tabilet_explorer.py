@@ -781,8 +781,10 @@ class ExplorerApp:
             if not self.project.is_dir(): raise audit.AuditError("project must be an existing directory")
             if not self.database.exists():
                 index.layout_check(self.project)
+            audit.safe_path(self.database.parent / '.gitignore')
             connection = audit.open_database(self.database, project_roots=[self.project])
             try:
+                audit.ensure_project_ignore(self.project, self.database)
                 return index.sync(connection, self.project, rebuild=rebuild, force_literal=literal)
             finally:
                 connection.close()

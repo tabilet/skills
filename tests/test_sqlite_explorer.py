@@ -637,6 +637,14 @@ class ExplorerTests(unittest.TestCase):
         self.assertFalse(state["complete"])
         self.assertTrue(state["diagnostics"])
 
+    def test_first_refresh_installs_ignore_rules_for_project_storage(self):
+        project = harness.make_repo(self.base / "fresh")
+        app = explorer.ExplorerApp(project, audit.default_database_path(project_root=project))
+        app.refresh()
+        status = harness.run("git", "status", "--porcelain", "--untracked-files=all", cwd=project)
+        self.assertIn("/audit.sqlite3*", (project / "tabilet/.gitignore").read_text())
+        self.assertNotIn("audit.sqlite3", status.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

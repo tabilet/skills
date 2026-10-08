@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sqlite3
 import stat
 import subprocess
@@ -167,6 +168,16 @@ class ProjectStorageTests(unittest.TestCase):
         self.assertFalse(override.exists())
         other = harness.make_repo(self.base / 'other')
         self.assertIn('different projects', self.command('--project', other, 'index', 'sync', self.project, ok=False))
+
+    def test_copied_database_is_rejected_by_implicit_current_directory_reads(self):
+        self.command('audit', 'enable', self.project)
+        other = harness.make_repo(self.base / 'other')
+        (other / 'tabilet').mkdir(exist_ok=True)
+        shutil.copy2(self.path(), self.path(other))
+        for action in ('runs', 'export'):
+            self.assertIn('different project', self.command('audit', action, cwd=other, ok=False))
+            self.assertIn('different project',
+                          self.command('--project', other, 'audit', action, ok=False))
 
     def test_invalid_worktree_pointer_and_relative_override_do_not_create_database(self):
         lease = self.lease()
