@@ -516,6 +516,7 @@ def run_controller_agent(
     before_provider_attempt=None,
     before_command=None,
     after_command=None,
+    after_model_response=None,
 ) -> dict[str, object]:
     """Use the shared model loop with controller-specific instructions/execution."""
 
@@ -539,6 +540,11 @@ def run_controller_agent(
             )
         return result
 
+    extra = {}
+    if after_model_response is not None:
+        # Passed only when used, so a stand-in model loop that predates the
+        # hook keeps working unchanged.
+        extra["after_model_response"] = after_model_response
     return core.one_agent_run(
         args,
         repo,
@@ -552,6 +558,7 @@ def run_controller_agent(
         before_provider_attempt=before_provider_attempt,
         before_command=before_command,
         after_command=after_command,
+        **extra,
     )
 
 

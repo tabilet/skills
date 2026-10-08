@@ -879,6 +879,36 @@ def _args_for_turn_cap(args, already_used: int, remaining: int):
     return clone
 
 
+TOKEN_USAGE_FIELDS = ("input_total", "cached_read", "cache_write", "output")
+
+
+def _add_token_usage(receipt: dict, normalized: dict) -> None:
+    """Add one response's reported token counts to the receipt's running totals.
+
+    Four integers at most, so the receipt stays small however long the horizon
+    runs. A count the provider never reported stays absent rather than 0. The
+    totals are reporting only: no limit, gate, or recovery check reads them,
+    and they are persisted with the receipt's next ordinary save.
+    """
+    totals = receipt["usage"].setdefault("tokens", {})
+    for name in TOKEN_USAGE_FIELDS:
+        value = normalized.get(name)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            totals[name] = totals.get(name, 0) + value
+    if not totals:
+        del receipt["usage"]["tokens"]
+
+
+def _token_summary(receipt: dict) -> str:
+    totals = receipt.get("usage", {}).get("tokens")
+    if not isinstance(totals, dict) or not totals:
+        return ""
+    labels = {"input_total": "input", "cached_read": "cached", "cache_write": "cache_write", "output": "output"}
+    return "; tokens " + " ".join(
+        f"{labels[name]}={totals[name] if name in totals else 'unknown'}" for name in TOKEN_USAGE_FIELDS
+    )
+
+
 def _progress_summary(receipt: dict, row_id: str) -> str:
     usage, limits = receipt.get("usage", {}), receipt.get("limits", {})
     attempts = usage.get("provider_attempts_reserved", 0)
@@ -902,6 +932,7 @@ def _progress_summary(receipt: dict, row_id: str) -> str:
         f"rows {rows}/{rows_cap} ({max(0, rows_cap - rows)} remaining); "
         f"commits {commits}/{commits_cap} ({max(0, commits_cap - commits)} remaining); "
         f"time {seconds_left}s remaining"
+        + _token_summary(receipt)
     )
 
 
@@ -918,11 +949,13 @@ def _run_agent(core, controller, args, repo, receipt, reservations, executor, us
         stderr = str(result.get("stderr", "")).strip().splitlines()
         summary = (stdout or stderr or ["no output"])[0].replace("\n", " ")[:240]
         output_fn(f"  command result: exit {result.get('exit_code')}; {summary}")
+    def after_response(normalized):
+        _add_token_usage(receipt, normalized)
     return controller.run_controller_agent(
         core, _args_for_turn_cap(args, turns, left), repo, turns + 1, [], None, executor,
         user_message, before_model_turn=before_turn,
         before_provider_attempt=before_attempt, before_command=before_command,
-        after_command=after_command,
+        after_command=after_command, after_model_response=after_response,
     )
 
 

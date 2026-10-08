@@ -306,5 +306,41 @@ class UsageTests(unittest.TestCase):
         self.assertEqual([item["cached_read"] for item in seen], [0, 128])
 
 
+class ReceiptTotalsTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import importlib.machinery
+        import importlib.util
+        loader = importlib.machinery.SourceFileLoader("horizon_cache_test", str(horizon_path))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        cls.horizon = importlib.util.module_from_spec(spec)
+        loader.exec_module(cls.horizon)
+
+    def test_totals_stay_four_integers_however_many_turns_run(self):
+        receipt = {"usage": {}}
+        for _ in range(5000):
+            self.horizon._add_token_usage(
+                receipt, {"input_total": 900, "cached_read": 800, "cache_write": None, "output": 10}
+            )
+        tokens = receipt["usage"]["tokens"]
+        self.assertEqual(tokens, {"input_total": 4_500_000, "cached_read": 4_000_000, "output": 50_000})
+        self.assertLess(len(json.dumps(receipt)), 200)
+
+    def test_nothing_reported_leaves_the_receipt_untouched(self):
+        receipt = {"usage": {"rows_started": 1}}
+        self.horizon._add_token_usage(
+            receipt, {"input_total": None, "cached_read": None, "cache_write": None, "output": None}
+        )
+        self.assertEqual(receipt, {"usage": {"rows_started": 1}})
+        self.assertEqual(self.horizon._token_summary(receipt), "")
+
+    def test_progress_line_reports_unknown_for_unreported_fields(self):
+        receipt = {"usage": {"tokens": {"input_total": 10, "output": 2}}}
+        self.assertEqual(
+            self.horizon._token_summary(receipt),
+            "; tokens input=10 cached=unknown cache_write=unknown output=2",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
