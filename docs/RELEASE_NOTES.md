@@ -1,4 +1,10 @@
-# Unreleased
+# memory-bank v2.6.0
+
+v2.6.0 keeps the seven skills and the v2 project layout. It adds project-local
+SQLite audit storage, tighter goal delegation, and provider prompt caching with
+normalized token reporting for the API runner and controller. Reinstall the
+optional toolkit files together; updating skills alone does not update the
+installed runner or controller.
 
 Each project manually enables audit with `tabilet-audit audit enable PROJECT`.
 The saved preference and audit/index data live in `tabilet/audit.sqlite3`;
@@ -20,6 +26,26 @@ fast-forwarding a single milestone commit.
 Delegated execution now assigns one explicit milestone and status file to each
 child. Only the orchestrator refreshes shared `suggested.txt` launch input, and
 child diffs are checked for writes outside their assignment before integration.
+
+Explorer's first "Create index" now installs the `/audit.sqlite3*` ignore rule
+like the CLI, so a new database cannot be left untracked or committed. Read-only
+CLI commands validate the current-directory project, so a database copied into
+another checkout is rejected instead of silently read.
+
+The API runner and controller now order requests for provider prompt caching.
+The standalone first message puts the reusable instructions first and the
+repository path, run counter, and lane table after them, so consecutive runs
+share about 1,500 tokens of prefix. OpenAI and DeepSeek cache automatically; the
+reorder is the whole change. Direct Claude (`api.anthropic.com`) now receives up
+to two `cache_control` breakpoints: the end of the stable prefix and the newest
+message. `LLM_PROMPT_CACHE=auto|on|off` (default `auto`, official host only) and
+`LLM_PROMPT_CACHE_TTL=5m|1h` control this; an invalid value exits with code 2.
+Other endpoints keep their previous payload byte for byte. Prefixes below a
+model's minimum, such as Opus 4.6/4.7 and Haiku 4.5, are not cached.
+Each turn prints a normalized usage line (input, cached read, cache write,
+output; `unknown` when a provider does not report a field) with run totals. The
+controller adds totals to its progress line and keeps four small counters in the
+receipt `usage.tokens`. Nothing skips a model call or weakens a gate.
 
 The SQLite lookup reader recognizes exact backticked historical `[x]` task
 completion cells only in valid completed retirement records with passed review.

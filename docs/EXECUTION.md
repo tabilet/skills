@@ -141,7 +141,7 @@ Use the [goal protocol and sub-agent guide](subagents.md) through a capable
 hosting agent when requesting delegation. Those instructions do not turn an
 ordinary API-loop invocation into a goal run.
 
-Current unreleased source also changes audit storage and activation. Each
+Since v2.6.0, audit storage and activation also changed. Each
 repository manually enables `tabilet/audit.sqlite3`; linked worktrees share the
 primary checkout's database and setting. Database-path flags and environment
 overrides are removed. Reinstall the toolkit modules together; updating the
@@ -151,8 +151,8 @@ SQLite sidecars are mounted read-only in Docker alongside `.git`.
 
 Historical lookup compatibility can improve index completeness without changing
 frozen Markdown. The execution runner's status and retirement validation stays
-strict. Published v2.4.0 and v2.5.x tags retain their released behavior; the local
-audit redesign requires the updated source toolkit.
+strict. Published v2.4.0 and v2.5.x tags retain their released behavior; the
+audit redesign requires the v2.6.0 toolkit.
 
 ### Prompt caching and context
 

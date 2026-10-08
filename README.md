@@ -1073,7 +1073,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.5.1` tag. A marketplace install or
+For a reproducible installation, use the `v2.6.0` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke
@@ -1295,7 +1295,7 @@ path reported by `audit status`. Missing storage leaves audit disabled. You can
 rebuild lookup data without enabling audit; deleted audit history is not rebuilt
 from Markdown. This changes no Markdown or frozen records.
 
-If you have an older shared database (including one from before v2.5.0), you can
+If you have an older shared database (including one from before v2.6.0), you can
 ask your LLM agent to extract this project's history and import it into its SQLite database.
 
 ## Install The API Harness
@@ -1323,7 +1323,7 @@ Neither API path adds a native sub-agent scheduler. The controller still rejects
 linked worktrees, so it does not execute the goal protocol's concurrent leases.
 See the [execution reference](docs/EXECUTION.md#changes-since-v240).
 
-The current **unreleased** audit redesign uses `tabilet/audit.sqlite3` and manual
+Since v2.6.0, the audit redesign uses `tabilet/audit.sqlite3` and manual
 per-project enable/disable commands. Database-path options and environment
 overrides are removed. Reinstall the optional toolkit files together; updating
 skills alone does not update the installed runner or controller. Index

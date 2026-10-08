@@ -124,7 +124,7 @@ tabilet extend-limit /absolute/path/to/project \
 用户手动为项目启用审计后，控制器负责其工作范围的审计生命周期。运行器或技能记录器不得再创建重复运行。审计失败会报告为
 缺口，但不会改变收据状态、验证结果或退出状态。Markdown 和私有收据仍是控制器的工作流数据源。
 
-当前尚未发布的存储重设计将数据库固定在 `tabilet/audit.sqlite3`，移除了数据库路径参数和环境覆盖。
+自 v2.6.0 起，数据库固定在 `tabilet/audit.sqlite3`，移除了数据库路径参数和环境覆盖。
 用 `tabilet-audit audit enable PROJECT` 或 `tabilet-audit audit disable PROJECT` 手动改变设置；
 索引同步保留该设置。需要干净 Git 基线的工作流开始前，请提交设置生成的忽略文件。
 

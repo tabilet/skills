@@ -74,7 +74,7 @@ Ctrl-C with a clean checkpoint can pause safely. Ctrl-C with a dirty or
 uncertain partial row records `needs_review`; resume requires manual inspection
 and never resets or replays that row.
 
-**Optional audit.** With `TABILET_AUDIT_DB` set, the controller records its runs
+**Optional audit.** When the project manually enables audit (`tabilet/audit.sqlite3`), the controller records its runs
 through the existing `tabilet-audit` toolkit and is the sole recorder owner for
 them; runs it drives are not recorded again as runner or skill runs. A missing or
 unusable audit reports a gap and never changes an outcome, matching v2.1.0.
