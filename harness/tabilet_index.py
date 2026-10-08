@@ -25,7 +25,7 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 1
-INDEX_PROJECTION = 'v5'
+INDEX_PROJECTION = 'v6'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -226,11 +226,11 @@ def apply_external_dependencies(documents, parsed, mapping):
 def retired_record_for_index(text, name):
     """Read older literal envelopes without rewriting frozen source records.
 
-    Only historical Status or Full status document headings and unlabelled
-    outer fences are normalized in memory. The runner still validates metadata,
-    literal fence boundaries and task markers. Unfinished historical markers
-    stay literal and produce diagnostics; execution keeps strict closure checks.
-    Normalization preserves line numbers and the literal documents' bytes.
+    Historical headings/fences and exact backticked [x] task-state cells are
+    adapted only in the lookup copy. The latter requires a completed outcome
+    and passed review. The runner still validates the full envelope; active
+    parsing and execution keep strict markers. Source bytes and line locations
+    remain literal, with every historical completion adaptation diagnosed.
     """
     p = parser()
     lines = text.splitlines(keepends=True)
@@ -249,15 +249,45 @@ def retired_record_for_index(text, name):
                 if re.fullmatch(r'`{3,}|~{3,}', fence):
                     lines[opening] = lines[opening].replace(fence, fence + 'markdown', 1)
     normalized = ''.join(lines)
-    try:
-        record = p.retired_record(normalized, name, allow_unfinished=True)
-    except ValueError as exc:
-        raise ValueError(f'{name}: {exc}') from exc
     offsets = {}
-    for n, heading in p.unfenced_lines(normalized):
-        if heading in ('## Milestone specification', '## Status record'):
-            offsets[heading] = next(i + 1 for i in range(n, len(lines))
-                                    if re.fullmatch(r'(?:`{3,}|~{3,})markdown', lines[i].strip()))
+    legacy_completion_lines = []
+    try:
+        canonical_sections = [(n, heading) for n, heading in p.unfenced_lines(normalized)
+                              if heading.startswith('## ')]
+        if [heading for _, heading in canonical_sections] == [
+                '## Milestone specification', '## Status record']:
+            for n, heading in canonical_sections:
+                opening = next((i for i in range(n, len(lines)) if lines[i].strip()), None)
+                if opening is None:
+                    raise ValueError('expected one fenced markdown document')
+                offsets[heading] = opening + 1
+            # Validate and unwrap the literal status fence before touching state
+            # cells. Nested examples and review-state tables are not task rows.
+            status = p.fenced_document(''.join(lines[canonical_sections[1][0]:]))
+            for row in p.status_table_rows(status):
+                if row['cells'][1] != '`[x]`':
+                    continue
+                physical = offsets['## Status record'] + row['line']
+                # Only the second unescaped table cell is the state. Preserve
+                # labels, notes, escaped pipes, whitespace and newline endings.
+                cells = re.split(r'(?<!\\)\|', lines[physical - 1], maxsplit=3)
+                cells[2] = cells[2].replace('`[x]`', '`[+]`', 1)
+                lines[physical - 1] = '|'.join(cells)
+                legacy_completion_lines.append(row['line'])
+            normalized = ''.join(lines)
+        record = p.retired_record(normalized, name, allow_unfinished=True)
+        if legacy_completion_lines and (record['metadata']['Outcome'] != 'completed'
+                                        or record['metadata']['Review'] != 'passed'):
+            raise ValueError('historical `[x]` completion markers require a completed '
+                             'outcome and passed review')
+    except ValueError as exc:
+        message = str(exc)
+        if '## Status record' in offsets:
+            message = re.sub(r'\bline (\d+):',
+                             lambda m: f'line {int(m[1]) + offsets["## Status record"]}:',
+                             message)
+        raise ValueError(f'{name}: {message}') from exc
+    record['legacy_completion_lines'] = legacy_completion_lines
     return record, offsets
 
 
@@ -278,6 +308,7 @@ def parse_document(path,kind,text,digest):
     offset=0
     specification_offset=0
     source_path=path
+    legacy_completion_lines = set()
     if kind in ('active_status','history_status'):
         identity=STATUS.fullmatch(pathlib.Path(path).name)[1]
         meta={}
@@ -288,6 +319,7 @@ def parse_document(path,kind,text,digest):
             source_path=meta['Source status']
             offset = offsets['## Status record']
             specification_offset = offsets['## Milestone specification']
+            legacy_completion_lines = set(record['legacy_completion_lines'])
         problems=p.status_marker_problems(status)
         rows=p.status_rows(status)
         if problems or not rows:raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
@@ -321,8 +353,12 @@ def parse_document(path,kind,text,digest):
                 if header.lower() in ('id','task id') and i<len(row['cells']):explicit=row['cells'][i]
             parsed['index_tasks'].append(dict(sha256=digest,line=row['line']+offset,milestone_id=identity,
                 label=row['item'],state=row['state'],notes=' | '.join(row['cells'][2:]),explicit_id=explicit))
+            literal_cells = row['cells']
+            if row['line'] in legacy_completion_lines:
+                literal_cells = [*row['cells']]
+                literal_cells[1] = '`[x]`'
             parsed['index_search'].append(dict(line=row['line']+offset,kind='task',milestone_id=identity,
-                state=row['state'],text=' | '.join(row['cells'])))
+                state=row['state'],text=' | '.join(literal_cells)))
             # Explicit task IDs are scoped by their milestone. Keep that scope
             # in the disposable dependency key so two milestones may both use
             # conventional IDs such as T01 without colliding in SQLite.
@@ -459,6 +495,11 @@ def validate_projection(documents, parsed):
             meta = record['metadata']
             if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\(status-'+identity+r'\.md\)',cells[3]):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
+            for legacy_line in record['legacy_completion_lines']:
+                line = legacy_line + offsets['## Status record']
+                diagnostics.append(f'{path}:{line}: historical `[x]` completion marker '
+                                   'indexed as completed for a completed, passed-review '
+                                   'retired record; source preserved, lookup only')
             for task in p.status_rows(record['status']):
                 if task['state'] in {'pending','in_progress','blocked'}:
                     line = task['line'] + offsets['## Status record']

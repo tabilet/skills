@@ -11,6 +11,13 @@ Delegated execution now assigns one explicit milestone and status file to each
 child. Only the orchestrator refreshes shared `suggested.txt` launch input, and
 child diffs are checked for writes outside their assignment before integration.
 
+The SQLite lookup reader recognizes exact backticked historical `[x]` task
+completion cells only in valid completed retirement records with passed review.
+It preserves frozen source bytes, hashes, physical lines, and literal search text,
+and reports each adaptation. Active parsing and execution remain strict;
+uppercase `[X]` retains cancellation meaning. Projection refresh automatically
+reparses older cached documents without changing the audit database schema.
+
 # memory-bank v2.5.1
 
 v2.5.1 is a protocol and documentation patch release following v2.5.0:

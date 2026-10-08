@@ -176,6 +176,40 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.command('audit','export'),audit_before)
         self.assertEqual(retired.read_bytes(),original)
 
+    def test_finish_accepts_verified_historical_completion_and_retains_failed_generation(self):
+        source = self.repo/'tabilet/memory-bank/status-M01.md'
+        source.write_text(source.read_text().replace('`[ ]`', '`[+]`'))
+        retired = h.retire_fixture(self.repo)
+        self.command('index', 'sync', self.repo)
+        retired.write_text(retired.read_text().replace('`[+]`', '`[x]`'))
+        original = retired.read_bytes()
+        started = self.command('audit', 'begin', self.repo, 'reconcile')
+        finished = self.command('audit', 'finish', started['run_id'], 'completed')
+        self.assertEqual(finished['result'], 'completed')
+        self.assertTrue(finished['index']['complete'])
+        self.assertTrue(any('historical `[x]` completion marker' in d
+                            for d in finished['index']['diagnostics']))
+        results = self.command('index', 'search', self.repo, '', '--kind', 'task', '--state', 'completed')['results']
+        self.assertEqual(len(results), 1)
+        self.assertIn(' | `[x]` | ', results[0]['snippet'])
+        audit_before = self.command('audit', 'export', '--include-content')
+        self.command('index', 'sync', self.repo, '--rebuild')
+        self.assertEqual(self.command('audit', 'export', '--include-content'), audit_before)
+        self.assertEqual(retired.read_bytes(), original)
+        stable = self.command('index', 'status', self.repo)['generation']
+        retired.write_text(retired.read_text().replace('`[x]`', '`[?]`'))
+        invalid = self.command('audit', 'begin', self.repo, 'reconcile')
+        failed = self.command('audit', 'finish', invalid['run_id'], 'completed')
+        self.assertEqual(failed['result'], 'completed')
+        self.assertFalse(failed['index']['complete'])
+        state = self.command('index', 'status', self.repo)
+        self.assertEqual(state['generation'], stable)
+        physical = next(n for n, line in enumerate(retired.read_text().splitlines(), 1)
+                        if '| Implement feature' in line)
+        self.assertIn(f'line {physical}:', failed['index']['error'])
+        runs = self.command('audit', 'runs', '--project', self.repo)['results']
+        self.assertEqual({row['result'] for row in runs}, {'completed'})
+
     def test_packaged_toolkit_works_and_rebuild_preserves_audit(self):
         installation=self.base/'bin';installation.mkdir()
         for name in ('tabilet_audit.py','tabilet_index.py','tabilet_explorer.py','tackle-memory-bank-api-loop'):

@@ -311,6 +311,18 @@ directly; do not replay completed work or finish an old run again to trigger it.
 If refresh still fails, inspect its diagnostic and the installed toolkit revision;
 retain the database and frozen evidence while diagnosing the remaining problem.
 
+For a structurally valid retired record with `Outcome: completed` and
+`Review: passed`, the lookup reader also recognizes exact backticked lowercase
+`[x]` task-state cells as historical completion. It adapts only those cells in
+memory and emits a diagnostic for each physical source line. Indexed documents,
+hashes, task locations, notes, and search text preserve the literal source.
+This rule does not apply to active tasks, non-backticked markers, legacy reviews,
+or cancelled/superseded milestone outcomes. Uppercase `[X]` remains cancellation;
+other malformed markers still fail refresh and retain the previous generation.
+The execution runner continues to reject lowercase `[x]`. A normal refresh with
+the updated toolkit reparses earlier projections automatically; no database
+schema change or audit-run replay is needed.
+
 Review tables headed `Iteration | State | Findings` describe review passes, not
 tasks. Their textual states (such as `passed` or `findings fixed`) and even task-like
 markers do not create tasks or malformed-task errors. Task tables still require

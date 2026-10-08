@@ -211,6 +211,95 @@ class IndexTests(unittest.TestCase):
                     self.sync()
                 self.assertEqual(ix.status(self.c, initial['workspace_id'])['generation'], initial['generation'])
 
+    def test_verified_historical_completion_preserves_source_and_physical_locations(self):
+        self.source = self.source.rename(self.source.with_name('status-M47.md'))
+        self.source.write_text(
+            '# Status\n\n## Tasks\n\n| Item | State | Notes |\n|---|---|---|\n' +
+            ''.join(f'| M47.{n} \\| Verified unit | `[x]` | Preserve literal `[x]` in notes. |\n'
+                    for n in range(1, 9)) +
+            '\n```markdown\n| Example only | `[x]` | no task |\n```\n'
+            '\n| Iteration | State | Findings |\n|---|---|---|\n'
+            '| 4 | `[x]` | review evidence, not a task |\n')
+        retired = h.retire_fixture(self.root, 'M47')
+        text = retired.read_text()
+        first = next(n for n, line in enumerate(text.splitlines(), 1)
+                     if line.startswith('| M47.1 '))
+        # Reproduce the reported eight-row shape at physical lines 51–58
+        # without shipping private project specifications or task descriptions.
+        self.assertLessEqual(first, 51)
+        text = text.replace('\n# Status\n', '\n' * (52 - first) + '# Status\n', 1)
+        retired.write_text(text)
+        original = retired.read_bytes(); before = self.hashes()
+        mtime = retired.stat().st_mtime_ns
+        with self.assertRaisesRegex(ValueError, 'unknown or non-backticked'):
+            ix.parser().retired_record(text, retired.name)
+        state = self.sync()
+        self.assertTrue(state['complete'])
+        rows = a.records(self.c, 'SELECT * FROM index_tasks ORDER BY line')
+        self.assertEqual(len(rows), 8)
+        self.assertEqual([row['line'] for row in rows], list(range(51, 59)))
+        self.assertEqual({row['state'] for row in rows}, {'completed'})
+        self.assertEqual({row['sha256'] for row in rows}, {hashlib.sha256(original).hexdigest()})
+        self.assertEqual(self.c.execute('SELECT text FROM index_documents WHERE kind="history_status"').fetchone()[0], text)
+        self.assertEqual(len(state['diagnostics']), 8)
+        for row in rows:
+            self.assertIn('`[x]`', text.splitlines()[row['line'] - 1])
+            self.assertTrue(any(f"{row['path']}:{row['line']}: historical `[x]`" in d
+                                for d in state['diagnostics']))
+        results = ix.search(self.c, state['workspace_id'], '', kind='task', state='completed')['results']
+        self.assertEqual(len(results), 8)
+        self.assertTrue(all(' | `[x]` | ' in row['snippet'] for row in results))
+        self.assertTrue(all('literal `[x]` in notes' in row['notes'] for row in rows))
+        with mock.patch.object(ix, 'parse_document', side_effect=AssertionError('reuse expected')):
+            reused = self.sync()
+        self.assertEqual(reused['diagnostics'], state['diagnostics'])
+        self.assertEqual(retired.read_bytes(), original)
+        self.assertEqual(retired.stat().st_mtime_ns, mtime)
+        self.assertEqual(self.hashes(), before)
+
+    def test_historical_completion_mapping_is_narrow_and_keeps_other_states_distinct(self):
+        status = ('| Item | State | Notes |\n|---|---|---|\n'
+                  '| Old completed | `[x]` | verified |\n'
+                  '| Completed | `[+]` | verified |\n'
+                  '| Pending | `[ ]` | frozen discrepancy |\n'
+                  '| Running | `[~]` | frozen discrepancy |\n'
+                  '| Blocked | `[!]` | frozen discrepancy |\n'
+                  '| Cancelled | `[X]` | authorized cancellation |\n'
+                  '| Historical | `[-]` | successor: M02 |\n')
+        record, _ = ix.retired_record_for_index(h.retirement_text(status), 'status-M01.md')
+        self.assertEqual([row['state'] for row in ix.parser().status_rows(record['status'])],
+                         ['completed', 'completed', 'pending', 'in_progress', 'blocked',
+                          'cancelled', 'historical'])
+        self.assertEqual(record['legacy_completion_lines'], [3])
+        for fields in (
+                {'Outcome': 'cancelled', 'Disposition': 'Authorized cancellation.'},
+                {'Outcome': 'superseded', 'Disposition': 'Replaced.', 'Successor': 'M02'},
+                {'Review': 'legacy', 'Review iterations': 'not recorded',
+                 'Legacy closure': 'No persisted review count.'}):
+            with self.subTest(fields=fields), self.assertRaisesRegex(ValueError, 'completed outcome and passed review'):
+                ix.retired_record_for_index(h.retirement_text(status, **fields), 'status-M01.md')
+        for invalid in (
+                h.retirement_text(status).replace('**Review.** passed', '**Review.** failed'),
+                h.retirement_text(status).replace('`[x]`', '[x]'),
+                h.retirement_text(status).replace('`[x]`', '`[?]`'),
+                h.retirement_text(status).rsplit('`````', 1)[0],
+                h.retirement_text(status).split('## Status record')[0] + '## Status record\n'):
+            with self.subTest(invalid=invalid[-40:]), self.assertRaises(ValueError):
+                ix.retired_record_for_index(invalid, 'status-M01.md')
+        self.assertNotIn('`[x]`', ix.parser().STATE_MARKERS)
+
+    def test_active_lowercase_completion_stays_invalid_and_retains_previous_generation(self):
+        baseline = self.sync()
+        self.source.write_text(self.source.read_text().replace('`[ ]`', '`[x]`'))
+        original = self.source.read_bytes()
+        with self.assertRaisesRegex(a.AuditError, 'unknown or non-backticked'):
+            self.sync()
+        state = ix.status(self.c, baseline['workspace_id'])
+        self.assertFalse(state['complete'])
+        self.assertEqual(state['generation'], baseline['generation'])
+        self.assertEqual(self.c.execute('SELECT state FROM index_tasks').fetchone()[0], 'pending')
+        self.assertEqual(self.source.read_bytes(), original)
+
     def test_unfinished_frozen_tasks_are_lookup_evidence_never_ready_or_accepted(self):
         self.source.write_text(self.source.read_text().replace('`[ ]`', '`[+]`'))
         retired = h.retire_fixture(self.root)
