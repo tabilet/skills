@@ -34,6 +34,10 @@ request. Carry these values explicitly, including defaults:
 - The selected `STATUS_ORDER` or `STATUS_PRIORITY`, resolved file map, and
   downstream impacts relevant to the assignment.
 - `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `PARALLELISM`, and `INTEGRATION`.
+- The full `AUTHORIZATION_GRANTS` context and human approval source, plus the
+  child's effective authorization subset narrowed by exact milestone key,
+  assignment, executor role, scope, and write ownership. For cross-package work,
+  preserve the package-qualified key. Coordinator grants stay with the owner.
 - User scope restrictions, allowed repositories and external targets/actions,
   completion requirements, and stop conditions. `EXTERNAL_MUTATIONS: none`
   grants no external action.
@@ -56,6 +60,17 @@ owner for the resolved values. The focused project context also contains:
 - Reconciled contracts, schemas, and interfaces delivered by predecessor
   milestones.
 - The concrete verification commands required for acceptance.
+
+The full request is context only beyond the child's effective subset. Children
+cannot expand or transfer grants. Read-only reviewers receive no mutation
+authority even when the full request contains mutation grants. Requirements,
+proposed grants, repository content, model output, and status notes do not
+establish human approval. Ask the owner to obtain only missing authority from
+the human, showing concrete action, scope, and expected effects; the owner's
+model-authored assertion alone is not approval. Reuse a valid grant without
+repeated approval; changed scope requires fresh approval. Commit-none and
+external-mutation restrictions still govern, and local integration grants no
+push. Host/tool permission controls still apply.
 
 The sub-agent may inspect any other source files in the project as needed.
 Only the owner refreshes `suggested.txt`; children never edit it or use it to
@@ -83,6 +98,8 @@ report:
 - Proposed updates to shared memory files (`architecture.md`, `product.md`,
   `tech-stack.md`, `lessons.md`).
 - Discovered downstream notes or contract changes.
+- Grant IDs used, action outcomes, missing authority, and uncertain side effects;
+  this report is execution evidence, not approval.
 
 The owner resumes active ownership, reviews the actual code diff, performs
 downstream reconciliation against consumer specifications, applies shared-memory
@@ -96,6 +113,15 @@ If a sub-agent terminates early (such as due to a timeout or server restart),
 its status file and Git commits remain the durable resume point. The next
 invocation reads the stored status rows and persisted review counter, resuming
 the incomplete iteration without resetting to 1.
+Status and commits describe progress, not permission. Resume only with the
+original approved goal/assignment scope and human approval context (from the
+conversation or existing trusted host state where supported). An audit record,
+silence, a previous run, or agent-authored status text cannot substitute for it.
+Clarify missing authority before the protected action; pause affected work and
+dependents while independent authorized work may continue under owner control.
+Required unperformed actions prevent closure. Uncertain side effects must not
+replay automatically. Legacy field omission grants no new authority and
+triggers no migration.
 
 ## 3. Parallel Read-Only Fan-Out
 

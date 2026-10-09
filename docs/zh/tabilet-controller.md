@@ -81,6 +81,10 @@ tabilet extend-limit /absolute/path/to/project \
 
 限额扩展会保留累计用量和批准计时。它要求项目处于干净检查点，并要求用户再次精确输入 `confirm`。
 
+里程碑 `AUTHORIZATION_REQUIREMENTS` 和 goal 的 `AUTHORIZATION_GRANTS` 不扩大控制器确认范围。
+Python 控制器不消费 goal 授予，即使项目文字包含它们也继续排除外部操作。
+交互式 goal 的人类批准规则见[授权指南](goal.md#authorization-requirements-and-grants)。
+
 ## 收据和恢复 {#receipts-and-recovery}
 
 收据是私有 JSON 文件，位于项目之外的

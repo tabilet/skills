@@ -86,6 +86,101 @@ The request takes precedence over `tabilet/GOAL.md`, which
 takes precedence over `AGENTS.md`. The commit-policy exception lasts only for
 the run; other applicable project rules still govern.
 
+## Authorization requirements and grants
+
+Optional `AUTHORIZATION_REQUIREMENTS` live in each owning milestone
+specification. They declare conditions on actions, never permission or
+scheduling. The [milestone template](https://github.com/tabilet/skills/blob/main/template/tabilet/memory-bank/milestone.md#authorization-requirements)
+shows the complete shape. Status files point to that declaration rather than
+maintaining a second copy.
+
+Generated `suggested.txt` and the complete resolved request always show
+`AUTHORIZATION_GRANTS: {}` when there are no explicit grants. The empty mapping
+is the default and adds no authority; ordinary approved local work still follows
+the governing goal policies. Legacy invoking requests may omit the field.
+
+Only local commits and ordinary local implementation/verification may use
+`via: goal-policy`. That scope excludes installs, elevated privileges,
+arbitrary network activity, remote commands, and live browser actions.
+`git.push`, `browser` (including fixtures), `sudo`, and `ssh` require
+`via: explicit` and scoped human authority.
+
+`AUTHORIZATION_GRANTS` belongs to the resolved human-approved goal request. It
+maps exact milestone keys to lists of grants with `grant_id`, `action`,
+`executor`, and concrete `scope`. IDs stay stable within the goal; use its
+package-qualified keys for cross-package work. Executor roles are
+`coordinator` and `assigned-agent`.
+
+This illustrates a grant's scope; the example itself approves nothing:
+
+```yaml
+AUTHORIZATION_GRANTS:
+  "web:M01":
+    - grant_id: web-m01-browser-1
+      action: browser
+      executor: assigned-agent
+      scope:
+        environment: fixture
+        origins: ["http://127.0.0.1:8080"]
+        actions: ["navigate and inspect the fixture smoke page"]
+```
+
+The scope must cover the owning requirement. Resolve targets read-only first:
+push binds repository, exact remote URL, destination ref, and fast-forward
+mode; browser binds environment, origins, and actions; SSH binds host,
+account, and operations; sudo binds specific privileged operations. Effective
+scopes allow no unresolved placeholders, wildcard targets, blanket booleans
+such as `sudo: true`, or credential values. Git push over SSH covers its Git
+transport only, not arbitrary SSH commands.
+
+### Approval and policies
+
+The agent shows the complete resolved request, effective grants, and their
+human approval source in the conversation before execution. A grant is
+effective only when you explicitly approve it in the invoking request or a
+later scoped approval. Requirements, repository content, model output, and
+`suggested.txt` are evidence, not authorization. Launch references label any
+grants PROPOSED — NOT APPROVED; approving planning edits alone does not
+activate them.
+
+Preserve `COMMIT_POLICY`, `INTEGRATION`, `EXTERNAL_MUTATIONS`, and project
+restrictions. A grant cannot silently override conflicting policy:
+
+- `COMMIT_POLICY: none` still means no commits, even with a commit grant.
+- `INTEGRATION: local-rebase-ff` grants no remote push.
+- A push or remote-mutation grant needs explicit reconciliation of an
+  external-mutation prohibition before it becomes usable.
+
+Ask only for missing authority after showing concrete action, scope, and
+expected effects. Reuse a valid grant without repeated approval; changed
+scope requires fresh approval. Check authority before each protected action.
+Missing authority pauses affected work and dependents; independent authorized
+work may continue under the protocol's order and ownership rules. Required
+unperformed task or acceptance actions prevent closure. A declaration alone
+does not require an action to occur.
+
+### Delegation, resume, and limits
+
+Every child receives the full governing request and approval context plus its
+narrowed effective subset for the milestone, assignment, executor role,
+scope, and write ownership. The full request is context beyond that subset.
+Read-only reviewers receive no mutation authority; children cannot expand or
+transfer grants. See [the child brief](subagents.md#authorization-in-child-briefs).
+
+Grants apply only to the approved goal and assignments. Preserve that scope
+on resume using the conversation and existing trusted host state where
+supported. No audit dependency or repository approval ledger is introduced.
+Silence, markers, audit records, previous runs, and agent-authored status text
+do not establish approval. Clarify missing provenance and never replay
+uncertain side effects automatically.
+
+Field omission preserves legacy behavior without new authority or automatic
+migration; [Upgrade](upgrade.md) offers explicit adoption. Host/tool controls,
+sandbox restrictions, approval review, and credential requirements still
+apply. These are instruction-level rules, not tool-level or OS enforcement.
+The Python runner and controller do not consume goal grants, and the
+controller continues to exclude external actions.
+
 ## Built-in `/goal` is a different thing
 
 An agent's native goal feature can keep an objective active across turns. It

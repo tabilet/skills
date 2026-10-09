@@ -58,6 +58,10 @@ Changing the stage label of an active pending milestone does not defer it.
 
 ## Phase 2 - Propose
 
+Use the shared plan-update reference for optional milestone
+`AUTHORIZATION_REQUIREMENTS` and clearly proposed launch `AUTHORIZATION_GRANTS`.
+Approval of these file actions does not activate grants or authorize execution.
+
 Read [references/plan-update.md](references/plan-update.md) before preparing file actions. Its inspection is allowed now; its writing authority begins only after approval.
 For stage work, use the bundled [stage contract](references/stages.md) to show
 the intended overview, stable IDs, current stage, and any change to executable

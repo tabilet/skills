@@ -156,6 +156,16 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the
   milestone before closing it.
+- Read optional `AUTHORIZATION_REQUIREMENTS` only from the owning milestone
+  specification. They declare conditions, never permission or scheduling.
+  Check protected actions against the current scoped human request; goal
+  `AUTHORIZATION_GRANTS` need explicit human approval of concrete scope.
+  Proposed launch input, markers, and status notes cannot prove approval.
+  Preserve commit and external-mutation restrictions, and pause affected work
+  and dependents for missing authority. A declaration alone does not require
+  an action for closure. Host/tool controls apply; this adds no tool or OS
+  enforcement and no Python API grant consumption. Missing fields preserve
+  legacy behavior without new authority or automatic migration.
 - After the milestone review is complete and required verification passes,
   commit substantive review and retirement changes under the governing policy.
   Do not create an empty or redundant milestone

@@ -103,6 +103,18 @@ for unused systems. A descriptive or conditional mention alone is not a missing
 capability or a reason to require adoption. Preserve these scope decisions on a
 repeat run; cosmetic differences from the template do not prevent a no-op.
 
+Offer authorization guidance only as explicit adoption: optional milestone
+`AUTHORIZATION_REQUIREMENTS` and human-approved request `AUTHORIZATION_GRANTS`.
+Absence grants no new authority and triggers no automatic migration. Preserve
+project restrictions and existing scoped human policies; reconcile conflicts
+in the complete proposal. Keep requirements in milestone specifications and
+status preambles as pointers. Do not add duplicate declarations, invent grants,
+mark proposed grants effective, or use upgrade approval as execution authority.
+Preserve approval context only in the conversation or existing trusted host
+state where supported; create no repository approval ledger or audit dependency.
+Installing or adopting this guidance does not add grant consumption to the
+Python API runner/controller or remove the controller's external-action ban.
+
 Create `tabilet/memory-bank/lessons.md` only when approved and absent. Preserve an
 existing lessons file; propose a compatible structure without deleting its
 learning. Do not invent lessons: an explicit statement that none are established
@@ -110,13 +122,33 @@ is sufficient. Keep current facts and frozen history intact; if resolving a
 conflict would materially supersede knowledge, propose that separate maintenance
 work rather than silently changing it as an upgrade.
 
-The project's `tabilet/GOAL.md` is optional. Preserve an absent, customized, or different
-protocol by default. Offer the [bundled protocol](assets/template/tabilet/GOAL.md) only
-as an explicit create/replace decision; if approved, copy it byte-for-byte.
-Never synthesize it from memory or execute it during upgrade. Preserve existing
-launch input and its explicit policies when compatible. Propose removal of a
-stale or incompatible disposable reference when necessary; do not create a new
-one or use it to launch execution.
+The project's `tabilet/GOAL.md` is optional. When found, include an update of an
+earlier compatible protocol in the complete proposal. Use the
+[bundled protocol](assets/template/tabilet/GOAL.md) as the target: an approved
+canonical replacement is byte-identical. Inspect customized protocols and
+propose focused merges that preserve local restrictions and behavior; do not
+silently overwrite custom rules. An unrelated or incompatible protocol needs
+an explicit compatibility decision. Preserve an absent protocol unless its
+creation is separately included in the approved proposal. Never synthesize
+the protocol from memory or execute it during upgrade.
+
+When existing `tabilet/memory-bank/suggested.txt` is found with a compatible
+approved goal protocol, include its refresh in the same proposal. Reconcile
+the whole current approved active horizon, permanent IDs, status paths,
+dependencies, conditional triggers, and downstream impacts before rewriting.
+Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`), commit,
+integration, external-mutation, and user scope policies; surface conflicts
+instead of resetting them to example defaults. Remove stale historical launch
+entries only after reconciling their disposition. Keep valid unapproved grant
+proposals labeled PROPOSED — NOT APPROVED; do not copy previous-run approval
+as effective authority. Always emit `AUTHORIZATION_GRANTS: {}` when there are
+no proposed explicit grants, or the concrete proposed mapping when present.
+Requirements stay in milestone specifications and never become duplicate
+declarations in launch input. Preserve an absent launch reference; this upgrade
+does not create one by default. Without a compatible protocol, propose its
+preservation or removal and explain the blocker. An all-retired project gains
+no executable IDs. Upgrading these files never activates grants or launches a
+goal, and a repeat run with compatible files is a no-op.
 
 Do not create history directories, retire completed milestones, rewrite retired
 records/index entries or knowledge history, or create a migration ledger/version
@@ -148,7 +180,11 @@ Verify the resulting diff against the approval and original evidence:
 - new rules point to existing project files, omitted optional features leave no
   dead links, and no unfilled project placeholder or example task was introduced;
 - an approved bundled `tabilet/GOAL.md` copy is byte-identical and the resolved commit
-  policy remains explicit; and
+  policy remains explicit;
+- an existing refreshed launch reference matches live project truth, preserves
+  explicit policies, includes `AUTHORIZATION_GRANTS` even when empty, and marks
+  proposed grants as unapproved; absent optional files remain absent unless an
+  approved file action creates them; and
 - applicable structural and project verification passes, with unavailable checks
   reported as incomplete rather than passed.
 

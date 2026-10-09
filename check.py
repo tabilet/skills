@@ -294,17 +294,17 @@ def harness_tests():
 
 
 # --------------------------------------------------------------------------
-# 2. GOAL.md is a portable protocol carried in three places. They must not
+# 2. GOAL.md is a portable protocol carried in four places. They must not
 #    drift or become coupled to one agent's launcher.
 # --------------------------------------------------------------------------
 @check("GOAL.md and template/GOAL.md are byte-identical")
 def goal_copies():
-    # Three copies now: the root one, the project payload, and the one bundled
-    # with memory-bank-init so a plugin user gets it without this repo.
+    # Root, project payload, Init bundle, and Upgrade's mirrored payload.
     copies = [
         ROOT / "GOAL.md",
         ROOT / "template" / "tabilet" / "GOAL.md",
         SKILLS_DIR / "memory-bank-init" / "GOAL.md",
+        SKILLS_DIR / "memory-bank-upgrade" / "assets" / "template" / "tabilet" / "GOAL.md",
     ]
     problems = [f"missing {p.relative_to(ROOT)}" for p in copies if not p.exists()]
     if problems:
@@ -332,6 +332,240 @@ def goal_copies():
     ):
         if token not in flat_goal:
             problems.append(f"GOAL.md: missing protocol contract {token!r}")
+    return problems
+
+
+AUTHORIZATION_DOC_CONTRACTS = {
+    "GOAL.md": (
+        "Requirements never grant permission or schedule actions",
+        "evidence, not authorization",
+        "explicit human approval in the invoking request or a later scoped approval",
+        "Approval of planning file changes alone does not activate proposed grants",
+        "materialize the complete resolved request and effective grants in the conversation",
+        "identifying the human approval source",
+        "existing trusted host receipt/state where supported",
+        "Do not invent an audit dependency",
+        "Only local commits and ordinary local implementation/verification may use `goal-policy`",
+        "`grant_id`, `action`, `executor`, and concrete `scope`",
+        "Grant IDs are stable and unique within the goal",
+        "resolved package-qualified keys",
+        "Grant scopes must cover the corresponding requirement",
+        "Grant action and executor must match the requirement",
+        "unresolved or conflicting scopes require clarification",
+        "wildcard targets",
+        "Never store passwords, tokens, private keys",
+        "Conflicts require explicit reconciliation before accepting a grant",
+        "`COMMIT_POLICY: none` still means no commits, even with a commit grant",
+        "`INTEGRATION: local-rebase-ff` grants no remote push",
+        "Git push over SSH authorizes only the required Git transport",
+        "Ask only for missing authority",
+        "concrete action, scope, and expected effects",
+        "Reuse an existing valid grant without asking again; changed scope requires fresh approval",
+        "Check authority before each protected action",
+        "Missing authority pauses only affected work and its dependents",
+        "independent authorized work may continue",
+        "Required unperformed task or acceptance actions prevent milestone closure",
+        "alone does not make an action required for closure",
+        "full governing request and its human approval context plus its effective authorization subset",
+        "Read-only reviewers receive no mutation authority",
+        "Children cannot expand or transfer grants",
+        "Grants apply only to the approved goal and assignments",
+        "Uncertain side effects must not replay automatically",
+        "Host/tool permission controls still apply",
+        "not tool-level or operating-system enforcement",
+        "Legacy field omission preserves existing behavior",
+        "triggers no automatic migration",
+        "Python API runner and controller do not consume goal grants",
+        "controller excludes external actions even when project text contains grants",
+    ),
+    "AGENTS.md": ("`AUTHORIZATION_REQUIREMENTS`", "explicit human approval",
+                  "controller excludes external actions", "not automatic migration",
+                  "Generated launch references always show `AUTHORIZATION_GRANTS`"),
+    "template/AGENTS.md": ("never permission or scheduling", "cannot prove approval",
+                           "Missing fields preserve legacy behavior"),
+    "template/tabilet/memory-bank/milestone.md": (
+        "declares conditions on actions; it never grants permission or schedules them",
+        "Keep the declaration in that specification only",
+        "Other listed actions require explicit human authority",
+        "proposed grants, status notes, and `suggested.txt` are evidence, not approval",
+        "Missing fields preserve legacy behavior",
+    ),
+    "template/tabilet/memory-bank/status-M01.md": (
+        "do not duplicate its declaration here", "they never prove approval",
+        "No new task marker is introduced", "no commits even when a requirement or grant mentions `git.commit`",
+    ),
+    "skills/memory-bank-goal/SKILL.md": (
+        "AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "human approval source",
+        "Do not import proposed grants from launch input as effective authority",
+        "Read-only reviewers receive no mutation authority", "children cannot expand or transfer grants",
+        "independent authorized work may continue", "uncertain side effects automatically",
+    ),
+    "skills/memory-bank-goal/references/subagents.md": (
+        "full `AUTHORIZATION_GRANTS` context and human approval source",
+        "child's effective authorization subset narrowed by exact milestone key",
+        "Coordinator grants stay with the owner", "Children cannot expand or transfer grants",
+        "Read-only reviewers receive no mutation authority even when the full request contains mutation grants",
+        "model-authored assertion alone is not approval",
+        "Reuse a valid grant without repeated approval; changed scope requires fresh approval",
+        "Uncertain side effects must not replay automatically",
+    ),
+    "skills/memory-bank-next/SKILL.md": (
+        "AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "evidence, not authorization",
+        "Outside a goal, the current one-row request", "changed scope requires fresh approval",
+        "Required unperformed actions prevent closure", "Python API runner and controller do not consume goal grants",
+    ),
+    "skills/memory-bank-init/references/write-contract.md": (
+        "AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "PROPOSED — NOT APPROVED",
+        "Never claim that planning approval activates grants", "Missing fields preserve legacy behavior",
+    ),
+    "skills/memory-bank-propose/references/plan-update.md": (
+        "AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "PROPOSED — NOT APPROVED",
+        "Planning approval alone never activates them", "no unresolved placeholders, wildcard targets, blanket booleans, or credentials",
+    ),
+    "skills/memory-bank-reconcile/references/write-contract.md": (
+        "AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "PROPOSED — NOT APPROVED",
+        "planning approval does not activate them", "audit dependency",
+    ),
+    "skills/memory-bank-upgrade/SKILL.md": (
+        "Offer authorization guidance only as explicit adoption", "Absence grants no new authority",
+        "triggers no automatic migration", "status preambles as pointers", "invent grants",
+        "no repository approval ledger or audit dependency",
+        "When found, include an update of an earlier compatible protocol in the complete proposal",
+        "propose focused merges that preserve local restrictions and behavior",
+        "include its refresh in the same proposal",
+        "Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`)",
+        "do not copy previous-run approval as effective authority",
+        "Always emit `AUTHORIZATION_GRANTS: {}`",
+        "Preserve an absent launch reference",
+        "Upgrading these files never activates grants or launches a goal",
+        "repeat run with compatible files is a no-op",
+    ),
+    "docs/goal.md": ("AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "PROPOSED — NOT APPROVED",
+                     "example itself approves nothing", "changed scope requires fresh approval"),
+    "docs/zh/goal.md": ("AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "PROPOSED — NOT APPROVED",
+                        "{#authorization-requirements-and-grants}"),
+    "docs/subagents.md": ("narrowed effective grant subset", "Read-only reviewers receive no mutation authority"),
+    "docs/zh/subagents.md": ("{#authorization-in-child-briefs}", "只读评审者没有修改权限"),
+    "docs/EXECUTION.md": ("Python API runner and controller do not consume goal grants",
+                          "controller excludes external actions even when project text contains grants",
+                          "not tool-level or OS enforcement"),
+    "docs/tabilet-controller.md": ("Python controller does not consume goal grants", "excludes external actions"),
+    "docs/zh/tabilet-controller.md": ("AUTHORIZATION_REQUIREMENTS", "AUTHORIZATION_GRANTS", "不消费 goal 授予"),
+}
+
+
+def authorization_example_problems(text: str) -> list[str]:
+    """Lint the bounded YAML examples in our docs; never evaluate permission."""
+    problems = []
+    actions = {"git.commit", "cli.local", "git.push", "browser", "sudo", "ssh"}
+    for block in fenced_blocks(text):
+        if block.startswith("AUTHORIZATION_REQUIREMENTS:\n"):
+            entries = re.findall(r"^  ([a-z.]+):\n(.*?)(?=^  \S|\Z)", block, re.M | re.S)
+            if {action for action, _ in entries} != actions:
+                problems.append("requirement example must document all six actions")
+            for action, body in entries:
+                via = re.search(r"^    via: (\S+)$", body, re.M)
+                role = re.search(r"^    executor: (\S+)$", body, re.M)
+                if not via or via[1] not in {"goal-policy", "explicit"}:
+                    problems.append(f"requirement {action} has invalid via")
+                elif via[1] == "goal-policy" and action not in {"git.commit", "cli.local"}:
+                    problems.append(f"requirement {action} cannot use goal-policy")
+                if not role or role[1] not in {"coordinator", "assigned-agent"}:
+                    problems.append(f"requirement {action} has invalid executor")
+        elif block.startswith("AUTHORIZATION_GRANTS:\n"):
+            keys = re.findall(r"^  (.+):$", block, re.M)
+            if not keys or any(re.search(r"<[^>]+>|\*|\?", key) for key in keys):
+                problems.append("grant example needs exact milestone keys")
+            entries = re.split(r"^    - ", block, flags=re.M)[1:]
+            if not entries:
+                problems.append("grant example needs a list of grant objects")
+            ids = set()
+            for entry in entries:
+                identifier = re.match(r"grant_id: ([A-Za-z0-9_-]+)\n", entry)
+                if not identifier or identifier[1] in ids:
+                    problems.append("grant example needs stable unique grant_id values")
+                else:
+                    ids.add(identifier[1])
+                action = re.search(r"^      action: (\S+)$", entry, re.M)
+                executor = re.search(r"^      executor: (\S+)$", entry, re.M)
+                if not action or action[1] not in actions:
+                    problems.append("grant example needs a named action")
+                if not executor or executor[1] not in {"coordinator", "assigned-agent"}:
+                    problems.append("grant example needs a named executor")
+                scope = entry.partition("      scope:\n")[2]
+                if not scope.strip():
+                    problems.append("grant example needs concrete scope")
+                if action:
+                    fields = {
+                        "git.push": ("repository", "remote", "ref", "mode"),
+                        "browser": ("environment", "origins", "actions"),
+                        "sudo": ("commands",),
+                        "ssh": ("host", "user", "commands"),
+                    }.get(action[1], ())
+                    for field in fields:
+                        if not re.search(rf"^        {field}: \S", scope, re.M):
+                            problems.append(f"grant example {action[1]} scope needs {field}")
+                    if action[1] == "git.push" and "        mode: fast-forward\n" not in scope:
+                        problems.append("grant example push mode must be fast-forward")
+                if re.search(r"<[^>]+>|\*|\?|:\s*(?:true|false)\b", scope, re.I):
+                    problems.append("grant example scope has a placeholder, wildcard, or blanket boolean")
+                if re.search(r"^\s*(?:password|token|private_key|credential):", scope, re.M | re.I):
+                    problems.append("grant example must not include credential fields")
+    return problems
+
+
+def grant_launch_example_problems(text: str) -> list[str]:
+    """Check full launch examples display the empty grants default explicitly."""
+    examples = [block for block in fenced_blocks(text)
+                if "Using tabilet/GOAL.md" in block and "Completion condition:" in block]
+    if not examples:
+        return ["missing full launch example"]
+    return ["launch example must include AUTHORIZATION_GRANTS: {} as the empty default"
+            for block in examples
+            if not re.search(r"^AUTHORIZATION_GRANTS: \{\}$", block, re.M)]
+
+
+@check("goal authorization documentation preserves scoped human approval")
+def goal_authorization_contract():
+    """Guard maintained contracts and examples, not runtime authorization."""
+    problems = []
+    for relative, tokens in AUTHORIZATION_DOC_CONTRACTS.items():
+        path = ROOT / relative
+        if not path.is_file():
+            problems.append(f"{relative}: missing authorization contract document")
+            continue
+        text = path.read_text()
+        flat = " ".join(text.split())
+        for token in tokens:
+            if token not in flat:
+                problems.append(f"{relative}: missing authorization guidance {token!r}")
+        problems.extend(f"{relative}: {problem}" for problem in authorization_example_problems(text))
+        if relative in {
+            "skills/memory-bank-init/references/write-contract.md",
+            "skills/memory-bank-reconcile/references/write-contract.md",
+            "skills/memory-bank-goal/SKILL.md",
+        }:
+            problems.extend(f"{relative}: {problem}" for problem in grant_launch_example_problems(text))
+    # Installed authoring skills must carry the same shape without a checkout
+    # or a project that has already adopted the new optional fields.
+    examples = []
+    for relative in (
+        "template/tabilet/memory-bank/milestone.md",
+        "skills/memory-bank-init/references/write-contract.md",
+        "skills/memory-bank-propose/references/plan-update.md",
+    ):
+        path = ROOT / relative
+        if not path.is_file():
+            continue
+        blocks = [block for block in fenced_blocks(path.read_text())
+                  if block.startswith("AUTHORIZATION_REQUIREMENTS:\n")]
+        if len(blocks) != 1:
+            problems.append(f"{relative}: needs one canonical requirement example")
+        else:
+            examples.append((relative, blocks[0]))
+    if examples:
+        problems.extend(f"{relative}: requirement example differs from the milestone template"
+                        for relative, block in examples[1:] if block != examples[0][1])
     return problems
 
 

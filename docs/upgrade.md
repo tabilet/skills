@@ -99,6 +99,28 @@ Upgrade can adopt the optional stage rules without creating a stages document
 or moving current work. Use [Propose](propose.md) when you want to introduce
 stages or withdraw already approved pending tasks for later planning.
 
+## Existing goal protocol and launch reference
+
+When `tabilet/GOAL.md` exists, Upgrade includes an update of an earlier
+compatible protocol in its complete proposal. An approved canonical
+replacement uses the bundled copy byte-for-byte. For custom protocols, it
+proposes focused merges that preserve local restrictions and behavior;
+incompatible protocols require a compatibility decision.
+
+When `tabilet/memory-bank/suggested.txt` also exists, Upgrade proposes a refresh
+against the whole live approved active horizon. It preserves explicit order
+or priority, commit, integration, external-mutation, and scope policies.
+It always includes `AUTHORIZATION_GRANTS`, using `{}` when no explicit grants
+are proposed, and labels nonempty proposals as unapproved. Existing grant text
+never transfers approval from a previous run. Requirements stay in milestone
+specifications, and stale historical IDs are reconciled before removal.
+
+The complete file-action proposal must be approved before either update.
+Absent optional files remain absent by default; incompatible launch references
+need an explicit preserve/remove decision. An all-retired project gains no
+executable IDs. These updates never launch a goal or activate grants. Already
+compatible files yield a no-op.
+
 ## What an upgrade is not
 
 An upgrade adopts **operating rules**. It does not initialize a project,
@@ -107,6 +129,19 @@ implement work, commit, or retire milestones as a side effect.
 Retiring older milestones is separate work that needs its own scope and closure
 evidence. A separately installed API harness needs its own compatibility check
 or update.
+
+## Adopting authorization guidance
+
+Offer optional milestone `AUTHORIZATION_REQUIREMENTS` and request
+`AUTHORIZATION_GRANTS` as an explicit approved merge. Preserve project
+restrictions and reconcile conflicts in the proposal. Keep declarations in
+milestone specifications; status preambles only point there. Upgrading
+guidance never activates proposed grants or authorizes execution.
+
+Existing projects without these fields retain their behavior; installation
+triggers no migration or additional authority. Create no approval ledger or
+audit dependency, and leave frozen history untouched. Python API authorization
+boundaries stay governed by their existing contracts. See [the authorization guide](goal.md#authorization-requirements-and-grants).
 
 ## Adopting long-term memory
 

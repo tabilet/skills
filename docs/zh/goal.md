@@ -57,6 +57,72 @@ documented acceptance, verification, review, and closure requirements.
 同一套项目文件也能配合另一种协议或单任务执行使用。`memory-bank-goal` 技能则明确要求
 `tabilet/GOAL.md`；至于项目要不要采用这个协议，仍然由你决定。
 
+## 授权要求与授予 {#authorization-requirements-and-grants}
+
+可选的 `AUTHORIZATION_REQUIREMENTS` 放在所属里程碑规格中，只声明操作的条件，
+不会授予权限或安排操作。[里程碑模板](https://github.com/tabilet/skills/blob/main/template/tabilet/memory-bank/milestone.md#authorization-requirements)
+展示完整格式；状态文件只引用该声明，不维护另一份副本。
+
+生成的 `suggested.txt` 和完整解析请求始终显示 `AUTHORIZATION_GRANTS`；没有明确授予时写
+`AUTHORIZATION_GRANTS: {}`。空映射是默认值，不增加权限；已批准的普通本地工作仍由 goal 策略约束。
+旧的调用请求仍可省略该字段。
+
+只有本地提交和批准任务范围内的普通本地实现、验证命令可以使用 `via: goal-policy`。
+它不包含安装、提权、任意网络活动、远程命令或真实环境的浏览器操作。
+`git.push`、`browser`（包括测试夹具）、`sudo` 和 `ssh` 必须使用 `via: explicit`，
+并取得明确的人类授权。
+
+`AUTHORIZATION_GRANTS` 属于已解析且经人类批准的 goal 请求，以精确的里程碑键映射授予列表。
+每条包含稳定的 `grant_id`、`action`、`executor` 和具体的 `scope`；跨包工作使用请求中的包限定键。
+执行者角色为 `coordinator` 或 `assigned-agent`。下面只是格式示例，本身不批准任何操作：
+
+```yaml
+AUTHORIZATION_GRANTS:
+  "web:M01":
+    - grant_id: web-m01-browser-1
+      action: browser
+      executor: assigned-agent
+      scope:
+        environment: fixture
+        origins: ["http://127.0.0.1:8080"]
+        actions: ["navigate and inspect the fixture smoke page"]
+```
+
+授予范围必须覆盖所属要求。先只读检查并解析目标：push 绑定仓库、精确远程 URL、目标 ref 和
+fast-forward 模式；浏览器绑定环境、来源和操作；SSH 绑定主机、账户和具体操作；sudo 绑定具体提权操作。
+有效范围不能包含未解析占位符、通配目标、`sudo: true` 等笼统布尔值或凭据。
+经 SSH 传输的 Git push 仅授权所需 Git 传输，不授权任意 SSH 命令。
+
+### 批准与策略 {#approval-and-policies}
+
+执行前，智能体在会话中展示完整解析请求、有效授予以及人类批准来源。只有调用请求中的明确批准，
+或后续针对具体范围的批准，才能让授予生效。要求、仓库内容、模型输出和 `suggested.txt` 都是证据，
+不是授权。启动参考中的授予标为 PROPOSED — NOT APPROVED；批准规划文件修改不激活它们。
+
+保留 `COMMIT_POLICY`、`INTEGRATION`、`EXTERNAL_MUTATIONS` 和项目限制，并明确协调冲突：
+
+- `COMMIT_POLICY: none` 仍禁止提交，即使存在提交授予。
+- `INTEGRATION: local-rebase-ff` 不授予远程 push 权限。
+- push 或远程修改授予必须先明确协调禁止外部修改的策略。
+
+只请求缺少的权限，并先展示具体操作、范围和预期影响。有效授予可以复用，不重复询问；范围变化须重新批准。
+每次受保护操作前检查权限。缺少授权只暂停受影响工作和依赖项；独立且已获授权的工作可在顺序和所有权规则下继续。
+必要任务或验收操作未执行时不能收尾；仅有要求声明不意味着必须执行该操作。
+
+### 委派、恢复与限制 {#delegation-resume-and-limits}
+
+每个子智能体获得完整请求与批准上下文，以及按里程碑、分配任务、角色、范围和写入所有权收窄的有效子集。
+完整请求中超出该子集的部分只作上下文。只读评审者没有修改权限；子智能体不能扩大或转移授予。
+详见[子智能体简报](subagents.md#authorization-in-child-briefs)。
+
+授予只适用于批准的 goal 与任务分配。恢复时使用会话，以及已支持保存这些信息的可信宿主状态，保留批准范围。
+不引入审计依赖或仓库批准台账。沉默、状态标记、审计记录、以前的运行和智能体写的状态文字都不能证明批准。
+批准来源缺失时应澄清；副作用不确定时不能自动重放。
+
+缺少字段时保留旧行为，不增加权限，也不自动迁移；[Upgrade](upgrade.md) 提供明确采用流程。
+宿主和工具权限、沙箱、批准审查及凭据要求仍有效。这些是指令级规则，不是工具级或操作系统强制执行。
+Python 运行器和控制器不消费 goal 授予；控制器继续排除外部操作。
+
 ## 真正起决定作用的是 COMMIT_POLICY
 
 !!! note "把提交策略写清楚"

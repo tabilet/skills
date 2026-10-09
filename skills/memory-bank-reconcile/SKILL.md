@@ -108,6 +108,10 @@ requested as its next full pass. Continue the persisted counter and its
 
 ## Phase 2 - Propose
 
+Use the shared plan-update reference for optional milestone
+`AUTHORIZATION_REQUIREMENTS` and clearly proposed launch `AUTHORIZATION_GRANTS`.
+Approval of these file actions does not activate grants or authorize execution.
+
 Read [references/write-contract.md](references/write-contract.md) before preparing
 the proposal. It defines provenance, allowed file actions, and output checks.
 Reading it does not authorize writes. Read [references/plan-update.md](references/plan-update.md) for the shared existing-plan preservation and pre-write checks.

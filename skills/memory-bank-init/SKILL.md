@@ -167,6 +167,10 @@ understanding.
 
 ## Phase 2 - Propose
 
+Include optional milestone `AUTHORIZATION_REQUIREMENTS` where relevant, under
+the write contract. Any launch `AUTHORIZATION_GRANTS` are proposed, never
+activated by planning approval. Preserve human, project, and policy boundaries.
+
 Read [references/write-contract.md](references/write-contract.md) completely
 before presenting the file-action proposal, so the proposal uses the actual
 generated file set and `tabilet/memory-bank/status-<LANE><NN>.md` paths (for example,

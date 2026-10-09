@@ -140,6 +140,18 @@ arrival alone is not an evolution event.
 
 ## Refresh disposable goal input
 
+Use the shared plan-update reference to author optional
+`AUTHORIZATION_REQUIREMENTS` only in owning milestone specifications. Any
+`AUTHORIZATION_GRANTS` in launch input are PROPOSED — NOT APPROVED; planning
+approval does not activate them. Resolve exact target context by read-only
+inspection, preserve project/policy restrictions, and surface missing human
+authority separately. Do not duplicate declarations in status files, store
+credentials, or create an approval ledger or audit dependency.
+
+Always emit `AUTHORIZATION_GRANTS`, using `AUTHORIZATION_GRANTS: {}` for the
+default with no explicit grants. Requirements stay in owning milestone
+specifications; do not duplicate them in the disposable launch reference.
+
 When the project contains an approved compatible `tabilet/GOAL.md`, replace
 `tabilet/memory-bank/suggested.txt` with a fresh launch reference derived from the whole
 approved active horizon, not only the new review findings. It is disposable
@@ -151,6 +163,8 @@ Use this shape with project values:
 # Disposable multi-milestone launch reference.
 # Reconcile this suggestion against milestone.md and the current status files.
 # Delete it after launching the goal, or whenever it becomes stale.
+# Any AUTHORIZATION_GRANTS below are PROPOSED — NOT APPROVED.
+# Planning approval and reading this file do not activate grants.
 
 Using tabilet/GOAL.md, execute this loop.
 
@@ -166,6 +180,7 @@ M01 -> M02
 
 COMMIT_POLICY: task
 EXTERNAL_MUTATIONS: none
+AUTHORIZATION_GRANTS: {}
 
 Completion condition: every required status is complete, every triggered
 conditional status is complete, and every milestone's documented verification

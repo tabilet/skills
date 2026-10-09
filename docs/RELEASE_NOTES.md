@@ -1,3 +1,31 @@
+# memory-bank v2.7.1
+
+Milestone specifications may declare optional `AUTHORIZATION_REQUIREMENTS`.
+The resolved human-approved goal request may carry `AUTHORIZATION_GRANTS`
+for exact milestone assignments, including package-qualified keys. Declarations
+and proposed launch grants establish no permission. Effective grants require
+explicit human approval of concrete scope, preserve commit and external-mutation
+policies, and are narrowed for children; read-only reviewers have no mutation
+authority. Missing authority pauses affected work and dependents. Required
+unperformed actions prevent closure, and uncertain side effects cannot replay
+automatically on resume.
+
+Init, Propose, Reconcile, Next, Goal, and Upgrade guidance, project templates,
+and public guides describe these instruction-level boundaries. Adoption is
+explicit; field omission preserves legacy behavior without new authority or
+automatic migration. No audit dependency or grant-consuming runtime is added.
+The Python API controller continues to exclude external actions. Host/tool
+permissions and credentials still apply. Contract checks guard the documented
+rules and examples; they do not enforce runtime permissions.
+
+Generated launch references always include `AUTHORIZATION_GRANTS`, using `{}`
+for the default with no explicit grants. Upgrade proposes updates to existing
+`tabilet/GOAL.md` and `tabilet/memory-bank/suggested.txt`, preserving custom
+restrictions and explicit policies. It reconciles launch input against current
+project truth, marks proposed grants as unapproved, and applies the complete
+file-action proposal only after approval. Missing optional files stay absent by
+default, compatible files yield a no-op, and no upgrade starts execution.
+
 # memory-bank v2.7.0
 
 v2.7.0 records API token usage in the optional audit. When audit is enabled, the

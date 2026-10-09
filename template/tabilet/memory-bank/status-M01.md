@@ -26,11 +26,21 @@ selecting another row. An operational launcher additionally requires its exact
 authorized operation row to be `[~]` before invocation; the marker records the
 selected operation but does not grant missing external-mutation authority.
 
+Read this milestone's optional `AUTHORIZATION_REQUIREMENTS` in
+[`milestone.md`](milestone.md#authorization-requirements); do not duplicate its
+declaration here. Check protected actions against the current human-approved
+request and effective grants before acting. Notes may record a grant ID,
+performed-action evidence, or a missing-authority blocker; they never prove
+approval. Required unperformed actions prevent closure. No new task marker is
+introduced, and absent authorization metadata grants no additional authority.
+
 Each table row is a commit unit: after changing its state, verify the change,
 update the memory bank/docs, and make a scoped `git commit` before starting the
 next row. A `[-]` row's notes must record the consumed attempt or supersession
 and identify its accepted successor. If two rows are inseparable, redefine them
 as one row before starting rather than closing several rows in one commit.
+During a goal run, the resolved `COMMIT_POLICY` governs instead; `none` means
+no commits even when a requirement or grant mentions `git.commit`.
 
 After the milestone's review, consolidation, and downstream reconciliation
 pass, follow [the retirement procedure](milestone.md#long-term-memory-and-retirement).

@@ -811,6 +811,14 @@ that: it reconciles dependencies before each milestone, reconciles the
 milestones downstream of one that just closed, and stops rather than guessing
 when a decision or authority is missing.
 
+Milestone specifications can declare optional `AUTHORIZATION_REQUIREMENTS`.
+Human-approved goal requests can carry scoped `AUTHORIZATION_GRANTS` for exact
+milestone assignments. Declarations and suggested grants confer no permission;
+commit and external-mutation policies still apply. See the
+[authorization guide](docs/goal.md#authorization-requirements-and-grants) for
+approval, delegation, and resume rules. This is instruction-level guidance;
+the Python API controller continues to exclude external actions.
+
 It is invoked, not ambient. Whatever your agent, the request that starts a run is
 the same block, and it names the file, the order, and the commit policy:
 
@@ -826,7 +834,11 @@ changes it after a new review, either skill writes the complete proposed request
 to `tabilet/memory-bank/suggested.txt` when the project has a compatible `tabilet/GOAL.md`.
 Treat that file as a launch suggestion, not a second roadmap: reconcile it
 against `milestone.md` and the current status files, then delete it after launch
-or whenever it becomes stale. Without a compatible protocol they omit this file
+or whenever it becomes stale. It always shows `AUTHORIZATION_GRANTS`, with `{}`
+as the default when no explicit grants are proposed. Propose refreshes it for
+approved plan changes; Upgrade offers updates to an existing `GOAL.md` and
+`suggested.txt` in its complete approval proposal while preserving local rules
+and policies. Without a compatible protocol, planning skills omit this file
 and leave one-row execution available. To reference an existing suggestion directly:
 
 ```text
@@ -1100,7 +1112,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.7.0` tag. A marketplace install or
+For a reproducible installation, use the `v2.7.1` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke

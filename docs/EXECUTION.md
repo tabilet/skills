@@ -29,6 +29,25 @@ are known or expected.
   harness-related rows are pending, in progress, complete, blocked, cancelled,
   or closed historical evidence.
 
+## Action authorization
+
+Optional milestone `AUTHORIZATION_REQUIREMENTS` declare conditions, never
+permission or scheduling. Human-approved goal requests may carry scoped
+`AUTHORIZATION_GRANTS`; [the goal guide](goal.md#authorization-requirements-and-grants)
+describes resolution, policy conflicts, child subsets, and resume boundaries.
+Requirements and proposed grants cannot establish approval. Ordinary local
+implementation/verification excludes installs, elevated privileges, arbitrary
+network activity, remote commands, and live browser actions. Protected actions
+need the appropriate scoped human authority before execution.
+
+This is instruction-level guidance, not tool-level or OS enforcement.
+Host/tool controls still apply. The Python API runner and controller do not
+consume goal grants, persist them as approval, or perform external actions on
+their basis. The controller excludes external actions even when project text
+contains grants; its own receipt and limits remain its authority. The
+standalone runner retains its existing host-shell acknowledgment and commit
+gates. Goal commit policies cannot override either API path.
+
 ## Agent Execution Harness
 
 The included [harness/tackle-memory-bank-api-loop](../harness/tackle-memory-bank-api-loop)

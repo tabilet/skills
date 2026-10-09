@@ -1,5 +1,73 @@
 # Safe update of an existing plan
 
+## Authorization declarations and proposed grants
+
+Keep optional `AUTHORIZATION_REQUIREMENTS` in the owning milestone
+specification; status guidance points there without duplicate declarations.
+Requirements describe conditions, not permission or scheduled actions. `via`
+is `goal-policy` or `explicit`; only local commits and ordinary local
+implementation/verification may use `goal-policy`. Other listed actions need
+explicit human authority. Inspect exact targets read-only before proposing
+scope, preserve project and request restrictions, and surface conflicts.
+
+Any `AUTHORIZATION_GRANTS` in disposable launch input must be labeled
+PROPOSED — NOT APPROVED. Map exact milestone keys (package-qualified across
+packages) to lists with `grant_id`, `action`, `executor`, and `scope`. Planning approval
+alone never activates them. Effective grants require explicit human approval
+of concrete scope, with no unresolved placeholders, wildcard targets, blanket
+booleans, or credentials. Missing fields preserve legacy behavior without new
+authority or migration. Create no approval ledger or audit dependency; do not
+launch execution. Grants cannot expand Python API authorization boundaries.
+
+Always emit `AUTHORIZATION_GRANTS` in refreshed launch input, using
+`AUTHORIZATION_GRANTS: {}` for the default with no explicit grants. Requirements
+stay in the milestone specification; do not duplicate them in `suggested.txt`.
+
+Executors are `coordinator` or `assigned-agent`. Each requirement has `via`,
+`executor`, and any necessary `scope`. This template lists supported
+actions; include only applicable entries in a milestone. It grants no
+authority and schedules no action:
+
+```yaml
+AUTHORIZATION_REQUIREMENTS:
+  git.commit:
+    via: goal-policy
+    executor: assigned-agent
+  git.push:
+    via: explicit
+    executor: coordinator
+    scope:
+      repository: "<owning repository>"
+      remote: "<exact remote URL>"
+      ref: "<exact destination ref>"
+      mode: fast-forward
+  cli.local:
+    via: goal-policy
+    executor: assigned-agent
+    scope: declared-implementation-and-verification
+  browser:
+    via: explicit
+    executor: assigned-agent
+    scope:
+      environment: fixture
+      origins: ["<exact approved origin>"]
+      actions: ["<approved action>"]
+  sudo:
+    via: explicit
+    executor: coordinator
+    scope:
+      commands: ["<specific privileged operation>"]
+  ssh:
+    via: explicit
+    executor: coordinator
+    scope:
+      host: "<exact host>"
+      user: "<account>"
+      commands: ["<specific remote operation>"]
+```
+
+## Approved plan edits
+
 Read when preparing file actions. Apply its writes only after the user approves the complete proposal. Preserve the project's local rules, unrelated content, permanent IDs, non-pending row outcomes, review counters, and frozen archives and retired records. Search both active statuses and the history index before proposing a new ID. Do not reopen completed history. Add approved work to an existing pending owner when its scope and acceptance fit; otherwise propose a new pending milestone or row. An approved superseded pending row may be retained as `[-]` only when its notes name the accepted successor. Changes to in-progress, blocked, completed, or cancelled work need separate handling, not a silent rewrite.
 
 Only in `memory-bank-propose`, for an explicit approved stage rescope, an

@@ -85,6 +85,22 @@ Before invoking an operational launcher, its exact authorized operation row must
 already be `[~]`. The marker records the selection; it never grants
 external-mutation authority.
 
+## Action authority
+
+Read optional `AUTHORIZATION_REQUIREMENTS` in the owning milestone, and check
+protected actions against the current scoped human request. Declarations,
+proposed grants, and status notes never prove approval. Ordinary local work
+does not authorize installs, elevated privileges, arbitrary network activity,
+remote commands, or live browser actions. Resolve exact targets read-only;
+reuse a valid grant, and obtain fresh approval for changed scope.
+
+Within a goal, use its narrowed effective grants and preserve commit and
+external-mutation restrictions. Outside a goal, the current one-row request
+and project rules govern; a previous run's grants do not carry over. Required
+unperformed actions prevent closure. See [the authorization guide](goal.md#authorization-requirements-and-grants).
+Legacy field omission adds no authority or migration, and host/tool controls
+still apply. The Python API paths do not consume these grants.
+
 ## Correcting current truth
 
 When an implementation invalidates a current product or architecture fact, the

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import re
 import tempfile
 import unittest
 from unittest import mock
@@ -15,6 +16,208 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_authorization_contract_rejects_documentation_regressions(self) -> None:
+        # These fixtures test documentation guards, not an authorization engine.
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in repository_checks.AUTHORIZATION_DOC_CONTRACTS:
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            regressions = (
+                ("GOAL.md", "Requirements never grant permission",
+                 "Requirements grant permission"),
+                ("GOAL.md", "Approval of planning file changes alone does not activate proposed grants",
+                 "Approval of planning file changes alone activates proposed grants"),
+                ("GOAL.md", "`COMMIT_POLICY: none` still means no commits, even with a commit grant",
+                 "A commit grant overrides COMMIT_POLICY: none"),
+                ("GOAL.md", "`INTEGRATION: local-rebase-ff` grants no remote push",
+                 "INTEGRATION: local-rebase-ff also grants remote push"),
+                ("GOAL.md", "Conflicts require explicit reconciliation before accepting a",
+                 "Conflicts are silently overridden before accepting a"),
+                ("GOAL.md", "Grant action and executor must match the requirement",
+                 "Grant action and executor need not match the requirement"),
+                ("GOAL.md", "unresolved\nor conflicting scopes require clarification",
+                 "unresolved or conflicting scopes need no clarification"),
+                ("GOAL.md", "Reuse an existing valid grant without\n   asking again",
+                 "Ask again for every existing valid grant"),
+                ("GOAL.md", "changed scope requires\n   fresh approval",
+                 "changed scope uses the old approval"),
+                ("GOAL.md", "Missing authority pauses only\n   affected work and its dependents",
+                 "Missing authority cancels all work"),
+                ("GOAL.md", "independent authorized work may continue",
+                 "independent authorized work must stop"),
+                ("GOAL.md", "Required unperformed task or\n   acceptance actions prevent milestone closure",
+                 "Required unperformed actions permit milestone closure"),
+                ("GOAL.md", "Uncertain side effects must not replay\n   automatically",
+                 "Uncertain side effects replay automatically"),
+                ("GOAL.md", "Legacy field omission preserves existing behavior",
+                 "Legacy field omission requires migration"),
+                ("GOAL.md", "Host/tool permission controls still apply",
+                 "Grants bypass host/tool permission controls"),
+                ("skills/memory-bank-goal/references/subagents.md",
+                 "child's effective authorization subset narrowed by exact milestone key",
+                 "child receives all parent grants for every milestone"),
+                ("skills/memory-bank-goal/references/subagents.md",
+                 "Read-only reviewers receive no mutation\nauthority",
+                 "Read-only reviewers may mutate with parent grants"),
+                ("skills/memory-bank-goal/references/subagents.md", "Children\ncannot expand or transfer grants",
+                 "Children may expand or transfer grants"),
+                ("skills/memory-bank-init/references/write-contract.md",
+                 "PROPOSED — NOT APPROVED", "APPROVED FOR EXECUTION"),
+                ("skills/memory-bank-propose/references/plan-update.md",
+                 "Planning approval\nalone never activates them",
+                 "Planning approval activates grants"),
+                ("skills/memory-bank-reconcile/references/write-contract.md",
+                 "planning\napproval does not activate them",
+                 "planning approval activates grants"),
+                ("skills/memory-bank-upgrade/SKILL.md",
+                 "Offer authorization guidance only as explicit adoption",
+                 "Automatically adopt authorization guidance"),
+                ("template/tabilet/memory-bank/status-M01.md",
+                 "do not duplicate its\ndeclaration here",
+                 "duplicate its declaration here"),
+                ("docs/EXECUTION.md", "Python API runner and controller do not\nconsume goal grants",
+                 "Python API runner and controller consume goal grants"),
+            )
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual(repository_checks.goal_authorization_contract(), [])
+                for relative, old, new in regressions:
+                    with self.subTest(regression=old):
+                        path = fixture / relative
+                        original = path.read_text()
+                        pattern = r"\s+".join(re.escape(word) for word in old.split())
+                        self.assertIsNotNone(re.search(pattern, original), old)
+                        path.write_text(re.sub(pattern, lambda _match: new, original))
+                        try:
+                            problems = repository_checks.goal_authorization_contract()
+                            self.assertTrue(any(p.startswith(relative + ":") for p in problems), problems)
+                        finally:
+                            path.write_text(original)
+
+    def test_authorization_example_lint_rejects_unsafe_shapes_and_scopes(self) -> None:
+        requirements = (ROOT / "template/tabilet/memory-bank/milestone.md").read_text()
+        grants = (ROOT / "GOAL.md").read_text()
+        # Template requirement placeholders are allowed; effective grant examples
+        # must be concrete. No fixture causes a push, browser, sudo, or SSH call.
+        self.assertEqual(repository_checks.authorization_example_problems(requirements), [])
+        self.assertEqual(repository_checks.authorization_example_problems(grants), [])
+        invalid = (
+            (requirements, "git.push:\n    via: explicit", "git.push:\n    via: goal-policy", "cannot use goal-policy"),
+            (requirements, "browser:\n    via: explicit", "browser:\n    via: goal-policy", "cannot use goal-policy"),
+            (requirements, "sudo:\n    via: explicit", "sudo:\n    via: goal-policy", "cannot use goal-policy"),
+            (requirements, "ssh:\n    via: explicit", "ssh:\n    via: goal-policy", "cannot use goal-policy"),
+            (requirements, "via: explicit", "via: implicit", "invalid via"),
+            (grants, '"service:M01":', '"*:M01":', "exact milestone keys"),
+            (grants, "grant_id: service-m01-push-1", "grant_id: <generated>", "grant_id"),
+            (grants, "action: git.push", "action: everything", "named action"),
+            (grants, "executor: coordinator", "executor: anyone", "named executor"),
+            (grants, "scope:\n        repository:", "scope: true\n        repository:", "concrete scope"),
+            (grants, "repository: /workspace/service", "repository: <repository>", "placeholder"),
+            (grants, "ref: refs/heads/release", "ref: refs/heads/*", "wildcard"),
+            (grants, "mode: fast-forward", "mode: force", "fast-forward"),
+            (grants, "repository: /workspace/service", "sudo: true", "blanket boolean"),
+            (grants, "repository: /workspace/service", "password: REDACTED", "credential fields"),
+            (grants, "remote: https://github.com/example/service.git", "wrong_target: unused", "needs remote"),
+        )
+        for text, old, new, diagnostic in invalid:
+            with self.subTest(regression=new):
+                self.assertIn(old, text)
+                problems = repository_checks.authorization_example_problems(text.replace(old, new))
+                self.assertTrue(any(diagnostic in p for p in problems), problems)
+
+    def test_authoring_schema_copies_reject_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in repository_checks.AUTHORIZATION_DOC_CONTRACTS:
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual(repository_checks.goal_authorization_contract(), [])
+                for relative in ("skills/memory-bank-init/references/write-contract.md",
+                                 "skills/memory-bank-propose/references/plan-update.md"):
+                    with self.subTest(reference=relative):
+                        path = fixture / relative
+                        original = path.read_text()
+                        path.write_text(original.replace('"<exact remote URL>"', '"<different URL>"'))
+                        try:
+                            self.assertTrue(any("requirement example differs" in problem
+                                                for problem in repository_checks.goal_authorization_contract()))
+                        finally:
+                            path.write_text(original)
+
+    def test_grant_defaults_are_visible_in_full_launch_examples(self) -> None:
+        for relative in (
+            "skills/memory-bank-init/references/write-contract.md",
+            "skills/memory-bank-reconcile/references/write-contract.md",
+            "skills/memory-bank-goal/SKILL.md",
+        ):
+            with self.subTest(reference=relative):
+                text = (ROOT / relative).read_text()
+                self.assertEqual(repository_checks.grant_launch_example_problems(text), [])
+                for replacement in ("", "AUTHORIZATION_GRANTS: none", "AUTHORIZATION_GRANTS: default"):
+                    broken = text.replace("EXTERNAL_MUTATIONS: none\nAUTHORIZATION_GRANTS: {}",
+                                          "EXTERNAL_MUTATIONS: none\n" + replacement)
+                    self.assertNotEqual(broken, text)
+                    self.assertTrue(repository_checks.grant_launch_example_problems(broken))
+
+    def test_upgrade_refresh_preserves_approval_and_project_policies(self) -> None:
+        relative = "skills/memory-bank-upgrade/SKILL.md"
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for source in repository_checks.AUTHORIZATION_DOC_CONTRACTS:
+                target = fixture / source
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / source).read_bytes())
+            regressions = (
+                ("When found, include an update of an earlier compatible protocol in the complete proposal",
+                 "Always leave existing goal protocols untouched"),
+                ("include its refresh in the same proposal", "never refresh existing launch input"),
+                ("propose focused merges that preserve local restrictions and behavior",
+                 "overwrite custom restrictions with defaults"),
+                ("Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`)",
+                 "Replace selection and policies with example defaults"),
+                ("do not copy previous-run approval as effective authority",
+                 "copy previous-run approval as effective authority"),
+                ("Preserve an absent launch reference", "Create a launch reference when absent"),
+                ("Upgrading these files never activates grants or launches a goal",
+                 "Upgrading these files activates grants and launches execution"),
+                ("repeat run with compatible files is a no-op", "always rewrite compatible files"),
+            )
+            path = fixture / relative
+            original = path.read_text()
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual(repository_checks.goal_authorization_contract(), [])
+                for old, new in regressions:
+                    with self.subTest(regression=old):
+                        pattern = r"\s+".join(re.escape(word) for word in old.split())
+                        self.assertIsNotNone(re.search(pattern, original), old)
+                        path.write_text(re.sub(pattern, lambda _match: new, original))
+                        try:
+                            self.assertTrue(any(problem.startswith(relative + ":")
+                                                for problem in repository_checks.goal_authorization_contract()))
+                        finally:
+                            path.write_text(original)
+
+    def test_goal_copies_include_upgrade_payload(self) -> None:
+        copies = (
+            "GOAL.md", "template/tabilet/GOAL.md", "skills/memory-bank-init/GOAL.md",
+            "skills/memory-bank-upgrade/assets/template/tabilet/GOAL.md",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in copies:
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture), \
+                    mock.patch.object(repository_checks, "SKILLS_DIR", fixture / "skills"):
+                self.assertEqual(repository_checks.goal_copies(), [])
+                upgrade = fixture / copies[-1]
+                upgrade.write_text(upgrade.read_text() + "\nDrift.\n")
+                self.assertTrue(any(copies[-1] in p for p in repository_checks.goal_copies()))
+
     def test_parallel_goal_contract_rejects_review_regressions(self) -> None:
         paths = (
             "GOAL.md", "AGENTS.md", "template/AGENTS.md",

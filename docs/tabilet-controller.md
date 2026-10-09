@@ -77,6 +77,12 @@ publication, or other external action. Such actions are recorded for separate
 handling. Required manual evidence pauses the horizon until supplied during a
 later resume. Model review is recorded as model evidence, not human evidence.
 
+Milestone `AUTHORIZATION_REQUIREMENTS` and goal `AUTHORIZATION_GRANTS` do not
+expand this confirmation. The Python controller does not consume goal grants;
+it excludes external actions even when project text contains them. Use the
+[goal authorization guide](goal.md#authorization-requirements-and-grants) for
+human-approved interactive goal execution.
+
 Read current project and receipt state without writes:
 
 ```bash

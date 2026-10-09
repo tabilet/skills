@@ -322,5 +322,23 @@
     "file": "status-M01.md",
     "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** superseded\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 11\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n`````\n",
     "invalid": true
+  },
+  {
+    "name": "authorization-metadata-is-not-task-state",
+    "kind": "status",
+    "text": "```yaml\nAUTHORIZATION_REQUIREMENTS:\n  browser:\n    via: explicit\n    executor: assigned-agent\n    scope:\n      environment: fixture\n      origins: [\"http://127.0.0.1:8080\"]\n      actions: [\"inspect fixture\"]\nAUTHORIZATION_GRANTS:\n  M01:\n    - grant_id: proposed-fixture\n      action: browser\n      executor: assigned-agent\n      scope:\n        environment: fixture\n        origins: [\"http://127.0.0.1:8080\"]\n        actions: [\"inspect fixture\"]\n# | phantom | `[~]` | Depends on: M99 |\n```\n| T01 | `[ ]` | Depends on: M02/T01 |\n",
+    "rows": [
+      {
+        "item": "T01",
+        "state": "pending",
+        "cells": [
+          "T01",
+          "`[ ]`",
+          "Depends on: M02/T01"
+        ],
+        "line": 21
+      }
+    ],
+    "problems": []
   }
 ]

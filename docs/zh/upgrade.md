@@ -82,12 +82,35 @@ and history. Show the complete proposed file changes before writing.
 Upgrade 可以采用可选的阶段规则，而不创建阶段文件或移动现有工作。想引入阶段，或者撤回
 已获批的待处理任务以便以后重新规划，请用 [Propose](propose.md)。
 
+## 现有 goal 协议与启动参考 {#existing-goal-protocol-and-launch-reference}
+
+发现现有 `tabilet/GOAL.md` 时，Upgrade 会在完整方案中包含对较早兼容协议的更新。
+经批准的标准协议替换使用技能自带副本，字节完全一致；自定义协议采用局部合并，保留本地限制和行为。
+不兼容的协议需要先作兼容性决定。
+
+如果也存在 `tabilet/memory-bank/suggested.txt`，Upgrade 会提议按整个当前已批准活动范围刷新它。
+保留明确的顺序或优先级、提交、集成、外部修改和范围策略。始终写出 `AUTHORIZATION_GRANTS`，
+没有明确授予提议时用 `{}`；非空提议仍标为未批准。现有授予文字不能继承以前运行的批准。
+要求只保留在里程碑规格中；删除过时历史 ID 前先协调其处置。
+
+更新前须批准完整文件操作方案。缺失的可选文件默认继续缺失；不兼容启动参考需要明确决定保留或删除。
+全部已退役的项目不会获得可执行 ID。这些更新不启动 goal，也不激活授予；已经兼容的文件保持不变。
+
 ## 升级不是什么
 
 升级采用的是一套**运行规则**。它不会顺手帮你初始化项目、实现工作、提交或退役里程碑。
 
 退役旧里程碑是另一件独立的工作，需要自己的作用域，也需要自己的关闭证据。单独安装的 API 运行器，
 也要自己再做一次兼容性检查或更新。
+
+## 采用授权指导 {#adopting-authorization-guidance}
+
+可选的里程碑 `AUTHORIZATION_REQUIREMENTS` 和请求 `AUTHORIZATION_GRANTS` 须作为明确批准的合并来采用。
+保留项目限制，并在方案中协调冲突。声明只保留在里程碑规格中；状态前言只引用它。
+升级指导不会激活提议授予，也不授权执行。
+
+缺少字段的现有项目保留原行为；安装不触发迁移或增加权限。不创建批准台账或审计依赖，不修改冻结历史。
+Python API 授权边界仍由原合同约束。详见[授权指南](goal.md#authorization-requirements-and-grants)。
 
 ## 采用长期记忆
 

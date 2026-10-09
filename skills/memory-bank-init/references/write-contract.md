@@ -161,6 +161,71 @@ requirement of the memory bank.
 
 ## Write the disposable launch reference
 
+Author optional `AUTHORIZATION_REQUIREMENTS` in each owning milestone
+specification when protected actions are relevant; do not duplicate them in
+status files. `via` is `goal-policy` or `explicit`; only local commits and
+ordinary local implementation/verification may use `goal-policy`. Other listed
+actions require explicit human authority. Declare conditions, not permission
+or scheduling, and resolve exact target context by read-only inspection.
+
+Any `AUTHORIZATION_GRANTS` included in launch input must be clearly labeled
+PROPOSED — NOT APPROVED. Map exact milestone keys, package-qualified for
+cross-package goals, to lists with `grant_id`, `action`, `executor`, and `scope`. Never
+claim that planning approval activates grants. Effective grants need separate
+explicit human approval of concrete scope with no unresolved placeholders,
+wildcard targets, blanket booleans, or credentials. Preserve commit, integration,
+external-mutation, and project restrictions; show conflicts for clarification.
+Do not create approval state, require auditing, or launch protected actions.
+Missing fields preserve legacy behavior without automatic migration.
+
+Always emit `AUTHORIZATION_GRANTS`, even when empty: `AUTHORIZATION_GRANTS: {}`
+means no explicit grants and is the default. Requirements stay in the owning
+milestone specifications; do not copy them into launch input. A nonempty grant
+mapping still contains only unapproved proposals until scoped human approval.
+
+Executors are `coordinator` or `assigned-agent`. Each requirement has `via`,
+`executor`, and any necessary `scope`. This template lists supported
+actions; include only applicable entries in a milestone. It grants no
+authority and schedules no action:
+
+```yaml
+AUTHORIZATION_REQUIREMENTS:
+  git.commit:
+    via: goal-policy
+    executor: assigned-agent
+  git.push:
+    via: explicit
+    executor: coordinator
+    scope:
+      repository: "<owning repository>"
+      remote: "<exact remote URL>"
+      ref: "<exact destination ref>"
+      mode: fast-forward
+  cli.local:
+    via: goal-policy
+    executor: assigned-agent
+    scope: declared-implementation-and-verification
+  browser:
+    via: explicit
+    executor: assigned-agent
+    scope:
+      environment: fixture
+      origins: ["<exact approved origin>"]
+      actions: ["<approved action>"]
+  sudo:
+    via: explicit
+    executor: coordinator
+    scope:
+      commands: ["<specific privileged operation>"]
+  ssh:
+    via: explicit
+    executor: coordinator
+    scope:
+      host: "<exact host>"
+      user: "<account>"
+      commands: ["<specific remote operation>"]
+```
+
 When the approved project contains a compatible `tabilet/GOAL.md`, derive
 `tabilet/memory-bank/suggested.txt` only from the approved active horizon. It is advisory
 launch input, not project truth. Do not add it to `AGENTS.md`'s required read
@@ -181,6 +246,8 @@ restriction.
 # Disposable multi-milestone launch reference.
 # Reconcile this suggestion against milestone.md and the current status files.
 # Delete it after launching the goal, or whenever it becomes stale.
+# Any AUTHORIZATION_GRANTS below are PROPOSED — NOT APPROVED.
+# Planning approval and reading this file do not activate grants.
 
 Using tabilet/GOAL.md, execute this loop.
 
@@ -196,6 +263,7 @@ M01 -> M02
 
 COMMIT_POLICY: task
 EXTERNAL_MUTATIONS: none
+AUTHORIZATION_GRANTS: {}
 
 Completion condition: every required status is complete, every triggered
 conditional status is complete, and every milestone's documented verification

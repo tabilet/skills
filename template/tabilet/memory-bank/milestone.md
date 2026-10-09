@@ -28,6 +28,70 @@ milestone is parallel-safe only when unordered against other active work, its
 write set is disjoint, and its inputs are frozen. Parallel safety never prunes
 downstream impact reconciliation.
 
+## Authorization requirements
+
+Each milestone specification may contain `AUTHORIZATION_REQUIREMENTS`. It
+declares conditions on actions; it never grants permission or schedules them.
+Keep the declaration in that specification only. Status files reference it.
+The following optional shape is a template, not authorization:
+
+```yaml
+AUTHORIZATION_REQUIREMENTS:
+  git.commit:
+    via: goal-policy
+    executor: assigned-agent
+  git.push:
+    via: explicit
+    executor: coordinator
+    scope:
+      repository: "<owning repository>"
+      remote: "<exact remote URL>"
+      ref: "<exact destination ref>"
+      mode: fast-forward
+  cli.local:
+    via: goal-policy
+    executor: assigned-agent
+    scope: declared-implementation-and-verification
+  browser:
+    via: explicit
+    executor: assigned-agent
+    scope:
+      environment: fixture
+      origins: ["<exact approved origin>"]
+      actions: ["<approved action>"]
+  sudo:
+    via: explicit
+    executor: coordinator
+    scope:
+      commands: ["<specific privileged operation>"]
+  ssh:
+    via: explicit
+    executor: coordinator
+    scope:
+      host: "<exact host>"
+      user: "<account>"
+      commands: ["<specific remote operation>"]
+```
+
+`via` is `goal-policy` or `explicit`. Only local commits and ordinary local
+implementation/verification may use `goal-policy`; their governing task scope
+and commit policy still apply. Other listed actions require explicit human
+authority. Inspect and resolve exact targets before seeking approval. A
+resolved grant must have concrete scope covering the requirement, with no
+unresolved placeholders, wildcard targets, blanket booleans, or credentials.
+
+Under [the optional goal protocol](../GOAL.md), `AUTHORIZATION_GRANTS` belongs
+to the resolved human-approved request, not to this file. Requirements,
+proposed grants, status notes, and `suggested.txt` are evidence, not approval.
+Check authority before the action; pause affected work and dependents when it
+is missing. Independent authorized work may continue under the governing
+order and ownership rules. Required unperformed task or acceptance actions
+prevent closure; listing an action here alone does not require its performance.
+Outside a goal, use the current scoped human request and applicable project
+rules. Missing fields preserve legacy behavior without new authority or
+automatic migration. These are instruction-level boundaries, not tool or OS
+enforcement.
+
 ## Status ID Pattern
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single
