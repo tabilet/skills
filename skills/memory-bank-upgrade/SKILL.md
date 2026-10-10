@@ -137,8 +137,8 @@ approved goal protocol, include its refresh in the same proposal. Reconcile
 the whole current approved active horizon, permanent IDs, status paths,
 dependencies, conditional triggers, and downstream impacts before rewriting.
 Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`), commit,
-integration, external-mutation, and user scope policies; surface conflicts
-instead of resetting them to example defaults. Remove stale historical launch
+integration, external-mutation, launch-update (`SUGGESTED_UPDATE`), and user scope policies;
+surface conflicts instead of resetting them to example defaults. Remove stale historical launch
 entries only after reconciling their disposition. Keep valid unapproved grant
 proposals labeled PROPOSED — NOT APPROVED; do not copy previous-run approval
 as effective authority. Proposed grants in `suggested.txt` carry decision markers:

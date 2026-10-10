@@ -163,7 +163,9 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   Proposed launch input, markers, and status notes cannot prove approval.
   Grants in `suggested.txt` carry decision markers (`[ ]` need authorization,
   `[+]` approve, `[-]` deny, `[~]` auto) and optional high-level `GLOBAL:` scope;
-  matching the human's approved SHA256 checksum is required before grant activation.
+  matching the human's approved SHA256 checksum is required before grant activation
+  (under default `SUGGESTED_UPDATE: confirm`; `SUGGESTED_UPDATE: auto` authorizes
+  refreshing remaining milestones within the approved horizon and continuing smoothly).
   Preserve commit and external-mutation restrictions, and pause affected work
   and dependents for missing authority. A declaration alone does not require
   an action for closure. Host/tool controls apply; this adds no tool or OS

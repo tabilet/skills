@@ -120,7 +120,10 @@ Proposed grants in `suggested.txt` carry decision markers:
 - `[~]` (**auto**): pre-approved safe operations under governing goal policy.
 
 When resuming or launching from `suggested.txt`, matching its SHA256 checksum against human
-approval is required before activating grants.
+approval is required before activating grants. Under `SUGGESTED_UPDATE: auto`, the orchestrator
+is authorized to refresh remaining milestones in `suggested.txt` and continue execution smoothly
+without pausing for new authorization; under default `SUGGESTED_UPDATE: confirm`, any edit
+requires fresh human approval.
 
 This illustrates a grant's scope; the example itself approves nothing:
 

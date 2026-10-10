@@ -26,8 +26,10 @@ Proposed grants in `suggested.txt` carry decision markers: `[ ]` (need authoriza
 `[+]` (approve), `[-]` (deny), and `[~]` (auto). High-level `GLOBAL:` grants declare
 common authorities across milestones. When refreshing `suggested.txt`, strictly preserve
 existing human `[+]`, `[-]`, and `[~]` decisions on existing grants, and propose `[ ]`
-(or `[~]` for safe local commands under goal policy) for new grants. Goal execution
-requires verifying that the SHA256 checksum of `suggested.txt` matches human approval.
+(or `[~]` for safe local commands under goal policy) for new grants. Preserve any
+explicit `SUGGESTED_UPDATE` policy (defaulting to `confirm`). Goal execution
+requires verifying that the SHA256 checksum of `suggested.txt` matches human approval
+before activating grants.
 
 Executors are `coordinator` or `assigned-agent`. Each requirement has `via`,
 `executor`, and any necessary `scope`. This template lists supported

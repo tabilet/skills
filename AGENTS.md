@@ -317,7 +317,9 @@ spelling so an inbound link survives translation.
   decision markers: `[ ]` (need authorization), `[+]` (approve), `[-]` (deny),
   and `[~]` (auto). High-level `GLOBAL:` grants declare common authorities across
   tasks. When resuming from `suggested.txt`, matching its SHA256 checksum against
-  human approval is required before activating grants. Upgrade proposes updates
+  human approval is required before activating grants (under default `SUGGESTED_UPDATE: confirm`;
+  `SUGGESTED_UPDATE: auto` authorizes the orchestrator to refresh remaining milestones
+  within the approved horizon and smoothly continue). Upgrade proposes updates
   to existing goal protocols and launch references while preserving custom
   restrictions and explicit policies; approval of the complete proposal gates
   these writes and never starts execution.

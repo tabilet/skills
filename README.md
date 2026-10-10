@@ -816,7 +816,9 @@ Human-approved goal requests can carry scoped `AUTHORIZATION_GRANTS` for exact
 milestone assignments, or high-level `GLOBAL:` grants applicable across tasks.
 Proposed grants in `suggested.txt` include decision markers: `[ ]` (need authorization),
 `[+]` (approve), `[-]` (deny), and `[~]` (auto). Verifying the SHA256 checksum of
-`suggested.txt` against human approval is required before activating grants.
+`suggested.txt` against human approval is required before activating grants (under
+default `SUGGESTED_UPDATE: confirm`, while `SUGGESTED_UPDATE: auto` authorizes the
+orchestrator to refresh remaining milestones in `suggested.txt` and smoothly continue).
 Declarations and suggested grants confer no permission;
 commit and external-mutation policies still apply. See the
 [authorization guide](docs/goal.md#authorization-requirements-and-grants) for

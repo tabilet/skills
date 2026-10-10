@@ -264,6 +264,7 @@ DOWNSTREAM_IMPACTS:
 M01 -> M02
 
 COMMIT_POLICY: task
+SUGGESTED_UPDATE: confirm
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 
@@ -276,10 +277,12 @@ Map every active status in `STATUS_ORDER` to exactly one file. Include known
 active downstream consumers; the goal loop will discover more. Use
 `DOWNSTREAM_IMPACTS: none` when there are none.
 
-Synthesize proposed `AUTHORIZATION_GRANTS` from active milestone
-`AUTHORIZATION_REQUIREMENTS` when present. Mark safe local commands under goal policy
-as `[~]`, and operations requiring explicit human approval as `[ ]`. High-level
-`GLOBAL:` grants declare common authorities across milestones. Never claim that
+Include `SUGGESTED_UPDATE: confirm` by default, or `SUGGESTED_UPDATE: auto` when
+the user authorizes the orchestrator to refresh remaining milestones without
+prompting for fresh authorization. Synthesize proposed `AUTHORIZATION_GRANTS` from
+active milestone `AUTHORIZATION_REQUIREMENTS` when present. Mark safe local commands
+under goal policy as `[~]`, and operations requiring explicit human approval as `[ ]`.
+High-level `GLOBAL:` grants declare common authorities across milestones. Never claim that
 planning approval activates grants; execution requires explicit human approval
 matching the file's SHA256 checksum. Missing fields preserve legacy behavior.
 

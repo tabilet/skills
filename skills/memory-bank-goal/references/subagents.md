@@ -33,7 +33,7 @@ request. Carry these values explicitly, including defaults:
 
 - The selected `STATUS_ORDER` or `STATUS_PRIORITY`, resolved file map, and
   downstream impacts relevant to the assignment.
-- `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `PARALLELISM`, and `INTEGRATION`.
+- `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `SUGGESTED_UPDATE`, `PARALLELISM`, and `INTEGRATION`.
 - The full `AUTHORIZATION_GRANTS` context and human approval source, plus the
   child's effective authorization subset narrowed by exact milestone key
   (inheriting applicable `GLOBAL:` grants), assignment, executor role, scope,

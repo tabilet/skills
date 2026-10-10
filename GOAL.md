@@ -77,6 +77,7 @@ S01 -> P01, X01
 PARALLELISM: 3
 INTEGRATION: local-rebase-ff
 COMMIT_POLICY: task
+SUGGESTED_UPDATE: confirm
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 ```
@@ -137,6 +138,17 @@ Input rules:
   closure before integration. If the request forbids interim commits or
   amendment, use sequential execution for that policy. It does not authorize
   rewriting integrated history, push, publishing, or merge commits.
+- `SUGGESTED_UPDATE` is optional. It governs how the orchestrator may adjust the
+  disposable launch reference (`suggested.txt`) across milestones during a goal run:
+  - `confirm` (default): any modification to `suggested.txt` changes its SHA256
+    hash and requires fresh human approval before executing the updated reference.
+  - `auto`: authorizes the orchestrator to refresh `suggested.txt` for remaining
+    milestones within the approved active horizon (pruning completed milestones,
+    updating dependency order, and activating triggered conditional `?` milestones)
+    and continue smoothly without pausing for new human authorization. It permits
+    no privilege escalation: new unapproved grants (`[ ]`), scope expansions, or
+    policy changes still require explicit human approval before execution. The
+    orchestrator calculates and records the updated SHA256 checksum in session state.
 - `AUTHORIZATION_GRANTS` is optional. It carries scoped grants explicitly
   approved by the human for this goal, with optional high-level `GLOBAL:` grants
   and checkbox decision markers; resolve it under the authorization
@@ -235,7 +247,11 @@ keys, or other credential values in declarations, grants, or approval context.
 2. When launching or resuming execution from a disposable launch reference
    (`suggested.txt`), verify that the SHA256 checksum of `suggested.txt` matches
    the human's approved hash. A checksum mismatch halts execution before any
-   protected action or grant activation. Only grants marked `[+]` or `[~]`
+   protected action or grant activation. Under `SUGGESTED_UPDATE: auto`, the
+   orchestrator is authorized to refresh `suggested.txt` across milestone closures
+   within the approved active horizon and smoothly continue, recording updated
+   checksums in session state; under default `SUGGESTED_UPDATE: confirm`, any edit
+   requires a fresh matching approval. Only grants marked `[+]` or `[~]`
    become effective upon matching checksum verification; grants marked `[-]` are
    forbidden, and actions marked `[ ]` pause for runtime confirmation before use.
 3. Before execution, materialize the complete resolved request and effective
@@ -249,7 +265,7 @@ keys, or other credential values in declarations, grants, or approval context.
    `COMMIT_POLICY: none` still means no commits, even with a commit grant.
    `INTEGRATION: local-rebase-ff` grants no remote push. Changing a policy also
    needs explicit human authority; do not infer the change from a grant alone.
-4. Resolve precise targets through read-only inspection before the action.
+5. Resolve precise targets through read-only inspection before the action.
    Bind push to repository, actual remote URL, and destination ref; browser to
    environment, origins, and actions; SSH to host, account, and operations;
    sudo to specific privileged operations. Recheck targets before acting.

@@ -24,7 +24,9 @@ checkbox decision markers consistent with milestone task markers: `[ ]` (need au
 `[+]` (approve), `[-]` (deny), and `[~]` (auto). High-level `GLOBAL:` grants declare
 common scopes (such as verification or push) applicable across all tasks in a goal,
 eliminating repetitive boilerplate. When launching or resuming execution from `suggested.txt`,
-verifying its SHA256 checksum against human approval is required before activating grants.
+verifying its SHA256 checksum against human approval is required before activating grants (under
+default `SUGGESTED_UPDATE: confirm`; `SUGGESTED_UPDATE: auto` authorizes the orchestrator to
+refresh remaining milestones in `suggested.txt` and smoothly continue).
 Upgrade proposes updates to existing
 `tabilet/GOAL.md` and `tabilet/memory-bank/suggested.txt`, preserving custom
 restrictions and explicit policies. It reconciles launch input against current

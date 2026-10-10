@@ -83,7 +83,7 @@ documented acceptance, verification, review, and closure requirements.
 - `[-]`（**拒绝**）：人类明确拒绝，禁止执行。
 - `[~]`（**自动**）：根据 goal 治理策略预批准的安全操作。
 
-从 `suggested.txt` 启动或恢复执行时，必须先验证其 SHA256 校验和与人类批准一致，才能激活授予。下面只是格式示例，本身不批准任何操作：
+从 `suggested.txt` 启动或恢复执行时，必须先验证其 SHA256 校验和与人类批准一致，才能激活授予。在 `SUGGESTED_UPDATE: auto` 下，编排者获权在里程碑收尾时刷新 `suggested.txt` 中的剩余里程碑并流畅继续，无需暂停请求新授权；在默认的 `SUGGESTED_UPDATE: confirm` 下，任何修改均须人类重新批准。下面只是格式示例，本身不批准任何操作：
 
 ```yaml
 AUTHORIZATION_GRANTS:

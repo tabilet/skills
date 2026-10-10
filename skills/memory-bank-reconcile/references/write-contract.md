@@ -181,6 +181,7 @@ DOWNSTREAM_IMPACTS:
 M01 -> M02
 
 COMMIT_POLICY: task
+SUGGESTED_UPDATE: confirm
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 
@@ -191,12 +192,13 @@ passes.
 
 Map every active status to exactly one file and include all known active
 downstream consumers. When refreshing `suggested.txt`, preserve existing human
-`[+]`, `[-]`, and `[~]` decisions, and synthesize new candidate grants with `[ ]`
-(or `[~]` under goal policy). High-level `GLOBAL:` grants declare common authorities
-across milestones. Verifying the SHA256 checksum of `suggested.txt` is required
-before grant activation. Use a trailing `?` only for an approved conditionally
-required status whose concrete trigger is documented in `milestone.md`. Never
-include Candidate Directions.
+`[+]`, `[-]`, and `[~]` decisions and any explicit `SUGGESTED_UPDATE` policy
+(defaulting to `confirm`, with `auto` permitting orchestrator milestone refreshes),
+and synthesize new candidate grants with `[ ]` (or `[~]` under goal policy).
+High-level `GLOBAL:` grants declare common authorities across milestones. Verifying
+the SHA256 checksum of `suggested.txt` is required before grant activation. Use a
+trailing `?` only for an approved conditionally required status whose concrete
+trigger is documented in `milestone.md`. Never include Candidate Directions.
 
 When no compatible protocol exists, omit `tabilet/memory-bank/suggested.txt`. Remove an
 existing stale reference only when that removal was in the approved file

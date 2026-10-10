@@ -22,7 +22,7 @@ reference exists, verify that its SHA256 checksum matches human approval before
 activating grants, and let the goal reconcile it first:
 
 ```text
-/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
+/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. SUGGESTED_UPDATE: auto. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 In either agent, run `/goal` with no arguments to show status and `/goal clear`
