@@ -318,7 +318,16 @@ Chromebook 上，请使用 `ssh -N -L 8000:127.0.0.1:8000 user@host`，然后打
 
 ## 更新
 
-Claude Code 用自带的 `/plugin` 管理器更新已安装的插件。Codex 则刷新市场快照，再重装：
+Claude Code 可在终端中运行 CLI 更新命令：
+
+```bash
+claude plugin marketplace update tabilet
+claude plugin update memory-bank@tabilet
+```
+
+*(或者在交互式会话中运行 `/plugin marketplace update tabilet`，然后运行 `/plugin install memory-bank@tabilet` 并执行 `/reload-plugins`。)*
+
+Codex 则刷新市场快照，再重装：
 
 ```bash
 codex plugin marketplace upgrade tabilet
@@ -340,7 +349,7 @@ DSH 伴侣要在每个适用的配置里安装选定的已发布 release 归档�
 
 | 安装方式 | 命令及运行位置 |
 |---|---|
-| Claude Code 插件 | 在 Claude Code 里运行 `/plugin uninstall memory-bank@tabilet` |
+| Claude Code 插件 | 在终端运行 `claude plugin uninstall memory-bank@tabilet` 或在 Claude Code 中使用 `/plugin` 菜单 |
 | Codex 插件 | 在终端里运行 `codex plugin remove memory-bank@tabilet` |
 | agy 插件 | 在终端里运行 `agy plugin uninstall memory-bank` |
 | DSH Web 伴侣 | 在终端里运行 `dsh plugin --profile web remove tabilet-skills` |

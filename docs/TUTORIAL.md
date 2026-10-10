@@ -134,26 +134,28 @@ previously approved proposal; installing the skill never supplies that approval.
 
 ### Claude Code
 
-Refresh `tabilet`, update the installed plugin, and load the new version into
-the current session:
+Refresh `tabilet` and update the installed plugin from the terminal:
 
 ```bash
-/plugin marketplace update tabilet
-/plugin update memory-bank@tabilet
-/reload-plugins
+claude plugin marketplace update tabilet
+claude plugin update memory-bank@tabilet
 ```
+
+*(Or inside an active interactive session, run `/plugin marketplace update tabilet`, then `/plugin install memory-bank@tabilet`, followed by `/reload-plugins` to load the new version into the current session.)*
 
 To uninstall the plugin:
 
 ```bash
-/plugin uninstall memory-bank@tabilet
+claude plugin uninstall memory-bank@tabilet
 ```
+
+*(Or inside an interactive session, run `/plugin` to open the interactive manager and uninstall.)*
 
 If you no longer want the marketplace either, remove it too. Removing a Claude
 Code marketplace also uninstalls any remaining plugins installed from it.
 
 ```bash
-/plugin marketplace remove tabilet
+claude plugin marketplace remove tabilet
 ```
 
 ### Codex

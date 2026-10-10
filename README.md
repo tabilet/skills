@@ -1147,10 +1147,10 @@ after updating the skills.
 
 - **Claude Code:**
   ```bash
-  /plugin marketplace update tabilet
-  /plugin update memory-bank@tabilet
-  /reload-plugins
+  claude plugin marketplace update tabilet
+  claude plugin update memory-bank@tabilet
   ```
+  *(Or inside an active session: `/plugin marketplace update tabilet`, then `/plugin install memory-bank@tabilet`, followed by `/reload-plugins`.)*
 - **Codex:**
   ```bash
   codex plugin marketplace upgrade tabilet
@@ -1177,9 +1177,10 @@ authoritative documentation and manual task tracking.
 
 - **Claude Code:**
   ```bash
-  /plugin uninstall memory-bank@tabilet
-  # Optional: /plugin marketplace remove tabilet
+  claude plugin uninstall memory-bank@tabilet
+  # Optional: claude plugin marketplace remove tabilet
   ```
+  *(Or inside Claude Code: `/plugin` to open the interactive manager and uninstall.)*
 - **Codex:**
   ```bash
   codex plugin remove memory-bank@tabilet

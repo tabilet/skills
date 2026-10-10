@@ -372,7 +372,15 @@ Explorer adds this local graphical view; it does not add host transcript hooks.
 
 ## Update
 
-For Claude Code, use its `/plugin` manager to update the installed plugin.
+For Claude Code, run the CLI update commands in your terminal:
+
+```bash
+claude plugin marketplace update tabilet
+claude plugin update memory-bank@tabilet
+```
+
+*(Or inside an active session: `/plugin marketplace update tabilet`, then `/plugin install memory-bank@tabilet`, followed by `/reload-plugins`.)*
+
 For Codex, refresh the marketplace snapshot and reinstall the plugin:
 
 ```bash
@@ -398,7 +406,7 @@ Use the uninstall command for your installation:
 
 | Installation | Command and where to run it |
 |---|---|
-| Claude Code plugin | `/plugin uninstall memory-bank@tabilet` in Claude Code |
+| Claude Code plugin | `claude plugin uninstall memory-bank@tabilet` in a terminal, or `/plugin` in Claude Code |
 | Codex plugin | `codex plugin remove memory-bank@tabilet` in a terminal |
 | agy plugin | `agy plugin uninstall memory-bank` in a terminal |
 | DSH Web companion | `dsh plugin --profile web remove tabilet-skills` in a terminal |
