@@ -1649,8 +1649,8 @@ def api_controller_contract_problems(
         "Python standard library, Git, and Docker",
         "adds no background service or controller-owned project state",
         "does not add a second execution engine",
-        "temporary flat planning drafts",
-        "do not create an exception or authorize a repository memory bank",
+        "historical controller architecture specification",
+        "does not create an exception or authorize a repository memory bank",
         "one visible proposal and `confirm` may authorize its exact planning diff and bounded local execution horizon",
         "direct `memory-bank-propose` or `memory-bank-reconcile` skills",
         "without implementing, committing, or launching execution",
@@ -1754,7 +1754,7 @@ def api_controller_contract():
     problems = api_controller_contract_problems(
         agents, execution, memory_bank_exists, runner_codes
     )
-    specification = (ROOT / "docs" / "api-automation-1.md").read_text()
+    specification = (ROOT / "docs" / "api.md").read_text()
     problems.extend(api_receipt_schema_problems(specification))
     if problems:
         return problems

@@ -224,6 +224,8 @@ Harness references:
 
 - [Execution Harness](docs/EXECUTION.md)
 - [Model Eval Harness](docs/MODEL_EVAL.md)
+- [Controller Architecture](docs/api.md)
+- [Autonomous Execution](docs/automation.md)
 
 <a id="what-a-filled-in-memory-bank-looks-like"></a>
 ## Chapter 3. What A Filled-In Memory Bank Looks Like
@@ -822,7 +824,8 @@ orchestrator to refresh remaining milestones in `suggested.txt` and smoothly con
 Declarations and suggested grants confer no permission;
 commit and external-mutation policies still apply. See the
 [authorization guide](docs/goal.md#authorization-requirements-and-grants) for
-approval, delegation, and resume rules. This is instruction-level guidance;
+approval, delegation, and resume rules, and
+[autonomous goal execution](docs/automation.md) for continuous multi-milestone runs. This is instruction-level guidance;
 the Python API controller continues to exclude external actions.
 
 It is invoked, not ambient. Whatever your agent, the request that starts a run is
@@ -1585,6 +1588,8 @@ Read more:
 
 - [Execution Harness](docs/EXECUTION.md)
 - [Model Eval Harness](docs/MODEL_EVAL.md)
+- [Controller Architecture](docs/api.md)
+- [Autonomous Execution](docs/automation.md)
 
 <a id="maintenance-rules"></a>
 ### 10.1 Maintenance Rules

@@ -101,9 +101,9 @@ is only worth anything if additions are argued against something:
   gives birth to other projects' harnesses; it is not an instance of its own
   output. A root `tabilet/memory-bank/` beside `template/tabilet/memory-bank/` would force every
   reader and agent to disambiguate two of them for no gain. The workflow is
-  proven in the projects that copied it, not here. The temporary flat planning
-  drafts `docs/api-automation-1.md` through `docs/api-automation-8.md` do not
-  create an exception or authorize a repository memory bank.
+  proven in the projects that copied it, not here. The historical controller
+  architecture specification `docs/api.md` does not create an exception or
+  authorize a repository memory bank.
 
 ## Essential Commands
 
