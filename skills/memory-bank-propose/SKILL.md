@@ -61,9 +61,9 @@ Changing the stage label of an active pending milestone does not defer it.
 Use the shared plan-update reference for optional milestone
 `AUTHORIZATION_REQUIREMENTS` and clearly proposed launch `AUTHORIZATION_GRANTS`.
 Grants in `suggested.txt` use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
-`GLOBAL:` scopes; preserve existing human decisions when refreshing. Approval of these
-file actions does not activate grants or authorize execution, and goal resumption requires
-verifying the updated file's SHA256 checksum.
+`GLOBAL:` scopes; preserve existing human decisions and any `SUGGESTED_UPDATE` policy
+when refreshing. Approval of these file actions does not activate grants or authorize execution,
+and goal resumption requires verifying the updated file's SHA256 checksum.
 
 Read [references/plan-update.md](references/plan-update.md) before preparing file actions. Its inspection is allowed now; its writing authority begins only after approval.
 For stage work, use the bundled [stage contract](references/stages.md) to show
