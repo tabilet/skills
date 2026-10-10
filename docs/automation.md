@@ -170,7 +170,7 @@ AUTHORIZATION_GRANTS:
       executor: assigned-agent
       scope:
         task: declared-implementation-and-verification
-    - [+] grant_id: global-repo-push
+    - [~] grant_id: global-repo-push
       action: git.push
       executor: coordinator
       scope:
