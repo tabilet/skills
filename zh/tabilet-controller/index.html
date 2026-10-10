@@ -1,0 +1,1058 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A minimal engineering harness — plain Markdown project memory and seven portable skills for coding agents">
+      
+      
+      
+        <link rel="canonical" href="https://tabilet.github.io/skills/zh/tabilet-controller/">
+      
+      
+        <link rel="prev" href="../examples/">
+      
+      
+        <link rel="next" href="../subagents/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>API 控制器 - Tabilet Memory Bank</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/theme.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tabilet-api-controller" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../" title="Tabilet Memory Bank" class="md-header__button md-logo" aria-label="Tabilet Memory Bank" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tabilet Memory Bank
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API 控制器
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../tabilet-controller/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tabilet/skills" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/skills
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../installation/" class="md-tabs__link">
+          
+  
+  开始使用
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../init/" class="md-tabs__link">
+          
+  
+  技能
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="Tabilet Memory Bank" class="md-nav__button md-logo" aria-label="Tabilet Memory Bank" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tabilet Memory Bank
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tabilet/skills" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/skills
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    首页
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    开始使用
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            开始使用
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    安装
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    选择工作流
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    API 控制器
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    API 控制器
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install-and-prepare-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      安装并准备 Docker
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      命令
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#receipts-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      收据和恢复
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sandbox-and-git-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      沙箱和 Git 边界
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exit-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      退出码
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      可选审计
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acceptance" class="md-nav__link">
+    <span class="md-ellipsis">
+      验收
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../subagents/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    子智能体
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    技能
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            技能
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../init/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Init 初始化
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../next/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Next 下一步
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Goal 目标
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../propose/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Propose 提议
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reconcile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reconcile 协调
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrade/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrade 升级
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../archive/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Archive 归档
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install-and-prepare-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      安装并准备 Docker
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      命令
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#receipts-and-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      收据和恢复
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sandbox-and-git-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      沙箱和 Git 边界
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exit-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      退出码
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      可选审计
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acceptance" class="md-nav__link">
+    <span class="md-ellipsis">
+      验收
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="tabilet-api-controller">Tabilet API 控制器<a class="headerlink" href="#tabilet-api-controller" title="Permanent link">&para;</a></h1>
+<p>可选的 <code>tabilet</code> 命令会规划一个有界的记忆库工作范围，要求用户对精确方案进行一次确认，随后在本地
+Docker 容器中执行获批任务。现有 API 运行器仍是另一条在宿主 shell 中执行的工作流。即使不安装控制器，
+七个技能也能独立使用。</p>
+<p>控制器串行执行获批工作范围。v2.5 的 <code>GOAL.md</code> 子智能体协议需要承载它的智能体支持委派，
+不会为本命令增加并行调度器。执行遵守控制器收据及宿主提交规则。提供方提示缓存沿用
+共享运行器的<a href="https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#prompt-caching-and-context">缓存行为与设置</a>。
+进度行和 <code>tabilet status</code> 会显示累计的 token 用量（输入、缓存读取、缓存写入、输出；提供方未报告的项显示为
+<code>unknown</code>）。这些数据仅用于报告，不影响任何上限或检查门。</p>
+<p>控制器使用规范的 Init、Propose 或 Reconcile 技能包作为规划契约。规划工具只读。直接调用技能仍然只负责规划；
+控制器的 <code>confirm</code> 是一项单独授权，授权范围是展示的精确规划差异和一个有界的本地工作范围。</p>
+<h2 id="install-and-prepare-docker">安装并准备 Docker<a class="headerlink" href="#install-and-prepare-docker" title="Permanent link">&para;</a></h2>
+<p>需要 Linux、Python 3.9 或更高版本、Git，以及通过 Unix 套接字连接的本地 Docker 守护进程。远程 Docker
+上下文和守护进程覆盖变量会被拒绝。Docker Engine 必须支持 <code>bind-recursive=disabled</code>。</p>
+<p>在 skills 源码检出中安装可执行文件、运行模块和七个经过验证的技能包：</p>
+<pre><code class="language-bash">python3 harness/tabilet_install.py --source skills --controller-source harness
+export PATH=&quot;$HOME/.local/bin:$PATH&quot;
+</code></pre>
+<p>安装器将 <code>tabilet</code> 放到 <code>~/.local/bin</code>，将控制器模块放到
+<code>~/.local/lib/tabilet/controller</code>，并将生成的技能哈希清单放到
+<code>${XDG_DATA_HOME:-~/.local/share}/tabilet/skill-bundles</code>。安装器不会写入项目。运行时会在规划前验证完整技能包，
+不需要源码检出或网络。</p>
+<p>先在本地准备镜像。例如：</p>
+<pre><code class="language-bash">docker pull python:3.12-slim
+</code></pre>
+<p>控制器会在请求模型之前把本地镜像解析为不可变 ID，不会自行拉取或构建镜像。镜像需要包含
+<code>/usr/bin/env</code>、<code>/bin/sh</code> 以及获批验证命令需要的工具。</p>
+<h2 id="commands">命令<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
+<p>开始一次访谈：</p>
+<pre><code class="language-bash">tabilet chat /absolute/path/to/project --image python:3.12-slim
+</code></pre>
+<p>命令会询问使用 Init、Propose 还是 Reconcile，并询问要交付什么。可用 <code>--operation</code> 和 <code>--request</code> 在命令行
+提供答案。提供方设置沿用运行器的环境变量，包括 <code>LLM_PROVIDER</code>、<code>LLM_MODEL</code>、<code>LLM_API_KEY</code>、
+<code>OPENAI_API_KEY</code> 和 <code>ANTHROPIC_API_KEY</code>。</p>
+<p>在请求 <code>confirm</code> 之前，Tabilet 会展示精确规划差异、选定镜像 ID、里程碑和任务范围、计划提交、外部操作及所有
+数值限制。默认限制为 5 行、100 次提供方请求、每行 40 轮模型对话、15 次提交，以及从批准起算的两小时。
+Docker 限制为 4 个 CPU、8 GiB 内存、512 个进程，每条命令最多 300 秒。这些是操作上限，不是承诺的美元费用。
+可以输入 <code>reject</code> 并提供修改意见，以调整范围或限制。输入精确的 <code>confirm</code> 之前，不会写项目文件或收据。</p>
+<p>这次确认授权一项规划提交，并授权在本地执行有界工作，直至里程碑关闭验证通过。它不授权合并、推送、部署、
+发布或其他外部操作。此类操作会记录下来，等待单独处理。必需的人工证据会使工作范围暂停，直到在后续恢复时
+提供。模型评审会作为模型证据记录，不会冒充人工证据。</p>
+<p>只读查看项目和收据状态：</p>
+<pre><code class="language-bash">tabilet status /absolute/path/to/project
+</code></pre>
+<p>对账收据并从已证明的检查点继续：</p>
+<pre><code class="language-bash">tabilet resume /absolute/path/to/project
+</code></pre>
+<p>存在多个开放工作范围时，追加 <code>--receipt UUID</code>。达到限制后，使用更高数值并单独确认：</p>
+<pre><code class="language-bash">tabilet extend-limit /absolute/path/to/project \
+  --limit max_provider_attempts --value 120
+</code></pre>
+<p>限额扩展会保留累计用量和批准计时。它要求项目处于干净检查点，并要求用户再次精确输入 <code>confirm</code>。</p>
+<p>里程碑 <code>AUTHORIZATION_REQUIREMENTS</code> 和 goal 的 <code>AUTHORIZATION_GRANTS</code> 不扩大控制器确认范围。
+Python 控制器不消费 goal 授予，即使项目文字包含它们也继续排除外部操作。
+交互式 goal 的人类批准规则见<a href="../goal/#authorization-requirements-and-grants">授权指南</a>。</p>
+<h2 id="receipts-and-recovery">收据和恢复<a class="headerlink" href="#receipts-and-recovery" title="Permanent link">&para;</a></h2>
+<p>收据是私有 JSON 文件，位于项目之外的
+<code>${XDG_STATE_HOME:-~/.local/state}/tabilet/receipts/</code>，权限为 <code>0600</code>。状态包括 <code>approved</code>、<code>running</code>、
+<code>paused</code>、<code>needs_review</code> 和 <code>completed</code>。状态命令先读取当前 Markdown，再总结收据；它不会写项目、收据或可选审计库。</p>
+<p>恢复流程会在派发之前记录操作意图和用量。它可以继续干净的已准备检查点，也可以记录精确候选提交，前提是其父提交、
+树、差异、提交说明、路径、任务状态转换、工作流快照和验证证据都与收据一致。脏状态或无法确定结果的部分操作会进入
+<code>needs_review</code>。系统不会自动重置、丢弃或重放它。如果无法证明一次可能已经执行的模型请求结果，同样必须人工检查，
+即使 Git 显示工作区干净也一样。</p>
+<p>每次评审开始前，控制器都会先在活动状态文件中记录已开始的迭代和此前的发现，然后在评审后更新结果。
+这些字段为 <code>**Review gate.** active|passed</code>、<code>**Review iterations.** N</code>，以及后接 JSON 数组的
+<code>**Review findings.**</code>。直接调用智能体时也会沿用此检查点；只要评审门仍处于活动状态，新控制器收据就会继续该计数。</p>
+<p>按 Ctrl-C 会停止并移除活动容器。若控制器进程意外退出，独立的主机清理监视进程也会停止并移除活动容器。干净检查点变为
+<code>paused</code>；脏或不确定的工作变为 <code>needs_review</code>。共享项目锁只保护 Tabilet 启动器，不协调交互式智能体。</p>
+<h2 id="sandbox-and-git-boundary">沙箱和 Git 边界<a class="headerlink" href="#sandbox-and-git-boundary" title="Permanent link">&para;</a></h2>
+<p>每条命令都在新建的无网络容器中运行，具有只读根文件系统、私有可写 <code>/tmp</code>，以及 CPU、内存、进程数和命令时间上限。
+只有项目以可写方式挂载；项目内 <code>.git</code>、已有的 <code>tabilet/audit.sqlite3</code> 及 SQLite 旁文件以只读方式挂载。
+提供方凭据、宿主机 home 和 Docker 套接字都不会挂入容器。
+守护进程必须位于本地。</p>
+<p>此版本支持 <code>.git</code> 位于仓库内的标准仓库。它会拒绝链接工作树、子模块、外部 Git 目录、嵌套主机挂载，以及正在使用的
+自定义 clean/process 过滤器。宿主 Git 调用会禁用 hook、fsmonitor、外部 diff 和签名，并拒绝可能启动外部命令的仓库设置。
+暂存前会检查可能调用 clean/process 过滤器的 Git attributes。内置文本规范化仍然可用。</p>
+<p>控制器会检查变更路径是否在获批范围内，并会在宿主提交前验证任务状态转换和必需命令。路径白名单无法证明代码变更在语义上
+只涉及所选任务；应在正常代码评审中查看实际差异和测试证据。</p>
+<h2 id="exit-codes">退出码<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
+<p>控制器专用退出码与运行器代码一起列在<a href="https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#tabilet-controller-exit-codes">执行指南</a>：<code>16</code> 表示已确认的限制
+使工作范围暂停；<code>17</code> 表示设置、必需人工证据或需单独处理的外部操作使其暂停；<code>18</code> 表示批准输入已过期；<code>19</code> 表示共享
+启动器锁已占用；<code>24</code> 表示提交前验证失败；<code>25</code> 表示恢复需要人工检查。</p>
+<h2 id="optional-audit">可选审计<a class="headerlink" href="#optional-audit" title="Permanent link">&para;</a></h2>
+<p>用户手动为项目启用审计后，控制器负责其工作范围的审计生命周期。运行器或技能记录器不得再创建重复运行。审计失败会报告为
+缺口，但不会改变收据状态、验证结果或退出状态。Markdown 和私有收据仍是控制器的工作流数据源。</p>
+<p>自 v2.6.0 起，数据库固定在 <code>tabilet/audit.sqlite3</code>，移除了数据库路径参数和环境覆盖。
+用 <code>tabilet-audit audit enable PROJECT</code> 或 <code>tabilet-audit audit disable PROJECT</code> 手动改变设置；
+索引同步保留该设置。需要干净 Git 基线的工作流开始前，请提交设置生成的忽略文件。</p>
+<h2 id="acceptance">验收<a class="headerlink" href="#acceptance" title="Permanent link">&para;</a></h2>
+<p>无凭据的假提供方测试和 Docker 测试分别通过本地或独立 CI 作业运行。Docker 作业要求本地镜像，但不需要提供方凭据。任何付费
+实时模型验收都必须单独人工触发，并设置可执行的提供方预算；它不会在 pull request 上自动运行。详见
+<a href="https://github.com/tabilet/skills/blob/main/docs/MODEL_EVAL.md#tabilet-controller-live-acceptance">模型评估</a>。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,1567 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A minimal engineering harness — plain Markdown project memory and seven portable skills for coding agents">
+      
+      
+      
+        <link rel="canonical" href="https://tabilet.github.io/skills/subagents/">
+      
+      
+        <link rel="prev" href="../tabilet-controller/">
+      
+      
+        <link rel="next" href="../init/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>Sub-agents - Tabilet Memory Bank</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/theme.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sub-agent-milestone-execution" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Tabilet Memory Bank" class="md-header__button md-logo" aria-label="Tabilet Memory Bank" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tabilet Memory Bank
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Sub-agents
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../zh/subagents/" hreflang="zh" class="md-select__link">
+              中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tabilet/skills" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/skills
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../installation/" class="md-tabs__link">
+          
+  
+  Get started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../init/" class="md-tabs__link">
+          
+  
+  Skills
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Tabilet Memory Bank" class="md-nav__button md-logo" aria-label="Tabilet Memory Bank" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tabilet Memory Bank
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tabilet/skills" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/skills
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Get started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Get started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Choose a workflow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabilet-controller/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    API controller
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Sub-agents
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Sub-agents
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Goals and non-goals
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-and-time-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost and time model
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-a-designing-parallel-safe-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part A — Designing parallel-safe milestones
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part A — Designing parallel-safe milestones">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-relations-not-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      Three relations, not one
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-specification-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Milestone specification fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterns-that-keep-quality-intact" class="md-nav__link">
+    <span class="md-ellipsis">
+      Patterns that keep quality intact
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-b-tier-0-faster-within-existing-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part B — Tier 0: faster within existing rules
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part B — Tier 0: faster within existing rules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authorization-in-child-briefs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authorization in child briefs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fresh-context-sequential-handoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fresh-context sequential handoff
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-read-only-fan-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parallel read-only fan-out
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-c-tier-1-concurrent-leases-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part C — Tier 1: concurrent leases (opt-in)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part C — Tier 1: concurrent leases (opt-in)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preconditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preconditions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lease-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lease lifecycle
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rules
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rejected-approaches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rejected approaches
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Skills
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Skills
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../init/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Init
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../next/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Next
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Goal
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../propose/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Propose
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reconcile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reconcile
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrade/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../archive/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Archive
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Goals and non-goals
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-and-time-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost and time model
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-a-designing-parallel-safe-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part A — Designing parallel-safe milestones
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part A — Designing parallel-safe milestones">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-relations-not-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      Three relations, not one
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-specification-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Milestone specification fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterns-that-keep-quality-intact" class="md-nav__link">
+    <span class="md-ellipsis">
+      Patterns that keep quality intact
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-b-tier-0-faster-within-existing-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part B — Tier 0: faster within existing rules
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part B — Tier 0: faster within existing rules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authorization-in-child-briefs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authorization in child briefs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fresh-context-sequential-handoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fresh-context sequential handoff
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-read-only-fan-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parallel read-only fan-out
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-c-tier-1-concurrent-leases-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part C — Tier 1: concurrent leases (opt-in)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part C — Tier 1: concurrent leases (opt-in)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preconditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preconditions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lease-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lease lifecycle
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rules
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rejected-approaches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rejected approaches
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="sub-agent-milestone-execution">Sub-Agent Milestone Execution<a class="headerlink" href="#sub-agent-milestone-execution" title="Permanent link">&para;</a></h1>
+<p>This guide defines the sub-agent execution architecture for multi-milestone
+workflows under <a href="../goal/"><code>tabilet/GOAL.md</code></a>. It establishes how to accelerate
+milestone delivery through fresh-context task execution and parallel read-only
+fan-out (Tier 0), as well as opt-in concurrent worktree leases (Tier 1), while
+strictly preserving milestone quality, verification rigor, and the
+single-ledger execution owner invariant.</p>
+<p>This protocol requires a hosting agent that can delegate. The standalone Python
+API runner and optional <code>tabilet</code> controller have no native sub-agent scheduler;
+they retain serial execution and their own commit contracts. The controller
+rejects linked worktrees. See the
+<a href="https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#changes-since-v240">API execution scope</a>.</p>
+<h2 id="goals-and-non-goals">Goals and non-goals<a class="headerlink" href="#goals-and-non-goals" title="Permanent link">&para;</a></h2>
+<p>Goals:</p>
+<ol>
+<li>Design milestones so a sub-agent can execute one without lowering milestone
+   quality.</li>
+<li>Run sub-agents in a manageable way that shortens wall-clock time.</li>
+</ol>
+<p>Non-goals:</p>
+<ul>
+<li><strong>No trading quality for speed.</strong> Every milestone keeps its full acceptance,
+  verification, bounded review-fix gate, downstream reconciliation, and
+  closure. A faster schedule that skips or weakens any of these is a regression.</li>
+<li><strong>No pruning of downstream impacts.</strong> <code>GOAL.md</code> treats the supplied impact map
+  as a minimum. Parallelism must come from milestone structure, never from
+  declaring fewer obligations.</li>
+<li><strong>No vendor coupling.</strong> The protocol names capabilities ("start an isolated
+  sub-agent", "stop a sub-agent"), not one agent's tool names.</li>
+<li><strong>No new project state.</strong> No in-tree worktree folders, lock files, or
+  generated plan directories.</li>
+</ul>
+<h2 id="cost-and-time-model">Cost and time model<a class="headerlink" href="#cost-and-time-model" title="Permanent link">&para;</a></h2>
+<p>Two different benefits are easy to conflate:</p>
+<ul>
+<li><strong>A fresh context per milestone</strong> bounds the context each turn carries. That
+  improves attention and prevents quadratic context inflation. It does not
+  require concurrency: ephemeral sub-agent handoffs achieve this sequentially.</li>
+<li><strong>Concurrency</strong> shortens wall-clock time when the milestone graph is wide. It
+  does not save tokens; it adds integration work such as rebases,
+  re-verification, and occasional re-review.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>One long session</th>
+<th>Fresh context per milestone, sequential</th>
+<th>Concurrent leases (Tier 1)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Context per turn</td>
+<td>Grows across milestones</td>
+<td>Bounded per milestone</td>
+<td>Bounded per milestone</td>
+</tr>
+<tr>
+<td>Total tokens</td>
+<td>Highest without prompt caching; caching narrows the gap</td>
+<td>Lowest</td>
+<td>About sequential, plus integration overhead</td>
+</tr>
+<tr>
+<td>Wall-clock time</td>
+<td>Sum of milestones</td>
+<td>Sum of milestones</td>
+<td>Critical path plus serial integration</td>
+</tr>
+<tr>
+<td>Quality risk</td>
+<td>Attention drift late in a long run</td>
+<td>Low</td>
+<td>Low only when the Part A rules hold</td>
+</tr>
+</tbody>
+</table>
+<p>Wall-clock time under concurrency is bounded by the longest dependency chain
+plus every step the owner must perform serially (integration, reconciliation,
+retirement). Keeping that serial part small is why the authoritative review
+runs inside each lease rather than in the owner (see Tier 1).</p>
+<p>Empirical validation using SQLite audit tracking (<code>tabilet-audit</code>) verified:</p>
+<ol>
+<li><strong>Context bounding:</strong> Starting each milestone with a distilled context brief
+   prevents prompt inflation across tasks.</li>
+<li><strong>Wall-clock compression:</strong> Parallel read-only fan-out across review lenses
+   and downstream reconciliation completes in approximately 3 minutes per
+   iteration without compounding serial inspection wait times.</li>
+<li><strong>Defect coverage:</strong> Decomposing reviews into orthogonal lenses (Correctness,
+   Security, Tests) catches complementary defects that single monolithic reviews
+   frequently overlook.</li>
+</ol>
+<h2 id="part-a-designing-parallel-safe-milestones">Part A — Designing parallel-safe milestones<a class="headerlink" href="#part-a-designing-parallel-safe-milestones" title="Permanent link">&para;</a></h2>
+<h3 id="three-relations-not-one">Three relations, not one<a class="headerlink" href="#three-relations-not-one" title="Permanent link">&para;</a></h3>
+<p>Planning records dependencies and downstream impacts. Parallel safety
+requires a third relation, and each has a distinct job:</p>
+<table>
+<thead>
+<tr>
+<th>Relation</th>
+<th>Meaning</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Depends on</td>
+<td>The consumer needs behavior the producer delivers</td>
+<td>Hard ordering edge</td>
+</tr>
+<tr>
+<td>Downstream impacts</td>
+<td>The producer's result must be reconciled into the consumer's pending specification</td>
+<td>Always complete and never pruned. It also implies ordering: the consumer cannot start before that reconciliation</td>
+</tr>
+<tr>
+<td>Write set</td>
+<td>Paths, public contracts, and shared resources the milestone changes</td>
+<td>Used only to decide whether two unordered milestones may run at the same time</td>
+</tr>
+</tbody>
+</table>
+<p>Two milestones are <strong>parallel-safe</strong> only when all three hold:</p>
+<ol>
+<li>no ordering path connects them in either direction;</li>
+<li>their write sets are disjoint; and</li>
+<li>neither reads a contract the other changes.</li>
+</ol>
+<p>Transitive reduction may simplify the <em>scheduling copy</em> of the graph. It must
+never remove an entry from the reconciliation list. If <code>A</code> impacts both <code>B</code> and
+<code>C</code>, and <code>B</code> also impacts <code>C</code>, then <code>C</code> is still reconciled against <code>A</code>'s actual
+change, because <code>B</code> may not carry every detail of it.</p>
+<h3 id="milestone-specification-fields">Milestone specification fields<a class="headerlink" href="#milestone-specification-fields" title="Permanent link">&para;</a></h3>
+<p>Active milestone specifications in <code>tabilet/memory-bank/milestone.md</code> define
+these boundaries:</p>
+<pre><code class="language-markdown">### A01 — Billing settlement
+- Depends on: M01
+- Downstream impacts: P01
+- Write set: src/billing/**, tests/billing/**, contract: settlement-events v1
+- Contracts read: core-model v1 (frozen by M01)
+- Shared verification resources: postgres (per-lease database name)
+- Parallel-safe: yes — disjoint from S01; reads only frozen M01 contracts
+</code></pre>
+<p><code>Parallel-safe</code> defaults to <code>no</code>. Planning marks a milestone <code>yes</code> only when its
+write set and contracts justify it. When in doubt, serialize.</p>
+<h3 id="patterns-that-keep-quality-intact">Patterns that keep quality intact<a class="headerlink" href="#patterns-that-keep-quality-intact" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Contract-first split.</strong> Move shared schemas, interfaces, and their contract
+  tests into an early milestone and freeze the contract when it closes. Domain
+  milestones then consume a stable contract and become parallel-safe with each
+  other.</li>
+<li><strong>Escalate contract changes.</strong> A milestone that discovers it must change a
+  frozen contract stops and reports. It never edits the contract silently;
+  the owner re-plans the affected consumers.</li>
+<li><strong>Two-level acceptance.</strong> Each milestone has acceptance that can be verified
+  in isolation, plus a named integration check that runs after its work joins
+  the main line.</li>
+<li><strong>One writer for shared memory.</strong> <code>architecture.md</code>, <code>product.md</code>,
+  <code>tech-stack.md</code>, <code>lessons.md</code>, <code>milestone.md</code>, and any existing <code>suggested.txt</code> are written only by the
+  owner. A sub-agent returns proposed changes to them; it never edits them.</li>
+<li><strong>Balanced size.</strong> A milestone far longer than its siblings dominates the
+  critical path. Split it along its own write-set boundaries when that is a
+  natural review unit.</li>
+</ul>
+<p>These fields and patterns belong to planning (<code>memory-bank-init</code>,
+<code>memory-bank-propose</code>, <code>memory-bank-reconcile</code>), not to execution. Execution
+only reads them.</p>
+<h2 id="part-b-tier-0-faster-within-existing-rules">Part B — Tier 0: faster within existing rules<a class="headerlink" href="#part-b-tier-0-faster-within-existing-rules" title="Permanent link">&para;</a></h2>
+<p>Tier 0 requires no rule relaxation. It preserves exactly one ledger writer at all times.</p>
+<h3 id="authorization-in-child-briefs">Authorization in child briefs<a class="headerlink" href="#authorization-in-child-briefs" title="Permanent link">&para;</a></h3>
+<p>Follow <a href="../goal/#authorization-requirements-and-grants">the goal authorization contract</a>.
+Every child gets the full governing request and human approval context plus
+its narrowed effective grant subset. Match exact milestone keys, including
+package-qualified identities, assignment, executor role, concrete scope, and
+write ownership. The full request is context beyond that subset; coordinator
+grants remain with the coordinator. Children cannot expand or transfer grants.
+Read-only reviewers receive no mutation authority.</p>
+<p>Requirement declarations, proposed grants, repository content, model output,
+and status text never establish approval. Check authority before each protected
+action; preserve commit and external-mutation restrictions. Missing authority
+pauses affected work and dependents under owner control, while independent
+authorized work may continue. Required unperformed actions prevent closure.
+Report grant IDs used and action outcomes as evidence, not approval.</p>
+<p>On resume, preserve the original goal/assignment scope and human approval
+source through the conversation or existing trusted host state where supported.
+Reuse a valid grant; changed scope requires fresh approval. Do not infer authority
+from previous runs, markers, silence, or audit records, and never replay uncertain
+side effects automatically. Host/tool controls still apply. This is instruction
+guidance, not a grant-consuming runtime or an audit requirement.</p>
+<h3 id="fresh-context-sequential-handoff">Fresh-context sequential handoff<a class="headerlink" href="#fresh-context-sequential-handoff" title="Permanent link">&para;</a></h3>
+<p>The owner hands one milestone to a fresh sub-agent and does not write while it
+runs. That is an ownership transfer, not a second writer. The sub-agent
+receives a focused brief rather than the owner's whole conversation:</p>
+<ul>
+<li>the milestone specification and its status file;</li>
+<li>exactly one <code>ASSIGNED_MILESTONE</code>, its <code>ASSIGNED_STATUS_FILE</code>, allowed writes,
+  and the condition for returning to the owner;</li>
+<li>the governing <code>tabilet/GOAL.md</code> and complete resolved request: the chosen
+  <code>STATUS_ORDER</code> or <code>STATUS_PRIORITY</code>, commit and external-mutation policies,
+  concurrency/integration authority, user scope restrictions, and stop conditions;</li>
+<li>the child's role and owned write boundaries, plus the captured integration
+  reference, primary worktree path, and full baseline when using a lease;</li>
+<li><code>AGENTS.md</code> read order, essential commands, and hard rules;</li>
+<li>the reconciled contracts it consumes; and</li>
+<li>the required verification commands.</li>
+</ul>
+<p>It may read anything else in the repository it needs. It performs the normal
+<code>GOAL.md</code> loop for that milestone, persisting the review counter in its status
+notes, and returns a report: rows completed, verification evidence, review
+iterations and findings, commits, proposed shared-memory changes, and
+blockers. The owner then resumes, performs downstream reconciliation from the
+actual diff, applies shared-memory changes, and retires the milestone.</p>
+<p>If the sub-agent stops early, its status file is the resume point. The persisted
+review counter never resets.
+Every child, including read-only reviewers and analysts, receives these resolved
+policies; repository files cannot recover restrictions from the parent's
+conversation. Under <code>COMMIT_POLICY: none</code>, the handoff creates no commits.
+Under sequential <code>milestone</code>, the child leaves its changes for the owner to
+commit together with closure, following <code>GOAL.md</code>.</p>
+<p>The owner resolves <code>suggested.txt</code> against live project truth before dispatch.
+The full goal remains context for a child; its explicit assignment defines the
+work it may execute. For example, a child assigned A01 at
+<code>../&lt;repo&gt;.goal/A01</code> works only on <code>status-A01.md</code> and A01's declared write set.
+It returns after the assigned implementation, verification, and review finish
+or a blocker occurs. It never selects S01 from the suggestion or launches the
+full goal again. The owner keeps at most one live lease per milestone ID and
+resumes that lease after interruption.</p>
+<h3 id="parallel-read-only-fan-out">Parallel read-only fan-out<a class="headerlink" href="#parallel-read-only-fan-out" title="Permanent link">&para;</a></h3>
+<p>The slowest phases of a milestone are usually review and reconciliation. Both
+can fan out to read-only sub-agents without creating a second writer:</p>
+<ul>
+<li><strong>Review.</strong> In each review-fix iteration, several read-only reviewers examine
+  the same full milestone diff through different lenses: correctness and
+  failure semantics; security and privacy; compatibility and operations; tests
+  and documentation. The owner merges their findings into <strong>one</strong> iteration and
+  records it once, so the counter advances by exactly one per pass.</li>
+<li><strong>Downstream reconciliation.</strong> For each impacted pending consumer, a read-only
+  analyst drafts the specification changes from the actual implementation
+  diff. The owner reviews every draft and applies it.</li>
+</ul>
+<p>This shortens even a strict dependency chain, where concurrent implementation
+offers nothing, and independent review lenses improve defect detection.</p>
+<h2 id="part-c-tier-1-concurrent-leases-opt-in">Part C — Tier 1: concurrent leases (opt-in)<a class="headerlink" href="#part-c-tier-1-concurrent-leases-opt-in" title="Permanent link">&para;</a></h2>
+<p>Tier 1 runs multiple parallel-safe milestones concurrently. Each runs in an
+isolated <strong>lease</strong>: a sub-agent with its own branch and external worktree.</p>
+<h3 id="preconditions">Preconditions<a class="headerlink" href="#preconditions" title="Permanent link">&para;</a></h3>
+<p>All of these must hold, or Tier 1 is unavailable and execution falls back to
+Tier 0:</p>
+<ol>
+<li>The project's <code>AGENTS.md</code> explicitly defines safe parallel ownership: at
+   most one <code>[~]</code> row per lease, only the owner integrates into the main line,
+   and only the owner writes shared memory documents.</li>
+<li>The goal request authorizes it explicitly:</li>
+</ol>
+<p>```text
+   Using tabilet/GOAL.md, execute this loop.</p>
+<p>STATUS_PRIORITY: M01, A01, S01, P01
+   DOWNSTREAM_IMPACTS:
+   M01 -&gt; A01, S01
+   A01 -&gt; P01
+   S01 -&gt; P01</p>
+<p>PARALLELISM: 3
+   INTEGRATION: local-rebase-ff
+   COMMIT_POLICY: task
+   EXTERNAL_MUTATIONS: none
+   ```</p>
+<p><code>INTEGRATION: local-rebase-ff</code> authorizes local lease branches, rebasing
+   unpublished lease commits, and fast-forward-only integration. It does not
+   authorize pushing or merge commits. <code>PARALLELISM</code> caps concurrent leases and
+   defaults to 3 when the field is present without a value.
+   <code>STATUS_PRIORITY</code> chooses among ready milestones; it adds no dependencies.
+   This example lets A01 and S01 run together after M01 closes, with P01 waiting
+   for both. A request using <code>STATUS_ORDER: M01 -&gt; A01 -&gt; S01 -&gt; P01</code> instead
+   requires that strict sequence, even with parallelism enabled. Use exactly
+   one selection field, as specified by <code>GOAL.md</code>.
+3. <code>COMMIT_POLICY</code> is <code>task</code> or <code>milestone</code>. Under <code>none</code> there are no commits to
+   carry work between worktrees, so Tier 1 is disabled.
+   For <code>milestone</code>, local integration authority permits one unpublished aggregate
+   checkpoint and its amendments for rebase and review. The owner includes
+   closure before integrating one finalized milestone commit. A request that
+   forbids interim commits or amendment uses sequential execution instead.
+4. Every milestone dispatched concurrently is <code>Parallel-safe: yes</code> and passes
+   the three conditions in Part A against every other running lease.</p>
+<h3 id="lease-lifecycle">Lease lifecycle<a class="headerlink" href="#lease-lifecycle" title="Permanent link">&para;</a></h3>
+<pre><code class="language-text">Owner: capture actual integration branch and baseline; dispatch ready milestone
+  │
+  ▼
+Create branch goal/ID and worktree at ../&lt;repo&gt;.goal/&lt;ID&gt;
+  │
+  ▼
+Lease: implement rows, one [~] at a time; task commits or aggregate checkpoint
+  │
+  ▼
+Lease: verify with lease-isolated resources
+  │
+  ▼
+Lease: rebase onto captured INTEGRATION_REF and re-verify
+  │
+  ▼
+Lease: run authoritative review-fix gate on rebased diff
+  │
+  ▼
+Has the captured integration branch moved since that rebase?
+  ├── No  ───► Continue with the policy-specific closure below
+  ├── Yes (disjoint) ───► Lease: rebase + re-verify only
+  └── Yes (touches write set/contracts) ───► Lease: rebase + re-verify + re-review
+  │
+  ▼
+Owner under milestone: pause lease writer, close in lease, finalize one commit
+  │
+  ▼
+Owner: fast-forward the captured integration branch (git merge --ff-only)
+  │
+  ▼
+Owner under task: integration check, reconcile impacts, update memory docs, retire
+  │
+  ▼
+Teardown worktree and branch; dispatch newly ready milestones
+</code></pre>
+<h3 id="rules">Rules<a class="headerlink" href="#rules" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Worktree location.</strong> Outside the project tree, at
+  <code>../&lt;repo&gt;.goal/&lt;ID&gt;</code>. An in-tree folder would dirty the main worktree, leak
+  into test discovery, and accumulate as a generated directory.</li>
+<li><strong>Durable lease record.</strong> Git is the record. <code>git worktree list</code> and the
+  <code>goal/*</code> branches survive a session or server restart, and each lease's status
+  file shows its progress and review counter. Existing goal/status notes retain
+  the actual <code>INTEGRATION_REF</code>, primary worktree path, and full baseline.
+  Resuming means listing worktrees and rechecking those identities before
+  continuing each lease from its status file. No new file is created.</li>
+<li><strong>One authoritative review.</strong> The bounded review-fix gate runs once, in the
+  lease, on the diff after rebasing onto the current main line, with its counter
+  in the lease's status notes. When other work lands before integration, the
+  lease rebases and re-verifies; the review is repeated only when the newly
+  landed commits touch the lease's write set or contracts read.</li>
+<li><strong>Linear integration.</strong> Rebase and advancement checks use the captured branch,
+  whether named <code>main</code>, <code>master</code>, <code>trunk</code>, or a release branch. The owner checks
+  its symbolic <code>HEAD</code> and tip before integration. Fast-forward preserves the
+  selected commit policy: task commits under <code>task</code>, one finalized milestone
+  commit under <code>milestone</code>. Never create merge commits (<code>--no-ff</code>).</li>
+<li><strong>Closure and commit policy.</strong> <code>GOAL.md</code> owns the sequence. Under <code>task</code>, the
+  owner closes after integration and commits substantive closure changes only
+  when files change. Under <code>milestone</code>, the owner reserves the serial integration
+  slot, pauses the child, verifies the combined lease tree, reconciles impacts,
+  updates shared memory, and completes adopted retirement in the lease. It then
+  finalizes the checkpoint with that closure and fast-forwards; no provisional
+  checkpoint lands and no second closure commit is created. Unexpected target
+  movement requires reconciling and verifying closure on the new baseline.</li>
+<li><strong>Reconciliation from code.</strong> The owner reconciles every downstream impact
+  against the actual combined implementation diff: before integration for
+  <code>milestone</code>, afterward for <code>task</code>. Dependents wait for both verified closure
+  and integration.</li>
+<li><strong>Shared launch input.</strong> Only the owner refreshes an existing <code>suggested.txt</code>
+  during serial closure from the current integrated state. Children receive
+  explicit assignments instead of consulting that file for task selection.
+  Before adding owner closure changes, inspect the child diff against its
+  assignment and reject edits to shared files or another milestone's status.
+  Worktree isolation keeps files separate on disk; this diff check prevents
+  competing shared edits from entering integration history.</li>
+<li><strong>Runtime-discovered impact.</strong> If the owner discovers that a running lease
+  consumes a change that just landed, it asks the lease to stop at the next row
+  boundary, reconciles the lease's pending rows, and lets it resume. A
+  completed row that is now invalid is retained as <code>[-]</code> closed historical
+  evidence with a named successor.</li>
+<li><strong>Failure isolation.</strong> A blocked row, a review gate exhausted at iteration 10,
+  or an integration conflict stops that lease only. Its branch and worktree are
+  kept for inspection, its dependents stay unscheduled, independent leases
+  continue, and the owner reports the blocker.</li>
+<li><strong>Conditional milestones.</strong> The owner evaluates a <code>?</code> trigger at dispatch time.
+  An absent trigger skips the milestone without dispatching it.</li>
+<li><strong>Resource isolation.</strong> Each lease uses its own ports, database names, and
+  caches. A milestone needing an exclusive resource serializes only its
+  verification step, not its implementation.</li>
+<li><strong>Stopping a lease.</strong> A lease is stopped, its worktree removed, and its branch
+  deleted only after its work is integrated or the user directs otherwise. A
+  finished lease is closed at once, so idle sub-agents never hold capacity.</li>
+</ul>
+<h2 id="rejected-approaches">Rejected approaches<a class="headerlink" href="#rejected-approaches" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Why it was rejected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Merge commits to integrate leases</td>
+<td>They violate the authorized fast-forward integration and linear commit history</td>
+</tr>
+<tr>
+<td>Declaring fewer impacts to unlock parallelism</td>
+<td>Removes real reconciliation obligations; <code>GOAL.md</code> treats the impact map as a minimum</td>
+</tr>
+<tr>
+<td>Transitive reduction of the impact list</td>
+<td>Skips direct reconciliation of a consumer against the original producer</td>
+</tr>
+<tr>
+<td>Worktrees inside the project</td>
+<td>Dirty worktree, test-discovery leakage, accumulated generated folders</td>
+</tr>
+<tr>
+<td>Reconciling from a free-text completion summary</td>
+<td><code>GOAL.md</code> requires reconciling against the implementation that now exists</td>
+</tr>
+<tr>
+<td>Reviewing only in isolation, then again after integration</td>
+<td>Two gates with no single counter owner; the isolated pass never saw the integrated code</td>
+</tr>
+<tr>
+<td>Inferring write sets from task rows</td>
+<td>Task rows do not list paths reliably; write sets must be declared</td>
+</tr>
+<tr>
+<td>An environment variable for concurrency</td>
+<td>A goal-input field keeps authority in the request that starts the run</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,84 @@
+/* A cool editor palette, with a matching light mode for daytime reading. */
+[data-md-color-scheme="slate"] {
+  --md-hue: 215;
+  --md-default-fg-color: #e6edf3;
+  --md-default-fg-color--light: #9daec2;
+  --md-default-fg-color--lighter: #718399;
+  --md-default-fg-color--lightest: #293747;
+  --md-default-bg-color: #0d1117;
+  --md-primary-fg-color: #161b22;
+  --md-primary-fg-color--light: #1c2633;
+  --md-primary-fg-color--dark: #0d1117;
+  --md-primary-bg-color: #e6edf3;
+  --md-primary-bg-color--light: #bac8d8;
+  --md-accent-fg-color: #3dd9c5;
+  --md-accent-fg-color--transparent: #3dd9c51a;
+  --md-accent-bg-color: #0d1117;
+  --md-typeset-a-color: #79b8ff;
+  --md-code-fg-color: #dce6f1;
+  --md-code-bg-color: #161b22;
+  --md-code-hl-color: #58a6ff26;
+  --md-typeset-table-color: #303d4e;
+  --md-typeset-table-color--light: #303d4e66;
+  --memory-bank-border: #293747;
+  --memory-bank-button: #58a6ff;
+  --memory-bank-button-text: #0d1117;
+}
+
+[data-md-color-scheme="default"] {
+  --md-default-fg-color: #243247;
+  --md-default-fg-color--light: #53657b;
+  --md-default-fg-color--lighter: #7d8da2;
+  --md-default-fg-color--lightest: #d5deea;
+  --md-default-bg-color: #f6f8fb;
+  --md-primary-fg-color: #161b22;
+  --md-primary-fg-color--light: #1c2633;
+  --md-primary-fg-color--dark: #0d1117;
+  --md-primary-bg-color: #e6edf3;
+  --md-primary-bg-color--light: #bac8d8;
+  --md-accent-fg-color: #006b67;
+  --md-accent-fg-color--transparent: #006b671a;
+  --md-accent-bg-color: #ffffff;
+  --md-typeset-a-color: #175cad;
+  --md-code-fg-color: #243247;
+  --md-code-bg-color: #eaf0f7;
+  --md-code-hl-color: #175cad1a;
+  --md-typeset-table-color: #c5d1e0;
+  --md-typeset-table-color--light: #c5d1e066;
+  --memory-bank-border: #c5d1e0;
+  --memory-bank-button: #175cad;
+  --memory-bank-button-text: #ffffff;
+}
+
+.md-header,
+.md-tabs {
+  border-bottom: 1px solid #293747;
+}
+
+.md-typeset .md-button {
+  color: var(--md-typeset-a-color);
+}
+
+.md-typeset .md-button--primary {
+  background-color: var(--memory-bank-button);
+  border-color: var(--memory-bank-button);
+  color: var(--memory-bank-button-text);
+}
+
+.md-typeset .md-button:focus,
+.md-typeset .md-button:hover {
+  background-color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-bg-color);
+}
+
+:where(a, button, input):focus-visible {
+  outline: 2px solid var(--md-accent-fg-color);
+  outline-offset: 3px;
+}
+
+.memory-bank-hero img {
+  border: 1px solid var(--memory-bank-border);
+  border-radius: 10px;
+  background-color: #0d1117;
+}

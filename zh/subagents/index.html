@@ -1,0 +1,1438 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A minimal engineering harness — plain Markdown project memory and seven portable skills for coding agents">
+      
+      
+      
+        <link rel="canonical" href="https://tabilet.github.io/skills/zh/subagents/">
+      
+      
+        <link rel="prev" href="../tabilet-controller/">
+      
+      
+        <link rel="next" href="../init/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.49">
+    
+    
+      
+        <title>子智能体 - Tabilet Memory Bank</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6f8fc17f.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/theme.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#sub-agent-milestone-execution" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../" title="Tabilet Memory Bank" class="md-header__button md-logo" aria-label="Tabilet Memory Bank" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tabilet Memory Bank
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              子智能体
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../subagents/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="zh" class="md-select__link">
+              中文
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/tabilet/skills" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/skills
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../installation/" class="md-tabs__link">
+          
+  
+  开始使用
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../init/" class="md-tabs__link">
+          
+  
+  技能
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="Tabilet Memory Bank" class="md-nav__button md-logo" aria-label="Tabilet Memory Bank" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tabilet Memory Bank
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/tabilet/skills" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    tabilet/skills
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    首页
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    开始使用
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            开始使用
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    安装
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    选择工作流
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabilet-controller/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    API 控制器
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    子智能体
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    子智能体
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      目标与非目标
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-and-time-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      成本与时间模型
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-a-designing-parallel-safe-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      第一部分 — 设计并行安全的里程碑
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第一部分 — 设计并行安全的里程碑">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-relations-not-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      三种关系，而非一种
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-specification-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      里程碑规范字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterns-that-keep-quality-intact" class="md-nav__link">
+    <span class="md-ellipsis">
+      保持质量的设计模式
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-b-tier-0-faster-within-existing-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      第二部分 — Tier 0：在现有规则内提速
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第二部分 — Tier 0：在现有规则内提速">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authorization-in-child-briefs" class="md-nav__link">
+    <span class="md-ellipsis">
+      子智能体简报中的授权
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fresh-context-sequential-handoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      独立上下文顺序移交
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-read-only-fan-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      只读并行扇出
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-c-tier-1-concurrent-leases-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      第三部分 — Tier 1：并发租约（选择性开启）
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第三部分 — Tier 1：并发租约（选择性开启）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preconditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      前置条件
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lease-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      租约生命周期
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      规则
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rejected-approaches" class="md-nav__link">
+    <span class="md-ellipsis">
+      被否决的方案
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    技能
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            技能
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../init/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Init 初始化
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../next/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Next 下一步
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../goal/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Goal 目标
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../propose/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Propose 提议
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reconcile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reconcile 协调
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrade/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrade 升级
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../archive/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Archive 归档
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      目标与非目标
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cost-and-time-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      成本与时间模型
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-a-designing-parallel-safe-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      第一部分 — 设计并行安全的里程碑
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第一部分 — 设计并行安全的里程碑">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#three-relations-not-one" class="md-nav__link">
+    <span class="md-ellipsis">
+      三种关系，而非一种
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-specification-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      里程碑规范字段
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterns-that-keep-quality-intact" class="md-nav__link">
+    <span class="md-ellipsis">
+      保持质量的设计模式
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-b-tier-0-faster-within-existing-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      第二部分 — Tier 0：在现有规则内提速
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第二部分 — Tier 0：在现有规则内提速">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authorization-in-child-briefs" class="md-nav__link">
+    <span class="md-ellipsis">
+      子智能体简报中的授权
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fresh-context-sequential-handoff" class="md-nav__link">
+    <span class="md-ellipsis">
+      独立上下文顺序移交
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-read-only-fan-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      只读并行扇出
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-c-tier-1-concurrent-leases-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      第三部分 — Tier 1：并发租约（选择性开启）
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第三部分 — Tier 1：并发租约（选择性开启）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preconditions" class="md-nav__link">
+    <span class="md-ellipsis">
+      前置条件
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lease-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      租约生命周期
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      规则
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rejected-approaches" class="md-nav__link">
+    <span class="md-ellipsis">
+      被否决的方案
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="sub-agent-milestone-execution">子智能体里程碑执行<a class="headerlink" href="#sub-agent-milestone-execution" title="Permanent link">&para;</a></h1>
+<p>本指南定义了在 <a href="../goal/"><code>tabilet/GOAL.md</code></a> 协议下多里程碑工作流的子智能体执行架构。
+它规定了如何通过独立上下文的任务移交与只读并行扇出（Tier 0），以及选择性开启的并发工作树租约（Tier 1）来加速里程碑交付，同时严格维护里程碑质量、验证严密性以及单一账本执行所有者的核心不变量。</p>
+<p>本协议要求承载工作流的智能体支持委派。独立 Python API 运行器和可选 <code>tabilet</code> 控制器没有原生
+子智能体调度器，仍串行执行并遵守各自的提交契约。控制器拒绝链接工作树。详见
+<a href="https://github.com/tabilet/skills/blob/main/docs/EXECUTION.md#changes-since-v240">API 执行范围</a>。</p>
+<h2 id="goals-and-non-goals">目标与非目标<a class="headerlink" href="#goals-and-non-goals" title="Permanent link">&para;</a></h2>
+<p>目标：</p>
+<ol>
+<li>设计良好的里程碑，使子智能体可以在不降低里程碑质量的前提下执行。</li>
+<li>以可控、易管理的方式运行子智能体，显著缩短真实等待时间（Wall-clock time）。</li>
+</ol>
+<p>非目标：</p>
+<ul>
+<li><strong>绝不牺牲质量换取速度。</strong> 每个里程碑都必须保留完整的验收、验证、有界评审修复门禁、下游协调和收尾。任何跳过或削弱这些环节的提速都是架构倒退。</li>
+<li><strong>绝不削减下游影响。</strong> <code>GOAL.md</code> 将声明的影响映射视为最低要求。并行性必须来自于里程碑的结构解耦，绝不能通过少报协调义务来伪造。</li>
+<li><strong>不绑定特定厂商工具。</strong> 本协议仅定义抽象能力（如“启动隔离子智能体”、“终止子智能体”），而不绑定某个厂商特有的工具名称。</li>
+<li><strong>不增加额外的项目状态。</strong> 不在项目内部创建工作树目录、锁文件或生成的计划文件夹。</li>
+</ul>
+<h2 id="cost-and-time-model">成本与时间模型<a class="headerlink" href="#cost-and-time-model" title="Permanent link">&para;</a></h2>
+<p>两种不同的收益很容易被混淆：</p>
+<ul>
+<li><strong>每个里程碑一个独立上下文</strong> 可以限制每次对话携带的历史长度。这能提升大模型的注意力集中度并防止提示词二次方膨胀。这并不需要并发：通过短生命周期的子智能体顺序移交即可实现。</li>
+<li><strong>并发执行</strong> 在里程碑依赖图较宽时能够缩短真实等待时间。它不会节省 Token，反而会增加变基、重新验证和必要时的重新评审等集成工作。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>单个超长会话</th>
+<th>顺序执行（每里程碑独立上下文）</th>
+<th>并发租约（Tier 1）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>单次对话上下文</td>
+<td>随里程碑持续累积增长</td>
+<td>每个里程碑有界</td>
+<td>每个里程碑有界</td>
+</tr>
+<tr>
+<td>Token 总消耗</td>
+<td>无提示词缓存时最高；有缓存时差距缩小</td>
+<td>最低</td>
+<td>与顺序执行相当，加上变基集成开销</td>
+</tr>
+<tr>
+<td>真实等待时间</td>
+<td>所有里程碑耗时之和</td>
+<td>所有里程碑耗时之和</td>
+<td>关键路径耗时加上串行集成时间</td>
+</tr>
+<tr>
+<td>质量衰减风险</td>
+<td>长会话后期注意力漂移</td>
+<td>低</td>
+<td>低（仅在满足第一部分规则时）</td>
+</tr>
+</tbody>
+</table>
+<p>并发下的真实等待时间由最长的依赖链决定，再加上所有者必须串行执行的每个步骤（集成、下游协调、退休）。尽量缩短串行部分，就是将权威评审放在各租约内部而非所有者处执行的原因（参见 Tier 1）。</p>
+<p>通过 SQLite 审计追踪（<code>tabilet-audit</code>）的实测检验表明：</p>
+<ol>
+<li><strong>上下文边界控制：</strong> 为每个里程碑提供精简上下文简报，可彻底避免多任务间的提示词膨胀。</li>
+<li><strong>耗时大幅压缩：</strong> 在评审门禁与下游协调阶段采用只读并行扇出，每次迭代约 3 分钟即可完成，避免了串行排队等待时间累加。</li>
+<li><strong>互补缺陷发现：</strong> 将评审正交拆分为不同维度（正确性、安全性、测试覆盖），能够有效捕获单一宽泛评审往往忽略的深层缺陷。</li>
+</ol>
+<h2 id="part-a-designing-parallel-safe-milestones">第一部分 — 设计并行安全的里程碑<a class="headerlink" href="#part-a-designing-parallel-safe-milestones" title="Permanent link">&para;</a></h2>
+<h3 id="three-relations-not-one">三种关系，而非一种<a class="headerlink" href="#three-relations-not-one" title="Permanent link">&para;</a></h3>
+<p>规划阶段记录依赖关系与下游影响。并行安全需要引入第三种关系，三者各司其职：</p>
+<table>
+<thead>
+<tr>
+<th>关系</th>
+<th>含义</th>
+<th>规则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Depends on（依赖于）</td>
+<td>消费者需要生产者交付的功能行为</td>
+<td>硬性执行先后顺序</td>
+</tr>
+<tr>
+<td>Downstream impacts（下游影响）</td>
+<td>生产者的结果必须协调进消费者待定的规范中</td>
+<td>始终完整且绝不剪枝。它也意味着先后顺序：协调完成前消费者不得开工</td>
+</tr>
+<tr>
+<td>Write set（写入范围）</td>
+<td>该里程碑修改的路径、公共契约和共享资源</td>
+<td>仅用于判定两个无序里程碑是否可以同时并发运行</td>
+</tr>
+</tbody>
+</table>
+<p>两个里程碑仅在同时满足以下三个条件时才是<strong>并行安全</strong>的：</p>
+<ol>
+<li>彼此之间双向均无依赖路径相连；</li>
+<li>它们的写入范围互不重叠（完全正交）；</li>
+<li>任何一方都不读取另一方正在修改的契约。</li>
+</ol>
+<p>传递约简（Transitive reduction）可以简化调度图的内部副本，但绝对不能从下游协调列表中移除任何项。如果 <code>A</code> 同时影响 <code>B</code> 和 <code>C</code>，且 <code>B</code> 也影响 <code>C</code>，那么在 <code>A</code> 完成后，<code>C</code> 仍然必须根据 <code>A</code> 的实际改动进行协调，因为 <code>B</code> 未必能涵盖其全部细节。</p>
+<h3 id="milestone-specification-fields">里程碑规范字段<a class="headerlink" href="#milestone-specification-fields" title="Permanent link">&para;</a></h3>
+<p><code>tabilet/memory-bank/milestone.md</code> 中的活动里程碑规范定义了这些边界：</p>
+<pre><code class="language-markdown">### A01 — 结算计费 {#a01-billing-settlement}
+- Depends on: M01
+- Downstream impacts: P01
+- Write set: src/billing/**, tests/billing/**, contract: settlement-events v1
+- Contracts read: core-model v1 (frozen by M01)
+- Shared verification resources: postgres (per-lease database name)
+- Parallel-safe: yes — disjoint from S01; reads only frozen M01 contracts
+</code></pre>
+<p><code>Parallel-safe</code> 默认必须为 <code>no</code>。只有当写入范围和契约确实满足解耦条件时，规划阶段才将其标为 <code>yes</code>。若有存疑，一律串行执行。</p>
+<h3 id="patterns-that-keep-quality-intact">保持质量的设计模式<a class="headerlink" href="#patterns-that-keep-quality-intact" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>契约优先拆分：</strong> 将共享的数据模式、接口及契约测试提前至初始里程碑，并在该里程碑闭环时冻结契约。下游领域里程碑随后消费稳定契约，从而实现彼此间的并行安全。</li>
+<li><strong>契约变更上报：</strong> 某个里程碑若发现必须修改已冻结契约，必须立刻停工上报。严禁私自修改契约；所有者需重新对受影响的消费者进行规划。</li>
+<li><strong>双层验收验证：</strong> 每个里程碑都配备可在隔离环境下独立运行的验收验证，以及在合并进主线后运行的指定集成检查。</li>
+<li><strong>共享记忆单写原则：</strong> <code>architecture.md</code>、<code>product.md</code>、<code>tech-stack.md</code>、<code>lessons.md</code>、<code>milestone.md</code> 以及已有的 <code>suggested.txt</code> 仅由所有者写入。子智能体仅返回对这些文件的修改建议，绝不直接编辑。</li>
+<li><strong>规模均衡：</strong> 远长于同级的里程碑会拖累整体关键路径。应沿着写入边界将其拆分为自然的评审单元。</li>
+</ul>
+<p>这些字段与模式属于规划范畴（<code>memory-bank-init</code>、<code>memory-bank-propose</code>、<code>memory-bank-reconcile</code>）。执行阶段只负责读取。</p>
+<h2 id="part-b-tier-0-faster-within-existing-rules">第二部分 — Tier 0：在现有规则内提速<a class="headerlink" href="#part-b-tier-0-faster-within-existing-rules" title="Permanent link">&para;</a></h2>
+<p>Tier 0 不需要放宽任何现有规则，始终严格保持全库单一写入者。</p>
+<h3 id="authorization-in-child-briefs">子智能体简报中的授权<a class="headerlink" href="#authorization-in-child-briefs" title="Permanent link">&para;</a></h3>
+<p>遵守 <a href="../goal/#authorization-requirements-and-grants">goal 授权规则</a>。每个子智能体获得完整请求和
+人类批准上下文，以及有效授予的收窄子集；按精确里程碑键（跨包时使用包限定身份）、任务分配、角色、
+具体范围和写入所有权匹配。完整请求中超出子集的部分只作上下文；协调者的授予保留给协调者。
+子智能体不能扩大或转移授予；只读评审者没有修改权限。</p>
+<p>要求声明、提议授予、仓库内容、模型输出和状态文字不构成批准。每次受保护操作前检查权限，
+并保留提交与外部修改限制。缺少权限时，在所有者控制下暂停受影响工作及依赖项；独立且已授权的工作仍可继续。
+必要操作未执行时不能收尾。报告使用的授予 ID 和操作结果，只将它们视为执行证据。</p>
+<p>恢复时，通过会话或已支持保存这些信息的可信宿主状态，保留原 goal、分配任务范围及人类批准来源。
+复用有效授予；范围变化须重新批准。以前的运行、标记、沉默或审计记录不授予权限；不自动重放不确定副作用。
+宿主与工具权限仍有效。这是指令指导，不是消费授予的运行时，也不要求审计。</p>
+<h3 id="fresh-context-sequential-handoff">独立上下文顺序移交<a class="headerlink" href="#fresh-context-sequential-handoff" title="Permanent link">&para;</a></h3>
+<p>所有者将一个里程碑移交给全新的子智能体，并在其执行期间不进行任何写入。这是所有权的移交，而非产生了第二个写入者。子智能体接收精简的上下文简报，而不是所有者的完整对话记录：</p>
+<ul>
+<li>该里程碑的规范及其状态文件；</li>
+<li>唯一的 <code>ASSIGNED_MILESTONE</code>、对应的 <code>ASSIGNED_STATUS_FILE</code>、允许写入的范围及返回所有者的条件；</li>
+<li>主导执行的 <code>tabilet/GOAL.md</code> 及完整解析后的请求：选定的 <code>STATUS_ORDER</code> 或 <code>STATUS_PRIORITY</code>、
+  提交策略、外部变更限制、并发与集成授权、用户范围限制及停止条件；</li>
+<li>子智能体角色和允许写入的范围；使用租约时还须提供已捕获的集成引用、主工作树路径及完整基线提交；</li>
+<li><code>AGENTS.md</code> 的阅读顺序、核心命令与硬性规则；</li>
+<li>它消费的已协调契约；</li>
+<li>所需的验收验证命令。</li>
+</ul>
+<p>子智能体可在仓库内阅读所需的任何其他代码。它为该里程碑执行标准的 <code>GOAL.md</code> 循环，将评审计数记录在状态备注中，并返回报告：已完成任务行、验证证据、评审轮次与发现、提交哈希、建议的共享记忆更新以及阻塞项。随后所有者接管，根据真实 diff 进行下游协调，更新共享记忆文件，并收尾退休该里程碑。</p>
+<p>若子智能体异常中断，其状态文件即为恢复点，持久化的评审计数永不重置。
+每个子智能体（包括只读评审员和协调分析员）都接收这些解析后的策略，仓库文件无法恢复父会话中的限制。
+在 <code>COMMIT_POLICY: none</code> 下，移交执行不产生提交。在顺序执行的 <code>milestone</code> 策略下，子智能体留下未提交的
+改动，由所有者按照 <code>GOAL.md</code> 将实现与收尾合并为一次提交。</p>
+<p>所有者在派发前将 <code>suggested.txt</code> 与实时项目事实核对。完整目标是子智能体的背景信息，明确分配的任务才决定它
+可以执行的范围。例如，分配 A01 并在 <code>../&lt;repo&gt;.goal/A01</code> 中工作的子智能体只执行 <code>status-A01.md</code> 及 A01 声明的
+写入范围内的工作。当指定的实现、验证与评审完成或出现阻塞时，它返回所有者，不从建议文件选择 S01，也不再次
+启动完整目标。所有者确保每个里程碑 ID 最多只有一个活动租约；中断后恢复原租约。</p>
+<h3 id="parallel-read-only-fan-out">只读并行扇出<a class="headerlink" href="#parallel-read-only-fan-out" title="Permanent link">&para;</a></h3>
+<p>里程碑中最耗时的阶段通常是评审和下游协调。两者均可扇出给只读子智能体，且不会引入第二个写入者：</p>
+<ul>
+<li><strong>多视角代码评审：</strong> 在每轮评审修复循环中，多个只读评审员通过不同视角审视同一份完整的里程碑 diff：代码正确性与故障语义；安全性与隐私；兼容性与运行约束；测试覆盖与文档一致性。所有者将他们的发现汇总为<strong>一轮</strong>迭代报告并记录一次，确保计数器每轮精确加 1。</li>
+<li><strong>下游协调分析：</strong> 针对每个受影响的待定消费者，由一名只读分析员根据生产者实际的实现 diff 起草规范变更。所有者审阅每份草案并统一应用。</li>
+</ul>
+<p>即使在严格的串行依赖链中，这也能大幅提速，且多视角独立评审能显著提高缺陷发现率。</p>
+<h2 id="part-c-tier-1-concurrent-leases-opt-in">第三部分 — Tier 1：并发租约（选择性开启）<a class="headerlink" href="#part-c-tier-1-concurrent-leases-opt-in" title="Permanent link">&para;</a></h2>
+<p>Tier 1 允许同时并发运行多个并行安全的里程碑。每个里程碑在独立的<strong>租约</strong>（Lease）中运行：即拥有独立分支和外部工作树的子智能体。</p>
+<h3 id="preconditions">前置条件<a class="headerlink" href="#preconditions" title="Permanent link">&para;</a></h3>
+<p>必须同时满足以下所有条件，否则 Tier 1 不可用，自动降级为 Tier 0：</p>
+<ol>
+<li>项目的 <code>AGENTS.md</code> 明确声明了安全并行所有权：每个租约最多一个 <code>[~]</code> 进行中任务行，仅所有者向主分支集成代码，且仅所有者修改共享记忆文件。</li>
+<li>目标请求明确授权了并发执行：</li>
+</ol>
+<p>```text
+   Using tabilet/GOAL.md, execute this loop.</p>
+<p>STATUS_PRIORITY: M01, A01, S01, P01
+   DOWNSTREAM_IMPACTS:
+   M01 -&gt; A01, S01
+   A01 -&gt; P01
+   S01 -&gt; P01</p>
+<p>PARALLELISM: 3
+   INTEGRATION: local-rebase-ff
+   COMMIT_POLICY: task
+   EXTERNAL_MUTATIONS: none
+   ```</p>
+<p><code>INTEGRATION: local-rebase-ff</code> 授权创建本地租约分支、变基未发布的租约提交以及仅快进集成。它不授权推送到远端或产生合并提交。<code>PARALLELISM</code> 限制并发租约上限（默认值为 3）。
+   <code>STATUS_PRIORITY</code> 只在已就绪的里程碑中选择派发优先级，不增加依赖。示例允许 M01 收尾后并发执行 A01 和 S01，
+   而 P01 等待两者。若请求改用 <code>STATUS_ORDER: M01 -&gt; A01 -&gt; S01 -&gt; P01</code>，即使开启并发也必须严格按此顺序执行。
+   按照 <code>GOAL.md</code> 的规则，两个选择字段只能使用一个。
+3. <code>COMMIT_POLICY</code> 必须为 <code>task</code> 或 <code>milestone</code>。在 <code>none</code> 策略下，由于没有提交承载工作树之间的数据流转，Tier 1 会被自动禁用。
+   对于 <code>milestone</code>，本地集成授权允许创建一个未发布的汇总检查点，并为变基和评审修订它。
+   所有者须在集成前将收尾纳入该提交，最终只集成一个里程碑提交。如果请求禁止临时提交或修订提交，则采用顺序执行。
+4. 每个并发派发的里程碑都必须标记为 <code>Parallel-safe: yes</code>，且与所有当前运行中的租约满足第一部分的三项正交要求。</p>
+<h3 id="lease-lifecycle">租约生命周期<a class="headerlink" href="#lease-lifecycle" title="Permanent link">&para;</a></h3>
+<pre><code class="language-text">所有者：捕获实际集成分支及基线，派发就绪且并行安全的里程碑
+  │
+  ▼
+在 ../&lt;repo&gt;.goal/&lt;ID&gt; 创建专用工作树和 goal/ID 分支
+  │
+  ▼
+租约：逐行实施任务，保持单一 [~]；按 task 提交或创建汇总检查点
+  │
+  ▼
+租约：使用租约隔离资源进行验证
+  │
+  ▼
+租约：变基到已捕获的 INTEGRATION_REF 并重新验证
+  │
+  ▼
+租约：在变基后的 diff 上运行权威评审修复门禁
+  │
+  ▼
+变基后已捕获的集成分支是否发生变动？
+  ├── 否  ───► 按下面的提交策略继续收尾
+  ├── 是（改动正交）───► 租约：仅变基并重新验证
+  └── 是（触碰写入范围/契约）───► 租约：变基 + 重新验证 + 重新评审
+  │
+  ▼
+milestone 策略的所有者：暂停租约写入者，在租约中收尾并完成一个最终提交
+  │
+  ▼
+所有者：快进集成到已捕获的分支 (git merge --ff-only)
+  │
+  ▼
+task 策略的所有者：运行集成检查，协调下游影响，更新记忆文档，退休收尾
+  │
+  ▼
+清理并删除外部工作树和本地分支；派发新就绪的里程碑
+</code></pre>
+<h3 id="rules">规则<a class="headerlink" href="#rules" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>工作树存放路径：</strong> 必须位于项目根目录之外，例如 <code>../&lt;repo&gt;.goal/&lt;ID&gt;</code>。项目内部的工作树会弄脏主工作树、污染测试扫描，并沦为累积的生成目录。</li>
+<li><strong>持久化租约记录：</strong> Git 本身即为持久记录。<code>git worktree list</code> 和 <code>goal/*</code> 本地分支在会话或服务重启后依然存在，每个租约的状态文件记录了其进度和评审计数。现有目标状态或状态备注还保存实际 <code>INTEGRATION_REF</code>、主工作树路径及完整基线。恢复时枚举工作树并重新核对这些身份，再根据各自状态文件继续执行，无需创建额外的新文件。</li>
+<li><strong>租约内权威评审：</strong> 有界评审修复门禁在变基到当前主分支后的租约工作树内运行，计数器记录在租约自身的状态备注中。若集成前主线已有其他提交合入，租约需变基并重新验证；只有当主线新提交触碰了该租约的写入范围或其读取的契约时，才需要重新触发评审。</li>
+<li><strong>线性集成：</strong> 变基与分支推进检查使用已捕获的分支，无论它名为 <code>main</code>、<code>master</code>、<code>trunk</code> 还是发布分支。
+  所有者在集成前核对符号 <code>HEAD</code> 与分支 tip。快进保留选定的提交策略：<code>task</code> 逐任务提交，<code>milestone</code> 最终只集成一个里程碑提交。严禁使用非快进合并提交（<code>--no-ff</code>）。</li>
+<li><strong>收尾与提交策略：</strong> 执行顺序由 <code>GOAL.md</code> 主导。在 <code>task</code> 下，所有者集成后收尾，仅在文件有实质改动时提交收尾变更。
+  在 <code>milestone</code> 下，所有者保留串行集成时段、暂停子智能体，在租约中验证组合后的代码树、协调下游、更新共享记忆并完成已采用的退休流程。
+  随后将收尾纳入最终检查点并快进集成；不集成临时检查点，也不产生第二个收尾提交。若目标分支意外推进，须在新基线上重新协调并验证收尾。</li>
+<li><strong>依据真实代码协调：</strong> 所有者根据实际组合实现的 diff 协调每个下游影响：<code>milestone</code> 在集成前进行，<code>task</code> 在集成后进行。
+  下游必须等待验证通过的收尾与集成均完成。</li>
+<li><strong>共享启动输入：</strong> 仅所有者在串行收尾时根据当前已集成状态刷新已有的 <code>suggested.txt</code>。
+  子智能体通过明确分配的任务确定执行范围，不根据该文件自行选取任务。在加入所有者的收尾修改前，检查子智能体
+  diff 是否符合分配范围，拒绝对子智能体无权修改的共享文件或其他里程碑状态的改动。工作树将磁盘上的文件隔离，
+  而此 diff 检查防止竞争性的共享修改进入集成历史。</li>
+<li><strong>运行时发现的潜在影响：</strong> 若所有者发现某个正在运行的租约依赖了刚合入的改动，会通知该租约在下一个任务行边界暂停，协调其待定任务行后再行恢复。已完成但失效的任务行按 <code>[-]</code> 归档为历史证据，并指定其继任者。</li>
+<li><strong>故障隔离：</strong> 任务阻塞、第 10 轮评审失败或集成冲突只会停止该特定租约。其工作树和分支会被保留以供排查，其下游依赖不会被调度，而独立的同级租约继续不受影响地执行。</li>
+<li><strong>资源隔离：</strong> 每个租约使用独立的端口、数据库名称和缓存。需要排他性资源的里程碑仅串行化其验证步骤，而不串行化代码实现。</li>
+</ul>
+<h2 id="rejected-approaches">被否决的方案<a class="headerlink" href="#rejected-approaches" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>被否决的原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>使用合并提交（Merge commits）集成租约</td>
+<td>违反已授权的快进集成及线性提交历史</td>
+</tr>
+<tr>
+<td>减少声明的影响以换取并行度</td>
+<td>剥夺了真实的规范协调义务；<code>GOAL.md</code> 将声明的影响映射视为最低要求</td>
+</tr>
+<tr>
+<td>对影响列表进行传递约简（Transitive reduction）</td>
+<td>会跳过消费者根据原始生产者实际变更直接进行的协调工作</td>
+</tr>
+<tr>
+<td>在项目内部创建工作树目录</td>
+<td>污染工作区，导致 API 运行器报错，干扰测试发现并产生冗余文件</td>
+</tr>
+<tr>
+<td>仅依靠自由文本总结进行协调</td>
+<td><code>GOAL.md</code> 明确要求根据“真实存在的代码实现”进行协调</td>
+</tr>
+<tr>
+<td>仅在隔离环境中评审，集成后再评审一次</td>
+<td>产生两套无统一计数属主的门禁；且隔离评审无法发现集成冲突</td>
+</tr>
+<tr>
+<td>从任务行推断写入范围</td>
+<td>任务行不会可靠地列出文件路径；写入范围必须显式声明</td>
+</tr>
+<tr>
+<td>使用环境变量传递并发度</td>
+<td>目标输入字段能确保授权完整记录在启动任务的请求本身中</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2026 Peter Bi · <a href="https://github.com/tabilet/skills/blob/main/LICENSE">MIT License</a>
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.88dd0f4e.min.js"></script>
+      
+    
+  </body>
+</html>
