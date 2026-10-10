@@ -110,7 +110,10 @@ requested as its next full pass. Continue the persisted counter and its
 
 Use the shared plan-update reference for optional milestone
 `AUTHORIZATION_REQUIREMENTS` and clearly proposed launch `AUTHORIZATION_GRANTS`.
-Approval of these file actions does not activate grants or authorize execution.
+Grants in `suggested.txt` use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
+`GLOBAL:` scopes; preserve existing human decisions when refreshing. Approval of these
+file actions does not activate grants or authorize execution, and goal resumption requires
+verifying the updated file's SHA256 checksum.
 
 Read [references/write-contract.md](references/write-contract.md) before preparing
 the proposal. It defines provenance, allowed file actions, and output checks.

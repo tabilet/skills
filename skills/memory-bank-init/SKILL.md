@@ -168,8 +168,11 @@ understanding.
 ## Phase 2 - Propose
 
 Include optional milestone `AUTHORIZATION_REQUIREMENTS` where relevant, under
-the write contract. Any launch `AUTHORIZATION_GRANTS` are proposed, never
-activated by planning approval. Preserve human, project, and policy boundaries.
+the write contract. Any launch `AUTHORIZATION_GRANTS` in `suggested.txt` are proposed,
+carrying decision markers (`[ ]` need authorization, `[+]` approve, `[-]` deny, `[~]` auto)
+and optional `GLOBAL:` scope. Matching the SHA256 checksum against human approval
+is required before activating grants. Planning approval alone never activates them.
+Preserve human, project, and policy boundaries.
 
 Read [references/write-contract.md](references/write-contract.md) completely
 before presenting the file-action proposal, so the proposal uses the actual

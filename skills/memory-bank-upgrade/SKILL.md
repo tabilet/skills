@@ -141,7 +141,10 @@ integration, external-mutation, and user scope policies; surface conflicts
 instead of resetting them to example defaults. Remove stale historical launch
 entries only after reconciling their disposition. Keep valid unapproved grant
 proposals labeled PROPOSED — NOT APPROVED; do not copy previous-run approval
-as effective authority. Always emit `AUTHORIZATION_GRANTS: {}` when there are
+as effective authority. Proposed grants in `suggested.txt` carry decision markers:
+`[ ]` (need authorization), `[+]` (approve), `[-]` (deny), and `[~]` (auto), with optional
+`GLOBAL:` grants for high-level scopes; goal execution requires matching SHA256 checksum.
+Always emit `AUTHORIZATION_GRANTS: {}` when there are
 no proposed explicit grants, or the concrete proposed mapping when present.
 Requirements stay in milestone specifications and never become duplicate
 declarations in launch input. Preserve an absent launch reference; this upgrade

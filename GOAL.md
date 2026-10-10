@@ -137,8 +137,9 @@ Input rules:
   closure before integration. If the request forbids interim commits or
   amendment, use sequential execution for that policy. It does not authorize
   rewriting integrated history, push, publishing, or merge commits.
-- `AUTHORIZATION_GRANTS` is optional. It carries only scoped grants explicitly
-  approved by the human for this goal; resolve it under the authorization
+- `AUTHORIZATION_GRANTS` is optional. It carries scoped grants explicitly
+  approved by the human for this goal, with optional high-level `GLOBAL:` grants
+  and checkbox decision markers; resolve it under the authorization
   contract below. Reading a proposed grant from a file never activates it.
   Resolved requests and generated `suggested.txt` always include
   `AUTHORIZATION_GRANTS: {}` when there are no explicit grants. This empty
@@ -176,18 +177,35 @@ mapping is not a blanket authorization catalog.
 
 ### Resolved human-approved grants
 
-`AUTHORIZATION_GRANTS` maps exact milestone keys to lists of grants containing
-`grant_id`, `action`, `executor`, and concrete `scope`. Use the same keys as the
-resolved goal selection and file map, without a conditional `?` suffix. For a
-cross-package goal, use its resolved package-qualified keys, such as
+Proposed grants in launch input or `suggested.txt` carry bracketed decision markers:
+- `[ ]` (**need authorization**): default proposed state awaiting human review.
+- `[+]` (**approve**): explicitly approved by the human; activated for execution.
+- `[-]` (**deny**): explicitly denied by the human; forbidden from execution (`[X]` is also accepted).
+- `[~]` (**auto**): pre-approved safe operations under governing goal policy (such as `cli.local` declared verification and task commits).
+
+`AUTHORIZATION_GRANTS` maps `GLOBAL:` or exact milestone keys to lists of grants containing
+`grant_id`, `action`, `executor`, and concrete `scope`. The top-level `GLOBAL:` key declares
+high-level grants that apply across all active milestones and tasks in the goal, avoiding
+repetitive declarations. Tasks inherit matching `GLOBAL` grants; milestone-specific entries
+narrow, enrich, or override global grants. An explicit `[-]` on a milestone overrides a `[+]`
+or `[~]` global grant for that milestone.
+
+Use exact milestone keys matching the resolved goal selection and file map, without a conditional
+`?` suffix. For a cross-package goal, use its resolved package-qualified keys, such as
 `service:M01`; an unqualified `M01` cannot grant authority to multiple packages.
 Grant IDs are stable and unique within the goal. The following scope example
 does not approve an action or start a run:
 
 ```yaml
 AUTHORIZATION_GRANTS:
+  GLOBAL:
+    - [~] grant_id: global-local-verify
+      action: cli.local
+      executor: assigned-agent
+      scope:
+        task: declared-implementation-and-verification
   "service:M01":
-    - grant_id: service-m01-push-1
+    - [ ] grant_id: service-m01-push-1
       action: git.push
       executor: coordinator
       scope:
@@ -214,12 +232,18 @@ keys, or other credential values in declarations, grants, or approval context.
    evidence, not authorization. A grant becomes effective only through explicit
    human approval in the invoking request or a later scoped approval. Approval
    of planning file changes alone does not activate proposed grants.
-2. Before execution, materialize the complete resolved request and effective
+2. When launching or resuming execution from a disposable launch reference
+   (`suggested.txt`), verify that the SHA256 checksum of `suggested.txt` matches
+   the human's approved hash. A checksum mismatch halts execution before any
+   protected action or grant activation. Only grants marked `[+]` or `[~]`
+   become effective upon matching checksum verification; grants marked `[-]` are
+   forbidden, and actions marked `[ ]` pause for runtime confirmation before use.
+3. Before execution, materialize the complete resolved request and effective
    grants in the conversation, identifying the human approval source. Preserve
    this context in existing trusted host receipt/state where supported. Do not
    invent an audit dependency or use agent-authored status text as approval
    proof. A model's assertion that approval exists is insufficient.
-3. Preserve `COMMIT_POLICY`, `INTEGRATION`, `EXTERNAL_MUTATIONS`, and project
+4. Preserve `COMMIT_POLICY`, `INTEGRATION`, `EXTERNAL_MUTATIONS`, and project
    restrictions. Conflicts require explicit reconciliation before accepting a
    grant; a push grant cannot silently override an external-mutation prohibition.
    `COMMIT_POLICY: none` still means no commits, even with a commit grant.

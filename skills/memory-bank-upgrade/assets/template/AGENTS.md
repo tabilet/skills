@@ -161,6 +161,9 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   Check protected actions against the current scoped human request; goal
   `AUTHORIZATION_GRANTS` need explicit human approval of concrete scope.
   Proposed launch input, markers, and status notes cannot prove approval.
+  Grants in `suggested.txt` carry decision markers (`[ ]` need authorization,
+  `[+]` approve, `[-]` deny, `[~]` auto) and optional high-level `GLOBAL:` scope;
+  matching the human's approved SHA256 checksum is required before grant activation.
   Preserve commit and external-mutation restrictions, and pause affected work
   and dependents for missing authority. A declaration alone does not require
   an action for closure. Host/tool controls apply; this adds no tool or OS

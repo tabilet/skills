@@ -35,9 +35,10 @@ request. Carry these values explicitly, including defaults:
   downstream impacts relevant to the assignment.
 - `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `PARALLELISM`, and `INTEGRATION`.
 - The full `AUTHORIZATION_GRANTS` context and human approval source, plus the
-  child's effective authorization subset narrowed by exact milestone key,
-  assignment, executor role, scope, and write ownership. For cross-package work,
-  preserve the package-qualified key. Coordinator grants stay with the owner.
+  child's effective authorization subset narrowed by exact milestone key
+  (inheriting applicable `GLOBAL:` grants), assignment, executor role, scope,
+  and write ownership. For cross-package work, preserve the package-qualified key.
+  Coordinator grants stay with the owner.
 - User scope restrictions, allowed repositories and external targets/actions,
   completion requirements, and stop conditions. `EXTERNAL_MUTATIONS: none`
   grants no external action.

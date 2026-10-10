@@ -22,6 +22,12 @@ launch execution. Grants cannot expand Python API authorization boundaries.
 Always emit `AUTHORIZATION_GRANTS` in refreshed launch input, using
 `AUTHORIZATION_GRANTS: {}` for the default with no explicit grants. Requirements
 stay in the milestone specification; do not duplicate them in `suggested.txt`.
+Proposed grants in `suggested.txt` carry decision markers: `[ ]` (need authorization),
+`[+]` (approve), `[-]` (deny), and `[~]` (auto). High-level `GLOBAL:` grants declare
+common authorities across milestones. When refreshing `suggested.txt`, strictly preserve
+existing human `[+]`, `[-]`, and `[~]` decisions on existing grants, and propose `[ ]`
+(or `[~]` for safe local commands under goal policy) for new grants. Goal execution
+requires verifying that the SHA256 checksum of `suggested.txt` matches human approval.
 
 Executors are `coordinator` or `assigned-agent`. Each requirement has `via`,
 `executor`, and any necessary `scope`. This template lists supported

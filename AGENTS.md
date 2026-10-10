@@ -313,9 +313,14 @@ spelling so an inbound link survives translation.
   grant consumption to the Python API paths; the controller excludes external
   actions. Existing projects require explicit adoption, not automatic migration.
   Generated launch references always show `AUTHORIZATION_GRANTS`, with `{}` as
-  the empty default. Upgrade proposes updates to existing goal protocols and
-  launch references while preserving custom restrictions and explicit policies;
-  approval of the complete proposal gates these writes and never starts execution.
+  the empty default. Proposed grants in launch input or `suggested.txt` carry
+  decision markers: `[ ]` (need authorization), `[+]` (approve), `[-]` (deny),
+  and `[~]` (auto). High-level `GLOBAL:` grants declare common authorities across
+  tasks. When resuming from `suggested.txt`, matching its SHA256 checksum against
+  human approval is required before activating grants. Upgrade proposes updates
+  to existing goal protocols and launch references while preserving custom
+  restrictions and explicit policies; approval of the complete proposal gates
+  these writes and never starts execution.
 
 - SQLite is optional project-local audit plus rebuildable Markdown lookup. Project
   Markdown remains authoritative; index refresh never rewrites it or durable

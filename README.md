@@ -813,7 +813,11 @@ when a decision or authority is missing.
 
 Milestone specifications can declare optional `AUTHORIZATION_REQUIREMENTS`.
 Human-approved goal requests can carry scoped `AUTHORIZATION_GRANTS` for exact
-milestone assignments. Declarations and suggested grants confer no permission;
+milestone assignments, or high-level `GLOBAL:` grants applicable across tasks.
+Proposed grants in `suggested.txt` include decision markers: `[ ]` (need authorization),
+`[+]` (approve), `[-]` (deny), and `[~]` (auto). Verifying the SHA256 checksum of
+`suggested.txt` against human approval is required before activating grants.
+Declarations and suggested grants confer no permission;
 commit and external-mutation policies still apply. See the
 [authorization guide](docs/goal.md#authorization-requirements-and-grants) for
 approval, delegation, and resume rules. This is instruction-level guidance;

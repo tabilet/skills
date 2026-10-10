@@ -165,6 +165,8 @@ Use this shape with project values:
 # Delete it after launching the goal, or whenever it becomes stale.
 # Any AUTHORIZATION_GRANTS below are PROPOSED — NOT APPROVED.
 # Planning approval and reading this file do not activate grants.
+# Decision markers: [ ] = need authorization, [+] = approve, [-] = deny, [~] = auto.
+# Verify sha256 matches human approval before activating grants.
 
 Using tabilet/GOAL.md, execute this loop.
 
@@ -188,7 +190,11 @@ passes.
 ```
 
 Map every active status to exactly one file and include all known active
-downstream consumers. Use a trailing `?` only for an approved conditionally
+downstream consumers. When refreshing `suggested.txt`, preserve existing human
+`[+]`, `[-]`, and `[~]` decisions, and synthesize new candidate grants with `[ ]`
+(or `[~]` under goal policy). High-level `GLOBAL:` grants declare common authorities
+across milestones. Verifying the SHA256 checksum of `suggested.txt` is required
+before grant activation. Use a trailing `?` only for an approved conditionally
 required status whose concrete trigger is documented in `milestone.md`. Never
 include Candidate Directions.
 

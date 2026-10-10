@@ -19,7 +19,13 @@ permissions and credentials still apply. Contract checks guard the documented
 rules and examples; they do not enforce runtime permissions.
 
 Generated launch references always include `AUTHORIZATION_GRANTS`, using `{}`
-for the default with no explicit grants. Upgrade proposes updates to existing
+for the default with no explicit grants. Proposed grants in `suggested.txt` carry
+checkbox decision markers consistent with milestone task markers: `[ ]` (need authorization),
+`[+]` (approve), `[-]` (deny), and `[~]` (auto). High-level `GLOBAL:` grants declare
+common scopes (such as verification or push) applicable across all tasks in a goal,
+eliminating repetitive boilerplate. When launching or resuming execution from `suggested.txt`,
+verifying its SHA256 checksum against human approval is required before activating grants.
+Upgrade proposes updates to existing
 `tabilet/GOAL.md` and `tabilet/memory-bank/suggested.txt`, preserving custom
 restrictions and explicit policies. It reconciles launch input against current
 project truth, marks proposed grants as unapproved, and applies the complete

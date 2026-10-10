@@ -72,14 +72,29 @@ documented acceptance, verification, review, and closure requirements.
 `git.push`、`browser`（包括测试夹具）、`sudo` 和 `ssh` 必须使用 `via: explicit`，
 并取得明确的人类授权。
 
-`AUTHORIZATION_GRANTS` 属于已解析且经人类批准的 goal 请求，以精确的里程碑键映射授予列表。
+`AUTHORIZATION_GRANTS` 属于已解析且经人类批准的 goal 请求，以 `GLOBAL:` 或精确的里程碑键映射授予列表。
 每条包含稳定的 `grant_id`、`action`、`executor` 和具体的 `scope`；跨包工作使用请求中的包限定键。
-执行者角色为 `coordinator` 或 `assigned-agent`。下面只是格式示例，本身不批准任何操作：
+顶层 `GLOBAL:` 声明适用于 goal 中所有任务的高层授予，避免重复样板；任务继承匹配的 `GLOBAL:` 授予，里程碑专属条目可收窄或覆盖它。
+执行者角色为 `coordinator` 或 `assigned-agent`。
+
+`suggested.txt` 中的候选授予带有决策标记：
+- `[ ]`（**待授权**）：默认提议状态，等待人类审查。
+- `[+]`（**批准**）：人类明确批准，激活用于执行。
+- `[-]`（**拒绝**）：人类明确拒绝，禁止执行。
+- `[~]`（**自动**）：根据 goal 治理策略预批准的安全操作。
+
+从 `suggested.txt` 启动或恢复执行时，必须先验证其 SHA256 校验和与人类批准一致，才能激活授予。下面只是格式示例，本身不批准任何操作：
 
 ```yaml
 AUTHORIZATION_GRANTS:
+  GLOBAL:
+    - [~] grant_id: global-local-verify
+      action: cli.local
+      executor: assigned-agent
+      scope:
+        task: declared-implementation-and-verification
   "web:M01":
-    - grant_id: web-m01-browser-1
+    - [ ] grant_id: web-m01-browser-1
       action: browser
       executor: assigned-agent
       scope:

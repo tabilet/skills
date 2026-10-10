@@ -481,11 +481,11 @@ def authorization_example_problems(text: str) -> list[str]:
                 problems.append("grant example needs a list of grant objects")
             ids = set()
             for entry in entries:
-                identifier = re.match(r"grant_id: ([A-Za-z0-9_-]+)\n", entry)
-                if not identifier or identifier[1] in ids:
+                identifier = re.match(r"(?:\[([ +~X!-])\] )?grant_id: ([A-Za-z0-9_-]+)\n", entry)
+                if not identifier or identifier.group(2) in ids:
                     problems.append("grant example needs stable unique grant_id values")
                 else:
-                    ids.add(identifier[1])
+                    ids.add(identifier.group(2))
                 action = re.search(r"^      action: (\S+)$", entry, re.M)
                 executor = re.search(r"^      executor: (\S+)$", entry, re.M)
                 if not action or action[1] not in actions:

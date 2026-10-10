@@ -248,6 +248,8 @@ restriction.
 # Delete it after launching the goal, or whenever it becomes stale.
 # Any AUTHORIZATION_GRANTS below are PROPOSED — NOT APPROVED.
 # Planning approval and reading this file do not activate grants.
+# Decision markers: [ ] = need authorization, [+] = approve, [-] = deny, [~] = auto.
+# Verify sha256 matches human approval before activating grants.
 
 Using tabilet/GOAL.md, execute this loop.
 
@@ -273,6 +275,13 @@ passes.
 Map every active status in `STATUS_ORDER` to exactly one file. Include known
 active downstream consumers; the goal loop will discover more. Use
 `DOWNSTREAM_IMPACTS: none` when there are none.
+
+Synthesize proposed `AUTHORIZATION_GRANTS` from active milestone
+`AUTHORIZATION_REQUIREMENTS` when present. Mark safe local commands under goal policy
+as `[~]`, and operations requiring explicit human approval as `[ ]`. High-level
+`GLOBAL:` grants declare common authorities across milestones. Never claim that
+planning approval activates grants; execution requires explicit human approval
+matching the file's SHA256 checksum. Missing fields preserve legacy behavior.
 
 A trailing `?` is allowed only for a conditionally required status inside the
 active horizon. Document its concrete project-state trigger in

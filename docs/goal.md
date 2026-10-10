@@ -106,17 +106,34 @@ arbitrary network activity, remote commands, and live browser actions.
 `via: explicit` and scoped human authority.
 
 `AUTHORIZATION_GRANTS` belongs to the resolved human-approved goal request. It
-maps exact milestone keys to lists of grants with `grant_id`, `action`,
+maps `GLOBAL:` or exact milestone keys to lists of grants with `grant_id`, `action`,
 `executor`, and concrete `scope`. IDs stay stable within the goal; use its
 package-qualified keys for cross-package work. Executor roles are
-`coordinator` and `assigned-agent`.
+`coordinator` and `assigned-agent`. High-level `GLOBAL:` grants declare common
+authorities across milestones and tasks in the goal, avoiding repetitive boilerplate.
+Tasks inherit matching `GLOBAL:` grants, while milestone-specific entries narrow or override them.
+
+Proposed grants in `suggested.txt` carry decision markers:
+- `[ ]` (**need authorization**): default proposed state awaiting human review.
+- `[+]` (**approve**): explicitly approved by the human; activated for execution.
+- `[-]` (**deny**): explicitly denied by the human; forbidden from execution.
+- `[~]` (**auto**): pre-approved safe operations under governing goal policy.
+
+When resuming or launching from `suggested.txt`, matching its SHA256 checksum against human
+approval is required before activating grants.
 
 This illustrates a grant's scope; the example itself approves nothing:
 
 ```yaml
 AUTHORIZATION_GRANTS:
+  GLOBAL:
+    - [~] grant_id: global-local-verify
+      action: cli.local
+      executor: assigned-agent
+      scope:
+        task: declared-implementation-and-verification
   "web:M01":
-    - grant_id: web-m01-browser-1
+    - [ ] grant_id: web-m01-browser-1
       action: browser
       executor: assigned-agent
       scope:
