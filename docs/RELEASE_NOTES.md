@@ -1,3 +1,14 @@
+# memory-bank v2.8.0
+
+v2.8.0 introduces autonomous goal execution under `GOAL.md` and refined human authorization controls:
+
+- **Autonomous Launch Reference Refresh (`SUGGESTED_UPDATE: auto`)**: Authorizes the orchestrator (e.g. `agy`, Claude Code, Codex) to refresh `suggested.txt` across milestone closures within the approved active horizon (pruning completed milestones, updating dependency order, activating triggered conditional milestones) and continue execution without pausing for re-confirmation. The default `SUGGESTED_UPDATE: confirm` pauses whenever `suggested.txt` changes.
+- **Grant Decision Markers**: Proposed grants in launch references and `suggested.txt` use checkbox decision markers consistent with task ledger vocabulary: `[ ]` (need authorization), `[+]` (approve), `[-]` (deny), and `[~]` (auto).
+- **Top-Level `GLOBAL:` Ambient Authority**: Declares common scopes (such as declared local verification or git push) applicable across all tasks in a goal, preventing repetitive milestone declarations while allowing individual milestones to narrow or reject them.
+- **Launch Checksum Verification**: Mandates matching the SHA256 checksum of `suggested.txt` against human approval before activating grants.
+- **Autonomous Execution Guide**: Adds `docs/automation.md` detailing the autonomous multi-milestone execution model, prerequisites, and non-bypassable human safety boundaries (secrets/credentials, 10-iteration review ceiling, ambiguity, and parallel rebase conflicts).
+- **Consolidated Controller Specification**: Consolidates 10 historical draft files into `docs/api.md`, providing a unified technical specification for the Tabilet API controller, Docker sandbox limits, and the authoritative `tabilet.api.receipt/v1` schema table.
+
 # memory-bank v2.7.1
 
 Milestone specifications may declare optional `AUTHORIZATION_REQUIREMENTS`.
@@ -19,15 +30,7 @@ permissions and credentials still apply. Contract checks guard the documented
 rules and examples; they do not enforce runtime permissions.
 
 Generated launch references always include `AUTHORIZATION_GRANTS`, using `{}`
-for the default with no explicit grants. Proposed grants in `suggested.txt` carry
-checkbox decision markers consistent with milestone task markers: `[ ]` (need authorization),
-`[+]` (approve), `[-]` (deny), and `[~]` (auto). High-level `GLOBAL:` grants declare
-common scopes (such as verification or push) applicable across all tasks in a goal,
-eliminating repetitive boilerplate. When launching or resuming execution from `suggested.txt`,
-verifying its SHA256 checksum against human approval is required before activating grants (under
-default `SUGGESTED_UPDATE: confirm`; `SUGGESTED_UPDATE: auto` authorizes the orchestrator to
-refresh remaining milestones in `suggested.txt` and smoothly continue).
-Upgrade proposes updates to existing
+for the default with no explicit grants. Upgrade proposes updates to existing
 `tabilet/GOAL.md` and `tabilet/memory-bank/suggested.txt`, preserving custom
 restrictions and explicit policies. It reconciles launch input against current
 project truth, marks proposed grants as unapproved, and applies the complete
