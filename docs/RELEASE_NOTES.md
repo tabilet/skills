@@ -1,3 +1,12 @@
+# memory-bank v2.8.1
+
+v2.8.1 refines multi-package autonomous goal execution under `GOAL.md` and provides comprehensive authorization guidance:
+
+- **Bounded Scope Policy (`SCOPE_POLICY: workspace-contained`)**: Introduces `SCOPE_POLICY: strict | workspace-contained` in `GOAL.md`. Under `workspace-contained`, the orchestrator automatically binds `git.push` and `cli.local` to sibling repositories within the approved workspace root directory (e.g. `~/Workspace/*`) and matching authorized remote organization URLs (e.g. `OpenUdon/*`), eliminating repetitive interactive prompts when sibling repositories are integrated. Non-workspace paths, foreign public remotes, and privileged commands (`sudo`, `ssh`) remain strictly bound.
+- **Milestone-Attached Policy Overrides**: Enables milestone specifications in `tabilet/memory-bank/milestone.md` to attach local policies and requirement overrides (`POLICIES:` or milestone-scoped `AUTHORIZATION_OVERRIDE`). Milestone-attached policies take precedence over global launch defaults in `suggested.txt` during that milestone's lease, allowing launch references to stay concise (~30 lines) while preserving strict local constraints.
+- **Authoritative Authorization Reference**: Adds `docs/authorizations.md` documenting all 10 manual authorization cases, hands-free configuration levers, milestone override rules, multi-repo workspace examples, and the complete decision marker reference.
+- **Child Brief Alignment**: Synchronizes `subagents.md` so delegated child briefs inherit `SCOPE_POLICY` and milestone-attached policy overrides while preserving worker non-expansion invariants.
+
 # memory-bank v2.8.0
 
 v2.8.0 introduces autonomous goal execution under `GOAL.md` and refined human authorization controls:

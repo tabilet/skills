@@ -149,6 +149,17 @@ Input rules:
     no privilege escalation: new unapproved grants (`[ ]`), scope expansions, or
     policy changes still require explicit human approval before execution. The
     orchestrator calculates and records the updated SHA256 checksum in session state.
+- `SCOPE_POLICY` is optional. It governs how the orchestrator validates repository
+  and target scopes for actions such as `git.push` and `cli.local`:
+  - `strict` (default): exact string matching against approved grant scopes. Any target
+    repository path, remote URL, or ref not matched letter-for-letter is treated as
+    scope drift and pauses for explicit human authorization before execution.
+  - `workspace-contained`: authorizes the orchestrator to automatically bind `git.push`
+    and `cli.local` to sibling repositories located within the active workspace root
+    directory and matching authorized remote organization URLs (e.g. the same GitHub
+    organization), without pausing for interactive confirmation. It permits no out-of-boundary
+    action: file paths outside the active workspace directory, foreign public remotes,
+    or privileged commands (`sudo`, `ssh`) remain strictly bound and require explicit approval.
 - `AUTHORIZATION_GRANTS` is optional. It carries scoped grants explicitly
   approved by the human for this goal, with optional high-level `GLOBAL:` grants
   and checkbox decision markers; resolve it under the authorization
@@ -201,6 +212,12 @@ high-level grants that apply across all active milestones and tasks in the goal,
 repetitive declarations. Tasks inherit matching `GLOBAL` grants; milestone-specific entries
 narrow, enrich, or override global grants. An explicit `[-]` on a milestone overrides a `[+]`
 or `[~]` global grant for that milestone.
+
+Milestones may also attach local policies and requirement overrides directly within their
+owning milestone specifications in `milestone.md` (such as declaring narrower
+`EXTERNAL_MUTATIONS`, or milestone-specific action prohibitions `[-]`). Milestone-attached
+policies take precedence over global launch defaults in `suggested.txt` for that milestone's
+execution, keeping `suggested.txt` lean and focused on goal-wide orchestration parameters.
 
 Use exact milestone keys matching the resolved goal selection and file map, without a conditional
 `?` suffix. For a cross-package goal, use its resolved package-qualified keys, such as
@@ -273,8 +290,12 @@ keys, or other credential values in declarations, grants, or approval context.
    SSH commands.
 5. Ask only for missing authority. Show the concrete action, scope, and expected
    effects before requesting approval. Reuse an existing valid grant without
-   asking again; changed scope requires fresh approval. A later scoped approval
-   adds or replaces the relevant grant in the resolved conversation context.
+   asking again; changed scope requires fresh approval. Under `SCOPE_POLICY: workspace-contained`,
+   sibling repositories located within the approved workspace root and targeting
+   authorized organization remotes operate within the approved workspace scope
+   without re-prompting; scope extensions outside the workspace boundary continue
+   to require fresh approval. A later scoped approval adds or replaces the
+   relevant grant in the resolved conversation context.
 6. Check authority before each protected action. Missing authority pauses only
    affected work and its dependents; independent authorized work may continue
    subject to strict order and ledger ownership. Required unperformed task or

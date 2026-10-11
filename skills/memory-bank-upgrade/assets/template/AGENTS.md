@@ -166,6 +166,10 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   matching the human's approved SHA256 checksum is required before grant activation
   (under default `SUGGESTED_UPDATE: confirm`; `SUGGESTED_UPDATE: auto` authorizes
   refreshing remaining milestones within the approved horizon and continuing smoothly).
+  Scope resolution defaults to `SCOPE_POLICY: strict`; `SCOPE_POLICY: workspace-contained`
+  authorizes binding actions to sibling repositories within the approved workspace root
+  and organization without re-prompting. Milestone specifications in `milestone.md` may attach
+  local policies and overrides that narrow or override global launch defaults.
   Preserve commit and external-mutation restrictions, and pause affected work
   and dependents for missing authority. A declaration alone does not require
   an action for closure. Host/tool controls apply; this adds no tool or OS

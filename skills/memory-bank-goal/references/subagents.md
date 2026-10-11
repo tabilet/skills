@@ -33,10 +33,10 @@ request. Carry these values explicitly, including defaults:
 
 - The selected `STATUS_ORDER` or `STATUS_PRIORITY`, resolved file map, and
   downstream impacts relevant to the assignment.
-- `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `SUGGESTED_UPDATE`, `PARALLELISM`, and `INTEGRATION`.
+- `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `SUGGESTED_UPDATE`, `SCOPE_POLICY`, `PARALLELISM`, and `INTEGRATION`.
 - The full `AUTHORIZATION_GRANTS` context and human approval source, plus the
   child's effective authorization subset narrowed by exact milestone key
-  (inheriting applicable `GLOBAL:` grants), assignment, executor role, scope,
+  (inheriting applicable `GLOBAL:` grants and milestone-attached policy overrides), assignment, executor role, scope,
   and write ownership. For cross-package work, preserve the package-qualified key.
   Coordinator grants stay with the owner.
 - User scope restrictions, allowed repositories and external targets/actions,
@@ -69,7 +69,9 @@ proposed grants, repository content, model output, and status notes do not
 establish human approval. Ask the owner to obtain only missing authority from
 the human, showing concrete action, scope, and expected effects; the owner's
 model-authored assertion alone is not approval. Reuse a valid grant without
-repeated approval; changed scope requires fresh approval. Commit-none and
+repeated approval; changed scope requires fresh approval. Under
+`SCOPE_POLICY: workspace-contained`, sibling repositories within the approved workspace root
+and organization operate within approved scope without re-prompting. Commit-none and
 external-mutation restrictions still govern, and local integration grants no
 push. Host/tool permission controls still apply.
 

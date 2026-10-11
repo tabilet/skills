@@ -319,8 +319,12 @@ spelling so an inbound link survives translation.
   tasks. When resuming from `suggested.txt`, matching its SHA256 checksum against
   human approval is required before activating grants (under default `SUGGESTED_UPDATE: confirm`;
   `SUGGESTED_UPDATE: auto` authorizes the orchestrator to refresh remaining milestones
-  within the approved horizon and smoothly continue). Upgrade proposes updates
-  to existing goal protocols and launch references while preserving custom
+  within the approved horizon and smoothly continue). Scope resolution defaults to
+  `SCOPE_POLICY: strict` (exact string matches); `SCOPE_POLICY: workspace-contained`
+  authorizes binding `git.push` and `cli.local` to sibling repositories within the approved
+  workspace root and organization without re-prompting. Milestone specifications in `milestone.md`
+  may attach local policies and requirement overrides that narrow or override global launch defaults.
+  Upgrade proposes updates to existing goal protocols and launch references while preserving custom
   restrictions and explicit policies; approval of the complete proposal gates
   these writes and never starts execution.
 

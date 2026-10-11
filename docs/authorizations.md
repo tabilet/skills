@@ -148,13 +148,14 @@ Grants declared in `AUTHORIZATION_GRANTS` use four standardized bracketed marker
 ## 4. Hands-Free End-to-End Execution
 
 To achieve uninterrupted, zero-touch execution across an entire milestone sequence,
-you must configure three primary levers at launch:
+you must configure four primary levers at launch:
 
 ```mermaid
 flowchart LR
     L1["1. Explicit Order<br/>(e.g., M01 -> M02)"] --> Auto["Hands-Free Goal Loop"]
     L2["2. Auto Handoff<br/>(SUGGESTED_UPDATE: auto)"] --> Auto
     L3["3. Ambient Grants<br/>(GLOBAL: with [+] or [~])"] --> Auto
+    L4["4. Bounded Scope<br/>(SCOPE_POLICY: workspace-contained)"] --> Auto
     Auto --> Complete["Uninterrupted Completion"]
 ```
 
@@ -169,6 +170,10 @@ flowchart LR
    - `- [~] grant_id: global-local-verify` for local build and test execution.
    - `- [~] grant_id: global-repo-push` for repositories requiring remote publishing
      only when downstream consumers depend on it.
+4. **Bounded Scope Policy (`SCOPE_POLICY: workspace-contained`)**: Authorizes the
+   orchestrator to automatically bind operations (`git.push` and `cli.local`) to sibling
+   repositories located within the active workspace root directory matching authorized
+   organization remotes, eliminating repeated interactive pauses on repository discovery.
 
 ### Conditional Push (`[~]`) for Multi-Package Development
 
@@ -193,14 +198,105 @@ A critical safety principle is that **hands-free execution is never wildcard aut
 The protocol's invariant rule is:
 > *Reuse a valid grant without repeated approval; changed scope requires fresh approval.*
 
-Even under `SUGGESTED_UPDATE: auto` and ambient `GLOBAL:` grants with `[+]` or `[~]`:
-- **Strict Target Binding**: Grants are strictly bound to concrete scopes (e.g., repository `/workspace/core`, remote `https://github.com/my-org/core.git`, ref `refs/heads/main`).
-- **Zero Scope Expansion**: If the agent attempts to push to an unapproved destination ref (e.g., `refs/heads/release`), target an undeclared repository, or execute commands outside the declared scope, the hands-free loop **immediately pauses**.
-- **Mandatory Human Re-Approval**: The orchestrator cannot autonomously expand its own boundaries. It must present the new concrete scope to the human and obtain fresh approval before the action can execute.
+How `SCOPE_POLICY` interacts with this rule:
+- **Under `SCOPE_POLICY: strict` (Default)**: Grants require exact letter-for-letter string matching.
+  Any new sibling repository path, unexpected destination ref, or remote URL pauses for human confirmation.
+- **Under `SCOPE_POLICY: workspace-contained`**: The orchestrator auto-authorizes sibling repositories
+  inside the active workspace directory (e.g. `~/Workspace/*`) and matching the authorized remote organization
+  (e.g. `github.com/openudon/*`), without pausing.
+- **Non-Bypassable Safety Gates**: Any action targeting outside the active workspace directory
+  (e.g. `/etc`, `/tmp`, home root), pushing to foreign or unapproved external remotes, or invoking
+  elevated privileges (`sudo`, `ssh`) **always pauses** for explicit human approval. Hands-free policies
+  never confer blanket or arbitrary system authority.
 
 ---
 
-## 5. Complete Hands-Free Launch Examples
+## 5. Milestone-Attached Policies vs. Monolithic suggested.txt
+
+A common friction in large multi-milestone workflows is file bloat in `suggested.txt`. When dozens of
+milestones inline their individual requirements, historical trials, and exception scopes into `suggested.txt`,
+the file can swell to over 1,000 lines. This makes launch references fragile, hard to audit, and forces
+frequent SHA-256 recalculations.
+
+### Architectural Solution: Milestone-Attached Policies
+
+The goal protocol separates high-level launch parameters from milestone-specific constraints:
+
+1. **Lean Launch Reference (`suggested.txt`)**: Contains only goal-level orchestration parameters
+   (`STATUS_PRIORITY`, `PARALLELISM`, `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`,
+   and ambient `GLOBAL:` grants). It stays concise (~30 lines).
+2. **Milestone Specification (`tabilet/memory-bank/milestone.md`)**: Each milestone specification
+   attaches its own local requirements, verification constraints, and policy overrides (e.g. declaring
+   a narrower `EXTERNAL_MUTATIONS`, or milestone-specific action prohibitions `[-]`).
+
+### Precedence and Override Rules
+
+- **Milestone Overrides Win**: A policy or grant attached to a milestone specification takes precedence
+  over global launch defaults for the duration of that milestone's lease and execution.
+- **Denial Precedence**: An explicit `[-]` (deny) attached to a milestone overrides an ambient `[+]` or
+  `[~]` global grant. For example, if `GLOBAL:` permits repository pushes, a milestone declaring
+  `- [-] grant_id: push` is strictly forbidden from pushing.
+- **Clean Lifecycle**: When a milestone completes and is retired to `docs/history/`, its local policy
+  overrides retire with it, leaving the global baseline untouched.
+
+### Comparison: Monolithic vs. Lean Reference
+
+````carousel
+```text
+# Monolithic suggested.txt (1,000+ Lines)
+# Contains entire catalog of 12 milestones, all individual grants,
+# trial outputs, historical receipts, and inlined exception scopes.
+COMMIT_POLICY: task
+STATUS_PRIORITY: M56, W20, M52, W21, U15, M53, A32, M54?, ...
+AUTHORIZATION_GRANTS:
+  GLOBAL:
+    - [~] grant_id: global-local-verify
+  Kinet:M56:
+    - [~] grant_id: stg12-kinet-m56-bootstrap-browser
+      ... 30 lines ...
+    - [~] grant_id: stg12-kinet-m56-bootstrap-sudo
+      ... 30 lines ...
+  OpenUdon:A32:
+    - [~] grant_id: stg12-openudon-a32-push-main
+      ... 25 lines ...
+  Udon:M54:
+    ... 25 lines ...
+  UWS:C11:
+    ... 25 lines ...
+  # ... hundreds more lines ...
+```
+<!-- slide -->
+```text
+# Lean suggested.txt (~30 Lines)
+# Global launch reference only; milestone specifics live in milestone.md
+Using tabilet/GOAL.md, execute this loop.
+
+STATUS_PRIORITY:
+Kinet:M56, Kinet:W20, Kinet:M52, Kinet:W21, Kinet:U15, Kinet:M53, OpenUdon:A32, Kinet:M54?, Udon:M54?, UWS:C11?, APItools:M86?, Kinet:M55?
+
+STATUS_FILE_MAP:
+Kinet:M56 = tabilet/memory-bank/status-M56.md
+OpenUdon:A32 = ../openudon/tabilet/memory-bank/status-A32.md
+
+PARALLELISM: 3
+INTEGRATION: local-rebase-ff
+SUGGESTED_UPDATE: auto
+COMMIT_POLICY: task
+SCOPE_POLICY: workspace-contained
+
+AUTHORIZATION_GRANTS:
+  GLOBAL:
+    - [~] grant_id: global-local-verify
+      action: cli.local
+      executor: assigned-agent
+      scope:
+        task: declared-implementation-and-verification
+```
+````
+
+---
+
+## 6. Complete Hands-Free Launch Examples
 
 ### Example A: Single-Repository Autonomous Milestone Run
 
@@ -321,12 +417,54 @@ AUTHORIZATION_GRANTS:
 
 ---
 
-## 6. Summary Comparison: Default vs. Hands-Free
+### Example D: Multi-Package Workspace with SCOPE_POLICY: workspace-contained
+
+When managing a large workspace with sibling repositories (e.g. `kinet`, `openudon`, `udon`, `uws`, `apitools`):
+
+```text
+Using tabilet/GOAL.md, execute this loop.
+
+STATUS_PRIORITY: kinet:M01, openudon:A01, uws:M02
+
+PARALLELISM: 3
+INTEGRATION: local-rebase-ff
+COMMIT_POLICY: task
+SUGGESTED_UPDATE: auto
+SCOPE_POLICY: workspace-contained
+EXTERNAL_MUTATIONS: none
+
+AUTHORIZATION_GRANTS:
+  GLOBAL:
+    - [~] grant_id: global-local-verify
+      action: cli.local
+      executor: assigned-agent
+      scope:
+        task: declared-implementation-and-verification
+    - [~] grant_id: global-repo-push
+      action: git.push
+      executor: coordinator
+      scope:
+        repository: /home/peter/Workspace/*
+        remote: git@github.com-tabilet:OpenUdon/*.git
+        ref: refs/heads/main
+        mode: fast-forward
+```
+
+**Outcome**:
+- The orchestrator automatically binds `git.push` to any sibling repository within `/home/peter/Workspace/*` targeting the `OpenUdon` organization.
+- Eliminates manual prompts when new sibling repositories are discovered or integrated.
+- Sibling repository policies in `milestone.md` can still attach narrower restrictions (e.g., `- [-] grant_id: push` to disallow push for specific milestones).
+
+---
+
+## 7. Summary Comparison: Default vs. Hands-Free
 
 | Dimension | Default Behavior | Hands-Free Autonomous Configuration |
 |---|---|---|
-| **Goal Order** | Pauses if derived or ambiguous | Explicit `STATUS_ORDER: M01 -> M02` in request |
+| **Goal Order** | Pauses if derived or ambiguous | Explicit `STATUS_ORDER` or `STATUS_PRIORITY` in request |
 | **Milestone Handoff** | Pauses on `suggested.txt` edits (`confirm`) | `SUGGESTED_UPDATE: auto` |
+| **Scope Resolution** | Pauses on unlisted repo or ref (`strict`) | `SCOPE_POLICY: workspace-contained` auto-resolves sibling repos |
+| **Milestone Policies** | Monolithic inlined grants in `suggested.txt` | Milestone-attached policies in `milestone.md` override/narrow global defaults |
 | **Local Verification** | Unchecked if undeclared | `- [~] grant_id: global-local-verify` |
 | **Remote Git Push** | Pauses on `[ ]` or rejected | `- [~] grant_id: global-repo-push` |
 | **Defect Loops** | Loops up to 10 review iterations | Auto-fixes P1/P2; stops if unresolved at iteration 10 |
