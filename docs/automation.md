@@ -3,6 +3,8 @@
 This guide describes how to achieve end-to-end autonomous execution across
 multiple milestones under the [GOAL.md](../GOAL.md) protocol, and defines the
 deliberate safety boundaries where human intervention remains strictly enforced.
+For an exhaustive catalog of every manual authorization checkpoint and decision
+marker, see [Milestone Authorizations](authorizations.md).
 
 ---
 
