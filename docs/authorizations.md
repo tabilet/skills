@@ -98,6 +98,8 @@ flowchart TD
      `repository`, `remote`, `ref`, and `mode: fast-forward`. Local integration
      (`INTEGRATION: local-rebase-ff`) only authorizes local rebasing, not remote push.
    - `browser`: Pauses for explicit approval of target origins, environment, and actions.
+     A requirement declared for a `fixture` environment (disposable synthetic pages, no
+     real origin, credential, saved session or user data) may instead run under goal policy.
    - `sudo`: Always pauses for explicit approval of specific privileged commands. Blanket
      grants (such as `sudo: true`) are rejected.
    - `ssh`: Pauses for explicit approval of target host, user, and command list.

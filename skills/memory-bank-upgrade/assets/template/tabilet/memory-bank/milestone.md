@@ -184,6 +184,19 @@ only what the repository establishes as fact. Planning does not implement or
 accept the requested behavior. Use `memory-bank-propose` where installed, or
 follow this procedure directly with another agent.
 
+**Expensive checks.** Some acceptance depends on a check that is expensive or
+protected; see the [verification-attempt gate](#verification-attempt-gate).
+For such a milestone:
+
+- Limit acceptance to behavior the milestone owns, proved with the smallest
+  workload. Put actual pairing with real producers or consumers in the
+  milestone that adopts them.
+- When the check needs host capabilities (privileges, operating-system or
+  kernel features, devices, browsers, or external accounts), make a cheap
+  readiness probe its first row.
+- Name the uncounted local diagnostic loop, and order cases so that an
+  unrelated failure cannot hide the milestone's own cases.
+
 To defer already approved work through a stage rescope, present the exact
 untouched pending rows and affected downstream work for approval. After
 approval, retain their identity and original task text, mark them `[X]`, and
@@ -257,7 +270,9 @@ Before implementing any newly reviewed finding:
    it in Candidate Directions with a rationale and promotion trigger.
 6. Reconcile affected pending specifications and the remaining order. Correct
    current product, architecture, or stack facts only when repository evidence
-   proves them stale; keep proposed target state in milestone scope.
+   proves them stale; keep proposed target state in milestone scope. Apply the
+   expensive-check limits above, and do not move downstream pairing evidence
+   into a milestone whose acceptance depends on an expensive check.
 
 Do not create a persistent review copy or ledger. Put portable review and
 finding IDs, both source and local severity, revalidation baseline, repository
@@ -265,6 +280,30 @@ evidence, and historical lineage in the affected milestone/status notes. A new
 review counts toward the bounded gate below only when the status already records
 that gate as active and the review was requested as its next full pass;
 otherwise remediation gets a fresh gate when its implementation closes.
+
+## Verification-attempt gate
+
+An expensive or protected check needs privileged setup, scarce hardware or
+quota, a physical or live environment, explicitly granted actions, or minutes
+per run. For a row whose acceptance depends on one:
+
+- Reproduce and fix failures first in the cheapest environment that can show
+  them, such as an unprivileged local run on disposable fixtures. These
+  diagnostic runs are ordinary verification and never satisfy acceptance.
+- Make each expensive run execute every case whose safety does not depend on an
+  earlier result, and report all failures. Stop early only when continuing
+  would be unsafe.
+- Redaction protects real data. Raw diagnostics from synthetic, disposable
+  fixtures may be kept in private, ignored artifact paths. Never commit them,
+  and never treat them as evidence of effects, non-dispatch, retry eligibility,
+  or authority.
+- Each expensive run is one attempt. Persist the row's attempt count in its
+  status notes; a session change does not reset it. Stop after three
+  consecutive failed attempts at the same stage (or the limit the milestone
+  sets), or when the failing stage lies outside the behavior the milestone owns.
+  Mark the row `[!]` with a short diagnosis and options, such as a correction, a
+  rescope or an environment change, and ask the user. Approval to continue sets
+  a new explicit limit. Never repeat an unchanged failed attempt.
 
 ## Milestone review procedure
 

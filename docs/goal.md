@@ -201,6 +201,34 @@ apply. These are instruction-level rules, not tool-level or OS enforcement.
 The Python runner and controller do not consume goal grants, and the
 controller continues to exclude external actions.
 
+## Expensive checks and the attempt gate
+
+Some acceptance depends on a check that is expensive or protected: privileged
+setup, scarce hardware or quota, a physical or live environment, explicitly
+granted actions, or minutes per run. The bounded verification-attempt gate in
+`GOAL.md` keeps such work converging:
+
+- **Diagnose cheaply first.** Use the cheapest environment that reproduces the
+  failure, such as an unprivileged local run on disposable fixtures. These runs
+  never satisfy acceptance.
+- **Run every case.** Each expensive run executes every independent case and
+  reports all failures.
+- **Keep fixture diagnostics.** Raw diagnostics from synthetic fixtures may stay
+  in private, ignored artifacts. Redaction protects real data; the diagnostics
+  never prove effects or grant authority.
+- **Stop and ask.** The attempt count is persisted. After three consecutive
+  same-stage failures, or a failure outside the milestone's owned scope, the
+  agent stops with a diagnosis and options and asks you.
+
+Planning keeps such milestones small. Acceptance covers only behavior the
+milestone owns, and real producer or consumer pairing belongs to the adopting
+milestone. Needed host capabilities get a cheap readiness probe as the first
+row.
+
+A browser requirement declared for a `fixture` environment (disposable
+synthetic pages with no real origin, credential, saved session or user data) may
+use `goal-policy`. Every other browser environment needs explicit authority.
+
 ## Built-in `/goal` is a different thing
 
 An agent's native goal feature can keep an objective active across turns. It

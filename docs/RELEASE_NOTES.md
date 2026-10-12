@@ -1,3 +1,37 @@
+# memory-bank v2.10.0
+
+v2.10.0 adds bounded handling for expensive or protected checks. It follows a
+downstream project that spent 26 counted runs on one physical qualification
+row. Containment itself passed early, but each run was cut short by an unrelated
+producer step, low-fidelity diagnostics and missing stop rules.
+
+- **Bounded verification-attempt gate.** `GOAL.md` and the template
+  `milestone.md` cover expensive or protected checks: privileged setup, scarce
+  hardware or quota, physical or live environments, granted actions, or long
+  runs. For these:
+  - diagnose first in the cheapest reproducing environment;
+  - run every independent case and report all failures;
+  - keep raw diagnostics from synthetic fixtures in private, ignored artifacts;
+  - persist the attempt count, and stop to ask after three consecutive
+    same-stage failures or a failure outside the milestone's owned scope.
+
+  `memory-bank-next` follows the same gate.
+- **Expensive-check planning.** The template "Requested changes" and "New review
+  intake" sections, Propose and Reconcile's `plan-update.md`, and Init's write
+  contract now:
+  - limit acceptance to behavior the milestone owns;
+  - leave real producer or consumer pairing to the adopting milestone;
+  - schedule a cheap readiness probe for needed host capabilities;
+  - name an uncounted diagnostic loop.
+- **Fixture browser authority.** A `browser` requirement may use `goal-policy`
+  when its scope declares `environment: fixture`: disposable synthetic pages
+  with no real origin, credential, saved session or user data. Every other
+  browser environment still needs explicit authority. `check.py` and its tests
+  enforce the distinction.
+- **Current-state status records.** The status template and `GOAL.md` replace
+  superseded checkpoints instead of appending dated narrative, and prune bulky
+  disposable artifacts at closure.
+
 # memory-bank v2.9.0
 
 v2.9.0 introduces the declarative `--environment` option across planning skills and the API harness runner:

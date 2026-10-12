@@ -95,6 +95,11 @@ In `tabilet/memory-bank/milestone.md`:
 - index exactly the approved active milestones and link each to its one status
   file;
 - state their dependency order, acceptance, and downstream relationships;
+- for acceptance that depends on an expensive or protected check, cover only
+  behavior the milestone owns, proved with the smallest workload; leave real
+  producer or consumer pairing to the adopting milestone; give needed host
+  capabilities a cheap readiness probe as the first row; and name an uncounted
+  local diagnostic loop;
 - define optional boundaries and parallel safety (depends on, downstream
   impacts, write set, contracts read, and parallel-safe defaulting to no);
   never prune downstream impacts to force parallel-safe status; and

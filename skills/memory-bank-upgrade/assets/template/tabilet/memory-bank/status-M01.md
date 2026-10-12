@@ -42,6 +42,11 @@ as one row before starting rather than closing several rows in one commit.
 During a goal run, the resolved `COMMIT_POLICY` governs instead; `none` means
 no commits even when a requirement or grant mentions `git.commit`.
 
+Keep this file a current-state record, not a log. Replace a superseded checkpoint
+instead of appending dated narrative, and link per-attempt detail in evidence
+files. A row whose acceptance depends on an expensive check records its attempt
+count here under the [verification-attempt gate](milestone.md#verification-attempt-gate).
+
 After the milestone's review, consolidation, and downstream reconciliation
 pass, follow [the retirement procedure](milestone.md#long-term-memory-and-retirement).
 Preserve this complete document and the full milestone specification in its

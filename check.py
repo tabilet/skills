@@ -468,7 +468,10 @@ def authorization_example_problems(text: str) -> list[str]:
                 role = re.search(r"^    executor: (\S+)$", body, re.M)
                 if not via or via[1] not in {"goal-policy", "explicit"}:
                     problems.append(f"requirement {action} has invalid via")
-                elif via[1] == "goal-policy" and action not in {"git.commit", "cli.local"}:
+                elif via[1] == "goal-policy" and action not in {"git.commit", "cli.local"} and not (
+                    # Only a disposable fixture browser may run under goal policy.
+                    action == "browser" and re.search(r"^      environment: fixture$", body, re.M)
+                ):
                     problems.append(f"requirement {action} cannot use goal-policy")
                 if not role or role[1] not in {"coordinator", "assigned-agent"}:
                     problems.append(f"requirement {action} has invalid executor")
@@ -663,6 +666,10 @@ def review_fix_gate():
         "do not start another automatic fix-review cycle",
         "Do not begin downstream reconciliation",
         "review-fix iteration count",
+        "#### Bounded Verification-Attempt Gate",
+        "Persist the task's attempt count in its status notes",
+        "Never repeat an unchanged failed attempt",
+        "Only a `fixture` environment may use `goal-policy`",
     ):
         if token not in goal:
             problems.append(f"GOAL.md: missing review gate contract {token!r}")
@@ -683,6 +690,10 @@ def review_fix_gate():
         "a session or reviewer change does not reset the counter",
         "start another automatic fix-review cycle",
         "`[!]` review rows",
+        "## Verification-attempt gate",
+        "Persist the row's attempt count in its status notes",
+        "Never repeat an unchanged failed attempt",
+        "**Expensive checks.**",
     ):
         if token not in milestone:
             problems.append(

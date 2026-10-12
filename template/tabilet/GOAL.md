@@ -188,12 +188,13 @@ may also be the assigned executor of milestone work.
 | `git.commit` | `goal-policy` or `explicit` | Governing commit policy and assigned local work. |
 | `cli.local` | `goal-policy` or `explicit` | `declared-implementation-and-verification` covers ordinary local commands within approved task scope. |
 | `git.push` | `explicit` | Owning `repository`, exact `remote` URL, exact destination `ref`, and `mode: fast-forward`. |
-| `browser` | `explicit` | `environment`, exact `origins`, and approved `actions`. A fixture environment still requires explicit authority. |
+| `browser` | `goal-policy` or `explicit` | `environment`, exact `origins`, and approved `actions`. Only a `fixture` environment may use `goal-policy`: disposable synthetic pages on loopback or project-owned disposable hosts, with no real origin, credential, saved session, or user data. Every other environment requires explicit authority. |
 | `sudo` | `explicit` | Specific privileged operations in `commands`. |
 | `ssh` | `explicit` | Exact `host`, account in `user`, and specific remote operations in `commands`. |
 
 Only local commits and ordinary local implementation/verification may use
-`goal-policy`. This covers neither installs, elevated privileges, arbitrary
+`goal-policy`, together with `browser` actions in a `fixture` environment.
+This covers neither installs, elevated privileges, arbitrary
 network activity, remote commands, nor live browser actions. Actions outside
 these named fields still require their existing scoped human authority; this
 mapping is not a blanket authorization catalog.
@@ -480,6 +481,10 @@ authorizes concurrent execution:
 - Use deterministic fixtures and project-approved disposable test resources.
   Never commit production secrets, customer/private data, captured traffic,
   generated local credentials, or environment-specific runtime state.
+- Keep status notes a current-state record. Replace a superseded checkpoint
+  instead of appending dated narrative, and link per-attempt detail in evidence
+  files. At closure, prune bulky disposable artifacts, keeping the files the
+  record cites.
 - Mark a task complete only after its acceptance and focused verification pass.
 - When a failed attempt is consumed or a row is superseded, retain it as closed
   historical evidence, record the outcome and accepted successor, and never
@@ -503,6 +508,31 @@ authorizes concurrent execution:
   is met.
 - Mark the milestone complete only when all required tasks, acceptance
   criteria, verification, documentation, and the review-fix gate are closed.
+
+#### Bounded Verification-Attempt Gate
+
+An expensive or protected check needs privileged setup, scarce hardware or
+quota, a physical or live environment, explicitly granted actions, or minutes
+per run. For a task whose acceptance depends on one:
+
+- Reproduce and fix failures first in the cheapest environment that can show
+  them, such as an unprivileged local run on disposable fixtures. Such
+  diagnostic runs are ordinary verification and never satisfy acceptance.
+- Make each expensive run execute every case whose safety does not depend on an
+  earlier result, and report all failures. Stop early only when continuing
+  would be unsafe.
+- Redaction protects real data. Raw diagnostics from synthetic, disposable
+  fixtures may be kept in private, ignored artifact paths. Never commit them,
+  and never treat them as evidence of effects, non-dispatch, retry eligibility,
+  or authority.
+- Each expensive run is one attempt. Persist the task's attempt count in its
+  status notes; a session change does not reset it. Stop after three
+  consecutive failed attempts at the same stage (or the limit the milestone or
+  goal sets), or when the failing stage lies outside the behavior the milestone
+  owns. Record a short diagnosis with options, such as a correction, a rescope
+  or an environment change, through the project's blocked-state mechanism, and
+  ask the user. Approval to continue sets a new explicit limit. Never repeat an
+  unchanged failed attempt.
 
 #### Bounded Review-Fix Gate
 

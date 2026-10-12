@@ -91,7 +91,9 @@ Read optional `AUTHORIZATION_REQUIREMENTS` in the owning milestone, and check
 protected actions against the current scoped human request. Declarations,
 proposed grants, and status notes never prove approval. Ordinary local work
 does not authorize installs, elevated privileges, arbitrary network activity,
-remote commands, or live browser actions. Resolve exact targets read-only;
+remote commands, or live browser actions. A browser requirement declared for a
+`fixture` environment may use goal policy; every other browser environment needs
+explicit authority. Resolve exact targets read-only;
 reuse a valid grant, and obtain fresh approval for changed scope.
 
 Within a goal, use its narrowed effective grants and preserve commit and
@@ -106,6 +108,19 @@ still apply. The Python API paths do not consume these grants.
 When an implementation invalidates a current product or architecture fact, the
 same task corrects it, even if a later documentation task exists. The memory
 bank is not allowed to be wrong in the interval.
+
+## Expensive checks
+
+Some rows have acceptance that depends on an expensive or protected check. For
+those rows, the run follows the project's verification-attempt gate:
+
+- it diagnoses in the cheapest environment that reproduces the failure;
+- it runs every independent case;
+- it persists the attempt count;
+- it stops to ask after three consecutive same-stage failures, or after a
+  failure outside the milestone's owned scope.
+
+See [the goal guide](goal.md#expensive-checks-and-the-attempt-gate).
 
 ## Milestone close
 

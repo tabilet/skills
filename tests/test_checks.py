@@ -104,7 +104,12 @@ class CheckHelperTests(unittest.TestCase):
         self.assertEqual(repository_checks.authorization_example_problems(grants), [])
         invalid = (
             (requirements, "git.push:\n    via: explicit", "git.push:\n    via: goal-policy", "cannot use goal-policy"),
-            (requirements, "browser:\n    via: explicit", "browser:\n    via: goal-policy", "cannot use goal-policy"),
+            (
+                requirements,
+                "browser:\n    via: explicit\n    executor: assigned-agent\n    scope:\n      environment: fixture",
+                "browser:\n    via: goal-policy\n    executor: assigned-agent\n    scope:\n      environment: live",
+                "cannot use goal-policy",
+            ),
             (requirements, "sudo:\n    via: explicit", "sudo:\n    via: goal-policy", "cannot use goal-policy"),
             (requirements, "ssh:\n    via: explicit", "ssh:\n    via: goal-policy", "cannot use goal-policy"),
             (requirements, "via: explicit", "via: implicit", "invalid via"),
@@ -125,6 +130,10 @@ class CheckHelperTests(unittest.TestCase):
                 self.assertIn(old, text)
                 problems = repository_checks.authorization_example_problems(text.replace(old, new))
                 self.assertTrue(any(diagnostic in p for p in problems), problems)
+        # A disposable fixture browser may run under goal policy.
+        fixture_browser = requirements.replace("browser:\n    via: explicit", "browser:\n    via: goal-policy")
+        self.assertNotEqual(fixture_browser, requirements)
+        self.assertEqual(repository_checks.authorization_example_problems(fixture_browser), [])
 
     def test_authoring_schema_copies_reject_drift(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

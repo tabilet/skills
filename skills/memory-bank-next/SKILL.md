@@ -58,7 +58,10 @@ carry over. A `goal-policy` declaration supplies no missing task authority.
 
 Ordinary local implementation and verification within approved task scope do
 not authorize installs, elevated privileges, arbitrary network activity,
-remote commands, or live browser actions. Resolve precise push repository/URL/
+remote commands, or live browser actions. A browser requirement declared for a
+`fixture` environment (disposable synthetic pages, no real origin, credential,
+saved session, or user data) may use `goal-policy`; every other browser
+environment needs explicit authority. Resolve precise push repository/URL/
 ref, browser environment/origins/actions, sudo operations, or SSH host/account/
 commands through read-only inspection. Git push over SSH grants only its Git
 transport. Ask only for missing authority after showing concrete scope and
@@ -98,7 +101,11 @@ Tackle exactly one row:
   claims; correct contradictions. Updating only the status is insufficient.
 - If a failed attempt is consumed or the row is superseded, mark it `[-]`,
   record the outcome and accepted successor in its notes, and never retry it.
-- Run the required verification.
+- Run the required verification. When acceptance depends on an expensive or
+  protected check, follow the project's verification-attempt gate in
+  `tabilet/memory-bank/milestone.md`: diagnose in the cheapest environment that
+  reproduces the failure, run every independent case, persist the attempt
+  count, and stop to ask after the limit or a failure outside the owned scope.
 - Mark a successfully implemented outcome `[+]` only after verification.
   Preserve `[-]` for consumed or superseded work.
 - Commit the change with a scoped commit message when the governing policy
