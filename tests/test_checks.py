@@ -135,6 +135,31 @@ class CheckHelperTests(unittest.TestCase):
         self.assertNotEqual(fixture_browser, requirements)
         self.assertEqual(repository_checks.authorization_example_problems(fixture_browser), [])
 
+    def test_frontmatter_lint_rejects_values_strict_yaml_would_drop(self) -> None:
+        def doc(hint: str) -> str:
+            return f"---\nname: x\ndescription: Do the thing. Use when needed.\nargument-hint: {hint}\n---\nbody\n"
+
+        ok = (
+            "(no arguments)",
+            '"[--stages] [--environment dangerous|sandbox|least [modifiers]]"',
+            '"STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01"',
+            "<review source> [--environment dangerous|sandbox|least [modifiers]]",
+        )
+        bad = (
+            "[--stages] [--environment dangerous|sandbox|least [modifiers]]",  # the v2.9.0 and v2.10.0 defect
+            "[workflow changes to adopt]",
+            "STATUS_ORDER: M01 -> S01",
+            "*alias",
+            '"unterminated',
+        )
+        for hint in ok:
+            with self.subTest(ok=hint):
+                self.assertEqual(repository_checks.frontmatter_scalar_problems(doc(hint)), [])
+        for hint in bad:
+            with self.subTest(bad=hint):
+                self.assertTrue(repository_checks.frontmatter_scalar_problems(doc(hint)))
+        self.assertTrue(repository_checks.frontmatter_scalar_problems("no front matter"))
+
     def test_authoring_schema_copies_reject_drift(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)

@@ -2,7 +2,7 @@
 name: memory-bank-upgrade
 description: Upgrade an existing memory bank's workflow rules through approved merges, preserving project plans, local policies, and history. Use after installing newer skills.
 disable-model-invocation: false
-argument-hint: [workflow changes to adopt]
+argument-hint: "[workflow changes to adopt]"
 ---
 
 # Upgrade An Existing Memory Bank

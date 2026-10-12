@@ -533,7 +533,10 @@ spelling so an inbound link survives translation.
   `assets/template/` stays byte-identical to `template/`; update and verify both
   together so installed skills need no checkout or network to inspect the target.
 - Every `SKILL.md` has a non-empty `argument-hint` in its frontmatter so both
-  agents expose the command's expected input consistently.
+  agents expose the command's expected input consistently. Quote any value that
+  starts with `[` or contains `: `: strict YAML loaders (DSH) drop a skill whose
+  frontmatter is not valid YAML, though Claude Code tolerates it. `check.py`
+  enforces this.
 - **`skills/` stays at the repository root.** It looks like account payload and
   belongs under `harness/` by that logic, but Codex discovers a plugin's skills
   by scanning `<plugin-root>/skills/` and ignores `plugin.json`'s `skills`

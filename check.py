@@ -767,6 +767,34 @@ def skill_frontmatter(path: pathlib.Path) -> dict:
     return out
 
 
+def frontmatter_scalar_problems(text: str) -> list[str]:
+    """Flag front matter that a strict YAML parser reads differently.
+
+    Claude Code is lenient, but DSH and other strict loaders drop a skill whose
+    front matter is not valid YAML. A plain (unquoted) value must not start with
+    a YAML indicator character, such as the `[` of a hint like `[--stages] ...`,
+    and must not contain `: ` or ` #`. Quote such values. This is stdlib-only,
+    so it is a conservative lint rather than a full YAML parser.
+    """
+    m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+    if not m:
+        return ["no front matter"]
+    problems = []
+    for line in m.group(1).splitlines():
+        if not line.strip() or line.startswith((" ", "\t", "#")):
+            continue
+        key, sep, value = line.partition(":")
+        value = value.strip()
+        if not sep or not value:
+            continue
+        if value[0] in "\"'":
+            if len(value) < 2 or value[-1] != value[0]:
+                problems.append(f"{key.strip()}: quoted value is not closed on its line")
+        elif value[0] in "[]{}*&!|>%@`,?" or ": " in value or " #" in value:
+            problems.append(f"{key.strip()}: unquoted value would not parse as a YAML string; quote it")
+    return problems
+
+
 def skill_body(path: pathlib.Path) -> str:
     text = re.sub(r"^---\n.*?\n---\n", "", path.read_text(), flags=re.S)
     return "\n".join(l for l in text.splitlines() if not l.startswith("# ")).strip()
@@ -793,6 +821,9 @@ def skills_manifest():
             problems.append(f"{name}/SKILL.md: no description")
         if not fm.get("argument-hint"):
             problems.append(f"{name}/SKILL.md: no argument-hint")
+        problems.extend(
+            f"{name}/SKILL.md: {p}" for p in frontmatter_scalar_problems(skill.read_text())
+        )
         # Must be present and false. Codex's plugin validator rejects `true`
         # outright -- it installs the plugin, reports success, and surfaces no
         # commands at all. Claude Code accepts either, so false is the only

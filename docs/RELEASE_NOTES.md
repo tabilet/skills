@@ -1,3 +1,20 @@
+# memory-bank v2.10.1
+
+v2.10.1 fixes invalid YAML front matter shipped in v2.9.0 and v2.10.0:
+
+- **`memory-bank-init` is loadable again by strict YAML loaders.** Its
+  `argument-hint` began with `[` (`[--stages] [--environment ...]`), which is not
+  valid YAML. Claude Code tolerated it, but DSH and other strict loaders dropped
+  the skill, so only six of the seven skills loaded. The hint is now quoted.
+  `memory-bank-upgrade`'s hint, which parsed as a list instead of a string, is
+  quoted too.
+- **`check.py` lints front matter.** An unquoted value that starts with a YAML
+  indicator character such as `[`, or contains `: `, now fails the repository
+  check, with a unit test that includes the exact shipped defect.
+
+No skill behavior, protocol or template changes. Use v2.10.1 rather than v2.9.0
+or v2.10.0 with strict loaders.
+
 # memory-bank v2.10.0
 
 v2.10.0 adds bounded handling for expensive or protected checks. It follows a

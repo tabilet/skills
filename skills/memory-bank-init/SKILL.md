@@ -2,7 +2,7 @@
 name: memory-bank-init
 description: Initialize a memory bank through project discovery and an approved milestone plan. Use when no milestone/status harness exists, including after a completed archive preflight.
 disable-model-invocation: false
-argument-hint: [--stages] [--environment dangerous|sandbox|least [modifiers]]
+argument-hint: "[--stages] [--environment dangerous|sandbox|least [modifiers]]"
 ---
 
 # Initialize A Memory Bank
