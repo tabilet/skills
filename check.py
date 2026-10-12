@@ -929,6 +929,17 @@ def suggested_goal_reference():
             "derives it from the approved project graph"
         )
 
+    for path, label in ((INIT_SKILL, "init"), (PROPOSE_SKILL, "propose"), (RECONCILE_SKILL, "reconcile")):
+        text = path.read_text()
+        for token in ("--environment", "dangerous", "sandbox", "least"):
+            if token not in text:
+                problems.append(f"{label} lacks environment token {token!r}")
+
+    harness_src = HARNESS.read_text()
+    for token in ("--environment", '"dangerous", "sandbox", "least"', "LLM_ENVIRONMENT"):
+        if token not in harness_src:
+            problems.append(f"harness lacks environment option token {token!r}")
+
     public = [ROOT / "README.md", ROOT / "docs" / "TUTORIAL.md"]
     for path in public:
         if "tabilet/memory-bank/suggested.txt" not in path.read_text():

@@ -2,7 +2,7 @@
 name: memory-bank-reconcile
 description: Turn a new engineering review into approved planning changes in an existing memory bank. Use for review intake; implementation is separate.
 disable-model-invocation: false
-argument-hint: <review source>
+argument-hint: <review source> [--environment dangerous|sandbox|least [modifiers]]
 ---
 
 # Reconcile A New Review
@@ -110,6 +110,9 @@ requested as its next full pass. Continue the persisted counter and its
 
 Use the shared plan-update reference for optional milestone
 `AUTHORIZATION_REQUIREMENTS` and clearly proposed launch `AUTHORIZATION_GRANTS`.
+Accept `--environment dangerous`, `--environment sandbox` (default when omitted), or
+`--environment least` (with optional modifiers `plus`, `minus`, `but ... in milestone ...`)
+to update or preserve the environment stance.
 Grants in `suggested.txt` use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
 `GLOBAL:` scopes; preserve existing human decisions and any `SUGGESTED_UPDATE` policy
 when refreshing. Approval of these file actions does not activate grants or authorize execution,

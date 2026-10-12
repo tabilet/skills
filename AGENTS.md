@@ -324,6 +324,9 @@ spelling so an inbound link survives translation.
   authorizes binding `git.push` and `cli.local` to sibling repositories within the approved
   workspace root and organization without re-prompting. Milestone specifications in `milestone.md`
   may attach local policies and requirement overrides that narrow or override global launch defaults.
+  Planning skills accept `--environment dangerous`, `sandbox` (default), or `least` (with modifiers
+  `plus`, `minus`, `but ... in milestone ...`) to synthesize launch parameters and milestone policies
+  declaratively from day one.
   Upgrade proposes updates to existing goal protocols and launch references while preserving custom
   restrictions and explicit policies; approval of the complete proposal gates
   these writes and never starts execution.

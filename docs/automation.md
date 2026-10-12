@@ -104,6 +104,29 @@ Grants proposed in launch references use checkbox decision markers:
 
 Ensuring all required grants are marked `[+]` or `[~]` prevents runtime prompts.
 
+### D. Declarative Planning Stance (`--environment` Option)
+
+Rather than manually configuring `SUGGESTED_UPDATE`, `SCOPE_POLICY`, `COMMIT_POLICY`,
+and `GLOBAL:` grants in `suggested.txt`, planning skills (`memory-bank-init`,
+`memory-bank-propose`, and `memory-bank-reconcile`) accept an `--environment` option:
+
+- **`--environment dangerous`**: Configures maximal hands-free execution from day one:
+  - Sets `SUGGESTED_UPDATE: auto`;
+  - Sets `SCOPE_POLICY: workspace-contained` (auto-authorizes sibling repositories within the active workspace directory);
+  - Sets `COMMIT_POLICY: task`;
+  - Emits ambient `GLOBAL:` grants with `[~]` for verification (`global-local-verify`) and `[+]` or `[~]` for repository pushes to authorized workspace organization remotes;
+  - Preserves fail-safe invariants: destructive actions (`sudo`, `ssh`, live browser, or foreign remotes outside workspace) remain ungranted (`[ ]` or omitted) unless explicitly modified;
+  - Recommends harness flags in comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
+- **`--environment sandbox`** (Default): Standard fail-safe mode (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, proposed grants marked `[ ]`).
+- **`--environment least`**: Least-privilege mode (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, all actions require manual confirmation `[ ]`, `AUTHORIZATION_GRANTS: {}`).
+
+Natural English modifiers allow fine-grained adjustments:
+- **`plus <action>`** (e.g. `--environment dangerous plus sudo`): Adds explicit approval for `<action>` in the milestones/tasks requiring it.
+- **`minus <action>`** / **`deny <action>`** (e.g. `--environment dangerous minus git.push`): Sets `<action>` to `[-]` (denied).
+- **`but <action> in milestone <ID>`** (e.g. `--environment least but cli.local in milestone status-X00.md`): Attaches a milestone-specific policy override directly to the milestone specification in `tabilet/memory-bank/milestone.md` without polluting global launch input.
+
+The standalone Python runner (`harness/tackle-memory-bank-api-loop`) aligns directly with this model: passing `--environment dangerous` automatically satisfies the host shell access gate (`ALLOW_UNSANDBOXED_SHELL=1`), while `--environment least` disallows unsandboxed shell execution.
+
 ---
 
 ## 3. Strict Human-in-the-Loop Boundaries

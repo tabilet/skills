@@ -551,6 +551,16 @@ ask explicitly to plan milestones when ready. A stage label alone does not
 defer approved pending work. Propose can present an explicit rescope for
 approval, preserving the old task record and reconciling its dependencies.
 
+Use `--environment dangerous`, `--environment sandbox` (the default when omitted),
+or `--environment least` to set the hands-free authorization stance for the proposed
+launch reference and milestone policies. Natural English modifiers adapt the environment:
+`plus <action>` (e.g., `plus sudo`) explicitly adds concrete approval in milestones
+requiring it; `minus <action>` or `deny <action>` sets the action to `[-]` (denied); and
+`but <action> in milestone <status-XNN.md | MNN>` attaches a milestone-specific policy
+override in `milestone.md`. Even under `--environment dangerous`, destructive actions
+(`sudo`, `ssh`, live browser, or repository push outside the workspace) remain ungranted
+unless explicitly authorized via modifiers like `plus sudo`.
+
 <a id="reconcile-a-new-review"></a>
 ### 5.2 Reconcile A New Review
 
@@ -1123,7 +1133,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.8.1` tag. A marketplace install or
+For a reproducible installation, use the `v2.9.0` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke

@@ -2,7 +2,7 @@
 name: memory-bank-init
 description: Initialize a memory bank through project discovery and an approved milestone plan. Use when no milestone/status harness exists, including after a completed archive preflight.
 disable-model-invocation: false
-argument-hint: (no arguments)
+argument-hint: [--stages] [--environment dangerous|sandbox|least [modifiers]]
 ---
 
 # Initialize A Memory Bank
@@ -168,7 +168,14 @@ understanding.
 ## Phase 2 - Propose
 
 Include optional milestone `AUTHORIZATION_REQUIREMENTS` where relevant, under
-the write contract. Any launch `AUTHORIZATION_GRANTS` in `suggested.txt` are proposed,
+the write contract. An optional environment selector is `--environment dangerous`,
+`--environment sandbox` (the default when omitted), or `--environment least`, optionally
+modified by expressions such as `plus <action>`, `minus <action>`, or `but <action> in milestone <ID>`.
+Under `dangerous`, the proposed launch reference synthesizes hands-free defaults (`SUGGESTED_UPDATE: auto`,
+`SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants with `[~]`
+and `[+]`), while destructive actions (`sudo`, `ssh`, live browser, external pushes outside the
+workspace) remain ungranted unless an explicit modifier authorizes them.
+Any launch `AUTHORIZATION_GRANTS` in `suggested.txt` are proposed,
 carrying decision markers (`[ ]` need authorization, `[+]` approve, `[-]` deny, `[~]` auto)
 and optional `GLOBAL:` scope. Matching the SHA256 checksum against human approval
 is required before activating grants. Planning approval alone never activates them.

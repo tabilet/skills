@@ -160,6 +160,11 @@ without assigning milestone IDs or task rows now. Stage IDs stay stable across
 renames and reorderings and are never reused. Do not advance stages or schedule
 later work merely because the current milestone closes.
 
+For execution environment and authorization policy, `--environment dangerous`,
+`--environment sandbox` (default when omitted), or `--environment least` sets the
+hands-free stance in launch references and milestone policies, optionally modified
+by expressions like `plus <action>`, `minus <action>`, or `but <action> in milestone <ID>`.
+
 For a requested feature, candidate promotion, or change to future direction,
 inspect the current plan and implementation first. Record user intent separately
 from observed facts and unresolved assumptions. If a pending milestone already

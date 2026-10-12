@@ -195,6 +195,14 @@ downstream consumers. When refreshing `suggested.txt`, preserve existing human
 `[+]`, `[-]`, and `[~]` decisions and any explicit `SUGGESTED_UPDATE` policy
 (defaulting to `confirm`, with `auto` permitting orchestrator milestone refreshes),
 and synthesize new candidate grants with `[ ]` (or `[~]` under goal policy).
+Under `--environment dangerous`, synthesize hands-free defaults: `SUGGESTED_UPDATE: auto`,
+`SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants
+(`- [~] global-local-verify`, `- [+] global-repo-push`), while destructive actions (`sudo`,
+`ssh`, live browser, external pushes outside the workspace) remain ungranted unless modified.
+Include recommended runner flags in comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
+Under `--environment sandbox` (default when omitted), maintain standard fail-safe policies.
+Under `--environment least`, enforce strict least privilege (`AUTHORIZATION_GRANTS: {}`).
+Modifier expressions like `but <action> in milestone <ID>` attach local milestone policy overrides.
 High-level `GLOBAL:` grants declare common authorities across milestones. Verifying
 the SHA256 checksum of `suggested.txt` is required before grant activation. Use a
 trailing `?` only for an approved conditionally required status whose concrete

@@ -1,3 +1,21 @@
+# memory-bank v2.9.0
+
+v2.9.0 introduces the declarative `--environment` option across planning skills and the API harness runner:
+
+- **Declarative Planning Stance (`--environment dangerous | sandbox | least`)**: Adds `--environment` to `memory-bank-init`, `memory-bank-propose`, and `memory-bank-reconcile`, establishing the hands-free authorization stance from day one:
+  - `dangerous`: Synthesizes maximal hands-free autonomous execution defaults (`SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants with `[~]` for verification and `[+]` for git push to authorized workspace organization remotes). Destructive or privileged actions (`sudo`, `ssh`, live browser, or foreign repository remotes outside the active workspace directory) remain strictly ungranted (`[ ]` or omitted) unless an explicit modifier authorizes them. Includes recommended runner flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
+  - `sandbox` (Default): Synthesizes standard fail-safe policies (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, `COMMIT_POLICY: task`, and `AUTHORIZATION_GRANTS: {}` or proposed grants marked `[ ]`).
+  - `least`: Synthesizes strict least privilege (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring manual confirmation for all actions).
+- **Natural Language Modifiers**:
+  - `plus <action>` (e.g. `--environment dangerous plus sudo`): Adds explicit approval (`[+]`) for `<action>` in the milestones/tasks requiring it, and emits recommended runner flags (`ALLOW_DANGEROUS_COMMANDS=1`).
+  - `minus <action>` / `deny <action>` (e.g. `--environment dangerous minus git.push`): Sets `<action>` to `[-]` (denied).
+  - `but <action> in milestone <status-XNN.md | MNN>` (e.g. `--environment least but cli.local in milestone status-X00.md`): Attaches a milestone-specific policy override directly to the milestone specification in `tabilet/memory-bank/milestone.md` without polluting global launch input.
+- **API Runner Integration (`harness/tackle-memory-bank-api-loop`)**: Adds `--environment {dangerous,sandbox,least}` CLI argument and `LLM_ENVIRONMENT` environment variable:
+  - `--environment dangerous`: Auto-acknowledges model-controlled host shell access (`ALLOW_UNSANDBOXED_SHELL=1`), clearing exit code 14 without extra flags. The `DANGEROUS_RE` guardrail remains active unless `--allow-dangerous` is passed.
+  - `--environment sandbox` (Default): Retains standard behavior (requires explicit `ALLOW_UNSANDBOXED_SHELL=1`).
+  - `--environment least`: Strictly enforces sandboxing; permits execution inside verified container environments (`/.dockerenv` or `TABILET_CONTAINER`) while disallowing unsandboxed host shell access (exits code 14).
+- **Cross-Repository Alignment**: Synchronized bootstrap guides (`AGENTS.md`, `template/AGENTS.md`), template milestone guidance (`template/.../milestone.md`), upgrade assets, and documentation (`README.md`, `docs/authorizations.md`, `docs/automation.md`).
+
 # memory-bank v2.8.1
 
 v2.8.1 refines multi-package autonomous goal execution under `GOAL.md` and provides comprehensive authorization guidance:

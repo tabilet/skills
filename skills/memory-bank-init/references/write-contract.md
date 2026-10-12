@@ -279,7 +279,20 @@ active downstream consumers; the goal loop will discover more. Use
 
 Include `SUGGESTED_UPDATE: confirm` by default, or `SUGGESTED_UPDATE: auto` when
 the user authorizes the orchestrator to refresh remaining milestones without
-prompting for fresh authorization. Synthesize proposed `AUTHORIZATION_GRANTS` from
+prompting for fresh authorization. Under `--environment dangerous`, synthesize hands-free
+launch defaults from day one: `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`,
+`COMMIT_POLICY: task`, and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local
+verification and `- [+] global-repo-push` for workspace organization remotes). Destructive or
+privileged operations (`sudo`, `ssh`, live browser, external pushes outside the workspace)
+remain `[ ]` or omitted unless an explicit modifier authorizes them. Include recommended runner
+flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
+Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
+`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
+grants marked `[ ]`). Under `--environment least`, synthesize strict least privilege:
+`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring
+manual approval for all actions. Modifier expressions like `but <action> in milestone <ID>`
+attach milestone-specific policy overrides in `milestone.md`.
+Synthesize proposed `AUTHORIZATION_GRANTS` from
 active milestone `AUTHORIZATION_REQUIREMENTS` when present. Mark safe local commands
 under goal policy as `[~]`, and operations requiring explicit human approval as `[ ]`.
 High-level `GLOBAL:` grants declare common authorities across milestones. Never claim that

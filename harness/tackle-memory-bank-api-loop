@@ -2152,6 +2152,7 @@ def parse_args(argv=None) -> argparse.Namespace:
                                                  DeepSeek cache automatically and need no marker.
               LLM_PROMPT_CACHE_TTL               Claude cache lifetime: '5m' (default) or '1h'.
               TOOL_ENV_ALLOW                     Comma-separated extra variables for shell tools.
+              LLM_ENVIRONMENT                    Environment policy: 'dangerous', 'sandbox' (default), or 'least'.
               ALLOW_UNSANDBOXED_SHELL=1          Acknowledge model-controlled host shell access.
               ALLOW_DANGEROUS_COMMANDS=1         Disable the command guardrail.
               TABILET_AUDIT_CAPTURE             'metadata' (default) or 'relevant'.
@@ -2182,6 +2183,12 @@ def parse_args(argv=None) -> argparse.Namespace:
     )
     parser.add_argument("--allow-dangerous", action="store_true", default=os.environ.get("ALLOW_DANGEROUS_COMMANDS") == "1")
     parser.add_argument(
+        "--environment",
+        choices=["dangerous", "sandbox", "least"],
+        default=os.environ.get("LLM_ENVIRONMENT", "sandbox"),
+        help="Execution environment policy: dangerous (auto-acknowledges host shell), sandbox (default), or least (strict sandboxing).",
+    )
+    parser.add_argument(
         "--audit-capture",
         choices=["metadata", "relevant"],
         default=os.environ.get("TABILET_AUDIT_CAPTURE", "metadata"),
@@ -2194,6 +2201,8 @@ def parse_args(argv=None) -> argparse.Namespace:
         help="Obsolete: use tabilet-audit index sync for current Markdown lookup.",
     )
     args = parser.parse_args(argv)
+    if args.environment == "dangerous":
+        args.allow_unsandboxed_shell = True
     if args.audit_archives:
         parser.error("New snapshot capture is deferred; use tabilet-audit index sync PROJECT.")
     if args.audit_capture not in {"metadata", "relevant"}:
@@ -2332,6 +2341,16 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
             print(f"Warning: {blocked} blocked row(s) remain; continuing with actionable lanes.", file=sys.stderr)
             for lane in blocked_lanes:
                 print(f"  tabilet/memory-bank/{lane['file']}: {lane['blocked']} blocked row(s)", file=sys.stderr)
+        if args.environment == "least" and not (
+            os.path.exists("/.dockerenv")
+            or os.environ.get("TABILET_CONTAINER")
+            or os.environ.get("ALLOW_LEAST_UNSANDBOXED") == "1"
+        ):
+            fail(
+                "Least-privilege environment disallows unsandboxed host shell access. "
+                "Run inside an isolated container or switch --environment.",
+                14,
+            )
         if not args.allow_unsandboxed_shell:
             fail(
                 "Actionable work requires model-controlled host shell access. "

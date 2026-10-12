@@ -469,3 +469,44 @@ AUTHORIZATION_GRANTS:
 | **Remote Git Push** | Pauses on `[ ]` or rejected | `- [~] grant_id: global-repo-push` |
 | **Defect Loops** | Loops up to 10 review iterations | Auto-fixes P1/P2; stops if unresolved at iteration 10 |
 | **Secrets / Credentials** | Pauses for human input | Maintained as non-bypassable human boundary |
+| **Planning Stance** | `--environment sandbox` (Default) | `--environment dangerous [modifiers]` |
+
+---
+
+## 8. Declarative Planning Stance (`--environment` Option)
+
+Rather than hand-crafting `SUGGESTED_UPDATE`, `SCOPE_POLICY`, `COMMIT_POLICY`, and `GLOBAL:`
+grants when authoring plans, planning skills (`memory-bank-init`, `memory-bank-propose`, and
+`memory-bank-reconcile`) provide the `--environment` option:
+
+### Base Environments
+
+1. **`--environment dangerous`**:
+   - Synthesizes hands-free defaults into `suggested.txt`:
+     - `SUGGESTED_UPDATE: auto`
+     - `SCOPE_POLICY: workspace-contained`
+     - `COMMIT_POLICY: task`
+     - Ambient `GLOBAL:` grants with `[~]` for verification and `[+]` or `[~]` for git push (within workspace organization remotes).
+   - Preserves core security invariants: destructive or privileged operations (`sudo`, `ssh`, live browser, or external repository push outside the active workspace) remain ungranted (`[ ]` or omitted) unless an explicit modifier authorizes them.
+   - Emits recommended harness runner flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
+2. **`--environment sandbox`** (Default):
+   - Standard fail-safe configuration: `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, `COMMIT_POLICY: task`, `AUTHORIZATION_GRANTS: {}` (or proposed grants marked `[ ]`).
+3. **`--environment least`**:
+   - Strict least privilege: `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, all actions require manual confirmation `[ ]`, `AUTHORIZATION_GRANTS: {}`.
+
+### Natural Language Modifiers
+
+- **`plus <action>`** (e.g., `--environment dangerous plus sudo`):
+  - Adds explicit approval (`[+]`) for `<action>` in the milestones/tasks requiring it.
+  - If `plus sudo` is granted, includes `# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1 ALLOW_DANGEROUS_COMMANDS=1`.
+- **`minus <action>`** / **`deny <action>`** (e.g., `--environment dangerous minus git.push`):
+  - Explicitly sets `<action>` to `[-]` (denied).
+- **`but <action> in milestone <status-XNN.md | MNN>`** (e.g., `--environment least but cli.local in milestone status-X00.md`):
+  - Attaches a local milestone policy override directly to the milestone specification in `tabilet/memory-bank/milestone.md` without polluting global launch references.
+
+### LLM API Runner Integration (`harness/tackle-memory-bank-api-loop`)
+
+The standalone Python runner accepts `--environment` (or `LLM_ENVIRONMENT`):
+- `--environment dangerous`: Auto-acknowledges host shell access (`ALLOW_UNSANDBOXED_SHELL=1`), clearing exit code 14. Command guardrail `DANGEROUS_RE` remains active against `sudo` unless `--allow-dangerous` is also provided.
+- `--environment sandbox` (Default): Standard behavior (requires explicit `ALLOW_UNSANDBOXED_SHELL=1`).
+- `--environment least`: Strictly disallows unsandboxed host shell execution, halting with exit code 14.

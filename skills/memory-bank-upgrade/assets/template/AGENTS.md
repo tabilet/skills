@@ -170,6 +170,9 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   authorizes binding actions to sibling repositories within the approved workspace root
   and organization without re-prompting. Milestone specifications in `milestone.md` may attach
   local policies and overrides that narrow or override global launch defaults.
+  Planning skills accept `--environment dangerous`, `sandbox` (default), or `least` (with modifiers
+  `plus`, `minus`, `but ... in milestone ...`) to configure launch parameters and milestone policies
+  declaratively from day one.
   Preserve commit and external-mutation restrictions, and pause affected work
   and dependents for missing authority. A declaration alone does not require
   an action for closure. Host/tool controls apply; this adds no tool or OS

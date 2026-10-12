@@ -2,7 +2,7 @@
 name: memory-bank-propose
 description: Turn a requested feature, candidate promotion, or future direction change into approved planning updates in an initialized memory bank. Use Reconcile for incoming engineering reviews.
 disable-model-invocation: false
-argument-hint: <requested outcome or candidate direction> [--stages | --stage STG-01]
+argument-hint: <requested outcome or candidate direction> [--stages | --stage STG-01] [--environment dangerous|sandbox|least [modifiers]]
 ---
 
 # Propose A Requested Change
@@ -30,6 +30,19 @@ separate skill or command. Use at most one selector per request. Unknown or
 duplicate IDs, conflicting selectors, or an ambiguous meaning of "stage" need
 clarification before affected planning. A stage-focused request without an
 explicit milestone-planning outcome enriches context only.
+
+An optional environment selector is `--environment dangerous`, `--environment sandbox`
+(the default when omitted), or `--environment least`. These set the hands-free
+authorization stance for the proposed launch reference (`suggested.txt`) and
+milestone policies. Natural English modifiers adapt the chosen environment:
+`plus <action>` (e.g., `plus sudo`) explicitly adds concrete approval for that
+action in milestones requiring it; `minus <action>` or `deny <action>` sets the
+action to `[-]` (denied); and `but <action> in milestone <status-XNN.md | MNN>`
+attaches a milestone-specific policy override directly to that milestone
+specification in `tabilet/memory-bank/milestone.md`. Even under `--environment dangerous`,
+destructive and privileged operations (`sudo`, `ssh`, live browser, or repository
+pushes outside the active workspace directory) are never blanket auto-granted
+unless explicitly authorized via modifiers like `plus sudo`.
 
 Inside the optional API controller, a stage-only request cannot satisfy its
 required executable horizon. Return a clear stop and direct-skill handoff;
@@ -60,6 +73,9 @@ Changing the stage label of an active pending milestone does not defer it.
 
 Use the shared plan-update reference for optional milestone
 `AUTHORIZATION_REQUIREMENTS` and clearly proposed launch `AUTHORIZATION_GRANTS`.
+Accept `--environment dangerous`, `--environment sandbox` (default when omitted), or
+`--environment least` (with optional modifiers `plus`, `minus`, `but ... in milestone ...`)
+to synthesize the launch stance and milestone policies.
 Grants in `suggested.txt` use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
 `GLOBAL:` scopes; preserve existing human decisions and any `SUGGESTED_UPDATE` policy
 when refreshing. Approval of these file actions does not activate grants or authorize execution,

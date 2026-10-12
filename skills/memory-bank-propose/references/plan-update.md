@@ -27,7 +27,23 @@ Proposed grants in `suggested.txt` carry decision markers: `[ ]` (need authoriza
 common authorities across milestones. When refreshing `suggested.txt`, strictly preserve
 existing human `[+]`, `[-]`, and `[~]` decisions on existing grants, and propose `[ ]`
 (or `[~]` for safe local commands under goal policy) for new grants. Preserve any
-explicit `SUGGESTED_UPDATE` policy (defaulting to `confirm`). Goal execution
+explicit `SUGGESTED_UPDATE` policy (defaulting to `confirm`).
+
+Under `--environment dangerous`, synthesize hands-free execution defaults from day one:
+`SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`,
+and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local implementation and verification,
+and `- [+] global-repo-push` for workspace organization remotes). Destructive or privileged
+operations (`sudo`, `ssh`, live browser, external pushes outside the workspace) remain `[ ]` or
+omitted unless an explicit modifier (such as `plus sudo`) authorizes them. Add a launch comment
+with recommended runner flags: `# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`
+(and `ALLOW_DANGEROUS_COMMANDS=1` if `sudo` is granted).
+Under `--environment sandbox` (default when omitted), synthesize standard fail-safe policies:
+`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
+grants marked `[ ]`).
+Under `--environment least`, synthesize strict least privilege: `SUGGESTED_UPDATE: confirm`,
+`SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring manual approval for every action.
+Modifier expressions like `but <action> in milestone <ID>` attach local milestone policy overrides
+directly in `tabilet/memory-bank/milestone.md` without polluting global launch references. Goal execution
 requires verifying that the SHA256 checksum of `suggested.txt` matches human approval
 before activating grants.
 
