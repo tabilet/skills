@@ -1,3 +1,18 @@
+# memory-bank v2.10.2
+
+v2.10.2 introduces declarative verification and testing profiles (`--test <profile>`) across planning skills and memory-bank templates to enforce bounded, fast test cycles during iterative execution:
+
+- **Verification Profiles (`--test standard | browserlight | golight | rustlight | tslight | jslight | pythonlight`)**:
+  - `standard` (Default): Standard unconstrained verification planning.
+  - `browserlight`: Enforces strict offline, fast loopback testing (< 30s budget, synthetic fixtures/mocks). Prohibits heavy test ceremonies during routine tasks—no physical X11/Xvfb display servers, custom supervisor daemons, kernel process debugging, or multi-GB disk snapshots. Restricts real browser binary and physical end-to-end execution strictly to the single final release smoke test.
+  - Language-specialized profiles (`golight`, `rustlight`, `tslight`, `jslight`, `pythonlight`): Inherit `browserlight` and prescribe language-native fast loopback fixtures (e.g. `httptest.Server`, `wiremock`, `msw`, `responses`, isolated temporary directories) while excluding unmocked e2e suites from default routine loops.
+- **Contract & Template Injection**:
+  - `memory-bank-init`, `memory-bank-propose`, and `memory-bank-reconcile` accept `--test <profile>` and inject `## Verification and testing standards` into `tabilet/memory-bank/tech-stack.md`.
+  - Injects an enforcement rule into `AGENTS.md` under `## Hard Rules` when a non-standard profile is chosen, binding agent execution to the tech-stack testing budget.
+- **Documentation & Asset Parity**:
+  - Updated `README.md`, `docs/init.md`, and `docs/zh/init.md` (1-for-1 locale parity).
+  - Synchronized `skills/memory-bank-upgrade/assets/template/` to maintain byte-identical template parity.
+
 # memory-bank v2.10.1
 
 v2.10.1 fixes invalid YAML front matter shipped in v2.9.0 and v2.10.0:
