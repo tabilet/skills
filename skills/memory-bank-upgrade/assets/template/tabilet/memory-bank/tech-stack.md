@@ -49,6 +49,12 @@
 | Unit tests | `[test command]` | [Fast local correctness.] | [Runtime/tool.] |
 | Integration tests | `[integration command]` | [Behavior with real services.] | [Docker/service/env.] |
 
+## Verification and testing standards
+
+- **Testing profile**: `[standard | browserlight | golight | rustlight | tslight | jslight | pythonlight]`.
+- **Execution budget**: [e.g., Routine test suites must execute offline and pass in < 30 seconds].
+- **Harness boundaries**: [e.g., Use in-memory/loopback mocks; no external supervisor daemons or multi-GB disk snapshots; defer physical/browser e2e to final release smoke tests].
+
 ## Model eval harnesses
 
 | Eval | Command | What it measures | Requirements |

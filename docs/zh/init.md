@@ -12,7 +12,7 @@
 | Codex 插件 | `$memory-bank:memory-bank-init` |
 | DSH | `/memory-bank-init` |
 
-不需要参数。你也可以附上一段说明，讲清打算做什么。如果是直接装到技能目录，请参见
+不需要参数。你也可以附上一段说明，讲清打算做什么。可选参数包括用于多阶段项目的 `--stages`、用于设置授权立场的 `--environment dangerous|sandbox|least`，以及用于在 `tech-stack.md` 中配置验证标准与测试执行预算的 `--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight`。如果是直接装到技能目录，请参见
 [调用前缀](installation.md#invoke-a-skill)。
 
 ## 何时使用

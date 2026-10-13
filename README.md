@@ -561,6 +561,15 @@ override in `milestone.md`. Even under `--environment dangerous`, destructive ac
 (`sudo`, `ssh`, live browser, or repository push outside the workspace) remain ungranted
 unless explicitly authorized via modifiers like `plus sudo`.
 
+Use `--test standard` (the default when omitted), `--test browserlight`, `--test golight`,
+`--test rustlight`, `--test tslight`, `--test jslight`, or `--test pythonlight` across planning
+skills (`init`, `propose`, `reconcile`) to configure testing standards and execution limits in
+`tabilet/memory-bank/tech-stack.md` and `AGENTS.md`. A lightweight profile enforces fast offline
+loopback test budgets (<30 seconds) during intermediate task rows, prohibits runaway test
+harness ceremony (e.g. custom supervisor daemons, Xvfb displays, kernel process debugging, or
+multi-gigabyte disk snapshots), and restricts physical browser or heavy end-to-end qualification
+strictly to the final stage release smoke test.
+
 <a id="reconcile-a-new-review"></a>
 ### 5.2 Reconcile A New Review
 

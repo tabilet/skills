@@ -2,7 +2,7 @@
 name: memory-bank-init
 description: Initialize a memory bank through project discovery and an approved milestone plan. Use when no milestone/status harness exists, including after a completed archive preflight.
 disable-model-invocation: false
-argument-hint: "[--stages] [--environment dangerous|sandbox|least [modifiers]]"
+argument-hint: '"[--stages] [--environment dangerous|sandbox|least [modifiers]] [--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight]"'
 ---
 
 # Initialize A Memory Bank
@@ -175,6 +175,13 @@ Under `dangerous`, the proposed launch reference synthesizes hands-free defaults
 `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants with `[~]`
 and `[+]`), while destructive actions (`sudo`, `ssh`, live browser, external pushes outside the
 workspace) remain ungranted unless an explicit modifier authorizes them.
+An optional test profile selector is `--test standard` (the default when omitted),
+`--test browserlight`, `--test golight`, `--test rustlight`, `--test tslight`,
+`--test jslight`, or `--test pythonlight`. These configure verification and testing
+standards in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md` from day one, enforcing
+fast offline loopback test budgets (<30s) and preventing heavy test harness bloat
+(e.g., custom supervisors, Xvfb displays, multi-gigabyte disk snapshots) during routine
+milestone execution.
 Any launch `AUTHORIZATION_GRANTS` in `suggested.txt` are proposed,
 carrying decision markers (`[ ]` need authorization, `[+]` approve, `[-]` deny, `[~]` auto)
 and optional `GLOBAL:` scope. Matching the SHA256 checksum against human approval

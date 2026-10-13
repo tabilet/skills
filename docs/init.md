@@ -14,7 +14,9 @@ Send the request in a session for your project:
 | DSH | `/memory-bank-init` |
 
 No arguments are required. You can include a description of what you want to
-build. For direct skill-folder installs, see the
+build. Optional flags include `--stages` for multi-stage projects, `--environment dangerous|sandbox|least`
+to set authorization stances, and `--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight`
+to configure verification standards and execution limits in `tech-stack.md`. For direct skill-folder installs, see the
 [invocation prefixes](installation.md#invoke-a-skill).
 
 ## When to use it

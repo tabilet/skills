@@ -142,8 +142,11 @@ class CheckHelperTests(unittest.TestCase):
         ok = (
             "(no arguments)",
             '"[--stages] [--environment dangerous|sandbox|least [modifiers]]"',
+            '"[--stages] [--environment dangerous|sandbox|least [modifiers]] [--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight]"',
             '"STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01"',
             "<review source> [--environment dangerous|sandbox|least [modifiers]]",
+            "<review source> [--environment dangerous|sandbox|least [modifiers]] [--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight]",
+            "<requested outcome or candidate direction> [--stages | --stage STG-01] [--environment dangerous|sandbox|least [modifiers]] [--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight]",
         )
         bad = (
             "[--stages] [--environment dangerous|sandbox|least [modifiers]]",  # the v2.9.0 and v2.10.0 defect

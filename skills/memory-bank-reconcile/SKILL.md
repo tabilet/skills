@@ -2,7 +2,7 @@
 name: memory-bank-reconcile
 description: Turn a new engineering review into approved planning changes in an existing memory bank. Use for review intake; implementation is separate.
 disable-model-invocation: false
-argument-hint: <review source> [--environment dangerous|sandbox|least [modifiers]]
+argument-hint: <review source> [--environment dangerous|sandbox|least [modifiers]] [--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight]
 ---
 
 # Reconcile A New Review
@@ -113,6 +113,9 @@ Use the shared plan-update reference for optional milestone
 Accept `--environment dangerous`, `--environment sandbox` (default when omitted), or
 `--environment least` (with optional modifiers `plus`, `minus`, `but ... in milestone ...`)
 to update or preserve the environment stance.
+Accept `--test standard` (default when omitted), `browserlight`, `golight`, `rustlight`,
+`tslight`, `jslight`, or `pythonlight` when updating verification and testing standards
+in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md`.
 Grants in `suggested.txt` use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
 `GLOBAL:` scopes; preserve existing human decisions and any `SUGGESTED_UPDATE` policy
 when refreshing. Approval of these file actions does not activate grants or authorize execution,

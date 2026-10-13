@@ -2,7 +2,7 @@
 name: memory-bank-propose
 description: Turn a requested feature, candidate promotion, or future direction change into approved planning updates in an initialized memory bank. Use Reconcile for incoming engineering reviews.
 disable-model-invocation: false
-argument-hint: <requested outcome or candidate direction> [--stages | --stage STG-01] [--environment dangerous|sandbox|least [modifiers]]
+argument-hint: <requested outcome or candidate direction> [--stages | --stage STG-01] [--environment dangerous|sandbox|least [modifiers]] [--test standard|browserlight|golight|rustlight|tslight|jslight|pythonlight]
 ---
 
 # Propose A Requested Change
@@ -43,6 +43,11 @@ specification in `tabilet/memory-bank/milestone.md`. Even under `--environment d
 destructive and privileged operations (`sudo`, `ssh`, live browser, or repository
 pushes outside the active workspace directory) are never blanket auto-granted
 unless explicitly authorized via modifiers like `plus sudo`.
+
+An optional test profile selector is `--test standard` (default when omitted),
+`--test browserlight`, `--test golight`, `--test rustlight`, `--test tslight`,
+`--test jslight`, or `--test pythonlight` to establish or update verification
+standards in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md`.
 
 Inside the optional API controller, a stage-only request cannot satisfy its
 required executable horizon. Return a clear stop and direct-skill handoff;

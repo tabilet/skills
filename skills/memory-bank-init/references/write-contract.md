@@ -90,6 +90,28 @@ parent/child structure, cardinality, lifecycle, and state transitions when they
 matter. Keep technical storage and implementation details in `architecture.md`.
 Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
+In `tabilet/memory-bank/tech-stack.md`, define the language floor, tools, dependencies,
+commands, runtime assumptions, and execution harnesses.
+Accept `--test standard` (the default when omitted), `--test browserlight`, `--test golight`,
+`--test rustlight`, `--test tslight`, `--test jslight`, or `--test pythonlight` to establish
+verification boundaries from day one:
+- Under `standard` (default): Record commands and harnesses without extra execution constraints.
+- Under `browserlight`: Include a `Verification and testing standards` section requiring that
+  intermediate milestone tasks execute offline with loopback mocks (<30s runtime); prohibit
+  X11/Xvfb, custom Python/Bash supervisor daemons, kernel process debugging, and multi-GB disk
+  snapshots; restrict physical browser execution strictly to the single final stage release smoke test.
+- Under `golight`: Inherit `browserlight` and require Go-native offline loopback mocks
+  (`net/http/httptest.Server`, `t.TempDir()`, `os/exec.CommandContext` with process groups, 0 CGO).
+- Under `rustlight`: Inherit `browserlight` and require Rust-native offline mocks
+  (`wiremock`/`mockito`, `tempfile::tempdir`, `tokio::process`).
+- Under `tslight` or `jslight`: Inherit `browserlight` and require TypeScript/JavaScript offline stubs
+  (`msw`/`nock`, in-memory mock providers, fake timers).
+- Under `pythonlight`: Inherit `browserlight` and require Python-native offline stubs
+  (`responses`/`aioresponses`, `tmp_path`, `@pytest.mark.e2e` excluded by default).
+
+When `--test <profile>` is not `standard`, add a matching rule in `AGENTS.md` under `## Hard Rules`:
+`- Follow the verification and testing standards defined in tabilet/memory-bank/tech-stack.md.`
+
 In `tabilet/memory-bank/milestone.md`:
 
 - index exactly the approved active milestones and link each to its one status
