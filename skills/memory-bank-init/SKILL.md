@@ -178,10 +178,11 @@ workspace) remain ungranted unless an explicit modifier authorizes them.
 An optional test profile selector is `--test standard` (the default when omitted),
 `--test browserlight`, `--test golight`, `--test rustlight`, `--test tslight`,
 `--test jslight`, or `--test pythonlight`. These configure verification and testing
-standards in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md` from day one, enforcing
-fast offline loopback test budgets (<30s) and preventing heavy test harness bloat
-(e.g., custom supervisors, Xvfb displays, multi-gigabyte disk snapshots) during routine
-milestone execution.
+standards in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md` from day one.
+For a light profile, read [references/testing-profiles.md](references/testing-profiles.md):
+focused tests target 30 seconds with a two-minute cap; full regression has a
+20-minute cap and applicable race/UI checks five minutes. Preserve explicit
+project budgets; `standard` adds no extra constraints.
 Any launch `AUTHORIZATION_GRANTS` in `suggested.txt` are proposed,
 carrying decision markers (`[ ]` need authorization, `[+]` approve, `[-]` deny, `[~]` auto)
 and optional `GLOBAL:` scope. Matching the SHA256 checksum against human approval

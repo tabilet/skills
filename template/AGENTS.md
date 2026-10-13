@@ -175,8 +175,11 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   declaratively from day one.
   Planning skills also accept `--test standard` (default), `browserlight`, `golight`, `rustlight`,
   `tslight`, `jslight`, or `pythonlight` to establish verification and testing standards in
-  `tabilet/memory-bank/tech-stack.md` from day one, enforcing fast offline loopback test budgets
-  and prohibiting heavy test harness bloat.
+  `tabilet/memory-bank/tech-stack.md` from day one. Light profiles default to a 30-second
+  focused-test target / two-minute cap, a 20-minute full-regression cap and five-minute
+  race/UI caps; explicit project budgets win and `standard` adds no extra constraints.
+  Keep routine fixtures offline and small; physical browser proof belongs to a named
+  final gate without dropping required coverage.
   Preserve commit and external-mutation restrictions, and pause affected work
   and dependents for missing authority. A declaration alone does not require
   an action for closure. Host/tool controls apply; this adds no tool or OS

@@ -1,3 +1,13 @@
+# memory-bank v2.10.3
+
+Light `--test` profiles now separate focused tests from full regression: a
+30-second focused-test target with a two-minute cap, 20 minutes for full regression,
+and five minutes for applicable UI/race checks. Explicit project budgets win;
+`standard` remains unconstrained. Init, Propose and Reconcile bundle the same
+profile reference, preserve existing settings on update, and record compilation
+separately from test execution. Go profiles allow the CGO needed for supported
+race checks. Required physical coverage remains owned by the final release gate.
+
 # memory-bank v2.10.2
 
 v2.10.2 introduces declarative verification and testing profiles (`--test <profile>`) across planning skills and memory-bank templates to enforce bounded, fast test cycles during iterative execution:

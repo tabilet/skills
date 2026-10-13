@@ -52,7 +52,11 @@
 ## Verification and testing standards
 
 - **Testing profile**: `[standard | browserlight | golight | rustlight | tslight | jslight | pythonlight]`.
-- **Execution budget**: [e.g., Routine test suites must execute offline and pass in < 30 seconds].
+- **Focused tests**: [Command, target and hard limit; light-profile default: 30-second target / 2-minute cap].
+- **Full regression**: [Project command and wall-clock limit; light-profile default: 20-minute cap].
+- **Race/UI checks**: [Applicable commands and limits; light-profile default: 5 minutes per invocation].
+- **Timing and repetition**: [Separate one-time compilation from uncached test execution; run full regression once per unchanged closure candidate, repeating only for changes, failures or unresolved coverage].
+- **Budget precedence**: [Explicit project limits and smaller tool/authorization caps win; standard adds no extra constraints].
 - **Harness boundaries**: [e.g., Use in-memory/loopback mocks; no external supervisor daemons or multi-GB disk snapshots; defer physical/browser e2e to final release smoke tests].
 
 ## Model eval harnesses

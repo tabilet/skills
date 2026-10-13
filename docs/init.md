@@ -19,6 +19,13 @@ to set authorization stances, and `--test standard|browserlight|golight|rustligh
 to configure verification standards and execution limits in `tech-stack.md`. For direct skill-folder installs, see the
 [invocation prefixes](installation.md#invoke-a-skill).
 
+Light `--test` profiles use a **30-second focused-test target / two-minute cap**,
+a **20-minute full-regression cap**, and **five minutes for applicable UI/race checks**.
+These are starting planning defaults, not a 30-second limit on the whole repository.
+Explicit project limits win; `standard` adds no extra constraints. The approved
+plan records concrete commands and timing scope, keeps routine fixtures offline
+and small, and assigns physical browser proof to a named final release gate.
+
 ## When to use it
 
 Once, on a project with no initialized milestone and status harness. That

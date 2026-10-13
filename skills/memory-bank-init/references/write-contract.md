@@ -92,24 +92,18 @@ Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
 In `tabilet/memory-bank/tech-stack.md`, define the language floor, tools, dependencies,
 commands, runtime assumptions, and execution harnesses.
-Accept `--test standard` (the default when omitted), `--test browserlight`, `--test golight`,
-`--test rustlight`, `--test tslight`, `--test jslight`, or `--test pythonlight` to establish
-verification boundaries from day one:
-- Under `standard` (default): Record commands and harnesses without extra execution constraints.
-- Under `browserlight`: Include a `Verification and testing standards` section requiring that
-  intermediate milestone tasks execute offline with loopback mocks (<30s runtime); prohibit
-  X11/Xvfb, custom Python/Bash supervisor daemons, kernel process debugging, and multi-GB disk
-  snapshots; restrict physical browser execution strictly to the single final stage release smoke test.
-- Under `golight`: Inherit `browserlight` and require Go-native offline loopback mocks
-  (`net/http/httptest.Server`, `t.TempDir()`, `os/exec.CommandContext` with process groups, 0 CGO).
-- Under `rustlight`: Inherit `browserlight` and require Rust-native offline mocks
-  (`wiremock`/`mockito`, `tempfile::tempdir`, `tokio::process`).
-- Under `tslight` or `jslight`: Inherit `browserlight` and require TypeScript/JavaScript offline stubs
-  (`msw`/`nock`, in-memory mock providers, fake timers).
-- Under `pythonlight`: Inherit `browserlight` and require Python-native offline stubs
-  (`responses`/`aioresponses`, `tmp_path`, `@pytest.mark.e2e` excluded by default).
+Accept `--test standard` (the default when omitted), `browserlight`, `golight`,
+`rustlight`, `tslight`, `jslight` or `pythonlight`. Follow the bundle-local
+[testing profiles](testing-profiles.md) for selection, budget defaults and
+language-specific fixtures. `standard` records existing commands without extra
+constraints. Light profiles generate `## Verification and testing standards`
+with separate focused, full-regression and race/UI budgets: 30-second focused
+target / two-minute cap, 20-minute full-suite cap and five-minute race/UI cap,
+subject to explicit project limits. Do not impose a 30-second full-suite ceiling.
+Keep compilation and test execution timing distinct. Required physical evidence
+gets a named final gate and explicit handoff in the approved plan.
 
-When `--test <profile>` is not `standard`, add a matching rule in `AGENTS.md` under `## Hard Rules`:
+When a non-standard profile is chosen, add a rule under `AGENTS.md` Hard Rules:
 `- Follow the verification and testing standards defined in tabilet/memory-bank/tech-stack.md.`
 
 In `tabilet/memory-bank/milestone.md`:

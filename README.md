@@ -564,11 +564,15 @@ unless explicitly authorized via modifiers like `plus sudo`.
 Use `--test standard` (the default when omitted), `--test browserlight`, `--test golight`,
 `--test rustlight`, `--test tslight`, `--test jslight`, or `--test pythonlight` across planning
 skills (`init`, `propose`, `reconcile`) to configure testing standards and execution limits in
-`tabilet/memory-bank/tech-stack.md` and `AGENTS.md`. A lightweight profile enforces fast offline
-loopback test budgets (<30 seconds) during intermediate task rows, prohibits runaway test
-harness ceremony (e.g. custom supervisor daemons, Xvfb displays, kernel process debugging, or
-multi-gigabyte disk snapshots), and restricts physical browser or heavy end-to-end qualification
-strictly to the final stage release smoke test.
+`tabilet/memory-bank/tech-stack.md` and `AGENTS.md`. Light profiles default to a **30-second
+focused-test target with a two-minute cap**, **20 minutes for full regression**, and
+**five minutes for applicable UI/race checks**. Explicit project limits override these
+starting defaults; `standard` adds no extra constraints. Account for compilation
+separately, and run full regression once per unchanged milestone closure candidate.
+Routine fixtures stay offline and small, without Xvfb, custom supervisor daemons,
+kernel debugging or multi-gigabyte snapshots. Physical browser/end-to-end proof
+belongs to a named final release gate with its required coverage retained. These
+are planning instructions, not automatic timeout enforcement or action authority.
 
 <a id="reconcile-a-new-review"></a>
 ### 5.2 Reconcile A New Review
@@ -1142,7 +1146,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.10.2` tag. A marketplace install or
+For a reproducible installation, use the `v2.10.3` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke

@@ -116,6 +116,8 @@ to update or preserve the environment stance.
 Accept `--test standard` (default when omitted), `browserlight`, `golight`, `rustlight`,
 `tslight`, `jslight`, or `pythonlight` when updating verification and testing standards
 in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md`.
+For light-profile defaults, read [references/testing-profiles.md](references/testing-profiles.md).
+Preserve existing profiles and explicit budgets when the selector is omitted.
 Grants in `suggested.txt` use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
 `GLOBAL:` scopes; preserve existing human decisions and any `SUGGESTED_UPDATE` policy
 when refreshing. Approval of these file actions does not activate grants or authorize execution,

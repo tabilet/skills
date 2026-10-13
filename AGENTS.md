@@ -329,8 +329,11 @@ spelling so an inbound link survives translation.
   declaratively from day one.
   Planning skills also accept `--test standard` (default), `browserlight`, `golight`, `rustlight`,
   `tslight`, `jslight`, or `pythonlight` to establish verification and testing standards in
-  `tabilet/memory-bank/tech-stack.md` from day one, enforcing fast offline loopback test budgets
-  and prohibiting heavy test harness bloat.
+  `tabilet/memory-bank/tech-stack.md` from day one. Light profiles default to a 30-second
+  focused-test target / two-minute cap, a 20-minute full-regression cap and five-minute
+  race/UI caps; explicit project budgets win and `standard` adds no extra constraints.
+  Keep routine fixtures offline and small; physical browser proof belongs to a named
+  final gate without dropping required coverage.
   Upgrade proposes updates to existing goal protocols and launch references while preserving custom
   restrictions and explicit policies; approval of the complete proposal gates
   these writes and never starts execution.

@@ -48,6 +48,8 @@ An optional test profile selector is `--test standard` (default when omitted),
 `--test browserlight`, `--test golight`, `--test rustlight`, `--test tslight`,
 `--test jslight`, or `--test pythonlight` to establish or update verification
 standards in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md`.
+For light-profile defaults, read [references/testing-profiles.md](references/testing-profiles.md).
+Preserve existing profiles and explicit budgets when the selector is omitted.
 
 Inside the optional API controller, a stage-only request cannot satisfy its
 required executable horizon. Return a clear stop and direct-skill handoff;

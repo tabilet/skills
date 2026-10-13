@@ -2327,11 +2327,12 @@ def propose_contract():
     for name, pairs in (
         ("discovery.md", ("init", "propose")),
         ("plan-update.md", ("propose", "reconcile")),
+        ("testing-profiles.md", ("init", "propose", "reconcile")),
     ):
         paths = [SKILLS_DIR / f"memory-bank-{part}" / "references" / name for part in pairs]
         if not all(path.is_file() for path in paths):
             problems.append(f"missing bundle-local {name} in {pairs}")
-        elif paths[0].read_bytes() != paths[1].read_bytes():
+        elif any(path.read_bytes() != paths[0].read_bytes() for path in paths[1:]):
             problems.append(f"bundle-local {name} copies differ")
         for part in pairs:
             skill = SKILLS_DIR / f"memory-bank-{part}" / "SKILL.md"

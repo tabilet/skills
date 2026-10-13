@@ -49,6 +49,10 @@ before activating grants.
 Accept `--test standard` (default when omitted), `browserlight`, `golight`, `rustlight`,
 `tslight`, `jslight`, or `pythonlight` when newly proposed or remediation milestones require
 updating the verification standards in `tabilet/memory-bank/tech-stack.md` and `AGENTS.md`.
+Use the bundle-local [testing profiles](testing-profiles.md) for shared light-profile
+budgets and language-specific fixtures. An omitted selector preserves existing
+project profiles and budgets. Propose any acceptance handoff or budget change
+explicitly; a profile never waives required proof or grants external authority.
 
 Executors are `coordinator` or `assigned-agent`. Each requirement has `via`,
 `executor`, and any necessary `scope`. This template lists supported

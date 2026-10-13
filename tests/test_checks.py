@@ -16,6 +16,29 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_shared_profile_reference_rejects_third_bundle_drift_and_omission(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundles = pathlib.Path(tmp) / "skills"
+            for part in ("init", "propose", "reconcile"):
+                relatives = ["SKILL.md", "references/testing-profiles.md"]
+                if part in ("init", "propose"):
+                    relatives.append("references/discovery.md")
+                if part in ("propose", "reconcile"):
+                    relatives.append("references/plan-update.md")
+                for relative in relatives:
+                    target = bundles / f"memory-bank-{part}" / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes((ROOT / "skills" / f"memory-bank-{part}" / relative).read_bytes())
+            with mock.patch.object(repository_checks, "SKILLS_DIR", bundles):
+                self.assertEqual(repository_checks.propose_contract(), [])
+                third = bundles / "memory-bank-reconcile/references/testing-profiles.md"
+                third.write_text(third.read_text() + "\nA changed budget in only the third bundle.\n")
+                self.assertIn("bundle-local testing-profiles.md copies differ",
+                              repository_checks.propose_contract())
+                third.unlink()
+                self.assertTrue(any("missing bundle-local testing-profiles.md" in problem
+                                    for problem in repository_checks.propose_contract()))
+
     def test_authorization_contract_rejects_documentation_regressions(self) -> None:
         # These fixtures test documentation guards, not an authorization engine.
         with tempfile.TemporaryDirectory() as tmp:
