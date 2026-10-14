@@ -1,3 +1,34 @@
+# memory-bank v2.11.0
+
+Goal and Next support human-approved `CORRECTIVE_PLANNING: auto` for necessary
+repairs within the original delivery outcome, existing grants and explicit
+limits. The owner prepares and checks complete planning actions, may amend
+pending work or create repair milestones, and refreshes dependency/launch/hash
+state without another confirmation. Frozen history, review counts and limits
+remain preserved. Nested Reconcile may use standing approval and hand execution
+back; standalone Reconcile retains its gate. Init and Propose dangerous presets
+propose `auto`, sandbox/least propose `confirm`, and human overrides win.
+
+Interactive Goal/Next accept `--email ADDRESS` for approval alerts through an
+optional Cloudflare REST helper, bundled without third-party Python dependencies.
+Private account configuration, permitted recipients and a sending token are
+required. Readiness checks are local-only; attempts are reserved before POST,
+duplicates or uncertain sends never replay automatically, and provider queuing
+does not prove inbox delivery. Email never approves work. This first version
+covers workflow approval requests, not native host tool prompts. The Python API
+runner/controller consume neither feature. Email delivery was verified with
+offline fixtures; users configure the sender separately and explicitly adopt
+workflow updates in existing projects.
+
+Nested Reconcile verifies the invoking approval provenance before standing
+planning writes. Corrections cannot weaken acceptance or cancel unmet work,
+and repair milestones cannot evade the originating bounded review counter.
+Suspended tasks use explicit `[~]` → `[!]` → `[~]` prerequisite handoffs while
+preserving partial work. Interactive controls live outside the API task prompt.
+The email helper now handles protocol/UTF-8 failures, rejects line/bidi controls,
+resolves XDG defaults lazily, and supervises a 10-second total network deadline.
+DSH preflight requires complete notification and interactive resources.
+
 # memory-bank v2.10.3
 
 Light `--test` profiles now separate focused tests from full regression: a

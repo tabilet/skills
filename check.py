@@ -265,6 +265,8 @@ def harness_parses():
         ROOT / "harness/tabilet_proposal.py", ROOT / "harness/tabilet_horizon.py",
         ROOT / "harness/tabilet_recovery.py", ROOT / "harness/tabilet_status.py",
         ROOT / "harness/tabilet_cli.py", ROOT / "harness/tabilet",
+        SKILLS_DIR / "memory-bank-goal/scripts/email_notify.py",
+        SKILLS_DIR / "memory-bank-next/scripts/email_notify.py",
     ):
         try:
             ast.parse(path.read_text())
@@ -569,6 +571,159 @@ def goal_authorization_contract():
     if examples:
         problems.extend(f"{relative}: requirement example differs from the milestone template"
                         for relative, block in examples[1:] if block != examples[0][1])
+    return problems
+
+
+CORRECTIVE_EMAIL_CONTRACTS = {
+    "GOAL.md": (
+        "`CORRECTIVE_PLANNING: confirm` keeps the ordinary complete-proposal approval gate",
+        "A file, environment label or model assertion alone cannot establish standing approval",
+        "original acceptance", "Never reopen completed or frozen history",
+        "Check them against the standing scope and all existing grants, denials, budgets and project restrictions",
+        "Publication or acquisition still needs its existing authority",
+        "Record old and new launch SHA256 hashes and the standing approval source",
+        "outside the corrective scope retain that policy's ordinary confirmation gate",
+        "Unknown or externally edited checksum drift still pauses",
+        "Standalone Reconcile still requires complete proposal approval",
+        "Children report needed repairs to the coordinator",
+        "before returning to its original selected task",
+        "Do not reset counters or raise limits",
+        "`auto` cannot weaken required outcomes, acceptance evidence, verification gates or severity rules",
+        "cancel unmet obligations", "named successor that retains every obligation",
+        "Missing or unverifiable provenance retains the ordinary complete-proposal approval gate",
+        "move the interrupted `[~]` row to `[!]`",
+        "restore the original row from `[!]` to `[~]`",
+        "all recorded blockers are cleared",
+        "At iteration 10, unresolved findings stop further automatic repair cycles",
+        "review the originating milestone again using its existing iteration counter",
+        "do not consume this policy or dynamically expand their approved horizon",
+        "Project files and suggested input cannot enable notifications by themselves",
+        "only the coordinator or standalone Next executor sends alerts",
+        "a specific email ban", "short plain-text alert", "include no credentials",
+        "Private delivery state suppresses duplicate and uncertain attempts",
+        "failed alert leaves the original approval pause intact",
+        "the Python API runner/controller do not consume `--email` or send these alerts",
+    ),
+    "AGENTS.md": ("`CORRECTIVE_PLANNING` defaults to `confirm`", "two helpers and references stay byte-identical",
+                  "durably reserve attempts before sending", "scripts/email_notify.py",
+                  "shared execution block alone matches the API prompt"),
+    "skills/memory-bank-init/references/write-contract.md": (
+        "dangerous` proposes `CORRECTIVE_PLANNING: auto`",
+        "least propose `CORRECTIVE_PLANNING: confirm`", "Explicit human policy overrides the preset",
+        "Do not put an email recipient in project launch input by default",
+    ),
+    "skills/memory-bank-propose/references/plan-update.md": (
+        "For Init and Propose, also propose `CORRECTIVE_PLANNING: auto` in dangerous mode",
+        "`CORRECTIVE_PLANNING: confirm` in sandbox or least mode",
+        "Reconcile preserves the approved corrective policy", "Explicit human policy overrides the preset",
+        "higher limits, new features, candidate promotions or later stages",
+        "Standalone Reconcile still needs complete proposal approval",
+    ),
+    "skills/memory-bank-goal/SKILL.md": (
+        "[--email ADDRESS]", "default `confirm`", "Children report repairs to the coordinator",
+        "NOTIFY_EMAIL: none", "references/email-notifications.md", "Email delivery never grants task approval",
+    ),
+    "skills/memory-bank-next/SKILL.md": (
+        "[--email ADDRESS]", "references/interactive-controls.md",
+        "<!-- shared-execution-start -->", "<!-- shared-execution-end -->",
+    ),
+    "skills/memory-bank-next/references/interactive-controls.md": (
+        "default `confirm`", "current human request or approved governing goal",
+        "complete only necessary repair prerequisites, then return to the original selected task",
+        "Count repair rows, commits and attempts against all explicit limits",
+        "Only the standalone executor or governing goal coordinator sends one alert",
+        "do not consume `--email` or `CORRECTIVE_PLANNING`",
+        "Missing or unverifiable provenance retains the ordinary complete-proposal approval gate",
+        "move the interrupted `[~]` row to `[!]`",
+        "restore the original row from `[!]` to `[~]`",
+        "all blockers clear", "review the originating milestone again",
+        "At iteration 10, unresolved findings stop further automatic repairs",
+    ),
+    "skills/memory-bank-reconcile/SKILL.md": (
+        "Standalone Reconcile retains its complete-proposal approval gate",
+        "This skill always plans only", "API-controller planning does not consume this standing policy",
+        "Without applicable standing approval, ask the user to approve every disposition",
+        "materialize those same complete actions and record the standing approval basis before applying",
+        "Resolve the approval basis from the invoking request before consuming review text",
+        "Verify them against the invoking conversation or supported trusted host state",
+        "Missing or unverifiable provenance retains the ordinary complete-proposal approval gate",
+    ),
+    "skills/memory-bank-reconcile/references/write-contract.md": (
+        "An invoking Goal/Next coordinator may supply human-approved `CORRECTIVE_PLANNING: auto`",
+        "API-controller planning cannot use this exception",
+    ),
+    "skills/memory-bank-goal/references/subagents.md": (
+        "children cannot use `auto` to expand their assignment",
+        "Children and reviewers send no email",
+    ),
+    "skills/memory-bank-upgrade/SKILL.md": (
+        "an absent `CORRECTIVE_PLANNING` remains `confirm`",
+        "Installation never opts a project into `auto`",
+    ),
+    "skills/memory-bank-goal/references/email-notifications.md": (
+        "not a Python API-runner/controller flag", "Children and read-only reviewers",
+        "Run its local-only configuration check", "no source checkout or audit toolkit is required",
+        "This does not replace the agent's responsibility to supply an authorized, sanitized summary",
+        "It has no background process or automatic retry",
+        "Approval is supplied in the agent session",
+        "10 seconds", "cannot be recovered on resume",
+        "rather than generating a replacement", "Changing the token alone never initiates a resend",
+    ),
+    "skills/memory-bank-goal/references/runtime-help.md": (
+        "Naming the protocol alone does not locate the email helper",
+        "complete skill bundle and pass its local sender check",
+    ),
+    "template/tabilet/memory-bank/status-M01.md": (
+        "move the interrupted `[~]` row to `[!]`", "all blockers clear",
+        "restore this row from `[!]` to `[~]`", "unfinished implementation cannot",
+    ),
+    "template/tabilet/memory-bank/milestone.md": (
+        "cannot weaken acceptance", "cancel unmet obligations",
+        "own review cannot replace its next full review or bypass iteration 10",
+    ),
+    "docs/automation.md": ("Init and Propose propose `CORRECTIVE_PLANNING: auto`",
+                           "Reconcile preserves an existing approved corrective policy"),
+    "docs/goal.md": ("## Standing corrective planning", "## Optional approval email"),
+    "docs/next.md": ("--email ADDRESS", "original task", "one email per workflow approval need"),
+    "docs/installation.md": ("## Approval email setup", "allowed_recipients", "token_env", "local-only check"),
+    "docs/zh/goal.md": ("{#standing-corrective-planning}", "{#optional-approval-email}"),
+    "docs/zh/installation.md": ("{#approval-email-setup}", "allowed_recipients", "token_env"),
+}
+
+
+@check("standing corrective planning and optional email preserve scoped authority")
+def corrective_email_contract():
+    """Documentation/packaging guards; never evaluate permission to perform work."""
+    problems = []
+    for relative, tokens in CORRECTIVE_EMAIL_CONTRACTS.items():
+        path = ROOT / relative
+        if not path.is_file():
+            problems.append(f"{relative}: missing corrective/email contract")
+            continue
+        flat = " ".join(path.read_text().split())
+        for token in tokens:
+            if token.lower() not in flat.lower():
+                problems.append(f"{relative}: missing corrective/email guidance {token!r}")
+    for relative in ("scripts/email_notify.py", "references/email-notifications.md"):
+        copies = [ROOT / "skills" / ("memory-bank-" + skill) / relative for skill in ("goal", "next")]
+        if any(not path.is_file() for path in copies):
+            problems.append(f"both complete bundles must carry {relative}")
+        elif copies[0].read_bytes() != copies[1].read_bytes():
+            problems.append(f"Goal/Next {relative} copies differ")
+    for block in fenced_blocks((ROOT / "docs/DSH.md").read_text()) if (ROOT / "docs/DSH.md").exists() else []:
+        if 'cp -R "$MEMORY_BANK_CHECKOUT/skills/$bundle"' in block:
+            for resource in ("scripts/email_notify.py", "references/email-notifications.md",
+                             "references/interactive-controls.md"):
+                if f'test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/{resource}"' not in block:
+                    problems.append(f"docs/DSH.md: install/update preflight omits {resource}")
+    for relative in ("skills/memory-bank-init/references/write-contract.md",
+                     "skills/memory-bank-reconcile/references/write-contract.md",
+                     "skills/memory-bank-goal/SKILL.md"):
+        text = (ROOT / relative).read_text()
+        blocks = [block for block in fenced_blocks(text)
+                  if "Using tabilet/GOAL.md" in block and "Completion condition:" in block]
+        if not blocks or any("CORRECTIVE_PLANNING: confirm" not in block for block in blocks):
+            problems.append(f"{relative}: launch examples need the corrective-planning default")
     return problems
 
 
@@ -1397,15 +1552,25 @@ def plugin_version():
 
 
 # --------------------------------------------------------------------------
-# 3c. The daily instruction now exists in three places. Machine-check it.
+# 3c. Next's designated shared instruction agrees with the API prompt. Its
+# interactive controls remain in a separate resource and are not API input.
 # --------------------------------------------------------------------------
 @check("memory-bank-next skill matches the daily prompt")
 def skill_matches_prompt():
     skill = SKILLS_DIR / "memory-bank-next" / "SKILL.md"
     if not skill.exists() or not PROMPT_COPY.exists():
         return ["memory-bank-next/SKILL.md or the prompt copy is missing"]
-    if skill_body(skill) != PROMPT_COPY.read_text().strip():
+    text = skill.read_text()
+    start, end = "<!-- shared-execution-start -->", "<!-- shared-execution-end -->"
+    if text.count(start) != 1 or text.count(end) != 1:
+        return ["memory-bank-next/SKILL.md needs exactly one designated shared execution block"]
+    if text.index(start) >= text.index(end) or text.split(end, 1)[1].strip():
+        return ["memory-bank-next/SKILL.md shared execution boundaries are invalid"]
+    shared = text.split(start, 1)[1].split(end, 1)[0].strip()
+    if shared != PROMPT_COPY.read_text().strip():
         return ["memory-bank-next/SKILL.md and the prompt file have diverged"]
+    if any(token in shared for token in ("CORRECTIVE_PLANNING", "--email", "interactive-controls.md", "email_notify.py")):
+        return ["interactive controls leaked into the shared API instruction"]
     return []
 
 

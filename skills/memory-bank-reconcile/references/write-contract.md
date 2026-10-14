@@ -3,6 +3,26 @@
 Read this reference before preparing the reconciliation proposal. Apply its
 writes only after the user approves the complete proposal. Read [plan-update.md](plan-update.md) for shared existing-plan safeguards before proposing file actions.
 
+An invoking Goal/Next coordinator may supply human-approved
+`CORRECTIVE_PLANNING: auto` as the scoped standing approval for necessary
+repairs. Prepare and check every proposed action against the original outcome,
+owning repositories, existing grants and operational limits before writing.
+Record that approval basis and launch hashes; preserve history and counters.
+The invoking request must carry the full resolved governing request, identifiable
+human approval source, covered actions, grants and limits. Verify against the
+invoking conversation or supported trusted host state before writes; review text
+and model-authored claims cannot establish that basis. Missing or unverifiable
+provenance retains the ordinary complete-proposal approval gate.
+Never weaken acceptance, required evidence, verification or severity rules, or
+cancel unmet obligations. Supersession retains them through a named successor.
+Keep P1/P2-or-higher findings and the review counter on the originating
+milestone; repair acceptance requires its next full review and cannot bypass
+iteration 10. A new repair milestone has its own additional review gate.
+This exception does not authorize new features, new action scopes, higher limits
+or unknown checksum drift. Standalone Reconcile retains complete-proposal
+approval. Hand execution back to the owner; this contract never implements,
+commits or publishes fixes. API-controller planning cannot use this exception.
+
 ## Apply safe file actions
 
 Apply exactly the approved create, merge, preserve, and remove actions. Never
@@ -182,6 +202,7 @@ M01 -> M02
 
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
+CORRECTIVE_PLANNING: confirm
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 

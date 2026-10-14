@@ -23,6 +23,13 @@
 后续阶段可以先只有暂定名称和简短意图。补充背景不会安排里程碑；改名称或顺序也不会改 ID。
 已初始化的项目不需要重做 Init 就能采用阶段。默认把已获批的活跃工作归入当前阶段。
 
+## 纠正规划预设 {#corrective-planning-preset}
+
+对未来执行，`--environment dangerous` 提议 `CORRECTIVE_PLANNING: auto`，sandbox 和 least 提议 `confirm`。
+明确的人类策略优先；省略选择器时保留现有明确策略。批准的执行请求可覆盖原目标、授予和限额内的必要修复规划，
+包括新修复里程碑。Propose 本身仍需批准完整方案，不启动执行。
+详见[常设纠正规划](goal.md#standing-corrective-planning)。
+
 ## 会发生什么
 
 Propose 会去读项目里相关的记忆库、代码、测试、待处理工作、候选方向和已退役的 ID。它把哪些是你

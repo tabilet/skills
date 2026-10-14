@@ -112,13 +112,14 @@ and `GLOBAL:` grants in `suggested.txt`, planning skills (`memory-bank-init`,
 
 - **`--environment dangerous`**: Configures maximal hands-free execution from day one:
   - Sets `SUGGESTED_UPDATE: auto`;
+  - Init and Propose propose `CORRECTIVE_PLANNING: auto`; Reconcile preserves an existing approved corrective policy, defaulting to `confirm` when absent;
   - Sets `SCOPE_POLICY: workspace-contained` (auto-authorizes sibling repositories within the active workspace directory);
   - Sets `COMMIT_POLICY: task`;
   - Emits ambient `GLOBAL:` grants with `[~]` for verification (`global-local-verify`) and `[+]` or `[~]` for repository pushes to authorized workspace organization remotes;
   - Preserves fail-safe invariants: destructive actions (`sudo`, `ssh`, live browser, or foreign remotes outside workspace) remain ungranted (`[ ]` or omitted) unless explicitly modified;
   - Recommends harness flags in comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
-- **`--environment sandbox`** (Default): Standard fail-safe mode (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, proposed grants marked `[ ]`).
-- **`--environment least`**: Least-privilege mode (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, all actions require manual confirmation `[ ]`, `AUTHORIZATION_GRANTS: {}`).
+- **`--environment sandbox`** (Default): Init/Propose propose `CORRECTIVE_PLANNING: confirm`. Standard fail-safe mode (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, proposed grants marked `[ ]`).
+- **`--environment least`**: Init/Propose propose `CORRECTIVE_PLANNING: confirm`. Least-privilege mode (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, all actions require manual confirmation `[ ]`, `AUTHORIZATION_GRANTS: {}`).
 
 Natural English modifiers allow fine-grained adjustments:
 - **`plus <action>`** (e.g. `--environment dangerous plus sudo`): Adds explicit approval for `<action>` in the milestones/tasks requiring it.

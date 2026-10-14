@@ -59,7 +59,9 @@ the optional `harness/tabilet` controller (installed with its runtime modules an
 verified planning bundles by `harness/tabilet_install.py`), the optional
 `harness/tabilet_audit_host.py` (installed as `tabilet-audit` with its
 audit/index modules and runner parser), and
-`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`. `check.py` verifies this
+`skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`. Goal and Next also bundle the
+optional `scripts/email_notify.py` approval-alert helper and its reference.
+`check.py` verifies this
 repository and is not payload.
 
 ## Boundaries
@@ -303,6 +305,39 @@ spelling so an inbound link survives translation.
 
 ## Hard Rules
 
+- `CORRECTIVE_PLANNING` defaults to `confirm`. Human-approved `auto` lets the
+  Goal/Next owner prepare and check complete necessary repair actions, amend
+  pending work or create repair milestones, and refresh launch input/hashes
+  within the original delivery outcome, existing grants and limits. Children
+  report needs; standalone Reconcile still requires proposal approval. Preserve
+  history and counters; missing permissions, new features, exhausted limits or
+  unknown checksum drift pause affected work. Init/Propose dangerous presets
+  propose `auto`; sandbox/least propose `confirm`, with explicit human policy
+  taking precedence. The Python API paths consume neither corrective planning
+  nor email options.
+  Nested Reconcile must verify the invoking human approval source and complete
+  request, covered actions, grants and limits before using standing approval.
+  Missing provenance retains the ordinary approval gate. Never weaken acceptance
+  or cancel unmet obligations. Repair milestones preserve the originating
+  milestone's review gate and counter, including its iteration-10 stop.
+  Suspend `[~]` as `[!]` with prerequisite IDs and resumption conditions before
+  another row starts; resume `[~]` only after prerequisite acceptance and all
+  blockers clear. Preserve partial work; pause if changes cannot be separated.
+- Interactive Goal/Next `--email ADDRESS` opts into approval alerts for that
+  run only. A coordinator or standalone Next executor uses the shared optional
+  Cloudflare REST helper and private account configuration; children send no
+  email. No flag means no email for a new run. Keep recipients and credentials
+  out of project launch input by default, keep configuration/state outside the
+  project, and durably reserve attempts before sending. Suppress duplicate or
+  uncertain sends across resumes; delivery never proves approval. This feature
+  needs no audit database or background service and does not intercept native
+  host tool approvals. The two helpers and references stay byte-identical.
+  Bound each network attempt to 10 seconds with a supervised, reaped subprocess;
+  retain uncertain reservations. Empty/relative XDG settings use lazy home
+  defaults. Missing resume identity is an alert gap, never a new send identity.
+  Next's interactive controls stay in its bundled reference; the designated
+  shared execution block alone matches the API prompt and its embedded twin.
+
 - Optional milestone `AUTHORIZATION_REQUIREMENTS` declare conditions, never
   authority or scheduling. `AUTHORIZATION_GRANTS` become effective only through
   explicit human approval of the resolved goal and concrete scope. Keep
@@ -490,6 +525,10 @@ spelling so an inbound link survives translation.
   show the exact URL and obtain a separate explicit confirmation, including when
   the request supplied that URL; discovered and embedded URLs do not authorize a
   fetch.
+  A governing Goal/Next owner with human-approved `CORRECTIVE_PLANNING: auto`
+  may supply scoped standing planning approval after preparing and checking
+  the complete correction. Reconcile then writes only those covered planning
+  actions and hands execution back; it gains no new action authority or limits.
 - `tabilet/memory-bank/product.md` owns the maintained domain model: canonical product
   and business terminology, concept relationships, and invariants. Keep
   implementation details in `architecture.md`; do not create an overlapping

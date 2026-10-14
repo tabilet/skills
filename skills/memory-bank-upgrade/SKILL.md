@@ -84,6 +84,13 @@ the separate runner update/check needed; do not claim the project is ready.
 
 ## Propose and obtain approval
 
+Offer the standing corrective-planning and optional approval-email guidance in
+the approved rule merge. Preserve existing explicit policies; an absent
+`CORRECTIVE_PLANNING` remains `confirm`. Installation never opts a project into
+`auto`, configures a sender or supplies an email recipient. Existing launch
+input may display the preserved corrective policy, while email opt-in belongs
+to a later human Goal/Next request. The API paths consume neither feature.
+
 Show each difference, its current evidence, the proposed rule or retained local
 equivalent, and its impact. Present every file action as create, merge, preserve,
 or remove. Prefer focused diffs for changed sections; use replacement text for

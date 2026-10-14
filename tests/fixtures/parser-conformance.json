@@ -340,5 +340,23 @@
       }
     ],
     "problems": []
+  },
+  {
+    "name": "corrective-and-email-metadata-is-not-task-state",
+    "kind": "status",
+    "text": "```yaml\nCORRECTIVE_PLANNING: auto\nNOTIFY_EMAIL: owner@example.test\nAUTHORIZATION_GRANTS: {}\n# | phantom | `[~]` | Depends on: M99 |\n```\n| T01 | `[ ]` | Depends on: M02/T01 |\n",
+    "rows": [
+      {
+        "item": "T01",
+        "state": "pending",
+        "cells": [
+          "T01",
+          "`[ ]`",
+          "Depends on: M02/T01"
+        ],
+        "line": 7
+      }
+    ],
+    "problems": []
   }
 ]

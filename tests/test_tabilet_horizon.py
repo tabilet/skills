@@ -91,6 +91,18 @@ class HorizonSelectionTests(unittest.TestCase):
         self.assertEqual("T01", selected["row"]["task_id"])
         self.assertEqual(["true"], selected["task"]["verification"])
 
+    def test_corrective_email_metadata_cannot_expand_controller_horizon(self):
+        self.set_project([("M01", [("T01", "`[ ]`", "Ready.")]),
+                          ("M02", [("T01", "`[ ]`", "Unapproved repair.")])])
+        milestone = self.project / "tabilet/memory-bank/milestone.md"
+        milestone.write_text(milestone.read_text().replace(
+            "## M01 - Delivery\n",
+            "## M01 - Delivery\n\n**Dependencies.** M02\n\n"
+            "```yaml\nCORRECTIVE_PLANNING: auto\nNOTIFY_EMAIL: owner@example.test\n```\n",
+        ), encoding="utf-8")
+        with self.assertRaisesRegex(horizon.HorizonError, "is not a completed milestone inside"):
+            horizon.select_next_row(core, self.project, self.receipt())
+
     def test_authorization_metadata_preserves_rows_states_and_dependencies(self):
         self.set_project([("M01", [
             ("T01", "`[ ]`", "Ready."),

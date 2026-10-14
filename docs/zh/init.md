@@ -85,6 +85,13 @@ tabilet/stages.md                    可选的交付阶段概览
 Init 不会从零再把整个包压缩一遍。它拿已经验证过的上下文证据，保留冻结的归档，把当前产品摘要
 和架构摘要稳妥地并到一起，只对剩下的交付决策做访谈。
 
+## 纠正规划预设 {#corrective-planning-preset}
+
+Init 在启动参考提案中始终包含 `CORRECTIVE_PLANNING`。`--environment dangerous` 提议 `auto`，
+sandbox 和 least 提议 `confirm`；明确的人类策略优先。后续执行请求的批准可覆盖原交付目标、现有操作授予
+及限额内的必要修复规划，不激活新授予、不提高限额，也不在 Init 中启动执行。
+详见[常设纠正规划](goal.md#standing-corrective-planning)。
+
 ## 启动参考
 
 项目里有已获批准、版本兼容的 `tabilet/GOAL.md` 时，Init 还会写

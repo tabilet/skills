@@ -10,7 +10,7 @@
 | Codex 插件 | `$memory-bank:memory-bank-next` |
 | DSH | `/memory-bank-next` |
 
-不需要参数。用大白话也行：*"tackle next pending item in memory bank"* 一样管用。
+可选参数为 `--email ADDRESS`，也可明确指定 `CORRECTIVE_PLANNING` 策略。用大白话也行：*"tackle next pending item in memory bank"* 一样管用。
 
 如果是直接装到技能目录，请参见[调用前缀](installation.md#invoke-a-skill)。
 
@@ -100,6 +100,29 @@ goal 内使用收窄后的有效授予，并保留提交与外部修改限制。
 - 同一阶段连续失败三次，或失败发生在里程碑自身范围之外时，停下来询问你。
 
 详见 [goal 指南](goal.md#expensive-checks-and-the-attempt-gate)。
+
+## 修复前置条件与批准提醒邮件 {#corrective-prerequisites-and-approval-email}
+
+`CORRECTIVE_PLANNING: confirm` 是默认值。人类批准 `auto` 后，Next 可在所选任务的原交付目标、
+已批准所属仓库、操作授予及明确限额内，准备并检查必要修复方案，调整待处理工作或创建修复里程碑。
+只完成这些前置条件后返回原任务，保留中断工作、身份及评审证据。新权限、扩大范围或提高限额仍需批准。
+详见[常设纠正规划](goal.md#standing-corrective-planning)。
+
+激活修复行前，把中断的 `[~]` 行改为 `[!]`，记录前置条件 ID、批准来源和恢复条件。
+所有前置条件验收且全部阻断解除后，用同一批准恢复为 `[~]`。恢复时优先找回同一链路。
+保留未完成实现；重叠修改无法安全分离时暂停。修复不能降低验收或取消未履行义务，
+修复里程碑的评审不能替代或重置原里程碑的评审门槛和计数器。
+
+需要批准时，每个请求发送一次邮件：
+
+```text
+$memory-bank:memory-bank-next --email abc@def.gh
+```
+
+参数为本次运行及恢复选择一个收件人；新调用省略参数就不发邮件。使用正常技能调用前缀。
+先[配置 Cloudflare 发送](installation.md#approval-email-setup)。发送器只在本地检查配置，发送简短、
+已清理的摘要，并抑制重复或不确定的尝试。子智能体向所有者报告需求。投递不授予批准；发送不可用时，
+原批准暂停保持不变。宿主原生工具批准以及 Python API 运行器或控制器调用不属于本功能。
 
 ## 里程碑收尾
 

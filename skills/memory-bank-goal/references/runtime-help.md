@@ -14,6 +14,23 @@ durable objective active; see *Keeping the session going* below.
 
 ## Keeping the session going
 
+Goal accepts optional `--email ADDRESS` in the skill request or the objective
+of a native goal that explicitly invokes the installed Goal skill with the
+protocol. Naming the protocol alone does not locate the email helper. Load the
+complete skill bundle and pass its local sender check before relying on alerts;
+report a missing bundle/helper as a notification gap. For example:
+
+```text
+$memory-bank:memory-bank-goal --email abc@def.gh STATUS_ORDER: M01 -> M02. COMMIT_POLICY: task.
+```
+
+This is a conversation request, not a shell command. The recipient and narrow
+notification authority are retained for that run's resumes only; no flag on a
+new run disables email. See the bundled [email reference](email-notifications.md)
+for private Cloudflare setup, local checking and approval-alert delivery.
+`CORRECTIVE_PLANNING: auto` may also be supplied explicitly in the request to
+authorize necessary in-scope repair planning; it grants no new actions or limits.
+
 In **Claude Code and Codex**, built-in `/goal` is an optional persistence layer
 for a long run. It keeps the objective active; `tabilet/GOAL.md` still defines the
 multi-milestone execution protocol. Include the complete protocol request,

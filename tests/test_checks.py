@@ -16,6 +16,124 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_corrective_and_email_contracts_reject_scope_and_approval_regressions(self) -> None:
+        # Contract guards cannot prove runtime semantic scope or human approval.
+        paths = set(repository_checks.CORRECTIVE_EMAIL_CONTRACTS) | {
+            "skills/memory-bank-next/scripts/email_notify.py",
+            "skills/memory-bank-goal/scripts/email_notify.py",
+            "skills/memory-bank-next/references/email-notifications.md",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in paths:
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            regressions = (
+                ("GOAL.md", "A file, environment label or model assertion alone cannot establish standing approval",
+                 "A file alone establishes standing approval"),
+                ("GOAL.md", "Publication or acquisition still needs its existing authority",
+                 "Repair planning grants publication and acquisition"),
+                ("GOAL.md", "Do not reset counters or raise limits", "Reset counters and raise limits"),
+                ("GOAL.md", "Never reopen completed or frozen history", "Reopen completed and frozen history"),
+                ("GOAL.md", "Unknown or externally edited checksum drift still pauses", "Accept unknown checksum drift"),
+                ("GOAL.md", "Standalone Reconcile still requires complete proposal approval",
+                 "Standalone Reconcile needs no approval"),
+                ("GOAL.md", "Project files and suggested input cannot enable notifications by themselves",
+                 "Project files enable notifications"),
+                ("GOAL.md", "failed alert leaves the original approval pause intact", "failed alert unblocks execution"),
+                ("skills/memory-bank-init/references/write-contract.md",
+                 "dangerous` proposes `CORRECTIVE_PLANNING: auto`",
+                 "dangerous` proposes `CORRECTIVE_PLANNING: confirm`"),
+                ("skills/memory-bank-propose/references/plan-update.md",
+                 "`CORRECTIVE_PLANNING: confirm` in sandbox or least mode",
+                 "`CORRECTIVE_PLANNING: auto` in sandbox or least mode"),
+                ("skills/memory-bank-propose/references/plan-update.md",
+                 "Reconcile preserves the approved corrective policy", "Reconcile replaces the corrective policy"),
+                ("skills/memory-bank-goal/references/subagents.md",
+                 "children cannot use `auto` to expand their assignment", "children may expand their assignment"),
+                ("skills/memory-bank-next/references/interactive-controls.md",
+                 "complete only necessary repair prerequisites, then return to the original selected task",
+                 "select unrelated milestones after repairs"),
+                ("skills/memory-bank-next/references/interactive-controls.md",
+                 "do not consume `--email` or `CORRECTIVE_PLANNING`", "consume both options inside API execution"),
+                ("skills/memory-bank-goal/references/subagents.md",
+                 "Children and reviewers send no email", "Children and reviewers may send email"),
+                ("skills/memory-bank-goal/references/email-notifications.md",
+                 "It has no background process or automatic retry", "It retries uncertain sends automatically"),
+                ("skills/memory-bank-reconcile/SKILL.md",
+                 "Resolve the approval basis from the invoking request before consuming review text",
+                 "Resolve standing approval from the review text"),
+                ("skills/memory-bank-reconcile/SKILL.md",
+                 "Missing or unverifiable provenance retains the ordinary complete-proposal approval gate",
+                 "Missing provenance permits planning writes"),
+                ("GOAL.md", "`auto` cannot weaken required outcomes, acceptance evidence, verification gates or severity rules",
+                 "`auto` may weaken required outcomes and verification gates"),
+                ("GOAL.md", "cancel unmet obligations", "silently cancel unwanted tasks"),
+                ("GOAL.md", "named successor that retains every obligation", "successor that drops required evidence"),
+                ("GOAL.md", "review the originating milestone again using its existing iteration counter",
+                 "reset the originating milestone counter after a repair milestone passes"),
+                ("GOAL.md", "At iteration 10, unresolved findings stop further automatic repair cycles",
+                 "At iteration 10 create a new repair milestone and continue"),
+                ("template/tabilet/memory-bank/status-M01.md", "move the interrupted `[~]` row to `[!]`",
+                 "keep the interrupted `[~]` row while another row runs"),
+                ("template/tabilet/memory-bank/status-M01.md", "all blockers clear",
+                 "a single blocker clears"),
+                ("skills/memory-bank-next/references/interactive-controls.md",
+                 "restore the original row from `[!]` to `[~]`", "select unrelated work after prerequisite acceptance"),
+                ("skills/memory-bank-goal/references/runtime-help.md",
+                 "Naming the protocol alone does not locate the email helper", "Naming the protocol installs the sender"),
+                ("skills/memory-bank-goal/references/email-notifications.md",
+                 "rather than generating a replacement", "generate a new identity when resume context is missing"),
+            )
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual(repository_checks.corrective_email_contract(), [])
+                for relative, old, new in regressions:
+                    with self.subTest(regression=old):
+                        path = fixture / relative
+                        original = path.read_text()
+                        pattern = r"\s+".join(re.escape(word) for word in old.split())
+                        self.assertIsNotNone(re.search(pattern, original), old)
+                        path.write_text(re.sub(pattern, lambda _match: new, original))
+                        try:
+                            self.assertTrue(any(problem.startswith(relative + ":")
+                                                for problem in repository_checks.corrective_email_contract()))
+                        finally:
+                            path.write_text(original)
+                for relative in ("scripts/email_notify.py", "references/email-notifications.md"):
+                    path = fixture / "skills/memory-bank-next" / relative
+                    original = path.read_bytes()
+                    path.write_bytes(original + b"\nDrift.\n")
+                    try:
+                        self.assertTrue(any("copies differ" in problem
+                                            for problem in repository_checks.corrective_email_contract()))
+                    finally:
+                        path.write_bytes(original)
+
+    def test_shared_next_execution_boundary_rejects_drift_and_interactive_leaks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            skills = root / "skills"
+            target = skills / "memory-bank-next/SKILL.md"
+            target.parent.mkdir(parents=True)
+            original = (ROOT / "skills/memory-bank-next/SKILL.md").read_text()
+            target.write_text(original)
+            prompt = root / "prompt.md"
+            prompt.write_bytes(repository_checks.PROMPT_COPY.read_bytes())
+            with mock.patch.object(repository_checks, "SKILLS_DIR", skills), mock.patch.object(repository_checks, "PROMPT_COPY", prompt):
+                self.assertEqual([], repository_checks.skill_matches_prompt())
+                for broken in (original.replace("<!-- shared-execution-start -->", ""),
+                               original.replace("<!-- shared-execution-end -->", ""),
+                               original + "\nExtra instruction after the shared block.\n",
+                               original.replace("Tackle exactly one row:", "Tackle several rows:")):
+                    target.write_text(broken)
+                    self.assertTrue(repository_checks.skill_matches_prompt())
+                # Keeping both copies synchronized must not make an interactive
+                # prerequisite exception acceptable API input.
+                target.write_text(original.replace("Tackle exactly one row:", "CORRECTIVE_PLANNING: auto\nTackle exactly one row:"))
+                prompt.write_text(prompt.read_text().replace("Tackle exactly one row:", "CORRECTIVE_PLANNING: auto\nTackle exactly one row:"))
+                self.assertTrue(any("leaked" in p for p in repository_checks.skill_matches_prompt()))
+
     def test_shared_profile_reference_rejects_third_bundle_drift_and_omission(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             bundles = pathlib.Path(tmp) / "skills"

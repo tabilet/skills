@@ -11,7 +11,8 @@ Send the request in a session for your project:
 | Codex plugin | `$memory-bank:memory-bank-next` |
 | DSH | `/memory-bank-next` |
 
-Takes no arguments. Plain English works too: *"tackle next pending item in
+Accepts optional `--email ADDRESS` and an explicit `CORRECTIVE_PLANNING` policy.
+Plain English works too: *"tackle next pending item in
 memory bank"* does the same job.
 
 For direct skill-folder installs, see the
@@ -121,6 +122,39 @@ those rows, the run follows the project's verification-attempt gate:
   failure outside the milestone's owned scope.
 
 See [the goal guide](goal.md#expensive-checks-and-the-attempt-gate).
+
+## Corrective prerequisites and approval email
+
+`CORRECTIVE_PLANNING: confirm` is the default. Under human-approved `auto`,
+Next may prepare and check necessary repair plans, amend pending work or create
+repair milestones within the selected task's original delivery outcome,
+approved owning repositories, action grants and explicit limits. It completes
+only those prerequisites and returns to the original task, preserving its
+interrupted work, identity and review evidence. New permissions, scope or
+higher limits require approval. See [standing corrective planning](goal.md#standing-corrective-planning).
+
+Next suspends the interrupted `[~]` row as `[!]` before activating a repair row,
+recording prerequisite IDs, approval source and resumption condition. It restores
+`[~]` after prerequisite acceptance and clearance of every blocker, without
+another approval for the covered repair. Resume the same chain; preserve partial
+work and pause if overlapping changes cannot be separated safely. Repairs cannot
+weaken acceptance or cancel unmet obligations, and their own reviews cannot
+reset or replace the original milestone's persisted review gate.
+
+To request one email per workflow approval need:
+
+```text
+$memory-bank:memory-bank-next --email abc@def.gh
+```
+
+The flag selects one recipient for this run and its resumes; a new invocation
+with no flag disables email. Use your agent's normal invocation prefix.
+[Configure Cloudflare delivery once](installation.md#approval-email-setup).
+The sender checks configuration locally, sends only a short sanitized summary,
+and suppresses duplicate or uncertain attempts. Children report needs to their
+owner. Delivery never supplies approval; unavailable delivery leaves the
+original approval pause intact. Native host tool-approval prompts and Python
+API-runner/controller invocation are outside this feature.
 
 ## Milestone close
 

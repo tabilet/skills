@@ -561,6 +561,14 @@ override in `milestone.md`. Even under `--environment dangerous`, destructive ac
 (`sudo`, `ssh`, live browser, or repository push outside the workspace) remain ungranted
 unless explicitly authorized via modifiers like `plus sudo`.
 
+Init and Propose also propose `CORRECTIVE_PLANNING: auto` under dangerous,
+and `confirm` under sandbox or least. When approved for execution, `auto`
+covers necessary repair planning within the original outcome, existing
+grants and limits, including new repair milestones and launch/hash updates.
+Nested Reconcile honors that standing approval; standalone Reconcile keeps
+its gate. Next completes only necessary prerequisites and returns to its
+selected task. See [standing corrective planning](docs/goal.md#standing-corrective-planning).
+
 Use `--test standard` (the default when omitted), `--test browserlight`, `--test golight`,
 `--test rustlight`, `--test tslight`, `--test jslight`, or `--test pythonlight` across planning
 skills (`init`, `propose`, `reconcile`) to configure testing standards and execution limits in
@@ -852,6 +860,14 @@ approval, delegation, and resume rules,
 [milestone authorizations](docs/authorizations.md) for checkpoint catalogs and decision markers, and
 [autonomous goal execution](docs/automation.md) for continuous multi-milestone runs. This is instruction-level guidance;
 the Python API controller continues to exclude external actions.
+
+Goal and Next accept `--email ADDRESS` in the conversation request for one
+short alert per workflow approval need. Configure private Cloudflare REST
+delivery once with permitted recipients and a sending token; see
+[email setup](docs/installation.md#approval-email-setup). No flag means no
+email for a new run. Resumes retain their selection, duplicate or uncertain
+attempts never replay automatically, and delivery never approves work.
+The Python API paths consume neither email nor corrective-planning options.
 
 It is invoked, not ambient. Whatever your agent, the request that starts a run is
 the same block, and it names the file, the order, and the commit policy:
@@ -1146,7 +1162,7 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.10.3` tag. A marketplace install or
+For a reproducible installation, use the `v2.11.0` tag. A marketplace install or
 `main` download follows the repository's current published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke

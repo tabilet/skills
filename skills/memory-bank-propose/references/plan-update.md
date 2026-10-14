@@ -37,6 +37,12 @@ operations (`sudo`, `ssh`, live browser, external pushes outside the workspace) 
 omitted unless an explicit modifier (such as `plus sudo`) authorizes them. Add a launch comment
 with recommended runner flags: `# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`
 (and `ALLOW_DANGEROUS_COMMANDS=1` if `sudo` is granted).
+For Init and Propose, also propose `CORRECTIVE_PLANNING: auto` in dangerous
+mode, and `CORRECTIVE_PLANNING: confirm` in sandbox or least mode. Explicit
+human policy overrides the preset. Reconcile preserves the approved corrective
+policy during ordinary refreshes; an absent policy defaults to `confirm`.
+Changing that standing policy requires human approval, even inside an automatic
+correction. Omitted selectors in an existing plan preserve its explicit policy.
 Under `--environment sandbox` (default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
 grants marked `[ ]`).
@@ -98,6 +104,20 @@ AUTHORIZATION_REQUIREMENTS:
 ```
 
 ## Approved plan edits
+
+Under a governing Goal or Next request with human-approved
+`CORRECTIVE_PLANNING: auto`, its coordinator may prepare and check complete
+necessary repair actions and apply them using standing approval. This exception
+is limited to the original delivery outcome, approved owning repositories,
+existing grants/denials and operational limits. It covers pending amendments,
+new repair IDs, dependency updates and corresponding launch/hash refreshes;
+ordinary edits outside that correction still follow `SUGGESTED_UPDATE`.
+Record the approval basis and before/after hashes in conversation or existing
+trusted host state. Do not approve unknown checksum drift, new action grants,
+higher limits, new features, candidate promotions or later stages. Preserve
+history and active review counters. Standalone Reconcile still needs complete
+proposal approval and never starts implementation; nested Reconcile hands
+execution back to the existing owner. Children only report needed repairs.
 
 Read when preparing file actions. Apply its writes only after the user approves the complete proposal. Preserve the project's local rules, unrelated content, permanent IDs, non-pending row outcomes, review counters, and frozen archives and retired records. Search both active statuses and the history index before proposing a new ID. Do not reopen completed history. Add approved work to an existing pending owner when its scope and acceptance fit; otherwise propose a new pending milestone or row. An approved superseded pending row may be retained as `[-]` only when its notes name the accepted successor. Changes to in-progress, blocked, completed, or cancelled work need separate handling, not a silent rewrite.
 

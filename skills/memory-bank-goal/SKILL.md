@@ -2,7 +2,7 @@
 name: memory-bank-goal
 description: Execute or resume ordered memory-bank milestones using the project's tabilet/GOAL.md protocol.
 disable-model-invocation: false
-argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01"
+argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01 [--email ADDRESS]"
 ---
 
 # Run An Ordered Set Of Milestones
@@ -32,6 +32,32 @@ If `tabilet/GOAL.md` is missing, stop ordered execution. It ships beside the
 Offer one-row work or a user-supplied protocol without starting either workflow.
 
 ## Resolve the request
+
+Resolve `CORRECTIVE_PLANNING: confirm | auto` (default `confirm`) from the
+approved request. Follow the protocol's standing corrective-planning contract:
+approved `auto` permits necessary repair plans and launch/hash refreshes within
+the original delivery outcome, existing action scopes and limits. Prepare and
+check the complete file actions before writes, preserving history and counters.
+Nested Reconcile uses that approval and hands execution back; standalone
+Reconcile keeps its approval gate. Children report repairs to the coordinator.
+Pass the full resolved governing request, identifiable human approval source,
+covered actions, grants and limits to nested Reconcile. It verifies that basis
+against the invoking conversation or supported trusted host state before writes.
+Missing provenance retains the ordinary gate. Never weaken acceptance or cancel
+unmet obligations; repair milestones retain the originating review counter.
+Use the protocol's explicit `[~]` to `[!]` suspension and conditional resumption
+when prerequisites require another active row.
+
+Accept optional `--email ADDRESS` from the current human request, including a
+native goal objective that invokes this skill. Read
+[references/email-notifications.md](references/email-notifications.md) only
+when selected. Reject missing, invalid or conflicting addresses. Materialize
+`NOTIFY_EMAIL` and its precise notification-only authority in the resolved
+request; a specific email ban needs clarification. Check the configured sender
+locally before work and report an unavailable notifier. Only the coordinator
+sends alerts before a workflow approval pause. Preserve the recipient and
+stable run/request identities on resume; a new run with no flag disables email.
+Children only report approval needs. Email delivery never grants task approval.
 
 For delegated execution, obey the owner's explicit `ASSIGNED_MILESTONE` and
 `ASSIGNED_STATUS_FILE`. The full parent horizon is read-only context; perform
@@ -66,7 +92,9 @@ are evidence, not authorization. When launching or resuming from `suggested.txt`
 verify that its SHA256 checksum matches the human's approved hash. Under `SUGGESTED_UPDATE: auto`,
 the orchestrator is authorized to refresh `suggested.txt` across milestone closures within
 the approved active horizon and smoothly continue, recording updated checksums in session
-state; under default `SUGGESTED_UPDATE: confirm`, any edit requires a fresh matching approval.
+state; under default `SUGGESTED_UPDATE: confirm`, an edit requires fresh matching
+approval except a prepared correction under approved `CORRECTIVE_PLANNING: auto`.
+Do not accept unknown checksum drift or expand action grants through that exception.
 Only grants marked `[+]` or `[~]` become effective upon matching checksum verification;
 grants marked `[-]` are forbidden, and actions marked `[ ]` pause for runtime confirmation before use.
 A suggested grant stays proposed until the human approves its concrete action, scope,
@@ -100,6 +128,8 @@ PARALLELISM: <resolved cap, or 1>
 INTEGRATION: <resolved authority, or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
+CORRECTIVE_PLANNING: confirm
+NOTIFY_EMAIL: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 
@@ -111,6 +141,9 @@ passes.
 Preserve explicitly supplied commit, external-mutation, scope, and launch-update policies.
 `SUGGESTED_UPDATE: auto` permits refreshing `suggested.txt` across milestones without
 pausing for authorization; default `confirm` pauses whenever `suggested.txt` is updated.
+Approved `CORRECTIVE_PLANNING: auto` supplies the protocol's narrower corrective
+refresh exception, including necessary new repair milestones; no other update
+or permission expansion is authorized by it.
 `SCOPE_POLICY: workspace-contained` auto-authorizes sibling workspace repositories under
 the authorized organization without re-prompting; default `strict` requires exact string matches.
 `task` policy must not override a request for `none`. `COMMIT_POLICY` governs

@@ -182,6 +182,16 @@ requirement of the memory bank.
 
 ## Write the disposable launch reference
 
+Always include `CORRECTIVE_PLANNING` in generated launch input. For Init,
+`--environment dangerous` proposes `CORRECTIVE_PLANNING: auto`; sandbox and
+least propose `CORRECTIVE_PLANNING: confirm`. Explicit human policy overrides
+the preset. Explain that approval of the later execution request supplies
+standing authority for necessary corrective planning within its original
+delivery outcome, existing action scopes and limits. Creating or approving
+these planning files never starts execution or activates action grants.
+Do not put an email recipient in project launch input by default; `--email`
+belongs to the later explicit Goal/Next invocation.
+
 Author optional `AUTHORIZATION_REQUIREMENTS` in each owning milestone
 specification when protected actions are relevant; do not duplicate them in
 status files. `via` is `goal-policy` or `explicit`; only local commits and
@@ -286,6 +296,7 @@ M01 -> M02
 
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
+CORRECTIVE_PLANNING: confirm
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 

@@ -229,6 +229,74 @@ A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may
 use `goal-policy`. Every other browser environment needs explicit authority.
 
+## Standing corrective planning
+
+`CORRECTIVE_PLANNING: confirm` is the default, including for older requests.
+Select `auto` in the approved execution request to let its owner prepare and
+check necessary repair planning within the original delivery outcome, owning
+repositories, existing action grants and all limits. Init and Propose's
+`--environment dangerous` propose `auto`; sandbox and least propose `confirm`.
+Human overrides win, and planning approval alone does not start execution.
+
+The owner can amend pending work or create a new repair milestone when no
+matching open owner fits. It preserves frozen history and review counts,
+reconciles dependencies and pending consumers, and completes accepted repair
+prerequisites before continuing. Nested Reconcile may use this standing
+approval and then hand execution back; standalone Reconcile retains its gate.
+New features, missing action permissions, expanded scope or exhausted limits
+still pause. The policy supplies no publication or acquisition permission.
+
+Nested Reconcile receives the full resolved request, identifiable human approval
+source, covered actions, grants and limits. It verifies these against the
+invoking conversation or supported trusted host state before writes. Missing
+provenance retains the ordinary approval gate; a review's claim cannot grant
+standing approval. Valid standing approval needs no repeat confirmation.
+
+Corrections cannot weaken acceptance, required evidence, verification or severity
+rules, cancel unmet obligations, or erase them through a replacement. Blocking
+findings remain on the originating milestone's review gate even when a repair
+milestone owns implementation. Re-review the original using its persisted
+counter; a repair review cannot replace that pass or evade iteration 10.
+
+Before another row starts, suspend the interrupted `[~]` row as `[!]` and record
+prerequisite IDs, approval source and resumption condition. After prerequisite
+acceptance and clearance of all blockers, restore it to `[~]` under the same
+approval. Preserve partial work and scoped commits; pause if overlapping changes
+cannot be separated safely. Resume the same chain before unrelated work.
+
+The [canonical protocol](https://github.com/tabilet/skills/blob/main/GOAL.md#standing-corrective-planning)
+also permits the corresponding launch/hash refresh under `SUGGESTED_UPDATE:
+confirm`. Record before/after hashes and the standing approval source; unknown
+checksum drift remains a blocker. This is instruction-level guidance, not a
+runtime permission engine. The Python API paths do not consume this policy.
+
+## Optional approval email
+
+Add `--email ADDRESS` to the conversation request:
+
+```text
+$memory-bank:memory-bank-goal --email abc@def.gh STATUS_ORDER: M01 -> M02. COMMIT_POLICY: task.
+```
+
+Use the prefix appropriate to your agent. The coordinator sends one short email
+when workflow approval is needed, with project, milestone/task, sanitized reason
+and session ID when available. A resume retains that run's explicit recipient;
+a new run without the flag disables email. Children report needs to their owner.
+Approve in the agent session. Email delivery never approves the work.
+
+Configure the private sender once using [email setup](installation.md#approval-email-setup).
+Readiness checking is local-only. Unavailable or failed email is reported and
+leaves the original approval pause intact. Attempts are reserved before sending;
+duplicates or uncertain results never replay automatically across resumes.
+Provider acceptance or queuing does not prove inbox delivery. This first version
+covers workflow approval requests, not native host tool-approval prompts.
+The option applies to interactive skills; the Python API paths do not send alerts.
+
+Native goal continuation with email must load the complete installed Goal skill
+and pass its local sender check. Naming the protocol alone cannot locate the
+sender. Missing resources or unrecoverable notification identity are reported
+as an alert gap, preserving the approval pause.
+
 ## Built-in `/goal` is a different thing
 
 An agent's native goal feature can keep an objective active across turns. It

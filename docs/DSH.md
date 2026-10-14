@@ -158,6 +158,14 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
     if test "$bundle" = memory-bank-goal; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
     fi
+    case "$bundle" in
+      memory-bank-goal|memory-bank-next)
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/scripts/email_notify.py"
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/email-notifications.md" ;;
+    esac
+    if test "$bundle" = memory-bank-next; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/interactive-controls.md"
+    fi
     if test "$bundle" = memory-bank-upgrade; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/migrate-v1.5-to-v2.py"
       for resource in AGENTS.md tabilet/GOAL.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
@@ -185,7 +193,12 @@ Copying only `SKILL.md` is incomplete. Initialization, archive, and reconciliati
 have `references/write-contract.md`; initialization also carries the portable
 `tabilet/GOAL.md`. Upgrade carries `assets/template/`, a complete reference copy of the
 project payload; preserve that tree too. Goal includes `references/runtime-help.md`
-for invocation syntax and optional native continuation. DSH returns a skill's directory as its resource base. Relative
+for invocation syntax and optional native continuation. Goal and Next include
+`scripts/email_notify.py` and `references/email-notifications.md`; Next also
+includes `references/interactive-controls.md`. Preserve these complete bundles.
+Approval email requires the user's explicit flag, private Cloudflare setup and
+local sender check; installation sends no email. Native continuation must load
+the Goal bundle before relying on notifications. DSH returns a skill's directory as its resource base. Relative
 supporting resources resolve against that directory; project paths such as
 `tabilet/memory-bank/milestone.md` and the project's `tabilet/GOAL.md` resolve in the selected
 workspace. The init write contract explicitly identifies its bundled protocol.
@@ -259,6 +272,14 @@ bundles are backed up before any replacement is copied.
     fi
     if test "$bundle" = memory-bank-goal; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/runtime-help.md"
+    fi
+    case "$bundle" in
+      memory-bank-goal|memory-bank-next)
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/scripts/email_notify.py"
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/email-notifications.md" ;;
+    esac
+    if test "$bundle" = memory-bank-next; then
+      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/interactive-controls.md"
     fi
     if test "$bundle" = memory-bank-upgrade; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/migrate-v1.5-to-v2.py"

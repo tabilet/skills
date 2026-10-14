@@ -167,6 +167,12 @@ understanding.
 
 ## Phase 2 - Propose
 
+Include the future execution policy `CORRECTIVE_PLANNING`: dangerous proposes
+`auto`, while sandbox and least propose `confirm`; explicit human policy wins.
+Explain necessary in-scope corrective planning without new action authority or
+higher limits. This initialization proposal still needs approval before writes
+and does not launch a goal.
+
 Include optional milestone `AUTHORIZATION_REQUIREMENTS` where relevant, under
 the write contract. An optional environment selector is `--environment dangerous`,
 `--environment sandbox` (the default when omitted), or `--environment least`, optionally

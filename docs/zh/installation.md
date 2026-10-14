@@ -110,6 +110,43 @@ dsh plugin --profile web add \
 并不等于里程碑通过了验收。遇到较旧的项目格式，请准备一个 [Upgrade](upgrade.md) 请求，
 并把界面上显示的警告一并带上。
 
+## 批准提醒邮件设置 {#approval-email-setup}
+
+交互式 Goal 和 Next 接受 `--email ADDRESS` 来发送工作流批准提醒。可选辅助程序随完整技能目录提供，
+用 Python 标准库调用 Cloudflare REST API；不增加技能、后台服务或审计数据库依赖。
+
+另行配置 Cloudflare 账户及发送域名，并验证目标收件人。创建只作用于该账户、具有 Email Sending: Edit
+权限的令牌。账户可用性及发送者验证须由用户确认；安装 Tabilet 不完成这些设置。
+参见 [Cloudflare 设置](https://developers.cloudflare.com/email-service/get-started/send-emails/)
+和 [REST 认证](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/)。
+
+在项目之外创建私有 `${XDG_CONFIG_HOME:-~/.config}/tabilet/email.json`，填入实际值：
+
+```json
+{
+  "account_id": "<32 hexadecimal characters from your Cloudflare account>",
+  "from": "alerts@your-onboarded-domain.example",
+  "allowed_recipients": ["abc@def.gh"],
+  "token_env": "CLOUDFLARE_EMAIL_TOKEN"
+}
+```
+
+Linux/macOS 使用 `0600` 文件权限。令牌值只保存在指定的私有账户环境变量里，不写入项目、命令参数或
+此 JSON。收件人必须在 `allowed_recipients` 中；不发送抄送、密送或附件。保护配置，避免项目控制它。
+
+开始工作前的准备检查只读取本地配置，不发测试邮件或账户验证请求。需要工作流批准时，只有所有者发送有界的
+纯文本提醒，包含项目、任务、已清理的原因和可用时的会话 ID。私有尝试记录位于项目之外的
+`${XDG_STATE_HOME:-~/.local/state}/tabilet/email-notifications/`。重复或不确定的尝试不自动重发；
+`accepted` 或 `queued` 只是提供方响应，不证明已到达收件箱。
+
+发送器不可用时明确报告；邮件失败不改变原批准暂停。请在智能体会话中批准。
+每次网络尝试有包含慢响应的 10 秒总期限。预期输入或协议错误返回 JSON `unavailable`，退出码为 2。
+空值或相对路径的 XDG 设置使用文档中的主目录默认值。收件地址域名忽略大小写，本地部分保留并匹配配置。
+恢复时无法找回通知身份，报告提醒缺口；不要生成新身份来重发。确认提供方结果后，只有人类明确要求再发一次，
+才保留原运行 ID，并用原完整方案加上重发指令生成新请求哈希。仅修复凭据不会重发，也不删除旧记录。
+新运行省略参数就不发邮件，恢复同一次运行时保留其明确选择。本版本处理工作流批准，不拦截宿主原生工具批准。
+API 运行器和控制器不消费该参数。
+
 ## 调用技能 {#invoke-a-skill}
 
 技能请求要发在**智能体对话**里，而不是 shell 里。前缀取决于你的安装方式：

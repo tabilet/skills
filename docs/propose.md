@@ -29,6 +29,16 @@ or order changes. An initialized project can adopt stages without restarting
 Init; Propose places its existing approved horizon in the current stage by
 default.
 
+## Corrective-planning preset
+
+For future execution, `--environment dangerous` proposes
+`CORRECTIVE_PLANNING: auto`; sandbox and least propose `confirm`. Explicit human
+policy overrides the preset, and an omitted selector preserves an existing
+explicit policy. The approved execution request can cover necessary repair
+planning within its original outcome, grants and limits, including new repair
+milestones. Propose itself still requires complete proposal approval and never
+launches execution. See [standing corrective planning](goal.md#standing-corrective-planning).
+
 ## What happens
 
 Propose reads the relevant project memory, code, tests, pending work, candidate

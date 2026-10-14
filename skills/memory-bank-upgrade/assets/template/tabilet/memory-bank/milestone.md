@@ -92,6 +92,34 @@ rules. Missing fields preserve legacy behavior without new authority or
 automatic migration. These are instruction-level boundaries, not tool or OS
 enforcement.
 
+## Standing corrective planning
+
+`CORRECTIVE_PLANNING` is an optional execution policy, defaulting to `confirm`.
+Standing `auto` cannot weaken acceptance, required evidence, verification gates
+or severity rules, cancel unmet obligations, or erase them through supersession.
+A named successor preserves all obligations. Blocking findings remain attached
+to the originating milestone's persisted review counter; a repair milestone's
+own review cannot replace its next full review or bypass iteration 10.
+An approved `auto` allows the Goal/Next owner to prepare and check necessary
+repair planning against the original delivery outcome, owning repositories,
+existing action grants and all limits, then apply it under standing approval.
+Prefer a matching open milestone when its scope and dependency position fit;
+otherwise create a new repair milestone with permanent identity and lineage.
+Preserve completed/frozen history, row outcomes and review counters. New
+features, scope or permission expansion, higher limits, collisions and unknown
+checksum drift still require human direction. Children only report needed work.
+
+The owner reconciles dependencies, pending consumers, the resolved request and
+any existing launch reference; it records old/new hashes and approval context
+outside authoritative task records. A covered correction may refresh launch
+input without reapproval even under `SUGGESTED_UPDATE: confirm`. Other edits
+retain that policy. Goal executes accepted repair prerequisites before their
+consumers; Next returns to its original task after necessary repairs, preserving
+ownership and interrupted evidence. All repair rows/commits/attempts count
+toward explicit limits. Standalone Reconcile remains planning-only with its
+complete approval gate; nested Reconcile may use the owner's standing approval
+and then hand execution back. Installation never activates this policy.
+
 ## Status ID Pattern
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single

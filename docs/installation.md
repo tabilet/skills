@@ -120,6 +120,59 @@ and the chosen skill retains its approval boundaries. Completed task markers
 alone do not establish milestone acceptance. For older project formats, prepare
 an [Upgrade](upgrade.md) request and include the displayed warnings.
 
+## Approval email setup
+
+Interactive Goal and Next accept `--email ADDRESS` for workflow approval
+alerts. The optional helper is included in their complete skill folders and
+uses Python's standard library with Cloudflare's REST API. No additional skill,
+background service or audit database is needed.
+
+Configure your Cloudflare account and sender domain, and verify the intended
+destination. Create a token restricted to that account with Email Sending:
+Edit permission. Availability and sender verification must be established in
+your account; installing Tabilet does not do this. See
+[Cloudflare setup](https://developers.cloudflare.com/email-service/get-started/send-emails/)
+and [REST authentication](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/).
+
+Create private `${XDG_CONFIG_HOME:-~/.config}/tabilet/email.json`, outside
+projects, with your actual values:
+
+```json
+{
+  "account_id": "<32 hexadecimal characters from your Cloudflare account>",
+  "from": "alerts@your-onboarded-domain.example",
+  "allowed_recipients": ["abc@def.gh"],
+  "token_env": "CLOUDFLARE_EMAIL_TOKEN"
+}
+```
+
+On Linux/macOS, use file mode `0600`. Keep the token value in the named private
+account environment, never in project files, command arguments or this JSON.
+The selected address must be in `allowed_recipients`; no CC/BCC or attachments
+are sent. Protect this account configuration from project-controlled changes.
+
+The skill runs the helper's local-only check before work; it sends no test
+email and makes no account-verification request. At an actual workflow approval
+need, only the owner sends a bounded plain-text alert with project, task,
+sanitized reason and session ID when available. Private attempt records live
+under `${XDG_STATE_HOME:-~/.local/state}/tabilet/email-notifications/`, outside
+projects. Duplicate/uncertain attempts never replay automatically. `accepted`
+or `queued` describes the provider response, not confirmed inbox delivery.
+Each network attempt has a 10-second total deadline, including slow responses.
+The helper reports expected input/protocol failures as JSON `unavailable` with
+exit 2. Empty or relative XDG settings use the documented home defaults.
+Recipient local-part case must match configuration; domains ignore case.
+If notification identity cannot be recovered on resume, report an alert gap.
+After resolving a failed/uncertain outcome, an explicitly requested additional
+alert uses the original run ID and a new hash including the human resend request;
+changing credentials alone does not resend or remove prior records.
+
+An unavailable sender is reported, and an email failure leaves the existing
+approval pause intact. Approval is supplied in the agent session. No flag
+means no email for a new run; resumes retain that run's explicit selection.
+This feature covers workflow approval requests, not native host tool-approval
+prompts. The API runner/controller do not consume the option.
+
 ## Invoke a skill
 
 Skill requests go in the **agent conversation**, not your shell. The prefix

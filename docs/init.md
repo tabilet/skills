@@ -104,6 +104,15 @@ verified context evidence, preserves the frozen archives, safely merges the
 current product and architecture summaries, and interviews only the remaining
 delivery decisions.
 
+## Corrective-planning preset
+
+Init includes `CORRECTIVE_PLANNING` in proposed launch input:
+`--environment dangerous` proposes `auto`, while sandbox and least propose
+`confirm`. Explicit human policy wins. Approval of the later execution request
+can authorize necessary repair planning within the original delivery outcome,
+existing action scopes and limits. It never activates new grants, raises limits
+or starts execution during Init. See [standing corrective planning](goal.md#standing-corrective-planning).
+
 ## The launch reference
 
 When the project contains an approved compatible `tabilet/GOAL.md`, init also writes

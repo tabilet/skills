@@ -78,6 +78,13 @@ Changing the stage label of an active pending milestone does not defer it.
 
 ## Phase 2 - Propose
 
+For future execution, `--environment dangerous` proposes
+`CORRECTIVE_PLANNING: auto`; sandbox and least propose `confirm`. Preserve an
+existing explicit corrective policy when selectors are omitted, and honor human
+overrides. Explain necessary in-scope planning authority, preserved grants and
+limits in the complete proposal. This direct planning skill still requires
+proposal approval and never begins execution.
+
 Use the shared plan-update reference for optional milestone
 `AUTHORIZATION_REQUIREMENTS` and clearly proposed launch `AUTHORIZATION_GRANTS`.
 Accept `--environment dangerous`, `--environment sandbox` (default when omitted), or

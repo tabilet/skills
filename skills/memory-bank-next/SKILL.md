@@ -2,11 +2,19 @@
 name: memory-bank-next
 description: Implement and verify one actionable memory-bank task, update its records, and commit under the governing policy. Use for one-task execution or resumption.
 disable-model-invocation: false
-argument-hint: (no arguments)
+argument-hint: "[--email ADDRESS] [CORRECTIVE_PLANNING: confirm|auto]"
 ---
 
 # Tackle Next Memory-Bank Todo
 
+## Interactive invocation
+
+For direct skill execution, read [references/interactive-controls.md](references/interactive-controls.md)
+before selecting work. It resolves optional `--email ADDRESS` and
+`CORRECTIVE_PLANNING` from the human request and defines scoped repair
+suspension/resumption. These controls are outside the shared API instruction.
+
+<!-- shared-execution-start -->
 Before reading project state for this workflow, inspect the root layout. If
 `GOAL.md`, `memory-bank/`, `evolution/`, `docs/history/`, or
 `docs/archive-<LANE><NN>.md` exists in a v1.5.0 or mixed layout, stop before
@@ -132,3 +140,4 @@ Skip `[!]` blocked, `[X]` cancelled, and `[-]` closed-historical rows and pick
 another actionable row instead. Stop if no actionable pending or in-progress
 row remains in any lane and no milestone review or closure is incomplete, or
 if the task is ambiguous enough to require human input.
+<!-- shared-execution-end -->

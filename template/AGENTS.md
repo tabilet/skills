@@ -156,6 +156,25 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the
   milestone before closing it.
+- `CORRECTIVE_PLANNING` defaults to `confirm`. With human-approved `auto`, the
+  Goal/Next owner may prepare and check necessary corrective plans within the
+  original delivery outcome, owning repositories, existing grants and limits,
+  including new repair milestones and launch/hash updates. Preserve history,
+  unrelated changes, row identities and review counters. Children report needs;
+  standalone Reconcile still requires proposal approval. Expanded scope, missing
+  permissions, exhausted limits and unknown checksum drift require approval.
+  Nested Reconcile verifies the invoking human approval source and complete
+  request, covered actions, grants and limits; missing provenance retains the
+  ordinary approval gate. Never weaken acceptance or cancel unmet obligations.
+  Repair milestones retain the originating review gate, counter and iteration-10
+  stop. Suspend `[~]` as `[!]` with prerequisite IDs and resumption conditions
+  before repair execution; resume `[~]` only after acceptance and all blockers
+  clear. Preserve partial work and pause if changes cannot be separated safely.
+- Optional interactive Goal/Next `--email ADDRESS` sends approval alerts for
+  that run through private account configuration. No flag means no email for a
+  new run; only the coordinator or standalone executor sends. Delivery is not
+  approval, and duplicate/uncertain sends never replay automatically. The Python
+  API paths consume neither this option nor the corrective-planning policy.
 - Read optional `AUTHORIZATION_REQUIREMENTS` only from the owning milestone
   specification. They declare conditions, never permission or scheduling.
   Check protected actions against the current scoped human request; goal

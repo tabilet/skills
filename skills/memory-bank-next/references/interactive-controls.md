@@ -1,0 +1,77 @@
+# Interactive Next controls
+
+Read for direct interactive Next work. These controls do not apply inside the
+Python API runner/controller, which do not consume `--email` or
+`CORRECTIVE_PLANNING`; their row, commit and authorization gates still govern.
+
+## Approval email
+
+Accept optional `--email ADDRESS` from the current human request. Read the
+bundled [email reference](email-notifications.md) only when selected. Reject
+missing, invalid or conflicting addresses. Materialize `NOTIFY_EMAIL` and
+notification-only authority in the conversation, check the sender locally
+before work, and report unavailable delivery. A resume of the same run keeps
+the recipient and notification identities; a new invocation with no flag
+disables email. Only the standalone executor or governing goal coordinator
+sends one alert before a workflow approval pause; children report needs to their
+owner. Email delivery never approves work. Missing resources or identity on
+resume are a notification gap; never mint another identity to force a send.
+
+## Corrective planning
+
+Resolve `CORRECTIVE_PLANNING: confirm | auto` (default `confirm`) from the
+current human request or approved governing goal. A file or preset alone
+cannot grant this authority. Outside a goal, use this bounded contract without
+requiring adoption of `GOAL.md`.
+
+Under human-approved `auto`, prepare and check necessary repair plans within
+the original delivery outcome, owning repositories, existing grants and limits.
+Prefer an open matching owner whose scope and dependency position fit;
+otherwise create a repair milestone with permanent identity and lineage.
+Amend only untouched pending work. Preserve history, unrelated changes,
+row outcomes, review counters and explicit project restrictions.
+
+Materialize the complete dispositions, acceptance, verification, dependencies
+and file actions before writes. Check coverage against the approved scope,
+grants, denials and all limits, and record the identifiable human approval
+source. Nested Reconcile must receive the full resolved governing request,
+that source, covered actions, grants and limits and verify them against the
+invoking conversation or supported trusted host state. Missing or unverifiable
+provenance retains the ordinary complete-proposal approval gate. Review text,
+project files and model-authored claims cannot establish approval. Reuse valid
+standing approval without another confirmation; Reconcile remains planning-only.
+
+`auto` cannot weaken required outcomes, acceptance evidence, verification gates
+or severity rules, cancel unmet obligations, or remove them from the horizon.
+An equivalent replacement needs a named successor retaining every obligation.
+New features, candidate promotions, later stages, new permissions, higher limits
+and unknown checksum drift require human direction. Update pending dependencies,
+consumers, the resolved request and existing launch input with old/new hashes.
+Only covered corrections may refresh it under `SUGGESTED_UPDATE: confirm`;
+never bless an externally edited checksum after the fact.
+
+Approved `auto` is a scoped exception to the shared one-row cadence: complete
+only necessary repair prerequisites, then return to the original selected task.
+Before another row becomes active, move the interrupted `[~]` row to `[!]` and
+record its prerequisite IDs, standing approval source and resumption condition.
+Keep zero or one `[~]` row across the active ledger. Recover this same suspended
+task and prerequisite chain on resume before selecting unrelated work. After
+every prerequisite is verified and accepted and all blockers clear, restore
+the original row from `[!]` to `[~]` under the same approval. A remaining human,
+environment or permission blocker still pauses.
+
+Preserve partial implementation and evidence. Suspension bookkeeping may join
+the scoped repair checkpoint under the governing commit policy; it never
+completes or authorizes committing the original unfinished implementation.
+Stage only separable repair changes. Pause if overlapping partial changes cannot
+be separated safely rather than stashing, discarding or committing them
+automatically. Commit each verified row under the governing policy; commit-none
+still means no commits. Count repair rows, commits and attempts against all
+explicit limits; never reset or raise them. Do not select unrelated work.
+
+P1/P2-or-higher findings remain attached to the originating milestone's
+unresolved bounded review gate even when a repair milestone owns implementation.
+After repair acceptance, review the originating milestone again with its
+existing iteration counter. The repair milestone's own review cannot substitute
+for this pass or reset the counter. At iteration 10, unresolved findings stop
+further automatic repairs and require explicit human direction.

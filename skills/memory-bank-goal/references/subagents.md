@@ -34,6 +34,19 @@ request. Carry these values explicitly, including defaults:
 - The selected `STATUS_ORDER` or `STATUS_PRIORITY`, resolved file map, and
   downstream impacts relevant to the assignment.
 - `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `SUGGESTED_UPDATE`, `SCOPE_POLICY`, `PARALLELISM`, and `INTEGRATION`.
+- The resolved `CORRECTIVE_PLANNING` policy, original delivery outcome, owning
+  repositories and all operational limits. Report required repairs to the
+  coordinator; children cannot use `auto` to expand their assignment or write
+  another milestone's plan. Only the coordinator applies standing planning
+  authority after preparing and checking the complete corrective proposal.
+  Include its identifiable human approval source and covered actions, grants
+  and limits. A nested Reconcile verifies provenance against the invoking
+  conversation or supported trusted host state; missing provenance retains the
+  ordinary approval gate. Repairs retain acceptance obligations and the
+  originating milestone's review counter and iteration-10 stop.
+- `NOTIFY_EMAIL` and notification run identity as context only. Children and
+  reviewers send no email; they return approval needs to their owner, who
+  preserves request identity for duplicate suppression.
 - The full `AUTHORIZATION_GRANTS` context and human approval source, plus the
   child's effective authorization subset narrowed by exact milestone key
   (inheriting applicable `GLOBAL:` grants and milestone-attached policy overrides), assignment, executor role, scope,

@@ -236,6 +236,11 @@ test('incomplete source bundles stop installation and update before any changes'
   const original = await tree(f.dshHome);
   for (const resource of ['memory-bank-init/GOAL.md', 'memory-bank-archive/references/write-contract.md',
     'memory-bank-goal/references/runtime-help.md',
+    'memory-bank-goal/scripts/email_notify.py',
+    'memory-bank-goal/references/email-notifications.md',
+    'memory-bank-next/scripts/email_notify.py',
+    'memory-bank-next/references/email-notifications.md',
+    'memory-bank-next/references/interactive-controls.md',
     'memory-bank-init/references/discovery.md',
     'memory-bank-propose/references/discovery.md',
     'memory-bank-propose/references/plan-update.md',
