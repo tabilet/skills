@@ -296,9 +296,13 @@ setup, scarce hardware or quota, a physical or live environment, explicitly
 granted actions, or minutes per run. The bounded verification-attempt gate in
 `GOAL.md` keeps such work converging:
 
-- **Diagnose cheaply first.** Use the cheapest environment that reproduces the
-  failure, such as an unprivileged local run on disposable fixtures. These runs
-  never satisfy acceptance.
+- **Diagnose cheaply when safe.** Reproduce only within current authority and
+  budget, using the cheapest suitable environment, such as an unprivileged local
+  run on disposable fixtures. For unavailable environments, protected actions,
+  exhausted attempts or non-reproducible incidents, record existing evidence
+  and the reproduction limitation instead of forcing retries. These diagnostic
+  runs never satisfy acceptance; required evidence and verification still apply,
+  and missing required proof pauses acceptance.
 - **Run every case.** Each expensive run executes every independent case and
   reports all failures.
 - **Keep fixture diagnostics.** Raw diagnostics from synthetic fixtures may stay

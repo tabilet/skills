@@ -1335,7 +1335,7 @@ def adaptive_init_contract():
             problems.append(f"template/tabilet/memory-bank/milestone.md: missing {token!r}")
 
     for token in (
-        "goal use is approved and the bundled protocol is available",
+        "goal use is approved and the selected governing protocol is available and compatible",
         "documented conditionally required active work",
         "adaptive topology gate",
         "must first use `memory-bank-archive`",
@@ -2859,6 +2859,9 @@ V213_CONTRACTS = {
         "selected governing protocol is available and compatible",
         "preserve explicit `GOAL_PROTOCOL` and `MODEL_POLICY`",
         "never substitute stock identity", "preserve existing input pending resolution"),
+    "skills/memory-bank-reconcile/SKILL.md": (
+        "Resolve explicit `GOAL_PROTOCOL` before classifying",
+        "preserve its role and actual path/hash", "do not apply it again as an addendum"),
     "skills/memory-bank-upgrade/SKILL.md": (
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
         "Preserve explicit `MODEL_POLICY`", "previously approved protocol path/hash",
@@ -2866,14 +2869,23 @@ V213_CONTRACTS = {
         "Preserve a file selected as the alternative full protocol"),
     "template/tabilet/memory-bank/milestone.md": (
         "An empty implementation diff still needs acceptance review",
-        "run batches within host capacity", "fresh read-only whole-milestone reviewers"),
-    "docs/goal.md": ("## Optional model policy", "For a legacy paused goal"),
+        "run batches within host capacity", "fresh read-only whole-milestone reviewers",
+        "Reproduce only when safely possible within current authority and budget",
+        "Required acceptance evidence and verification gates still apply"),
+    "docs/goal.md": ("## Optional model policy", "For a legacy paused goal",
+                     "Diagnose cheaply when safe", "missing required proof pauses acceptance"),
     "docs/zh/goal.md": ("{#optional-model-policy}",),
     "docs/subagents.md": ("including uncommitted work", "inspect ignored artifacts"),
     "docs/zh/subagents.md": ("{#model-policy-and-retained-lease-evidence}",),
 }
 
 V213_FORBIDDEN = (
+    (r"only when goal use is approved and the bundled (?:goal )?protocol is available",
+     "bundled-only prerequisite discards alternative protocols"),
+    (r"read an existing `tabilet/GOAL\.md` only to classify it as a project addendum",
+     "unconditional addendum classification discards an explicitly selected protocol"),
+    (r"- reproduce and fix failures first in the cheapest environment",
+     "unconditional reproduction requirement in the verification-attempt gate"),
     (r"refresh\b.{0,800}\bonly for an approved compatible `tabilet/GOAL\.md`",
      "obsolete package-local protocol prerequisite"),
     (r"always (?:use|name|select) (?:the )?(?:bundled )?(?:memory-bank )?stock (?:goal )?protocol",

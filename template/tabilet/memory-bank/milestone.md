@@ -339,9 +339,14 @@ An expensive or protected check needs privileged setup, scarce hardware or
 quota, a physical or live environment, explicitly granted actions, or minutes
 per run. For a row whose acceptance depends on one:
 
-- Reproduce and fix failures first in the cheapest environment that can show
-  them, such as an unprivileged local run on disposable fixtures. These
-  diagnostic runs are ordinary verification and never satisfy acceptance.
+- Reproduce only when safely possible within current authority and budget.
+  Prefer the cheapest environment that can show the failure, such as an
+  unprivileged local run on disposable fixtures. For unavailable environments,
+  protected actions, exhausted attempt limits or non-reproducible incidents,
+  record existing evidence and the reproduction limitation instead of forcing
+  retries or inventing a failure. Required acceptance evidence and verification
+  gates still apply; if missing, pause. Diagnostic runs are ordinary verification
+  and never satisfy acceptance.
 - Make each expensive run execute every case whose safety does not depend on an
   earlier result, and report all failures. Stop early only when continuing
   would be unsafe.

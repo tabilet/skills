@@ -20,6 +20,15 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class GoalInstructionContracts(unittest.TestCase):
     def test_contradictory_rules_fail_even_with_correct_guidance_retained(self):
         cases = (
+            ("AGENTS.md",
+             "Create suggested.txt only when goal use is approved and the bundled protocol is available.",
+             "bundled-only prerequisite"),
+            ("skills/memory-bank-reconcile/SKILL.md",
+             "Read an existing `tabilet/GOAL.md` only to classify it as a project addendum.",
+             "unconditional addendum classification"),
+            ("template/tabilet/memory-bank/milestone.md",
+             "- Reproduce and fix failures first in the cheapest environment that can show them.",
+             "unconditional reproduction requirement"),
             ("skills/memory-bank-propose/references/plan-update.md",
              "Refresh suggested.txt only for an approved compatible `tabilet/GOAL.md`.",
              "obsolete package-local"),

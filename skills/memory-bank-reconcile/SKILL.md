@@ -99,9 +99,12 @@ same project boundary and current-state reconciliation.
 Read applicable agent instructions and the project's memory bank in its required
 order. Also read the review, relevant implementation and tests, manifests,
 interfaces, schemas, documentation, Git history, `tabilet/evolution/`, and any existing
-`tabilet/memory-bank/suggested.txt`. Read an existing `tabilet/GOAL.md` only to classify it
-as a project addendum for the launch reference's `GOAL_IDENTITY`; do not invoke
-the goal protocol's execution loop.
+`tabilet/memory-bank/suggested.txt`. Resolve explicit `GOAL_PROTOCOL` before
+classifying an existing `tabilet/GOAL.md`. If that file is the selected full
+alternative protocol, preserve its role and actual path/hash; do not apply it
+again as an addendum. Otherwise classify it as the optional project addendum
+for the launch reference's `GOAL_IDENTITY`. Follow the shared plan-update
+reference for both selections; do not invoke the goal protocol's execution loop.
 
 Resolve the review's stated baseline when it has one, the current full Git
 `HEAD` when Git exists, and relevant worktree changes. A baseline mismatch does

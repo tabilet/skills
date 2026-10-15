@@ -511,8 +511,8 @@ spelling so an inbound link survives translation.
   active horizon. Later candidate directions stay unnumbered, have promotion
   triggers, and never appear in `suggested.txt`. Work the user rules out goes in an
   Out of scope register with its reason; it never promotes. It creates
-  `suggested.txt` only when goal use is approved and the bundled protocol is
-  available; a conditional
+  `suggested.txt` only when goal use is approved and the selected governing
+  protocol is available and compatible; a conditional
   status suffix is for documented conditionally required active work, not a
   candidate direction.
 - `tabilet/stages.md` is optional. Its absence means one implicit stage. For a

@@ -1,4 +1,4 @@
-# memory-bank v2.13.0 (unreleased)
+# memory-bank v2.13.0
 
 Goal and interactive Next accept opt-in `MODEL_POLICY`: users choose the models
 for ordinary work and fresh read-only whole-milestone reviewers from any provider
