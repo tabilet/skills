@@ -1,3 +1,23 @@
+# memory-bank v2.13.1
+
+Upgrade now checks maintained incoming links before proposing removal or
+reduction of a package-owned stock protocol. Current execution references name
+the bundled protocol; historical references retain their original revision/path
+and approval meaning. Frozen records remain byte-for-byte unchanged, and an
+unresolved required reference preserves the file pending an approved solution.
+Negative contract fixtures cover missing link inspection, lost historical
+context, frozen-record rewriting and premature removal. These are instruction
+guards, not runtime link-repair enforcement.
+
+API setup guidance distinguishes plugin upgrades from separately installed
+executables, documents explicit mapping of custom model/base-URL variables for
+Anthropic-compatible gateways, and clarifies the obsolete `TABILET_AUDIT_DB`
+setting. No provider credential, audit opt-in or execution authority changes.
+
+The stock goal protocol bytes are unchanged from v2.13.0; a package-version
+label alone does not change `GOAL_IDENTITY`. This patch makes no DSH companion
+release or marketplace catalog update.
+
 # memory-bank v2.13.0
 
 Protocol and addendum fingerprints normalize CRLF to LF, with LF checkout rules

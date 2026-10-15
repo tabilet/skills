@@ -182,6 +182,23 @@ frozen Markdown. The execution runner's status and retirement validation stays
 strict. Published v2.4.0 and v2.5.x tags retain their released behavior; the
 audit redesign requires the v2.6.0 toolkit.
 
+The plugin, source checkout and separately installed API executables can be at
+different versions. Updating skill instructions does not update a copy in
+`~/.local/bin`. Reinstall the runner/parser, audit modules and any installed
+Explorer files together from one release, using the
+[toolkit installation](sqlite.md#install-and-use-the-optional-toolkit).
+Interactive skill execution needs neither API path. The obsolete
+`TABILET_AUDIT_DB` variable has no effect in the current toolkit and does not
+enable recording; older external databases remain untouched.
+
+For an Anthropic-compatible gateway, the runner reads `LLM_PROVIDER=anthropic`,
+`LLM_MODEL` (or `--model`) and `LLM_API_BASE` (or `--api-base`), with
+`ANTHROPIC_API_KEY` as the provider key fallback. Custom names such as
+`DS_ANTHROPIC_MODEL` and `DS_ANTHROPIC_BASE_URL` need explicit mapping to those
+settings. Supply the API prefix without `/messages`, which the runner appends.
+Keep credentials out of project launch input. These settings do not select
+interactive goal models or change the API paths' authorization boundaries.
+
 ### Prompt caching and context
 
 Tabilet sends HTTP requests to the configured provider. It has no local model

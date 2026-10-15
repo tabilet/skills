@@ -16,6 +16,38 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_upgrade_removal_checks_references_without_rewriting_frozen_evidence(self) -> None:
+        # Static contract coverage only: these fixtures do not run an agent
+        # or establish that a project's references were actually inspected.
+        import shutil
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            bundle = fixture / "skills/memory-bank-upgrade"
+            bundle.mkdir(parents=True)
+            shutil.copytree(ROOT / "template", fixture / "template")
+            shutil.copytree(ROOT / "template", bundle / "assets/template")
+            (fixture / "AGENTS.md").write_text((ROOT / "AGENTS.md").read_text())
+            original = (ROOT / "skills/memory-bank-upgrade/SKILL.md").read_text()
+            path = bundle / "SKILL.md"
+            path.write_text(original)
+            with mock.patch.object(repository_checks, "ROOT", fixture), \
+                 mock.patch.object(repository_checks, "SKILLS_DIR", fixture / "skills"):
+                self.assertEqual([], repository_checks.upgrade_contract())
+                for old, new in (
+                    ("inspect maintained incoming\nlinks", "inspect AGENTS.md only"),
+                    ("explicitly labelled historical\nsource reference", "current execution pointer"),
+                    ("Preserve frozen records byte-for-byte", "Rewrite frozen records to repair links"),
+                    ("preserve the protocol file\npending an approved solution", "delete the protocol file immediately"),
+                ):
+                    with self.subTest(regression=old):
+                        self.assertIn(old, original)
+                        path.write_text(original.replace(old, new))
+                        self.assertTrue(any("upgrade is missing" in p
+                                            for p in repository_checks.upgrade_contract()))
+                path.write_text(original)
+                self.assertEqual([], repository_checks.upgrade_contract())
+
     def test_corrective_and_email_contracts_reject_scope_and_approval_regressions(self) -> None:
         # Contract guards cannot prove runtime semantic scope or human approval.
         paths = set(repository_checks.CORRECTIVE_EMAIL_CONTRACTS) | {

@@ -118,6 +118,15 @@ Upgrade never writes a merged protocol. It also rewrites `AGENTS.md` and
 `milestone.md` pointers that name `tabilet/GOAL.md` as the protocol, and offers
 the template's Out of scope register as an explicit adoption.
 
+Before removing or reducing the file, Upgrade inspects maintained incoming
+links throughout the project and includes their repairs in the proposal.
+Current execution pointers select the bundled protocol and optional addendum.
+Unfrozen historical references retain their recorded revision/path and are
+labelled as historical source references; they do not select today's protocol.
+Frozen records retain their bytes and original source-commit path context.
+If a required reference cannot be resolved, the file stays pending an approved
+solution. Removing a stock copy must not leave unexplained broken links.
+
 When `tabilet/memory-bank/suggested.txt` also exists, Upgrade proposes a refresh
 against the whole live approved active horizon and adds the `GOAL_IDENTITY` block.
 It preserves explicit order or priority, commit, integration, external-mutation,

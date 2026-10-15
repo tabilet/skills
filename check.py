@@ -2604,7 +2604,10 @@ def upgrade_contract():
                   "task tables, row notes, markers", "original bytes", "already compatible",
                   "Do not implement tasks, commit", "exact previously approved proposal",
                   "compatibility cannot be established", "stop the affected merge",
-                  "requested-change procedure"):
+                  "requested-change procedure", "inspect maintained incoming links",
+                  "explicitly labelled historical source reference",
+                  "Preserve frozen records byte-for-byte",
+                  "preserve the protocol file pending an approved solution"):
         if token not in text:
             problems.append(f"upgrade is missing its preservation contract: {token}")
     if "memory-bank-upgrade" not in (ROOT / "AGENTS.md").read_text():

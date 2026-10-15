@@ -156,6 +156,17 @@ upgrade. Rewrite `AGENTS.md` and `milestone.md` pointers that describe
 optional addendum. Offer the template's Out of scope register as explicit
 adoption.
 
+Before removing or reducing a stock protocol file, inspect maintained incoming
+links throughout the project, including guidance outside `AGENTS.md` and
+`milestone.md`. Include each required reference repair in the approved proposal.
+Current execution pointers name the bundled protocol and optional addendum.
+An unfrozen historical reference may become an explicitly labelled historical
+source reference with its recorded revision/path; never substitute current
+protocol semantics for an earlier approval. Preserve frozen records byte-for-byte
+and resolve their literal paths in the original source-commit context. If a
+required reference cannot be preserved or resolved, preserve the protocol file
+pending an approved solution instead of leaving an unexplained broken link.
+
 When existing `tabilet/memory-bank/suggested.txt` is found and the selected
 governing protocol is available and compatible, include its refresh in the same proposal.
 Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash; use the
@@ -226,7 +237,8 @@ Verify the resulting diff against the approval and original evidence:
   dead links, and no unfilled project placeholder or example task was introduced;
 - no protocol copy or merged protocol was written into the project, an approved
   `tabilet/GOAL.md` removal or reduction matches the proposal, and the resolved
-  commit policy remains explicit;
+  commit policy remains explicit; maintained incoming links resolve, and any
+  historical source reference is identified with its original context;
 - an existing refreshed launch reference matches live project truth, preserves
   explicit policies, includes `AUTHORIZATION_GRANTS` even when empty, and marks
   proposed grants as unapproved; absent optional files remain absent unless an

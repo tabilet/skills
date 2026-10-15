@@ -1459,6 +1459,15 @@ See [SQLite setup](#optional-sqlite-audit-and-lookup) and
 [Sync and Repair](#sync-and-repair). Published v2.4.0 and v2.5.x tags retain the
 storage behavior documented in their release notes.
 
+For an interactive skill workflow, adopting newer goal instructions does not
+require installing either API path. Check the executable you actually use:
+an older copy in `~/.local/bin` is independent of this checkout and the plugin.
+Reinstall an existing audit toolkit as a set from one release, including its
+runner/parser and any installed Explorer files; see the
+[toolkit installation](docs/sqlite.md#install-and-use-the-optional-toolkit).
+The obsolete `TABILET_AUDIT_DB` variable does not select storage or enable audit
+in the current toolkit. Existing external databases are left untouched.
+
 <a id="setup-and-run"></a>
 ### 9.2 Setup and Run
 
@@ -1532,6 +1541,25 @@ ALLOW_UNSANDBOXED_SHELL=1 \
 MAX_RUNS=1 \
 tackle-memory-bank-api-loop .
 ```
+
+For an Anthropic-compatible gateway, pass its base URL and model explicitly.
+Custom shell names such as `DS_ANTHROPIC_MODEL` and `DS_ANTHROPIC_BASE_URL` are
+not read automatically. With those variables and `ANTHROPIC_API_KEY` already
+set in your shell, use this configuration with the same shell acknowledgement
+and sandbox precautions above:
+
+```bash
+LLM_PROVIDER=anthropic \
+LLM_MODEL="$DS_ANTHROPIC_MODEL" \
+LLM_API_BASE="$DS_ANTHROPIC_BASE_URL" \
+ALLOW_UNSANDBOXED_SHELL=1 \
+MAX_RUNS=1 \
+tackle-memory-bank-api-loop .
+```
+
+The runner appends `/messages` to the base URL; provide the gateway's API prefix,
+without that final endpoint. Provider credentials stay out of project launch
+references. This configuration is separate from interactive goal `MODEL_POLICY`.
 
 The harness embeds the task instruction in its API prompt. It does not call the
 Codex CLI, and it does not require the external prompt file at runtime. The
