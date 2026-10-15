@@ -14,7 +14,7 @@ request preparation. Both use the same project files; there is no second ledger.
 
 ## Install the DSH companion
 
-The companion's v2.4.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
+The companion's v2.13.0 target is Linux, Node **24.14.1**, and DSH **0.1.5-rc.2**
 with a locked dependency graph. An isolated rc.1 launcher with rc.2 components
 is a separate acceptance target. The all-rc.1 tests and v1.3.0 live evidence in
 this guide remain scoped to their original configuration.
@@ -27,7 +27,7 @@ the prebuilt GitHub archive in each profile where it is wanted. For Web:
 
 ```bash
 dsh plugin --profile web add \
-  https://github.com/tabilet/tabilet-skills/releases/download/v2.4.0/tabilet-skills-2.4.0.tgz \
+  https://github.com/tabilet/tabilet-skills/releases/download/v2.13.0/tabilet-skills-2.13.0.tgz \
   --ignore-scripts
 ```
 
@@ -51,10 +51,10 @@ counters remain separate from task-marker counts; terminal rows do not prove
 milestone acceptance. Documents render as literal text without active HTML or
 automatic external resources.
 
-The v2.4.0 shortcuts preview requests for seven skills. Propose has one
+The v2.13.0 shortcuts preview requests for seven skills. Propose has one
 required multiline change field and an optional stage focus for `--stages` or
 one stable `STG-` ID. The sidebar shows optional stage direction and browses
-the selected project's external SQLite database read-only when available.
+the selected project's fixed `tabilet/audit.sqlite3` read-only when available.
 It links to the separately installed local Explorer. Goal requires explicit
 milestone order, completion conditions, and commit policy; its visible default is `task`
 and requests include `EXTERNAL_MUTATIONS: none`. Reconcile treats a review path
@@ -65,11 +65,12 @@ No button submits, approves, edits status, or starts another ledger writer.
 The v2 sidebar displays v1.5.0 projects read-only with a migration warning;
 workflow previews are offered after explicit migration.
 
-The current unreleased companion instead reads the fixed project database at
-`tabilet/audit.sqlite3` and displays its saved manual audit setting. Existing
-v2.4.0 installations keep the released external-storage behavior until updated;
-the [companion acceptance record](https://github.com/tabilet/tabilet-skills/blob/main/docs/ACCEPTANCE.md)
-distinguishes published artifacts from the source candidate.
+The companion displays the project's saved manual audit setting and never
+creates, enables or refreshes storage. Registered linked worktrees share the
+primary checkout's database. Existing v2.4.0 installations keep their released
+external-storage behavior until updated. The
+[companion acceptance record](https://github.com/tabilet/tabilet-skills/blob/main/docs/ACCEPTANCE.md)
+distinguishes published archives from pending catalog acceptance.
 
 The bundle's filesystem provider has default-root discovery disabled and runs at
 bundled priority. Project/user overrides retain their normal precedence. The
@@ -120,7 +121,7 @@ DSH does not consume this repository's plugin manifest.
 
 ## Install the seven bundles
 
-These source-checkout commands target the v2.4.0 tree with seven skills.
+These source-checkout commands target the v2.13.0 tree with seven skills.
 
 The primary destination is `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`.
 Set `MEMORY_BANK_CHECKOUT` to the absolute release checkout path. Run the

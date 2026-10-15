@@ -1162,9 +1162,9 @@ milestones](#run-an-ordered-set-of-milestones).
 ### 7.4 DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
-packages the seven v2.4.0 skills and adds a native
+packages the seven v2.13.0 skills and adds a native
 Memory Bank sidebar with task, memory, acceptance, stage, history, and SQLite
-guidance views. It prepares workflow requests for
+browsing views. It prepares workflow requests for
 your conversation; the user reviews and sends them. It makes no model calls or
 project writes while browsing or preparing requests. The companion targets
 DSH **0.1.5-rc.2**, Linux, and Node **24.14.1**. See
