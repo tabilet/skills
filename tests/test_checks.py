@@ -383,6 +383,7 @@ class CheckHelperTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)
             (fixture / "GOAL.md").write_bytes((ROOT / "GOAL.md").read_bytes())
+            (fixture / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
             for bundle in repository_checks.GOAL_BUNDLES:
                 folder = fixture / "skills" / bundle
                 folder.mkdir(parents=True)
@@ -393,6 +394,9 @@ class CheckHelperTests(unittest.TestCase):
                     mock.patch.object(repository_checks, "expected_goal_registry",
                                       return_value=(registry, [])):
                 self.assertEqual(repository_checks.goal_copies(), [])
+                (fixture / ".gitattributes").write_text("GOAL.md text\n")
+                self.assertTrue(any("line-ending rule" in p for p in repository_checks.goal_copies()))
+                (fixture / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
                 drifted = fixture / "skills/memory-bank-propose/GOAL.md"
                 drifted.write_text(drifted.read_text() + "\nDrift.\n")
                 self.assertTrue(any("memory-bank-propose/GOAL.md" in p for p in repository_checks.goal_copies()))

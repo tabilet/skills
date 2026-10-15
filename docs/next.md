@@ -140,6 +140,10 @@ another approval for the covered repair. Resume the same chain; preserve partial
 work and pause if overlapping changes cannot be separated safely. Repairs cannot
 weaken acceptance or cancel unmet obligations, and their own reviews cannot
 reset or replace the original milestone's persisted review gate.
+Resume through the interactive Goal/Next owner with its verified approval context.
+The Python API runner/controller do not inherit corrective-planning authority
+and cannot restore the suspended row; switching launchers is not an automatic
+recovery path.
 
 To request one email per workflow approval need:
 

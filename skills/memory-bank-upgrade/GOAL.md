@@ -68,6 +68,16 @@ protocol. That file must be complete: it begins with its own protocol title and
 carries goal-input, authorization, review-gate, and commit-policy sections. An
 addendum, record, or partial file at that path stops the run.
 
+**Fingerprints.** For protocols and package addenda, compute SHA-256 after
+replacing CRLF with LF; preserve every other byte, including lone CR, whitespace
+and any BOM. Use this normalization for bundled verification, released-stock
+recognition and `GOAL_IDENTITY`. The repository pins protocol and registry
+checkouts to LF, while normalization also covers older Windows copies and
+plain-file installs. Launch-file approval checksums remain hashes of raw bytes.
+The registry's `version` describes the package build; only tagged fingerprints
+in `released` establish historical release provenance. A working build can
+change without changing that descriptive version.
+
 **Package files.** For each participating package, classify `tabilet/GOAL.md`
 with the bundled `goal-protocol.json`:
 
@@ -75,8 +85,9 @@ with the bundled `goal-protocol.json`:
 - the file is the explicitly selected `GOAL_PROTOCOL`: record
   `selected-protocol sha256:<hash>` for that package and its actual path/hash
   in the protocol entry; do not also apply the same file as an addendum;
-- byte-identical to the current or a released stock copy: ignore it, record
-  `ignored-stock <version>`, and report that it can be removed;
+- byte-identical after CRLF-to-LF normalization to the current or a released
+  stock copy: ignore it, record `ignored-stock sha256:<hash>`, and report that
+  it can be removed;
 - a full protocol copy (it begins with this file's title line) that matches no
   released copy: stop the affected work until the user reduces it to the
   project-specific part or selects it explicitly with `GOAL_PROTOCOL`;
@@ -97,7 +108,7 @@ in any launch reference:
 
 ```text
 GOAL_IDENTITY:
-- protocol: stock <version> sha256:<hash>
+- protocol: stock sha256:<hash>
 - <package>: tabilet/GOAL.md sha256:<hash>
 - <other package>: none
 ```
@@ -105,12 +116,30 @@ GOAL_IDENTITY:
 An explicitly selected protocol records `protocol: <path> sha256:<hash>`. List
 every participating package, the coordinator included, and record absence as
 `none`, so an addendum added later is detected. Recheck the whole block at every
-resume and before each child dispatch or re-dispatch. Any difference, such as an
-updated skill bundle, another agent's different bundled version, or an edited or
-new addendum, pauses the affected work and its dependents until the user
-approves the new identity; independent work may continue. A `GOAL_IDENTITY`
-supplied with a request or launch reference is verified the same way before
-execution.
+resume and before each child dispatch or re-dispatch. Compare the selected
+protocol path (for an alternative), normalized hashes, package membership and
+classifications; version labels are diagnostic metadata, never identity keys.
+Identical bytes with different release labels do not pause a run. A changed
+protocol hash, path, package classification or addendum pauses the affected work
+and its dependents until the user approves the new identity; independent work
+may continue. A `GOAL_IDENTITY` supplied with a request or launch reference is
+verified the same way before execution.
+
+For an older identity containing only `ignored-stock <version>`, recover its
+unique approved fingerprint from the released registry or trusted approval
+state and compare the actual package file. Materialize the hash when verified;
+an ambiguous or unverified mapping requires approval, never a guessed label.
+
+For a fresh launch from legacy `suggested.txt` without `GOAL_IDENTITY`, inspect
+live milestones, status, dependencies and package files, then materialize the
+complete resolved request and proposed identity in the conversation before
+execution. Obtain only missing identity approval unless the invoking human
+request already explicitly approves that concrete resolution. An old launch
+checksum or installation alone does not approve the newly resolved protocol.
+Preserve existing grants, denials, counters and limits; do not activate proposed
+grants. Refresh the launch file and its raw checksum only under the applicable
+launch-write approval, showing the transition; never silently rewrite approved
+input. This is distinct from continuing a previously approved paused run.
 
 For a legacy paused goal without `GOAL_IDENTITY`, recover its previously
 approved protocol path/hash from the invoking conversation or trusted host state.
@@ -524,6 +553,10 @@ After every prerequisite is verified and accepted and all recorded blockers
 are cleared, restore the original row from `[!]` to `[~]` under the same
 standing approval. An unresolved human, environment or permission blocker
 still pauses; clearing a repair prerequisite alone cannot override it.
+Resume through the interactive Goal/Next owner with the same verified approval
+context. A handoff to the Python API runner/controller does not transfer
+corrective-planning authority; do not use either launcher to restore or replay
+the suspended row.
 
 Preserve partial implementation and evidence. Suspension bookkeeping may be
 included with the scoped repair checkpoint under the governing commit policy;

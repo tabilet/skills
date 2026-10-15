@@ -89,15 +89,22 @@ fingerprints in `goal-protocol.json`:
 |---|---|
 | Absent | Recorded as `none`. |
 | The file is explicitly selected as `GOAL_PROTOCOL` | Recorded as `selected-protocol sha256:<hash>`; not also applied as an addendum. |
-| Byte-identical to a released stock copy | Ignored and reported as removable. |
+| Matches the current or a released stock fingerprint after CRLF-to-LF normalization | Ignored and reported as removable. |
 | A full protocol copy with local edits | The run stops until you reduce it to the project-specific part. |
 | Anything else (a short addendum, a project record) | Applied as the addendum. |
 
-It records the result as a `GOAL_IDENTITY` block (the protocol version and hash plus
-each package's addendum hash, `ignored-stock <version>`, or `none`) and rechecks the
-whole block at every resume and before each child dispatch. A plugin update, a
-different bundled version in another agent, or an edited or newly added addendum
-pauses the affected work until you approve the new identity. In a cross-package
+Protocol and addendum fingerprints normalize CRLF to LF and preserve every
+other byte. LF checkout rules protect new installs; normalization also recognizes
+older Windows copies. Approval checksums for `suggested.txt` still use raw bytes.
+
+It records the result as a `GOAL_IDENTITY` block (the governing protocol hash plus
+each package's addendum hash, `ignored-stock sha256:<hash>`, or `none`) and rechecks
+identity at every resume and before each child dispatch. Compare hashes,
+alternative protocol paths and package classifications; version labels are
+metadata. Different release labels for identical bytes do not pause execution.
+A changed protocol hash or edited or newly added addendum pauses affected work
+until you approve the new identity. Old version-only stock identities need a
+verified fingerprint mapping; uncertain mappings require approval. In a cross-package
 run the coordinator's protocol governs, and each child also applies its own
 package's addendum.
 
@@ -114,6 +121,17 @@ transition. Changed or uncertain identity needs approval once; a verified
 unchanged identity can be recorded without another approval. Preserve grants,
 denials, counters, attempts and limits. Plugin installation never silently
 upgrades the protocol of a paused run.
+
+A fresh launch from legacy `suggested.txt` without `GOAL_IDENTITY` first checks
+live project state and shows the complete resolved request and identity. Approve
+only the missing identity unless your invoking request already approves that
+concrete resolution. Preserve grants, denials, counters and limits; an old launch
+checksum does not approve the new protocol. Refreshing the file and its checksum
+still follows the launch-write approval policy.
+
+For plain-file use without a plugin, copy the complete `memory-bank-goal`
+bundle, including `goal-protocol.json`, references and scripts, outside the
+project. A lone protocol file is not a complete installation.
 
 ## Optional model policy
 

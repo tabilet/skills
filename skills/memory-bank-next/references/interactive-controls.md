@@ -68,7 +68,10 @@ Keep zero or one `[~]` row across the active ledger. Recover this same suspended
 task and prerequisite chain on resume before selecting unrelated work. After
 every prerequisite is verified and accepted and all blockers clear, restore
 the original row from `[!]` to `[~]` under the same approval. A remaining human,
-environment or permission blocker still pauses.
+environment or permission blocker still pauses. Resume through the interactive
+Goal/Next owner with the same verified approval context. A handoff to the Python
+API runner/controller does not transfer corrective-planning authority; neither
+launcher restores or replays this suspended row.
 
 Preserve partial implementation and evidence. Suspension bookkeeping may join
 the scoped repair checkpoint under the governing commit policy; it never

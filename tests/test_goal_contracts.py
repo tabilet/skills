@@ -79,7 +79,7 @@ class GoalInstructionContracts(unittest.TestCase):
                 self.assertTrue(repository_checks.v213_text_problems("GOAL.md", text.replace(old, new)))
 
     def test_model_policy_bundles_preserve_complete_pairs_and_negative_boundaries(self):
-        paths = set(repository_checks.V213_CONTRACTS) | {
+        paths = set(repository_checks.V213_GUARD_SOURCES) | {
             "skills/memory-bank-goal/references/model-policy.md",
             "skills/memory-bank-next/references/model-policy.md", "docs/DSH.md",
             "harness/prompts/tackle-next-memory-bank-todo.md", "harness/tackle-memory-bank-api-loop",
@@ -159,6 +159,174 @@ class GoalInstructionContracts(unittest.TestCase):
         self.assertEqual(version, registry["version"])
         self.assertTrue(any(entry["sha256"] == digest and "2.12.0" in entry["versions"]
                             for entry in registry["released"]))
+
+    def test_registered_guard_checks_every_entrypoint_and_embedded_instruction(self):
+        paths = set(repository_checks.V213_GUARD_SOURCES) | {
+            "docs/DSH.md", "skills/memory-bank-goal/references/model-policy.md",
+            "skills/memory-bank-next/references/model-policy.md",
+            "harness/tackle-memory-bank-api-loop",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in paths:
+                target = fixture / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual([], repository_checks.v213_contract())
+                for relative in repository_checks.V213_GUARD_SOURCES:
+                    path = fixture / relative
+                    original = path.read_text()
+                    with self.subTest(source=relative):
+                        path.write_text(original + "\nAlways reproduce the defect before any fix.\n")
+                        self.assertTrue(any(relative in p and "unconditional reproduction" in p
+                                            for p in repository_checks.v213_contract()))
+                    path.write_text(original)
+                runner = fixture / "harness/tackle-memory-bank-api-loop"
+                original = runner.read_text()
+                runner.write_text(original.replace('EMBEDDED_TASK = """\\\n',
+                                                    'EMBEDDED_TASK = """\\\nAlways reproduce the defect before any fix.\n', 1))
+                self.assertNotEqual(original, runner.read_text())
+                self.assertTrue(any("EMBEDDED_TASK" in p and "unconditional reproduction" in p
+                                    for p in repository_checks.v213_contract()))
+
+    def test_legacy_and_identity_contracts_fail_when_approval_or_hash_rules_are_lost(self):
+        paths = ("AGENTS.md", "GOAL.md", "README.md", "docs/DSH.md",
+                 "skills/memory-bank-goal/SKILL.md",
+                 "skills/memory-bank-goal/references/subagents.md",
+                 "skills/memory-bank-next/references/interactive-controls.md")
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in paths:
+                target = fixture / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual([], repository_checks.protocol_identity_contract())
+                for old, new in (
+                    ("replacing CRLF with LF", "hashing checkout bytes directly"),
+                    ("version labels are diagnostic metadata, never identity keys",
+                     "version labels are identity keys"),
+                    ("Obtain only missing identity approval", "Infer identity approval from launch input"),
+                    ("an ambiguous or unverified mapping requires approval", "guess a mapping"),
+                    ("does not transfer\ncorrective-planning authority", "transfers corrective-planning authority"),
+                ):
+                    path = fixture / "GOAL.md"
+                    original = path.read_text()
+                    with self.subTest(regression=old):
+                        self.assertIn(old, original)
+                        path.write_text(original.replace(old, new))
+                        self.assertTrue(repository_checks.protocol_identity_contract())
+                    path.write_text(original)
+
+    def test_addendum_mention_does_not_substitute_for_protocol_review_delegation(self):
+        paths = ("AGENTS.md", "GOAL.md", "template/tabilet/memory-bank/milestone.md",
+                 "skills/memory-bank-goal/SKILL.md")
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in paths:
+                target = fixture / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture), \
+                    mock.patch.object(repository_checks, "SKILLS_DIR", fixture / "skills"):
+                self.assertEqual([], repository_checks.review_fix_gate())
+                (fixture / paths[-1]).write_text(
+                    "A project addendum lives at `tabilet/GOAL.md`. Preserve the persisted "
+                    "milestone review counter and report incomplete review or closure.\n")
+                self.assertTrue(any("That protocol owns" in p for p in repository_checks.review_fix_gate()))
+
+    def test_contract_matching_normalizes_wrapping_and_case_consistently(self):
+        self.assertEqual([], repository_checks.missing_contract_tokens(
+            "Straße\n\tREVIEW   gate", ("STRASSE review\ngate",)))
+        self.assertEqual(["review gate"], repository_checks.missing_contract_tokens(
+            "review bypass", ("review gate",)))
+
+
+class ProtocolRegistryFixtures(unittest.TestCase):
+    """Real Git fixtures for registry generation; no agent resolver is implied."""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.fixture = pathlib.Path(temp.name)
+        self.manifest = self.fixture / ".claude-plugin/plugin.json"
+        self.manifest.parent.mkdir()
+        self.manifest.write_text(json.dumps({"version": "2.13.0"}))
+        self.goal = self.fixture / "GOAL.md"
+        self.original = b"# Fixture protocol\n\nPreserve approved scope.\n"
+        self.goal.write_bytes(self.original)
+        (self.fixture / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
+        bundle = self.fixture / "skills/memory-bank-goal"
+        bundle.mkdir(parents=True)
+        (bundle / "GOAL.md").write_bytes(self.original)
+        (bundle / "goal-protocol.json").write_text('{}\n')
+        self.environment = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+        self.git("init", "-q")
+        self.git("config", "user.name", "Fixture")
+        self.git("config", "user.email", "fixture@example.invalid")
+        self.git("config", "commit.gpgsign", "false")
+        self.git("add", ".")
+        self.git("commit", "-qm", "fixture published stock")
+        self.git("tag", "v2.12.0")
+
+    def git(self, *args):
+        return subprocess.check_output(["git", "-c", f"core.hooksPath={os.devnull}", *args],
+                                       cwd=self.fixture, env=self.environment, stderr=subprocess.PIPE)
+
+    def registry(self):
+        with mock.patch.object(repository_checks, "ROOT", self.fixture), \
+                mock.patch.object(repository_checks, "PLUGIN_JSON", self.manifest), \
+                mock.patch.dict(os.environ, self.environment, clear=True):
+            text, problems = repository_checks.expected_goal_registry()
+        self.assertEqual([], problems)
+        return json.loads(text)
+
+    def test_autocrlf_checkout_pins_protocol_and_registry_to_lf(self):
+        self.git("config", "core.autocrlf", "true")
+        paths = ("GOAL.md", "skills/memory-bank-goal/GOAL.md",
+                 "skills/memory-bank-goal/goal-protocol.json")
+        for relative in paths:
+            path = self.fixture / relative
+            original = path.read_bytes()
+            path.unlink()
+            self.git("checkout-index", "-f", relative)
+            self.assertEqual(original, path.read_bytes())
+            self.assertNotIn(b"\r\n", path.read_bytes())
+
+    def test_legacy_crlf_fingerprints_match_but_other_changes_do_not(self):
+        registry = self.registry()
+        crlf = self.original.replace(b"\n", b"\r\n")
+        self.assertNotEqual(hashlib.sha256(self.original).hexdigest(), hashlib.sha256(crlf).hexdigest())
+        self.assertEqual(registry["sha256"], repository_checks.protocol_sha256(crlf))
+        for changed in (self.original + b" ", self.original.replace(b"\n", b"\r"),
+                        b"\xef\xbb\xbf" + self.original):
+            self.assertNotEqual(registry["sha256"], repository_checks.protocol_sha256(changed))
+        self.goal.write_bytes(crlf)
+        self.assertEqual(registry, self.registry())
+
+    def test_same_version_edit_keeps_its_real_published_fingerprint(self):
+        self.git("tag", "v2.13.0")
+        self.goal.write_bytes(self.original + b"\nUnreleased changes.\n")
+        registry = self.registry()
+        published = repository_checks.protocol_sha256(self.original)
+        self.assertNotEqual(published, registry["sha256"])
+        self.assertTrue(any(entry["sha256"] == published and "2.13.0" in entry["versions"]
+                            for entry in registry["released"]))
+
+    def test_tagging_unchanged_content_keeps_registry_stable(self):
+        before = self.registry()
+        self.git("tag", "v2.13.0")
+        self.assertEqual(before, self.registry())
+
+    def test_identical_release_aliases_share_one_fingerprint(self):
+        self.git("tag", "v2.10.0")
+        self.git("tag", "v2.10.3")
+        registry = self.registry()
+        matching = [entry for entry in registry["released"]
+                    if entry["sha256"] == repository_checks.protocol_sha256(self.original)]
+        self.assertEqual(1, len(matching))
+        self.assertEqual(["2.10.0", "2.10.3", "2.12.0"], matching[0]["versions"])
 
 
 class UnreleasedVersionFixtures(unittest.TestCase):

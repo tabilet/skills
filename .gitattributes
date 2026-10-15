@@ -1,0 +1,3 @@
+# Protocol fingerprints must survive Windows checkouts and plain-file installs.
+GOAL.md text eol=lf
+goal-protocol.json text eol=lf

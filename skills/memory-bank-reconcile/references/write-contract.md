@@ -216,7 +216,7 @@ EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 
 GOAL_IDENTITY:
-- protocol: stock <version> sha256:<hash>
+- protocol: stock sha256:<hash>
 - <package>: none
 
 Completion condition: every required status is complete, every triggered

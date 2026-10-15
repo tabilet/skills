@@ -103,7 +103,14 @@ project. They record email attempts only and never establish task truth or
 human approval. The helper durably reserves a run/request/recipient identity
 before POST, uses verified HTTPS without redirects, and suppresses duplicate
 or uncertain attempts across resumes. It has no background process or automatic
-retry. A short-lived isolated subprocess bounds the whole network attempt,
+retry. Validate and serialize the bounded worker job as UTF-8 before reservation.
+The worker starts waiting on stdin before the reservation is created; only after
+it is durable does the parent release the job. A launch or preflight failure
+makes no POST and creates no attempt reservation, so fixing it permits the same
+alert to be sent. A duplicate or reservation failure terminates and reaps the
+waiting worker. Malformed command arguments return sanitized JSON `unavailable`
+with exit 2; `--help` remains ordinary usage text.
+A short-lived isolated subprocess bounds the whole network attempt,
 including DNS and slow response reads, to 10 seconds; timeout terminates and
 reaps it and preserves an uncertain reservation. Invalid UTF-8, control/line/bidi
 characters and malformed input return JSON `unavailable` with exit 2. Empty or

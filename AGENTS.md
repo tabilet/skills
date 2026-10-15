@@ -334,7 +334,10 @@ spelling so an inbound link survives translation.
   needs no audit database or background service and does not intercept native
   host tool approvals. The two helpers and references stay byte-identical.
   Bound each network attempt to 10 seconds with a supervised, reaped subprocess;
-  retain uncertain reservations. Empty/relative XDG settings use lazy home
+  validate UTF-8 worker input and start it waiting before reserving an attempt,
+  then release its job only after durable reservation; retain uncertain
+  post-dispatch reservations. Launch failures leave no attempt record, and
+  argument errors return sanitized JSON. Empty/relative XDG settings use lazy home
   defaults. Missing resume identity is an alert gap, never a new send identity.
   Next's interactive controls stay in its bundled reference; the designated
   shared execution block alone matches the API prompt and its embedded twin.
@@ -449,7 +452,11 @@ spelling so an inbound link survives translation.
   modified full copy stops the run until reduced. Goal state and launch input
   record a `GOAL_IDENTITY` block (protocol hash and every participating package's
   addendum hash, `ignored-stock`, or `none`) that is rechecked at every resume and
-  child dispatch.
+  child dispatch. Protocol/addendum fingerprints normalize CRLF to LF only;
+  version labels are diagnostic metadata, never identity keys. Tagged hashes
+  remain recognizable during same-version development. Legacy fresh launches
+  missing identity show the resolved request and obtain missing identity approval
+  without silently rewriting approved launch input or changing grants and limits.
 - A leftover lease worktree is removed only after recorded successful closure,
   with matching ownership, no active writer, a merged branch, and a clean
   worktree. Both normal and resume cleanup inspect ignored artifacts and retain

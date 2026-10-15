@@ -171,7 +171,8 @@ receives a focused brief rather than the owner's whole conversation:
 - exactly one `ASSIGNED_MILESTONE`, its `ASSIGNED_STATUS_FILE`, allowed writes,
   and the condition for returning to the owner;
 - the governing protocol, each applicable package addendum (path and hash, the
-  `GOAL_IDENTITY` block), and complete resolved request: the chosen
+  `GOAL_IDENTITY` block; hashes normalize CRLF to LF and version labels are
+  metadata), and complete resolved request: the chosen
   `STATUS_ORDER` or `STATUS_PRIORITY`, commit and external-mutation policies,
   concurrency/integration authority, user scope restrictions, and stop conditions;
 - the child's role and owned write boundaries, plus the captured integration

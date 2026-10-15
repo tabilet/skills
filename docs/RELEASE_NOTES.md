@@ -1,5 +1,26 @@
 # memory-bank v2.13.0
 
+Protocol and addendum fingerprints normalize CRLF to LF, with LF checkout rules
+for bundled protocols and registries. Tagged fingerprints remain available when
+a working protocol changes without a package-version bump. Identity compares
+hashes, selected paths and package classifications; release-label aliases alone
+do not interrupt a run. Fresh legacy launch references without identity get an
+explicit resolution and missing-approval transition, preserving grants and limits.
+
+Installation guidance now uses v2.13.0 with matching instructions and complete
+bundles. Corrective suspension resumes through its authorized interactive owner;
+API launchers retain their existing row and authorization gates.
+
+Contract guards cover operative entrypoints and the extracted API instruction,
+use consistent token normalization, and check delegation to the governing
+protocol. These are static instruction checks, not runtime approval enforcement.
+
+Approval email validates bounded UTF-8 worker input before reservation and
+starts a waiting worker before creating an attempt record. A launch failure
+can be corrected without permanently suppressing an unattempted alert; uncertain
+post-dispatch outcomes still never replay automatically. Argument errors return
+sanitized JSON. Email tests avoid creating bytecode in shipped bundles.
+
 Goal and interactive Next accept opt-in `MODEL_POLICY`: users choose the models
 for ordinary work and fresh read-only whole-milestone reviewers from any provider
 supported by their host. Effort settings are optional and host/model-specific;
@@ -52,8 +73,11 @@ every participating package's addendum hash, `ignored-stock <version>`, or
 `none`), rechecked at every resume and child dispatch; any change pauses the
 affected work. Upgrade classifies an existing `tabilet/GOAL.md` and proposes
 removing a stock copy or reducing a modified one; it never writes a merged
-protocol. Existing packages keep working unchanged, and you can delete or
-truncate their `tabilet/GOAL.md` when convenient.
+protocol. This changes goal-protocol compatibility: a modified full project
+copy blocks goal execution until explicitly reconciled, while a recognized
+stock copy is ignored in favor of the bundled protocol. A paused run still
+requires approval for a changed or uncertain identity; installation does not
+approve that transition. Ordinary project addenda remain applicable.
 
 **Lease cleanup.** The governing protocol now removes a finished lease worktree
 and its branch after recorded closure, and a resume sweep removes leftovers only

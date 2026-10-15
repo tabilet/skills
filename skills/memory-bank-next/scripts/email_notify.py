@@ -21,11 +21,18 @@ import urllib.request
 TIMEOUT = 10
 MAX_INPUT = 8192
 MAX_RESPONSE = 16384
+MAX_JOB = MAX_INPUT + MAX_RESPONSE
 
 
 class NotificationError(Exception):
     def __init__(self, message: str, outcome: str = "failed"):
         super().__init__(message)
+        self.outcome = outcome
+
+
+class DuplicateDelivery(Exception):
+    """A durable earlier success was found before releasing a worker's input."""
+    def __init__(self, outcome: str):
         self.outcome = outcome
 
 
@@ -213,7 +220,7 @@ def read_json_input(limit: int, outcome: str = "failed"):
 def delivery_worker() -> int:
     """Private subprocess entrypoint; secrets arrive only over inherited pipes."""
     try:
-        job = read_json_input(MAX_INPUT + MAX_RESPONSE, "unknown")
+        job = read_json_input(MAX_JOB, "unknown")
         if not isinstance(job, dict) or set(job) != {"profile", "token", "payload"}:
             raise NotificationError("Email delivery worker input is invalid.", "unknown")
         outcome = deliver(job["profile"], job["token"], job["payload"])
@@ -228,14 +235,25 @@ def delivery_worker() -> int:
         return 2
 
 
-def deliver_bounded(profile: dict, token: str, payload: dict) -> str:
+def deliver_bounded(profile: dict, token: str, payload: dict, before_dispatch=None) -> str:
     """One supervised network attempt, including DNS and slow response reads."""
-    job = json.dumps({"profile": profile, "token": token, "payload": payload}).encode("utf-8")
+    job = json.dumps({"profile": profile, "token": token, "payload": payload},
+                     ensure_ascii=False).encode("utf-8")
+    if len(job) > MAX_JOB:
+        raise NotificationError("Email delivery worker input is too large; no delivery was attempted.")
+    try:
+        worker = subprocess.Popen([sys.executable, "-I", str(Path(__file__).resolve()), "--delivery-worker"],
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.DEVNULL)
+    except OSError:
+        raise NotificationError("Email delivery worker could not start; no delivery was attempted.") from None
     deadline = time.monotonic() + TIMEOUT
-    with subprocess.Popen([sys.executable, "-I", str(Path(__file__).resolve()), "--delivery-worker"],
-                          stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                          stderr=subprocess.DEVNULL) as worker:
+    with worker:
         try:
+            # Until this callback durably reserves the attempt, the isolated
+            # worker is blocked on stdin and cannot make a network request.
+            if before_dispatch is not None:
+                before_dispatch()
             raw, _ = worker.communicate(job, timeout=max(0, deadline - time.monotonic()))
         except subprocess.TimeoutExpired:
             worker.kill()
@@ -293,34 +311,43 @@ def send(event: dict, recipient: str, project_root: Path) -> dict:
     profile, token, root = load_profile(recipient, project_root)
     identity = json.dumps([event["run_id"], event["request_id"], recipient], separators=(",", ":"))
     key = hashlib.sha256(identity.encode("utf-8")).hexdigest()
-    root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    root.chmod(0o700)
-    outside_project(root, project_root)
     path = root / (key + ".json")
-    try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    except FileExistsError:
+    reserved = False
+
+    def reserve():
+        nonlocal reserved
+        root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        root.chmod(0o700)
+        outside_project(root, project_root)
         try:
-            if path.is_symlink() or path.stat().st_size > MAX_INPUT:
-                raise ValueError
-            cached = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(cached, dict) and cached.get("outcome") in {"accepted", "queued"}:
-                return {"status": "duplicate", "delivery": cached["outcome"]}
-            if isinstance(cached, dict) and cached.get("outcome") == "failed":
-                raise NotificationError("This approval alert was already attempted and failed; it will not retry automatically.")
-        except (OSError, ValueError, UnicodeError, RecursionError):
-            pass
-        raise NotificationError("This approval alert was already attempted; inspect provider logs before retrying.", "unknown") from None
-    record = {"outcome": "unknown"}
-    with os.fdopen(fd, "w", encoding="utf-8") as stream:
-        json.dump(record, stream)
-        stream.flush()
-        os.fsync(stream.fileno())
-    sync_directory(root)
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            try:
+                if path.is_symlink() or path.stat().st_size > MAX_INPUT:
+                    raise ValueError
+                cached = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(cached, dict) and cached.get("outcome") in {"accepted", "queued"}:
+                    raise DuplicateDelivery(cached["outcome"])
+                if isinstance(cached, dict) and cached.get("outcome") == "failed":
+                    raise NotificationError("This approval alert was already attempted and failed; it will not retry automatically.")
+            except (OSError, ValueError, UnicodeError, RecursionError):
+                pass
+            raise NotificationError("This approval alert was already attempted; inspect provider logs before retrying.", "unknown") from None
+        reserved = True
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump({"outcome": "unknown"}, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        sync_directory(root)
+
     try:
-        outcome = deliver_bounded(profile, token, message(event, recipient, profile["from"], token))
+        outcome = deliver_bounded(profile, token, message(event, recipient, profile["from"], token),
+                                  before_dispatch=reserve)
+    except DuplicateDelivery as existing:
+        return {"status": "duplicate", "delivery": existing.outcome}
     except NotificationError as error:
-        write_record(path, {"outcome": error.outcome})
+        if reserved:
+            write_record(path, {"outcome": error.outcome})
         raise
     # If persistence fails after the POST, the original unknown reservation
     # remains. The next invocation never silently replays that request.
@@ -332,12 +359,17 @@ def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv == ["--delivery-worker"]:
         return delivery_worker()
-    parser = argparse.ArgumentParser(description=__doc__)
+    class JsonArgumentParser(argparse.ArgumentParser):
+        def error(self, message):
+            # Do not echo argv: callers may accidentally supply private text.
+            raise NotificationError("Invalid email helper arguments; use --help for usage.")
+
+    parser = JsonArgumentParser(description=__doc__)
     parser.add_argument("operation", choices=("check", "send"))
     parser.add_argument("--to", required=True)
     parser.add_argument("--project-root", required=True, type=Path)
-    args = parser.parse_args(argv)
     try:
+        args = parser.parse_args(argv)
         recipient = address(args.to)
         if args.operation == "check":
             load_profile(recipient, args.project_root)

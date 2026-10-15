@@ -133,8 +133,10 @@ The goal protocol now ships with the skills: this bundle carries the stock
 [GOAL.md](GOAL.md) and its fingerprint registry `goal-protocol.json`, and
 projects no longer keep a copy. A project's `tabilet/GOAL.md`, when present, is a
 project addendum that narrows the stock protocol at run time. Classify an
-existing file with the registry, as the stock protocol's Protocol Resolution And
-Identity section describes, and include the result in the complete proposal:
+existing file with the registry, using its CRLF-to-LF normalized fingerprints
+as the stock protocol's Protocol Resolution And Identity section describes, and
+include the result in the complete proposal. Version labels are descriptive;
+compare hashes and classifications. Launch checksums remain raw-byte hashes:
 
 Resolve explicit `GOAL_PROTOCOL` selection first. Preserve a file selected as
 the alternative full protocol; do not classify it as an addendum to truncate
@@ -165,7 +167,10 @@ Do not remove or truncate a file currently selected as the alternative full
 protocol merely because the stock addendum classifier would reject it.
 Preserve explicit `MODEL_POLICY`; omission preserves host model settings.
 Propose the optional policy only when requested, without activating it on a
-paused run. For legacy goals lacking `GOAL_IDENTITY`, compare the previously
+paused run. A fresh legacy launch without `GOAL_IDENTITY` follows the protocol's
+legacy-launch transition: show the resolved identity and obtain missing identity
+approval, preserving grants and limits; launch writes still require approval.
+For legacy goals lacking `GOAL_IDENTITY`, compare the previously
 approved protocol path/hash with the proposed resolution, show the transition,
 and obtain approval for a changed or uncertain identity. Preserve grants,
 denials, review counters, attempt usage and operational limits; installing or

@@ -29,8 +29,12 @@ the memory-bank goal protocol and use this bundle's `goal-protocol.json`
 `version` and `sha256`. For an alternative, retain `GOAL_PROTOCOL: <path>` and
 record `protocol: <path> sha256:<hash>` from the actual selected file, without
 requiring a package-local `tabilet/GOAL.md` or substituting stock metadata.
+Use the protocol's CRLF-to-LF normalized fingerprints; keep version labels as
+descriptive metadata, never identity keys. Launch approval checksums still use
+raw bytes. An older launch without identity needs the protocol's explicit
+legacy-launch transition, not a silent refresh that activates grants.
 Always emit a matching `GOAL_IDENTITY` with every participating package's
-addendum hash, `ignored-stock <version>`, or `none`. If a package file itself is
+addendum hash, `ignored-stock sha256:<hash>`, or `none`. If a package file itself is
 the selected alternative protocol, record `selected-protocol sha256:<hash>`
 instead of applying it twice as an addendum. Keep invocation and addenda
 consistent with the selected protocol. A protocol switch requires explicit

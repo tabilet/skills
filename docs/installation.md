@@ -160,7 +160,13 @@ projects. Duplicate/uncertain attempts never replay automatically. `accepted`
 or `queued` describes the provider response, not confirmed inbox delivery.
 Each network attempt has a 10-second total deadline, including slow responses.
 The helper reports expected input/protocol failures as JSON `unavailable` with
-exit 2. Empty or relative XDG settings use the documented home defaults.
+exit 2, including malformed command arguments (`--help` still shows usage).
+Worker input uses bounded UTF-8. The worker starts waiting for input before the
+attempt is reserved, and receives its job only after the reservation is durable.
+A process-launch or preflight failure sends nothing and leaves no attempt record;
+fixing it allows the same alert to be attempted. Once dispatch may have occurred,
+uncertain reservations remain suppressed. Empty or relative XDG settings use
+the documented home defaults.
 Recipient local-part case must match configuration; domains ignore case.
 If notification identity cannot be recovered on resume, report an alert gap.
 After resolving a failed/uncertain outcome, an explicitly requested additional

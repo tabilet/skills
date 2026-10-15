@@ -313,7 +313,7 @@ EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 
 GOAL_IDENTITY:
-- protocol: stock <version> sha256:<hash>
+- protocol: stock sha256:<hash>
 - <package>: none
 
 Completion condition: every required status is complete, every triggered
@@ -321,12 +321,15 @@ conditional status is complete, and every milestone's documented verification
 passes.
 ```
 
+Use CRLF-to-LF normalized protocol/addendum fingerprints from the governing
+protocol; version labels are diagnostic metadata. Keep launch approval checksums
+as raw-byte hashes.
 The example selects stock. For stock selection, fill `GOAL_IDENTITY` from the
 bundled `goal-protocol.json`: its `version` and `sha256` for the protocol line.
 For an explicit alternative, retain `GOAL_PROTOCOL: <path>`, replace the stock
 invocation with an invocation of that selected protocol, and record
 `protocol: <path> sha256:<hash>` from its actual bytes. In both cases list every
-participating package's applicable addendum hash, `ignored-stock <version>`, or
+participating package's applicable addendum hash, `ignored-stock sha256:<hash>`, or
 `none`. Preserve explicit selection and surface any proposed switch for human
 approval. A package-local protocol file is never required for stock use.
 

@@ -30,8 +30,10 @@ bounded, hand off each milestone to a fresh sub-agent.
 Every child brief, including a lease, reviewer, or reconciliation analyst,
 includes the governing protocol and each applicable package addendum as paths
 with their hashes (the `GOAL_IDENTITY` block), plus the complete resolved goal
-request. Recheck `GOAL_IDENTITY` before each dispatch; any difference pauses the
-affected child and its dependents. Carry these values explicitly, including
+request. Recheck `GOAL_IDENTITY` before each dispatch using CRLF-to-LF
+normalized hashes, selected paths and package classifications; version labels
+are descriptive metadata and aliases for identical bytes do not change identity.
+A changed identity pauses the affected child and its dependents. Carry these values explicitly, including
 defaults:
 
 - The selected `STATUS_ORDER` or `STATUS_PRIORITY`, resolved file map, and

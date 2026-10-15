@@ -18,6 +18,7 @@ This file checks `skills` itself. It is not payload: a project that copies
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -231,6 +232,21 @@ def prose(text: str) -> str:
     return re.sub(r"^```.*?^```", "", text, flags=re.S | re.M)
 
 
+def normalized_contract_text(text: str) -> str:
+    """Ignore wrapping and case consistently in instruction contract checks."""
+    return " ".join(text.split()).casefold()
+
+
+def missing_contract_tokens(text: str, tokens) -> list[str]:
+    flat = normalized_contract_text(text)
+    return [token for token in tokens if normalized_contract_text(token) not in flat]
+
+
+def protocol_sha256(data: bytes) -> str:
+    """Protocol/addendum fingerprints normalize CRLF only; launch hashes do not."""
+    return hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+
+
 def headings(text: str) -> list[str]:
     return re.findall(r"^#{1,6}\s+(.*)$", prose(text), re.M)
 
@@ -319,14 +335,12 @@ GOAL_RELEASE_PATHS = ("GOAL.md", "template/GOAL.md", "template/tabilet/GOAL.md")
 def expected_goal_registry() -> tuple[str | None, list[str]]:
     """Build the registry text from plugin.json, root GOAL.md, and the git tags.
 
-    `released` lists every stock protocol shipped by a tag older than the
-    current version, so a resolver can recognise an old stock copy left in a
-    package. The tag equal to the current version is excluded, which keeps the
-    registry stable when that release is tagged.
+    `released` retains tagged fingerprints through the manifest version,
+    including that version's published bytes if the working protocol changes.
+    An equal-version tag matching the current fingerprint adds nothing, keeping
+    generation stable when unchanged release content is tagged. `version` is
+    package metadata, not proof that the current working fingerprint was released.
     """
-    import hashlib
-    import json
-
     if not PLUGIN_JSON.exists():
         return None, [".claude-plugin/plugin.json is missing"]
     version = json.loads(PLUGIN_JSON.read_text()).get("version", "")
@@ -334,21 +348,25 @@ def expected_goal_registry() -> tuple[str | None, list[str]]:
     tags = [t for t in listed.stdout.split() if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
     if listed.returncode or not tags:
         return None, ["no v* tags found; fetch tags so the goal registry can be built"]
-    tags = sorted((t for t in tags if version_tuple(t[1:]) < version_tuple(version)),
+    tags = sorted((t for t in tags if version_tuple(t[1:]) <= version_tuple(version)),
                   key=lambda t: version_tuple(t[1:]))
+    current_hash = protocol_sha256((ROOT / "GOAL.md").read_bytes())
     released: dict[str, list[str]] = {}
     for tag in tags:
         for relative in GOAL_RELEASE_PATHS:
             shown = subprocess.run(["git", "show", f"{tag}:{relative}"], cwd=ROOT, capture_output=True)
             if shown.returncode or not shown.stdout:
                 continue
-            versions = released.setdefault(hashlib.sha256(shown.stdout).hexdigest(), [])
+            digest = protocol_sha256(shown.stdout)
+            if tag[1:] == version and digest == current_hash:
+                continue
+            versions = released.setdefault(digest, [])
             if tag[1:] not in versions:
                 versions.append(tag[1:])
     registry = {
         "schema": "tabilet.goal-protocol/v1",
         "version": version,
-        "sha256": hashlib.sha256((ROOT / "GOAL.md").read_bytes()).hexdigest(),
+        "sha256": current_hash,
         "released": [{"sha256": digest, "versions": versions} for digest, versions in released.items()],
     }
     return json.dumps(registry, indent=2) + "\n", []
@@ -371,6 +389,10 @@ def sync_goal_protocol() -> int:
 @check("stock GOAL.md and its registry are identical in every goal bundle")
 def goal_copies():
     problems = []
+    attributes = ROOT / ".gitattributes"
+    for rule in ("GOAL.md text eol=lf", "goal-protocol.json text eol=lf"):
+        if not attributes.is_file() or rule not in attributes.read_text().splitlines():
+            problems.append(f".gitattributes: missing protocol line-ending rule {rule!r}")
     root_goal = (ROOT / "GOAL.md").read_bytes()
     text, registry_problems = expected_goal_registry()
     problems.extend(registry_problems)
@@ -407,7 +429,7 @@ def goal_copies():
         "`GOAL_PROTOCOL: <path>`",
         "GOAL_IDENTITY:",
         "record `none`",
-        "`ignored-stock <version>`",
+        "`ignored-stock sha256:<hash>`",
         "write no merged protocol into any project",
         "It cannot weaken the review-fix gate",
         "Recheck the whole block at every resume and before each child dispatch",
@@ -424,6 +446,39 @@ def goal_copies():
         if token not in flat_goal:
             problems.append(f"GOAL.md: missing protocol contract {token!r}")
     return problems
+
+
+@check("protocol identity and legacy launches preserve hashes and approval")
+def protocol_identity_contract():
+    requirements = {
+        "AGENTS.md": ("fingerprints normalize CRLF to LF only",
+                      "version labels are diagnostic metadata, never identity keys",
+                      "Legacy fresh launches", "Launch failures leave no attempt record"),
+        "GOAL.md": ("replacing CRLF with LF", "preserve every other byte",
+                    "Launch-file approval checksums remain hashes of raw bytes",
+                    "version labels are diagnostic metadata, never identity keys",
+                    "Identical bytes with different release labels do not pause a run",
+                    "an ambiguous or unverified mapping requires approval",
+                    "For a fresh launch from legacy `suggested.txt` without `GOAL_IDENTITY`",
+                    "Obtain only missing identity approval",
+                    "never silently rewrite approved input",
+                    "does not transfer corrective-planning authority"),
+        "skills/memory-bank-goal/SKILL.md": (
+            "CRLF-to-LF normalized SHA-256", "not version labels",
+            "obtain missing identity approval", "Do not silently rewrite the file"),
+        "skills/memory-bank-goal/references/subagents.md": (
+            "normalized hashes, selected paths and package classifications",
+            "aliases for identical bytes do not change identity"),
+        "skills/memory-bank-next/references/interactive-controls.md": (
+            "does not transfer corrective-planning authority",
+            "neither launcher restores or replays this suspended row"),
+        "README.md": ("complete `skills/memory-bank-goal/` directory",
+                      "tag and its matching guide"),
+        "docs/DSH.md": ("older tags require their own installation instructions",),
+    }
+    return [f"{relative}: missing identity/compatibility contract {token!r}"
+            for relative, tokens in requirements.items()
+            for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
 
 
 AUTHORIZATION_DOC_CONTRACTS = {
@@ -791,10 +846,8 @@ def corrective_email_contract():
         if not path.is_file():
             problems.append(f"{relative}: missing corrective/email contract")
             continue
-        flat = " ".join(path.read_text().split())
-        for token in tokens:
-            if token.lower() not in flat.lower():
-                problems.append(f"{relative}: missing corrective/email guidance {token!r}")
+        for token in missing_contract_tokens(path.read_text(), tokens):
+            problems.append(f"{relative}: missing corrective/email guidance {token!r}")
     for relative in ("scripts/email_notify.py", "references/email-notifications.md"):
         copies = [ROOT / "skills" / ("memory-bank-" + skill) / relative for skill in ("goal", "next")]
         if any(not path.is_file() for path in copies):
@@ -960,7 +1013,8 @@ def review_fix_gate():
 
     # The launcher delegates the gate; its canonical owners above carry the
     # full rules. Requiring a second copy here encourages protocol drift.
-    for token in ("`tabilet/GOAL.md`", "persisted milestone review counter", "incomplete review or closure"):
+    for token in ("That protocol owns sequencing, verification, review, reconciliation, closure, and commit policy",
+                  "persisted milestone review counter", "incomplete review or closure"):
         if token not in goal_skill:
             problems.append(
                 f"memory-bank-goal/SKILL.md: missing review gate contract {token!r}"
@@ -2801,10 +2855,8 @@ def v212_contract():
             problems.append(f"{relative}: missing v2.12 contract file")
             continue
         text = path.read_text()
-        flat = " ".join(text.split())
-        for token in tokens:
-            if " ".join(token.split()).lower() not in flat.lower():
-                problems.append(f"{relative}: missing v2.12 contract {token!r}")
+        for token in missing_contract_tokens(text, tokens):
+            problems.append(f"{relative}: missing v2.12 contract {token!r}")
     agents = (ROOT / "template" / "AGENTS.md").read_text()
     if len(agents.splitlines()) > TEMPLATE_AGENTS_MAX_LINES:
         problems.append(f"template/AGENTS.md exceeds {TEMPLATE_AGENTS_MAX_LINES} lines; "
@@ -2904,13 +2956,21 @@ V213_FORBIDDEN = (
      "review counter reset on reviewer replacement"),
 )
 
+# Required tokens and forbidden prose have different coverage needs. Sources
+# without a token table must still be checked by the registered top-level guard.
+V213_GUARD_SOURCES = tuple(dict.fromkeys((*V213_CONTRACTS,
+    "skills/memory-bank-init/SKILL.md",
+    "skills/memory-bank-goal/SKILL.md",
+    "skills/memory-bank-next/SKILL.md",
+    "skills/memory-bank-goal/references/subagents.md",
+    "harness/prompts/tackle-next-memory-bank-todo.md",
+)))
+
 
 def v213_text_problems(relative: str, text: str) -> list[str]:
     """Documentation lint only; never resolve goals, grants or model dispatch."""
-    flat = " ".join(text.split()).casefold()
     problems = [f"{relative}: missing v2.13 contract {token!r}"
-                for token in V213_CONTRACTS.get(relative, ())
-                if " ".join(token.split()).casefold() not in flat]
+                for token in missing_contract_tokens(text, V213_CONTRACTS.get(relative, ()))]
     operative = " ".join(prose(text).split())
     for pattern, message in V213_FORBIDDEN:
         if re.search(pattern, operative, re.I):
@@ -2946,12 +3006,20 @@ def model_policy_example_problems(text: str) -> list[str]:
 @check("v2.13 remediation and opt-in model policy preserve evidence and selection")
 def v213_contract():
     problems = []
-    for relative in V213_CONTRACTS:
+    for relative in V213_GUARD_SOURCES:
         path = ROOT / relative
         if not path.is_file():
             problems.append(f"missing {relative}")
         else:
             problems.extend(v213_text_problems(relative, path.read_text()))
+    # Inspect the embedded instruction, not Python strings/comments unrelated
+    # to task execution. Parity alone cannot reject a contradiction in both copies.
+    tree = ast.parse((ROOT / "harness/tackle-memory-bank-api-loop").read_text())
+    embedded = next(ast.literal_eval(node.value) for node in tree.body
+                    if isinstance(node, ast.Assign)
+                    and any(isinstance(target, ast.Name) and target.id == "EMBEDDED_TASK"
+                            for target in node.targets))
+    problems.extend(v213_text_problems("harness/tackle-memory-bank-api-loop:EMBEDDED_TASK", embedded))
     copies = [ROOT / f"skills/memory-bank-{name}/references/model-policy.md"
               for name in ("goal", "next")]
     if any(not path.is_file() for path in copies):

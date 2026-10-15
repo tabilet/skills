@@ -92,9 +92,11 @@ for the observed results and remaining limitations. SDK, ACP, minimal profiles,
 other platforms, and older releases are not certified here.
 
 DSH integration is included in **memory-bank v1.3.0**. Use a v1.3.0-or-newer
-checkout containing this guide. Use the v2.4.0 tag for a reproducible seven-skill
-installation. See the [release notes](RELEASE_NOTES.md) for upgrade
-guidance and the [project-upgrade procedure](../README.md#upgrade-an-existing-project).
+checkout containing its matching guide. Use the v2.13.0 tag and its guide for a
+reproducible seven-skill installation; older tags require their own installation
+instructions rather than this current resource preflight. See the
+[release notes](RELEASE_NOTES.md) for upgrade guidance and the
+[project-upgrade procedure](../README.md#upgrade-an-existing-project).
 Updating installed skills does not migrate existing `AGENTS.md`,
 goal protocols, memory banks, lessons, or histories. Adopt project lifecycle
 changes explicitly; see [long-term memory](../README.md#keep-long-term-memory-without-growing-the-active-plan).

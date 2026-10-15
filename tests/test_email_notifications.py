@@ -18,6 +18,8 @@ import urllib.error
 from unittest import mock
 
 
+# Direct test invocation without -B must not add caches to shipped bundles.
+sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "skills/memory-bank-goal/scripts/email_notify.py"
 spec = importlib.util.spec_from_file_location("email_notify_test", SCRIPT)
@@ -53,7 +55,7 @@ class EmailNotificationTests(unittest.TestCase):
         # Provider and reservation fixtures run in-process. Supervisor fixtures
         # below exercise the real isolated worker with offline fake programs.
         patcher = mock.patch.object(notifier, "deliver_bounded",
-                                    side_effect=lambda *args: notifier.deliver(*args))
+                                    side_effect=self.inline_delivery)
         patcher.start()
         self.addCleanup(patcher.stop)
         # Any accidental unmocked network access fails this suite.
@@ -72,6 +74,12 @@ class EmailNotificationTests(unittest.TestCase):
     def write_profile(self):
         self.config.write_text(json.dumps(self.profile), encoding="utf-8")
         self.config.chmod(0o600)
+
+    @staticmethod
+    def inline_delivery(*args, before_dispatch=None):
+        if before_dispatch is not None:
+            before_dispatch()
+        return notifier.deliver(*args)
 
     def response(self, **groups):
         response = mock.MagicMock()
@@ -340,7 +348,7 @@ class EmailNotificationTests(unittest.TestCase):
             with patcher, self.assertRaises(notifier.NotificationError) as caught:
                 notifier.deliver(self.profile, self.token, {"to": "owner@example.test"})
             self.assertEqual("unknown", caught.exception.outcome)
-        with mock.patch.object(notifier, "deliver_bounded", return_value="queued"):
+        with mock.patch.object(notifier, "deliver", return_value="queued"):
             self.send()
         original_loads = json.loads
         def nested_record(raw):
@@ -403,8 +411,10 @@ class EmailNotificationTests(unittest.TestCase):
             with self.assertRaisesRegex(notifier.NotificationError, "already attempted"):
                 self.send()
         self.assertLess(time.monotonic() - start, 1)
-        self.assertEqual(1, len(workers))
-        self.assertIsNotNone(workers[0].poll())
+        # A duplicate may launch a waiting worker, but it never releases its
+        # job and every process is reaped, including that suppressed attempt.
+        self.assertEqual(2, len(workers))
+        self.assertTrue(all(worker.poll() is not None for worker in workers))
         records = list((self.root / "state").rglob("*.json"))
         self.assertEqual({"outcome": "unknown"}, json.loads(records[0].read_text()))
 
@@ -433,6 +443,112 @@ class EmailNotificationTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertEqual("ready", json.loads(result.stdout)["status"])
         self.assertFalse((self.root / "state").exists())
+
+    def test_worker_start_failure_is_json_and_does_not_reserve_or_suppress(self):
+        event_input = io.StringIO(json.dumps(self.event))
+        output = io.StringIO()
+        with mock.patch.object(notifier, "deliver_bounded", side_effect=BOUNDED_DELIVER), \
+                mock.patch.object(notifier.subprocess, "Popen", side_effect=OSError(self.token)), \
+                mock.patch("sys.stdin", event_input), mock.patch("sys.stdout", output):
+            code = notifier.main(["send", "--to", "owner@example.test", "--project-root", str(self.project)])
+        result = json.loads(output.getvalue())
+        self.assertEqual(2, code)
+        self.assertEqual(("unavailable", "failed"), (result["status"], result["delivery"]))
+        self.assertIn("worker could not start", result["error"])
+        self.assertNotIn(self.token, output.getvalue())
+        self.assertFalse((self.root / "state").exists())
+        # Same identity is still eligible after fixing a provably unattempted send.
+        with mock.patch.object(notifier, "deliver", return_value="queued") as deliver:
+            self.assertEqual({"status": "sent", "delivery": "queued"}, self.send())
+        self.assertEqual(1, deliver.call_count)
+
+    def test_valid_large_unicode_job_fits_worker_and_reservation_precedes_input(self):
+        self.profile["allowed_recipients"] = ["owner@example.test"] * 365
+        self.token = "x" * 4096
+        self.write_profile()
+        self.assertLessEqual(self.config.stat().st_size, notifier.MAX_INPUT)
+        event = {**self.event, "run_id": "r" * 128, "project": "\U0001f600" * 120,
+                 "milestone": "\U0001f600" * 80, "reason": "\U0001f600" * 500,
+                 "session_id": "\U0001f600" * 128}
+        encoded_event = json.dumps(event, ensure_ascii=False).encode()
+        self.assertLessEqual(len(encoded_event), notifier.MAX_INPUT)
+        worker = mock.MagicMock()
+        worker.__enter__.return_value = worker
+        worker.returncode = 0
+        jobs = []
+
+        def communicate(job=None, **kwargs):
+            records = list((self.root / "state").rglob("*.json"))
+            self.assertEqual(1, len(records))
+            self.assertEqual({"outcome": "unknown"}, json.loads(records[0].read_text()))
+            self.assertLessEqual(len(job), notifier.MAX_JOB)
+            jobs.append(job)
+            return b'{"delivery":"queued"}', None
+
+        worker.communicate.side_effect = communicate
+        with mock.patch.dict(os.environ, {"CLOUDFLARE_EMAIL_TEST_TOKEN": self.token}), \
+                mock.patch.object(notifier, "deliver_bounded", side_effect=BOUNDED_DELIVER), \
+                mock.patch.object(notifier.subprocess, "Popen", return_value=worker) as popen:
+            self.assertEqual("queued", self.send(event)["delivery"])
+        self.assertNotIn(self.token, repr(popen.call_args))
+        output = io.StringIO()
+        with mock.patch("sys.stdin", io.BytesIO(jobs[0])), mock.patch("sys.stdout", output), \
+                mock.patch.object(notifier, "deliver", return_value="queued") as deliver:
+            self.assertEqual(0, notifier.delivery_worker())
+        self.assertEqual(event["reason"], deliver.call_args.args[2]["text"].split("Reason: ", 1)[1].splitlines()[0])
+
+    def test_preflight_failure_never_starts_worker_or_reserves(self):
+        with mock.patch.object(notifier, "MAX_JOB", 1), \
+                mock.patch.object(notifier, "deliver_bounded", side_effect=BOUNDED_DELIVER), \
+                mock.patch.object(notifier.subprocess, "Popen") as popen:
+            with self.assertRaisesRegex(notifier.NotificationError, "no delivery was attempted"):
+                self.send()
+        popen.assert_not_called()
+        self.assertFalse((self.root / "state").exists())
+
+    def test_reservation_failure_reaps_waiting_worker_without_releasing_job(self):
+        worker = mock.MagicMock()
+        worker.__enter__.return_value = worker
+        with mock.patch.object(notifier.subprocess, "Popen", return_value=worker):
+            with self.assertRaises(OSError):
+                BOUNDED_DELIVER(self.profile, self.token, {"to": "owner@example.test"},
+                                before_dispatch=mock.Mock(side_effect=OSError("fixture reservation failure")))
+        worker.kill.assert_called_once()
+        worker.communicate.assert_called_once_with()
+
+    def test_bad_cli_arguments_return_sanitized_json_and_help_remains_text(self):
+        for args in ([], ["send"], ["invalid-private-argument"],
+                     ["check", "--to", "owner@example.test", "--project-root", str(self.project), "--private=" + self.token]):
+            result = subprocess.run([sys.executable, "-I", str(SCRIPT), *args],
+                                    capture_output=True, text=True, check=False)
+            with self.subTest(args=args):
+                self.assertEqual(2, result.returncode)
+                self.assertEqual("unavailable", json.loads(result.stdout)["status"])
+                self.assertEqual("", result.stderr)
+                self.assertNotIn(self.token, result.stdout)
+                self.assertNotIn("invalid-private-argument", result.stdout)
+        result = subprocess.run([sys.executable, "-I", str(SCRIPT), "--help"],
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(0, result.returncode)
+        self.assertIn("usage:", result.stdout)
+
+    def test_plain_test_invocation_does_not_create_payload_bytecode(self):
+        # Copy the real test entrypoint and helper, then run without -B or the
+        # bytecode environment override. No source-tree artifacts are generated.
+        fixture = self.root / "plain-tests"
+        test_copy = fixture / "tests/test_email_notifications.py"
+        helper_copy = fixture / SCRIPT.relative_to(ROOT)
+        test_copy.parent.mkdir(parents=True)
+        helper_copy.parent.mkdir(parents=True)
+        test_copy.write_bytes(Path(__file__).read_bytes())
+        helper_copy.write_bytes(SCRIPT.read_bytes())
+        env = {key: value for key, value in os.environ.items()
+               if key not in {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX"}}
+        result = subprocess.run([sys.executable, str(test_copy),
+                                 "EmailNotificationTests.test_readiness_is_local_and_creates_no_state"],
+                                cwd=fixture, env=env, capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([], list((fixture / "skills").rglob("__pycache__")))
 
 
 if __name__ == "__main__":

@@ -954,7 +954,12 @@ of skills, so this repository does not install or recommend a separate
 
 Paste the block as an ordinary request. Selecting the protocol is all it
 needs; nothing depends on a slash command existing. Without the plugin, copy the
-stock `GOAL.md` from this repository next to your skills and name its path.
+complete `skills/memory-bank-goal/` directory from this repository to an
+account-level location outside your projects. Keep `GOAL.md`,
+`goal-protocol.json`, and all supporting references and scripts together, then
+name that bundled protocol in your ordinary request. Copying only `GOAL.md`
+omits the registry needed to recognize historical project copies and resources
+needed by optional controls.
 
 `COMMIT_POLICY` matters, and a goal run is a deliberate exception to the usual
 rule. For the length of the run it is the entire commit rule: `AGENTS.md` may say
@@ -1187,8 +1192,9 @@ Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
 only the identified memory-bank bundles. Removal retains those bundles in a
 backup and leaves project memory, credentials, and unrelated skills alone.
 Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.11.0` tag. A marketplace install or
-`main` download follows the repository's current published state.
+For a reproducible installation, use the `v2.13.0` tag and its matching guide.
+A marketplace install or `main` download follows the repository's current
+published state.
 
 Start `dsh web` from your project, confirm the workspace, and invoke
 `/memory-bank-init`, `/memory-bank-archive`, `/memory-bank-propose`,
