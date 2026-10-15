@@ -221,7 +221,8 @@ Show:
 5. The current stage and any preliminary later stages; omit `tabilet/stages.md`
    when a one-stage project has no use for it.
 6. Later **candidate directions**, each unnumbered and carrying its reason for
-   deferral and promotion trigger.
+   deferral and promotion trigger, and any work the user rules **out of scope**,
+   with its reason.
 7. Every destination file action: create, merge, preserve, or omit.
 
 When an archive preflight exists, include the seeded product and architecture
@@ -235,6 +236,11 @@ Rules:
 
 - A milestone is a narrow, complete, independently verifiable vertical slice.
 - A row is one commit and fits in one fresh context window.
+- A wide refactor, one mechanical change whose blast radius breaks many call
+  sites at once (renaming a shared symbol, column, or path), cannot land as one
+  green slice. Plan it as expand–contract: first add the new form beside the old,
+  then migrate callers in batches with one row each, keeping verification green,
+  and finally remove the old form once no caller remains.
 - Keep implementation, its tests, and corrections to current memory-bank facts
   it invalidates in the same row. Separate documentation rows cover additional
   reference work, not deferred corrections to current truth.
@@ -256,8 +262,8 @@ or out, and whether every file action is safe. Iterate until approved.
 
 Only after the complete proposal is approved, follow the already-read
 [write contract](references/write-contract.md) to write.
-It owns the file actions, generated file set, portable
-`tabilet/GOAL.md` copy rule, status tables, disposable launch reference, output checks,
+It owns the file actions, generated file set, stock goal
+protocol rules, status tables, disposable launch reference, output checks,
 and final handoff.
 Continue through those checks and handoff; ask again only for conflicts or file
 actions outside the approved proposal.

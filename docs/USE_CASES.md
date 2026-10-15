@@ -83,8 +83,8 @@ dependency-closed active plan and file actions.
 The output includes project-specific current facts, verification commands,
 `lessons.md`, active milestone specifications and status files, and later
 candidate directions without permanent IDs. Existing project instructions are
-merged safely, not replaced wholesale. A compatible approved `tabilet/GOAL.md` enables
-the disposable `tabilet/memory-bank/suggested.txt` launch reference.
+merged safely, not replaced wholesale. Approving goal use enables the disposable
+`tabilet/memory-bank/suggested.txt` launch reference.
 
 Then request `memory-bank-next` for one row, or `memory-bank-goal` for the
 approved ordered work. New projects have nothing to snapshot, and a small
@@ -148,11 +148,11 @@ it reconcile an existing `suggested.txt` or derive an order and obtain
 confirmation. The skill materializes the complete resolved request in the
 conversation; the temporary suggestion is not active truth.
 
-The project must contain an approved compatible `tabilet/GOAL.md` for this skill. A
+The skill uses the goal protocol bundled with it; the project needs no `tabilet/GOAL.md`. A
 portable request, usable without the skill too, looks like:
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: M01 -> M02
 STATUS_FILE_MAP:
@@ -167,9 +167,9 @@ Completion condition: both required milestones meet their acceptance and
 documented verification, and their milestone review gates pass.
 ```
 
-Use the actual IDs, dependencies, and paths from your project. [GOAL.md](../GOAL.md)
+Use the actual IDs, dependencies, and paths from your project. The [stock goal protocol](../GOAL.md)
 owns execution sequencing and commit policy; this guide does not replace it.
-If the file is absent, use `next` or explicitly supply a different protocol
+If the bundled protocol is missing, use `next` or explicitly supply a different protocol
 instead of improvising one. Conditional work needs a documented trigger, and
 blockers or missing authority stop progress rather than being treated as
 success. Adopted retirement is part of closure, not a subsequent archive run.

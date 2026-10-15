@@ -20,7 +20,15 @@ authority or migration. Create no approval ledger or audit dependency; do not
 launch execution. Grants cannot expand Python API authorization boundaries.
 
 Always emit `AUTHORIZATION_GRANTS` in refreshed launch input, using
-`AUTHORIZATION_GRANTS: {}` for the default with no explicit grants. Requirements
+`AUTHORIZATION_GRANTS: {}` for the default with no explicit grants.
+Refresh launch input only when goal use is approved (an existing
+`suggested.txt` counts) and this bundle's stock goal protocol is available.
+Name it as the memory-bank goal protocol and always emit its `GOAL_IDENTITY`
+block: the protocol line from this bundle's `goal-protocol.json` (`version` and
+`sha256`), then one line per participating package with its `tabilet/GOAL.md`
+addendum hash, `ignored-stock <version>`, or `none`, classified as the bundled
+`GOAL.md` Protocol Resolution And Identity section describes. Never copy the
+protocol into a project or write a merged protocol. Requirements
 stay in the milestone specification; do not duplicate them in `suggested.txt`.
 Proposed grants in `suggested.txt` carry decision markers: `[ ]` (need authorization),
 `[+]` (approve), `[-]` (deny), and `[~]` (auto). High-level `GLOBAL:` grants declare
@@ -135,6 +143,10 @@ pending-only rescope. An entire withdrawn milestone keeps its original active
 record until ordinary review, disposition, and retirement close it.
 
 For a milestone whose acceptance depends on an expensive or protected check, apply the milestone file's expensive-check rule: acceptance covers only behavior the milestone owns, proved with the smallest workload; real producer or consumer pairing belongs to the adopting milestone; needed host capabilities get a cheap readiness probe as the first row; and an uncounted local diagnostic loop is named. Review intake must not move downstream pairing evidence into such a milestone.
+
+A wide refactor, one mechanical change whose blast radius breaks many call sites at once (renaming a shared symbol, column, or path), cannot land as one green row. Plan it as expand–contract: first add the new form beside the old, then migrate callers in batches with one row each, keeping verification green, and finally remove the old form once no caller remains.
+
+Record work the user rules out of the project in the milestone file's Out of scope register with its reason. It gets no ID, never promotes, and returns only through a new approved direction; do not re-propose it as a candidate.
 
 Keep the active dependency graph closed and update affected pending downstream scope and acceptance; never prune downstream impacts to force parallel safety. When proposing new milestones, identify write sets and contract boundaries; parallel-safe defaults to no. Candidate Directions remain unnumbered and absent from launch input. When `tabilet/stages.md` exists, keep it aligned with current milestone stage references; stage ideas do not enter launch input. Put intended behavior and durable rationale in milestone/status records; current product, architecture, and stack documents describe only evidenced present facts. Add an evolution pair only when the project's existing material direction-change trigger is met. Refresh `tabilet/memory-bank/suggested.txt` only for an approved compatible `tabilet/GOAL.md` and the whole active horizon; otherwise omit it or propose removal of a stale copy. Never create or modify `tabilet/GOAL.md` as a planning side effect.
 

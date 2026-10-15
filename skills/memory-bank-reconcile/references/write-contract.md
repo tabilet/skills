@@ -40,8 +40,8 @@ silently overwrite user content or expand the reviewed project boundary.
 - Never edit or delete a verified `tabilet/docs/archive-<LANE><NN>.md`. If review
   evidence suggests the historical baseline is wrong or materially obsolete,
   report that `memory-bank-archive` must decide whether a successor is needed.
-- Do not create, replace, or modify `tabilet/GOAL.md`. It is an optional execution
-  protocol, not review state.
+- Do not create, replace, or modify `tabilet/GOAL.md`. It is an optional project
+  addendum to the bundled goal protocol, not review state.
 - Do not commit, push, tag, publish, open a change request, or mutate another
   repository or external system without separate authorization.
 - Stop before any collision or user-owned memory-bank change that the approved
@@ -121,7 +121,9 @@ Placement rules:
    approved external-input row must start blocked.
 5. Put optional lower-severity hardening in Candidate Directions with no lane,
    permanent status ID, status file, or execution-order entry. Record why it is
-   deferred and the concrete trigger for fresh reconciliation.
+   deferred and the concrete trigger for fresh reconciliation. A finding the
+   user rules out of the project goes to the Out of scope register with its
+   reason instead; it never promotes.
 
 Recompute the complete active dependency graph after placement. Update pending
 dependencies, assumptions, tasks, acceptance, verification,
@@ -172,7 +174,8 @@ Always emit `AUTHORIZATION_GRANTS`, using `AUTHORIZATION_GRANTS: {}` for the
 default with no explicit grants. Requirements stay in owning milestone
 specifications; do not duplicate them in the disposable launch reference.
 
-When the project contains an approved compatible `tabilet/GOAL.md`, replace
+When goal use is approved (an existing `tabilet/memory-bank/suggested.txt` counts)
+and this bundle's stock goal protocol is available, replace
 `tabilet/memory-bank/suggested.txt` with a fresh launch reference derived from the whole
 approved active horizon, not only the new review findings. It is disposable
 input, never review history or active truth.
@@ -188,7 +191,7 @@ Use this shape with project values:
 # Decision markers: [ ] = need authorization, [+] = approve, [-] = deny, [~] = auto.
 # Verify sha256 matches human approval before activating grants.
 
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER:
 M01 -> M02
@@ -205,6 +208,10 @@ SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
+
+GOAL_IDENTITY:
+- protocol: stock <version> sha256:<hash>
+- <package>: none
 
 Completion condition: every required status is complete, every triggered
 conditional status is complete, and every milestone's documented verification
@@ -229,10 +236,10 @@ the SHA256 checksum of `suggested.txt` is required before grant activation. Use 
 trailing `?` only for an approved conditionally required status whose concrete
 trigger is documented in `milestone.md`. Never include Candidate Directions.
 
-When no compatible protocol exists, omit `tabilet/memory-bank/suggested.txt`. Remove an
-existing stale reference only when that removal was in the approved file
-actions. Report one-row execution as the available path; do not create or
-approximate `tabilet/GOAL.md`.
+When the bundled goal protocol is unavailable, omit
+`tabilet/memory-bank/suggested.txt`. Remove an existing stale reference only when that
+removal was in the approved file actions. Report one-row execution as the
+available path; never create or approximate a protocol copy in the project.
 
 ## Check the output
 

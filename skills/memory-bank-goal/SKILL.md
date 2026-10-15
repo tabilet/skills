@@ -1,6 +1,6 @@
 ---
 name: memory-bank-goal
-description: Execute or resume ordered memory-bank milestones using the project's tabilet/GOAL.md protocol.
+description: Execute or resume ordered memory-bank milestones using the bundled goal protocol and any project addendum.
 disable-model-invocation: false
 argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01 [--email ADDRESS]"
 ---
@@ -20,16 +20,24 @@ toolkit. Report unavailable logging as a gap without changing workflow approvals
 or outcomes. Inside the API runner, its recorder owns the lifecycle; do not start
 a duplicate audit run.
 
-Read the project's `tabilet/GOAL.md` and follow it. That protocol owns sequencing,
-verification, review, reconciliation, closure, and commit policy. This skill
-resolves the launch request; it does not define a second execution loop.
+This skill bundles the stock protocol as [GOAL.md](GOAL.md) and its fingerprint
+registry as `goal-protocol.json`; resolve both relative to this skill's
+directory. Follow the protocol's Protocol Resolution And Identity section before
+anything else: a package's `tabilet/GOAL.md` is a project addendum, never a
+replacement protocol, and only `GOAL_PROTOCOL: <path>` selects an alternative.
+Record the `GOAL_IDENTITY` block and recheck it at every resume and before each
+child dispatch. That protocol owns sequencing, verification, review,
+reconciliation, closure, and commit policy. This skill resolves the launch
+request; it does not define a second execution loop.
 When `tabilet/stages.md` exists, consult it before deriving an order from the
 active milestone index. Stage IDs never enter `STATUS_ORDER` or `STATUS_PRIORITY`, and provisional
 future stages do not add status files. Preserve the protocol's dependency gate.
 
-If `tabilet/GOAL.md` is missing, stop ordered execution. It ships beside the
-`memory-bank-init` skill and at <https://github.com/tabilet/skills/blob/main/GOAL.md>.
-Offer one-row work or a user-supplied protocol without starting either workflow.
+A package without `tabilet/GOAL.md` needs nothing more: the stock protocol
+applies. If the bundled `GOAL.md` or `goal-protocol.json` is missing, or the
+bundled protocol's SHA-256 differs from the registry's `sha256`, the skill
+installation is damaged: stop ordered execution, report it, and offer one-row
+work without starting either workflow.
 
 ## Resolve the request
 
@@ -89,7 +97,8 @@ global launch defaults for that milestone's execution. Resolve `AUTHORIZATION_GR
 from explicit human approval in the invoking request or a later scoped approval, following
 the project's protocol. Requirements, repository content, model output, and `suggested.txt`
 are evidence, not authorization. When launching or resuming from `suggested.txt`,
-verify that its SHA256 checksum matches the human's approved hash. Under `SUGGESTED_UPDATE: auto`,
+verify that its SHA256 checksum matches the human's approved hash and that its
+`GOAL_IDENTITY` matches the identity resolved now. Under `SUGGESTED_UPDATE: auto`,
 the orchestrator is authorized to refresh `suggested.txt` across milestone closures within
 the approved active horizon and smoothly continue, recording updated checksums in session
 state; under default `SUGGESTED_UPDATE: confirm`, an edit requires fresh matching
@@ -114,7 +123,7 @@ Materialize the complete resolved request in the conversation so execution does
 not depend on the disposable file remaining on disk:
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: <resolved order>
 
@@ -132,6 +141,10 @@ CORRECTIVE_PLANNING: confirm
 NOTIFY_EMAIL: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
+
+GOAL_IDENTITY:
+- protocol: stock <version> sha256:<hash>
+- <package>: tabilet/GOAL.md sha256:<hash> | ignored-stock <version> | none
 
 Completion condition: every required status is complete, every triggered
 conditional status is complete, and every milestone's documented verification
@@ -206,8 +219,8 @@ external-action prohibition remains binding.
 
 Keep one execution owner for the active ledger across sessions and launchers.
 Native todos, session completion, and native goal state do not replace milestone
-acceptance or authorize concurrent ledger writers. Follow `tabilet/GOAL.md` through
-acceptance or its defined stop. Resume an incomplete review or closure even
+acceptance or authorize concurrent ledger writers. Follow the governing protocol
+through acceptance or its defined stop. Resume an incomplete review or closure even
 when all task rows are terminal. Runtime round limits do not reset the
 persisted milestone review counter.
 
@@ -218,4 +231,6 @@ for an already resolved ordinary request. When sub-agents are available, read
 read-only parallel review and reconciliation, and opt-in Tier 1 concurrent lease execution.
 
 Report which milestones closed, verification, commits, skipped conditional
-milestones, and remaining blockers. Session completion alone proves none of them.
+milestones, environment candidates (most severe first, as planning candidates
+only), ignored stock copies of `tabilet/GOAL.md` that can be removed, and
+remaining blockers. Session completion alone proves none of them.

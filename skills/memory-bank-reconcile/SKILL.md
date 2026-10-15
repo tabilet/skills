@@ -99,8 +99,9 @@ same project boundary and current-state reconciliation.
 Read applicable agent instructions and the project's memory bank in its required
 order. Also read the review, relevant implementation and tests, manifests,
 interfaces, schemas, documentation, Git history, `tabilet/evolution/`, and any existing
-`tabilet/memory-bank/suggested.txt`. Read `tabilet/GOAL.md` only to determine whether it is a
-compatible launch protocol; do not invoke its execution loop.
+`tabilet/memory-bank/suggested.txt`. Read an existing `tabilet/GOAL.md` only to classify it
+as a project addendum for the launch reference's `GOAL_IDENTITY`; do not invoke
+the goal protocol's execution loop.
 
 Resolve the review's stated baseline when it has one, the current full Git
 `HEAD` when Git exists, and relevant worktree changes. A baseline mismatch does
@@ -181,7 +182,8 @@ Use these ownership rules:
   does not make a blocking finding disappear.
 - Add a lower-severity finding to active work only when it is required by the
   matching acceptance. Otherwise keep it unnumbered in Candidate Directions
-  with an explicit rationale and promotion trigger.
+  with an explicit rationale and promotion trigger, or record it in the Out of
+  scope register with its reason when the user rules it out.
 - Do not create work for resolved, unsupported, or duplicate findings. Route an
   outside-ownership finding to its named owner without mutating another project.
 

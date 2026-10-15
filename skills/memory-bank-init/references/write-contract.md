@@ -7,7 +7,7 @@ writes only after the user approves the complete proposal.
 
 - [Apply safe file actions](#apply-safe-file-actions)
 - [Write the project files](#write-the-project-files)
-- [Handle the portable goal protocol](#handle-the-portable-goal-protocol)
+- [Handle the stock goal protocol](#handle-the-stock-goal-protocol)
 - [Write the disposable launch reference](#write-the-disposable-launch-reference)
 - [Write status tables](#write-status-tables)
 - [Preserve long-term memory](#preserve-long-term-memory)
@@ -23,16 +23,18 @@ destination. Never silently overwrite an existing file.
 - Merge the memory-bank read order, essential commands, boundaries, hard rules,
   and work cadence into an existing `AGENTS.md` while preserving its applicable
   project instructions and removing only approved duplication.
-- When `tabilet/GOAL.md` is absent, use the bundled copy rule below. When it is already
-  byte-identical, preserve it. When it differs, preserve the existing file
-  unless the user approved replacing it. Treat a differing protocol as
-  compatible only when its documented interface accepts the launch fields and
-  sequencing contract below and the user approved using it.
-- Create `tabilet/memory-bank/suggested.txt` only when the approved project will contain
-  a compatible `tabilet/GOAL.md`. Otherwise omit the launch reference and every optional
-  `tabilet/GOAL.md`-specific paragraph or pointer from generated `AGENTS.md` and
-  `tabilet/memory-bank/milestone.md`; do not generate a request that names a missing or
-  incompatible protocol.
+- Projects do not receive a protocol copy. Preserve an existing `tabilet/GOAL.md`
+  and classify it with the bundled `goal-protocol.json`, as the goal protocol's
+  Protocol Resolution And Identity section describes: report a stock-identical
+  copy as removable, report a modified full protocol copy as needing reduction to
+  its project-specific part before goal use, and keep anything else as the
+  project addendum. Remove or rewrite it only with explicit approval; never write
+  a merged protocol.
+- Create `tabilet/memory-bank/suggested.txt` only when the user approves goal use and
+  the bundled goal protocol is available. Otherwise omit the launch reference and
+  every optional goal-protocol paragraph or pointer from generated `AGENTS.md`
+  and `tabilet/memory-bank/milestone.md`; do not generate a request that names a
+  missing protocol.
 - When `tabilet/evolution/` already contains numbered direction history, preserve it and
   use the next unused version for the approved initial memory-bank snapshot.
 - When an approved archive preflight exists, merge its current observed facts
@@ -48,7 +50,7 @@ Create or merge the approved project-specific content for:
 
 ```text
 AGENTS.md                        what an agent reads first
-tabilet/GOAL.md                  optional protocol for multi-milestone runs
+tabilet/GOAL.md                  existing project addendum only; never generated
 tabilet/stages.md                optional overview when multiple stages are approved
 tabilet/memory-bank/product.md           product, users, workflows, domain model, non-goals
 tabilet/memory-bank/architecture.md      layout, data flow, ownership, public contracts
@@ -56,7 +58,7 @@ tabilet/memory-bank/tech-stack.md        stack, dependencies, harnesses, command
 tabilet/memory-bank/lessons.md           applicable reusable lessons and evidence
 tabilet/memory-bank/milestone.md         active index, acceptance, candidate directions
 tabilet/memory-bank/status-<LANE><NN>.md one per active milestone, one row per task
-tabilet/memory-bank/suggested.txt        optional; only with a compatible GOAL.md
+tabilet/memory-bank/suggested.txt        optional; only when goal use is approved
 tabilet/evolution/prompt-v1.md           initial direction, or next unused version
 tabilet/evolution/result-v1.md           current state, or next unused version
 ```
@@ -158,27 +160,31 @@ with the project's blocked-status mechanism.
 
 Candidate directions are not milestones. Do not assign them lane letters or
 status IDs, create status files for them, or include them in an execution order.
+Record work the user rules out of the project as an Out of scope entry with its
+reason. It gets no ID, never promotes, and returns only through a new approved
+direction, so the same idea is not re-proposed as a candidate.
 When a trigger becomes true, reconsider the candidate and obtain approval
 before allocating the next unused permanent ID.
 
-## Handle the portable goal protocol
+## Handle the stock goal protocol
 
-The bundled `tabilet/GOAL.md` is copied, never written from memory. It must stay
-byte-identical across projects that carry that protocol. Resolve the directory
-containing the parent `memory-bank-init/SKILL.md` and copy the sibling `GOAL.md`
-shipped there. This location is common to plugin and plain-file installs. Do not
-depend on provider-specific plugin-root environment variables.
+The stock goal protocol ships with the skills. This bundle carries `GOAL.md` and
+its fingerprint registry `goal-protocol.json` beside the parent
+`memory-bank-init/SKILL.md`; resolve them relative to that directory, which is
+the same in plugin and plain-file installs. Do not depend on provider-specific
+plugin-root environment variables, and do not copy the protocol into the
+project.
 
-If the project has no `tabilet/GOAL.md` and the bundled file cannot be found, say so and
-omit both `tabilet/GOAL.md` and `tabilet/memory-bank/suggested.txt` rather than writing an
-approximation or a dead-end launch request. An existing approved compatible
-protocol does not need the bundled file. The project works one row at a time
-without either protocol, and `memory-bank-goal` can tell the user where to get
-the bundled one.
+If the bundled files cannot be found, say so and omit
+`tabilet/memory-bank/suggested.txt` rather than writing an approximation or a
+dead-end launch request. The project works one row at a time without the
+protocol.
 
-Tell the user the protocol and launch reference are optional and can be deleted
-together. They are one way to run several active milestones in order, not a
-requirement of the memory bank.
+Tell the user the launch reference is optional and can be deleted at any time.
+The goal protocol is one way to run several active milestones in order, not a
+requirement of the memory bank. A project-specific restriction for goal runs
+belongs in a short `tabilet/GOAL.md` addendum, which narrows the stock protocol
+and never restates it.
 
 ## Write the disposable launch reference
 
@@ -257,7 +263,7 @@ AUTHORIZATION_REQUIREMENTS:
       commands: ["<specific remote operation>"]
 ```
 
-When the approved project contains a compatible `tabilet/GOAL.md`, derive
+When goal use is approved and the bundled protocol is available, derive
 `tabilet/memory-bank/suggested.txt` only from the approved active horizon. It is advisory
 launch input, not project truth. Do not add it to `AGENTS.md`'s required read
 order or the milestone index. Tell the user to delete it after launching the
@@ -269,8 +275,8 @@ Use this shape with project values, never the example values:
 Use the commit policy approved for future execution. A no-commit restriction
 during initialization does not prohibit commits in a later authorized run.
 Creating launch input does not start that run. Preserve its explicit policy;
-`tabilet/GOAL.md` defines its precedence during execution, while the suggested order
-remains disposable. Do not invent a standing policy conflict from an init-only
+the goal protocol defines its precedence during execution, while the suggested
+order remains disposable. Do not invent a standing policy conflict from an init-only
 restriction.
 
 ```text
@@ -282,7 +288,7 @@ restriction.
 # Decision markers: [ ] = need authorization, [+] = approve, [-] = deny, [~] = auto.
 # Verify sha256 matches human approval before activating grants.
 
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER:
 M01 -> M02
@@ -300,10 +306,18 @@ CORRECTIVE_PLANNING: confirm
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
 
+GOAL_IDENTITY:
+- protocol: stock <version> sha256:<hash>
+- <package>: none
+
 Completion condition: every required status is complete, every triggered
 conditional status is complete, and every milestone's documented verification
 passes.
 ```
+
+Fill `GOAL_IDENTITY` from the bundled `goal-protocol.json`: its `version` and
+`sha256` for the protocol line, then one line per participating package giving
+its `tabilet/GOAL.md` addendum hash, `ignored-stock <version>`, or `none`.
 
 Map every active status in `STATUS_ORDER` to exactly one file. Include known
 active downstream consumers; the goal loop will discover more. Use

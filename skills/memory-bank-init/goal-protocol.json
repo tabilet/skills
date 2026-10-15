@@ -1,0 +1,105 @@
+{
+  "schema": "tabilet.goal-protocol/v1",
+  "version": "2.12.0",
+  "sha256": "7b9099901d9b3fc8376a1052185f0ae89bb56bfeb76f606ca1e0c878d606cd4b",
+  "released": [
+    {
+      "sha256": "b1ff0a748420bed7473b8109e0381ba42b188a8aa67575a9f4ee8c8768f37439",
+      "versions": [
+        "0.1.0",
+        "0.2.3",
+        "0.2.5"
+      ]
+    },
+    {
+      "sha256": "e371973891d998d6985f18d8773a7fbaf51e2764c67a9fc5d7a952ad66a9eb7e",
+      "versions": [
+        "1.0.0"
+      ]
+    },
+    {
+      "sha256": "953cadd6a95074a59c66259893416f0f87fad5b66bc464e262c973af314d2242",
+      "versions": [
+        "1.0.1"
+      ]
+    },
+    {
+      "sha256": "876c631d94cc73c27de29db25bf48f6914cce5e3f6511a0025855a6a0e33fc80",
+      "versions": [
+        "1.2.0"
+      ]
+    },
+    {
+      "sha256": "8e89b16bc6b26554ccc26b0288200074f8956dd672c900eded320f4800d53cd4",
+      "versions": [
+        "1.3.0",
+        "1.4.0",
+        "1.5.0"
+      ]
+    },
+    {
+      "sha256": "b312ffc76c1727a2fc5403ae7de9ad5f2392cdfb3608ca6263b467bd020847e3",
+      "versions": [
+        "2.0.0",
+        "2.1.0",
+        "2.3.0",
+        "2.4.0"
+      ]
+    },
+    {
+      "sha256": "d650e91a27e06da780064167c11fd412cd4b873839ec149faa205ba441ecd3b4",
+      "versions": [
+        "2.5.0"
+      ]
+    },
+    {
+      "sha256": "69d5bf9fdccacf79485fe60a534581dff04b156290e1a99cccf086d0daf29fde",
+      "versions": [
+        "2.5.1"
+      ]
+    },
+    {
+      "sha256": "6b5d0746057da3ba7a9c8a83212d0025cbaca43eb8a76b5c518187df3223b8a5",
+      "versions": [
+        "2.6.0",
+        "2.6.1",
+        "2.6.2",
+        "2.7.0"
+      ]
+    },
+    {
+      "sha256": "cad15b1c175094505d380c581f577bde7ced4109ffda40b4b39d5ffe6ae88113",
+      "versions": [
+        "2.7.1"
+      ]
+    },
+    {
+      "sha256": "f19e4bc645a2ca2f5b17dbbdae218ef2510f4ec0417588234707ba90d439e601",
+      "versions": [
+        "2.8.0"
+      ]
+    },
+    {
+      "sha256": "39e601b03486172cea20352755cc49342f7807a7a5295fdf6589b4b0b96e8049",
+      "versions": [
+        "2.8.1",
+        "2.9.0"
+      ]
+    },
+    {
+      "sha256": "b443e51dc1944a15b361c42319e7ae71b5261b93923d49a2f326b64a48e0a957",
+      "versions": [
+        "2.10.0",
+        "2.10.1",
+        "2.10.2",
+        "2.10.3"
+      ]
+    },
+    {
+      "sha256": "52f6e77a5dd2ae8427e0851827b793847f8b81062371ddeb1dcb201aefde0ff3",
+      "versions": [
+        "2.11.0"
+      ]
+    }
+  ]
+}

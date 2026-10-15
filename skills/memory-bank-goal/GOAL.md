@@ -4,9 +4,14 @@ This file defines a reusable protocol for executing an ordered set of project
 milestones or status files from a goal request. It is an execution
 protocol, not a project roadmap, product specification, or status source.
 
-Copying this file to another repository does not transfer project-specific
-paths, lane names, commands, dependencies, or mutation authority. Those are
-discovered from that project's instructions and supplied goal input.
+This file is the stock protocol. It ships with the memory-bank skills, beside
+each skill that runs or plans goals, together with `goal-protocol.json`, which
+records its version and the fingerprints of earlier released copies. Projects
+do not copy it. A project's `tabilet/GOAL.md`, when present, is a project
+addendum combined with it at run time (see Protocol Resolution And Identity).
+The stock protocol transfers no project-specific paths, lane names, commands,
+dependencies, or mutation authority. Those come from the project's instructions
+and the supplied goal input.
 
 ## Instruction And Project Discovery
 
@@ -49,15 +54,70 @@ never edit it or use it to choose their assignment.
 
 Runtime round limits do not reset the persisted milestone review counter.
 
+## Protocol Resolution And Identity
+
+Resolve the governing protocol before Initialization and record the result.
+
+**Selection.** A request selects this stock protocol when it names it in any
+form: the memory-bank goal protocol, the memory-bank goal skill, `GOAL.md`, or a
+project path such as `tabilet/GOAL.md` or a coordinator's
+`../<repo>/tabilet/GOAL.md`. Such a path selects the stock protocol plus that
+package's addendum; the file at the path never becomes a replacement protocol.
+Only the dedicated field `GOAL_PROTOCOL: <path>` selects an alternative full
+protocol. That file must be complete: it begins with its own protocol title and
+carries goal-input, authorization, review-gate, and commit-policy sections. An
+addendum, record, or partial file at that path stops the run.
+
+**Package files.** For each participating package, classify `tabilet/GOAL.md`
+with the bundled `goal-protocol.json`:
+
+- absent: record `none`;
+- byte-identical to the current or a released stock copy: ignore it, record
+  `ignored-stock <version>`, and report that it can be removed;
+- a full protocol copy (it begins with this file's title line) that matches no
+  released copy: stop the affected work until the user reduces it to the
+  project-specific part or selects it explicitly with `GOAL_PROTOCOL`;
+- anything else: a project addendum, recorded by its SHA-256.
+
+**Addenda narrow.** An addendum adds project rules and narrows defaults, such as
+a stricter commit policy, extra verification, or forbidden actions. Apply it on
+top of the governing protocol. It cannot weaken the review-fix gate,
+authorization, single in-progress ownership, required verification, retirement,
+or commit-policy safety; stop and report any addendum rule that would.
+Precedence is the request, then applicable addenda, then the governing
+protocol. Combine them at run time only and write no merged protocol into any
+project. Children and resumed sessions receive the governing protocol and each
+addendum as paths with their hashes.
+
+**Identity.** Record the resolution as a `GOAL_IDENTITY` block in goal state and
+in any launch reference:
+
+```text
+GOAL_IDENTITY:
+- protocol: stock <version> sha256:<hash>
+- <package>: tabilet/GOAL.md sha256:<hash>
+- <other package>: none
+```
+
+An explicitly selected protocol records `protocol: <path> sha256:<hash>`. List
+every participating package, the coordinator included, and record absence as
+`none`, so an addendum added later is detected. Recheck the whole block at every
+resume and before each child dispatch or re-dispatch. Any difference, such as an
+updated skill bundle, another agent's different bundled version, or an edited or
+new addendum, pauses the affected work and its dependents until the user
+approves the new identity; independent work may continue. A `GOAL_IDENTITY`
+supplied with a request or launch reference is verified the same way before
+execution.
+
 ## Goal Input
 
-A multi-milestone request should name this file and provide either a strict
+A multi-milestone request should select this protocol and provide either a strict
 `STATUS_ORDER` or a `STATUS_PRIORITY` list for dispatching dependency-ready
 milestones. It may also provide project-context paths, a status-file map,
 downstream impacts, and execution policies:
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 PROJECT_CONTEXT:
 - AGENTS.md
@@ -88,7 +148,8 @@ The block above is the portable protocol input. Submit it as an ordinary
 request, through a compatible goal skill, or as the objective of an agent's
 built-in `/goal` command. The built-in command keeps the objective active; it
 does not replace this protocol or make `GOAL.md` ambient. In every form, the
-request must explicitly name this file.
+request must explicitly select this protocol, as described in Protocol
+Resolution And Identity.
 
 The identifiers above are examples only. They carry no meaning outside the
 project that defines them.
@@ -97,6 +158,9 @@ Input rules:
 
 - `PROJECT_CONTEXT` is optional. Use it to identify additional project sources
   that repository instructions do not already name.
+- `GOAL_PROTOCOL` is optional and selects an alternative full protocol by path.
+  `GOAL_IDENTITY` is optional in a request and required in a launch reference;
+  either is verified as described in Protocol Resolution And Identity.
 - `STATUS_ORDER` is strict execution order. Every earlier required or triggered
   milestone must close before a later milestone starts; its arrows add ordering
   edges even when `PARALLELISM` is enabled. It contains milestone/status
@@ -461,8 +525,10 @@ the Python API runner/controller do not consume `--email` or send these alerts.
 
 Before the first milestone:
 
-1. Read this file, applicable repository instructions, discovered project
-   sources, and every status file in the requested order or priority list.
+1. Resolve the governing protocol and every participating package addendum,
+   and record the `GOAL_IDENTITY` block. Read the protocol, the addenda,
+   applicable repository instructions, discovered project sources, and every
+   status file in the requested order or priority list.
 2. Inspect every in-scope worktree. Preserve unrelated user changes and do not
    overwrite or absorb them into milestone commits.
 3. Resolve each identifier to exactly one status specification. Validate its
@@ -526,6 +592,11 @@ authorizes concurrent execution:
    an explicitly read-only assignment. Carry the full resolved request and
    human approval context plus the child's narrowed effective grants; another
    assignment's grants remain context only.
+   Recheck `GOAL_IDENTITY` before each dispatch; the brief names the governing
+   protocol and the child package's addendum by path and hash. An optional
+   read-only exploration pass may write shared notes outside every repository;
+   briefs point to those notes and to existing specifications, status files, and
+   commits rather than restating them.
    Dispatch at most one live lease per milestone ID. Before dispatch, inspect
    existing lease branches, worktrees, and assignments; resume an existing lease
    for that ID rather than creating another owner. Every execution brief names
@@ -574,13 +645,25 @@ authorizes concurrent execution:
    shared-memory updates, and retires the milestone. Commit substantive closure
    changes only when files change. Under `milestone`, closure is already in the
    single integrated commit. Dependents become ready only after verified
-   closure and integration both pass.
+   closure and integration both pass. After that, record the lease as closed and
+   remove it with `git worktree remove ../<repo>.goal/<ID>` and
+   `git branch -d goal/<ID>`; never force either command.
 6. **Failure & Resume**: Git worktrees and `goal/*` branches serve as durable
    lease records. A blocker, conflict, or iteration-10 failure halts that lease
    only; its worktree and branch are retained for inspection, its dependents
    stay unscheduled, and independent sibling leases continue. Interrupted
    sessions resume by listing worktrees (`git worktree list`) and continuing each
    lease from its status file.
+   A resume sweep removes a leftover lease only when all of these hold: the
+   owner's goal state and the status record its milestone's successful closure
+   and fast-forward integration; its worktree path, `goal/<ID>` branch, and
+   assignment match what this run, or the resumed run's recorded state,
+   dispatched; it has no active writer (not marked running, no in-progress row
+   assigned to it, and no live process using the worktree); and its branch is
+   fully merged into the captured `INTEGRATION_REF` with a clean worktree. A
+   lease that was just created at the integration tip, or that was integrated but
+   interrupted before closure, does not qualify. Preserve and report every
+   uncertain lease, including a foreign or unrecorded one.
 
 ### 1. Reconcile Before Starting
 
@@ -609,9 +692,15 @@ authorizes concurrent execution:
   In concurrent leases, the child updates owned code and status sources and
   returns shared-memory proposals; only the owner writes shared memory, including
   during milestone closure in a lease.
-- Maintain relevant reusable lessons with evidence. Preserve materially
-  superseded knowledge under the project's history convention before replacing
-  it; do not turn the lesson reference into a chronological session log.
+- For a defect or remediation row, first establish one command that goes red
+  on the reported symptom, run it, then fix; the same command going green is
+  part of the row's evidence.
+- Maintain relevant reusable lessons with evidence. When a mistake recurs,
+  classify it first: a mechanical one that a linter, test, or CI check could
+  catch becomes a proposed deterministic check; a judgement call becomes a
+  lesson or a review rule. Preserve materially superseded knowledge under the
+  project's history convention before replacing it, and keep the lesson
+  reference a curated set rather than a chronological session log.
 - Use deterministic fixtures and project-approved disposable test resources.
   Never commit production secrets, customer/private data, captured traffic,
   generated local credentials, or environment-specific runtime state.
@@ -683,10 +772,15 @@ iteration 1. In each iteration:
 
 1. Read the persisted review count and findings before starting. Record the
    current iteration as started before review; an interrupted pass resumes that
-   iteration, never resets to 1. Review the full milestone implementation and
-   diff, with special attention to
+   iteration, never resets to 1. Pin the milestone's base commit and confirm the
+   diff against it is non-empty before reviewing. Review the full milestone
+   implementation and diff, with special attention to
    fixes made by the preceding iteration. Check correctness, failure semantics,
    security/privacy, compatibility, operations, tests, and documentation.
+   Check acceptance fidelity as its own concern: requirements missing or
+   partial, behavior nobody asked for, and requirements implemented wrongly,
+   each quoting its acceptance line. Report findings grouped by concern so one
+   concern cannot hide another; the severity rules decide the gate.
 2. Classify and record the findings. Persist the iteration number and findings
    in the current status notes or equivalent active goal state before applying
    fixes, so a continuation cannot reset the counter. If the pass finds no P1,
@@ -812,7 +906,11 @@ At the end of each milestone, record:
 - commits or external mutations, if authorized;
 - grant IDs used, performed action evidence, and missing authority, without
   treating that report as human approval;
-- conditional statuses skipped; and
+- conditional statuses skipped;
+- environment candidates found during the milestone, most severe first: a
+  missing deterministic check, navigation pointer, or information access, or an
+  instruction that changes nothing. They are planning candidates, never
+  unapproved rows; and
 - remaining blockers or external actions.
 
 Mark the overall goal complete only when every required status in the

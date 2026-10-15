@@ -164,10 +164,13 @@ def fenced_blocks(text: str) -> list[str]:
     return blocks
 
 
+GOAL_LAUNCH_PHRASES = ("Using GOAL.md", "Using tabilet/GOAL.md", "Using the memory-bank goal protocol")
+
+
 def goal_invocation_lacks_commit_policy(block: str) -> bool:
     """Return whether a fenced GOAL.md invocation omits its commit contract."""
 
-    invokes = "STATUS_ORDER" in block or "Using GOAL.md" in block or "Using tabilet/GOAL.md" in block
+    invokes = "STATUS_ORDER" in block or any(phrase in block for phrase in GOAL_LAUNCH_PHRASES)
     return invokes and "COMMIT_POLICY" not in block
 
 
@@ -296,28 +299,97 @@ def harness_tests():
 
 
 # --------------------------------------------------------------------------
-# 2. GOAL.md is a portable protocol carried in four places. They must not
-#    drift or become coupled to one agent's launcher.
+# 2. GOAL.md is the stock protocol. The root copy is canonical; every skill
+#    bundle that runs or plans goals carries a byte-identical copy and the same
+#    fingerprint registry, so resolution works offline, in plain-file installs,
+#    and without reading another bundle. Projects no longer receive a copy: a
+#    package's tabilet/GOAL.md is a project addendum.
 # --------------------------------------------------------------------------
-@check("GOAL.md and template/GOAL.md are byte-identical")
-def goal_copies():
-    # Root, project payload, Init bundle, and Upgrade's mirrored payload.
-    copies = [
-        ROOT / "GOAL.md",
-        ROOT / "template" / "tabilet" / "GOAL.md",
-        SKILLS_DIR / "memory-bank-init" / "GOAL.md",
-        SKILLS_DIR / "memory-bank-upgrade" / "assets" / "template" / "tabilet" / "GOAL.md",
-    ]
-    problems = [f"missing {p.relative_to(ROOT)}" for p in copies if not p.exists()]
+GOAL_BUNDLES = (
+    "memory-bank-init",
+    "memory-bank-goal",
+    "memory-bank-propose",
+    "memory-bank-reconcile",
+    "memory-bank-upgrade",
+)
+GOAL_REGISTRY_NAME = "goal-protocol.json"
+GOAL_RELEASE_PATHS = ("GOAL.md", "template/GOAL.md", "template/tabilet/GOAL.md")
+
+
+def expected_goal_registry() -> tuple[str | None, list[str]]:
+    """Build the registry text from plugin.json, root GOAL.md, and the git tags.
+
+    `released` lists every stock protocol shipped by a tag older than the
+    current version, so a resolver can recognise an old stock copy left in a
+    package. The tag equal to the current version is excluded, which keeps the
+    registry stable when that release is tagged.
+    """
+    import hashlib
+    import json
+
+    if not PLUGIN_JSON.exists():
+        return None, [".claude-plugin/plugin.json is missing"]
+    version = json.loads(PLUGIN_JSON.read_text()).get("version", "")
+    listed = subprocess.run(["git", "tag", "--list", "v*"], cwd=ROOT, capture_output=True, text=True)
+    tags = [t for t in listed.stdout.split() if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
+    if listed.returncode or not tags:
+        return None, ["no v* tags found; fetch tags so the goal registry can be built"]
+    tags = sorted((t for t in tags if version_tuple(t[1:]) < version_tuple(version)),
+                  key=lambda t: version_tuple(t[1:]))
+    released: dict[str, list[str]] = {}
+    for tag in tags:
+        for relative in GOAL_RELEASE_PATHS:
+            shown = subprocess.run(["git", "show", f"{tag}:{relative}"], cwd=ROOT, capture_output=True)
+            if shown.returncode or not shown.stdout:
+                continue
+            versions = released.setdefault(hashlib.sha256(shown.stdout).hexdigest(), [])
+            if tag[1:] not in versions:
+                versions.append(tag[1:])
+    registry = {
+        "schema": "tabilet.goal-protocol/v1",
+        "version": version,
+        "sha256": hashlib.sha256((ROOT / "GOAL.md").read_bytes()).hexdigest(),
+        "released": [{"sha256": digest, "versions": versions} for digest, versions in released.items()],
+    }
+    return json.dumps(registry, indent=2) + "\n", []
+
+
+def sync_goal_protocol() -> int:
+    """Maintenance: copy root GOAL.md and the regenerated registry into each bundle."""
+    text, problems = expected_goal_registry()
     if problems:
-        return problems
-    first = copies[0].read_bytes()
-    problems.extend(
-        f"{p.relative_to(ROOT)} differs; change all copies together"
-        for p in copies[1:]
-        if p.read_bytes() != first
-    )
-    goal = first.decode()
+        print("\n".join(problems))
+        return 1
+    goal = (ROOT / "GOAL.md").read_bytes()
+    for bundle in GOAL_BUNDLES:
+        (SKILLS_DIR / bundle / "GOAL.md").write_bytes(goal)
+        (SKILLS_DIR / bundle / GOAL_REGISTRY_NAME).write_text(text)
+    print(f"synced GOAL.md and {GOAL_REGISTRY_NAME} into {len(GOAL_BUNDLES)} bundles")
+    return 0
+
+
+@check("stock GOAL.md and its registry are identical in every goal bundle")
+def goal_copies():
+    problems = []
+    root_goal = (ROOT / "GOAL.md").read_bytes()
+    text, registry_problems = expected_goal_registry()
+    problems.extend(registry_problems)
+    for bundle in GOAL_BUNDLES:
+        copy = SKILLS_DIR / bundle / "GOAL.md"
+        registry = SKILLS_DIR / bundle / GOAL_REGISTRY_NAME
+        if not copy.is_file():
+            problems.append(f"missing {copy.relative_to(ROOT)}; run python3 check.py --sync-goal-protocol")
+        elif copy.read_bytes() != root_goal:
+            problems.append(f"{copy.relative_to(ROOT)} differs from GOAL.md; run python3 check.py --sync-goal-protocol")
+        if not registry.is_file():
+            problems.append(f"missing {registry.relative_to(ROOT)}; run python3 check.py --sync-goal-protocol")
+        elif text is not None and registry.read_text() != text:
+            problems.append(f"{registry.relative_to(ROOT)} is stale; run python3 check.py --sync-goal-protocol")
+    for stale in (ROOT / "template" / "tabilet" / "GOAL.md",
+                  SKILLS_DIR / "memory-bank-upgrade" / "assets" / "template" / "tabilet" / "GOAL.md"):
+        if stale.exists():
+            problems.append(f"{stale.relative_to(ROOT)}: projects no longer receive a protocol copy")
+    goal = root_goal.decode()
     if has_slash_goal_label(goal):
         problems.append("GOAL.md: protocol must not be limited to a slash-command launcher")
     if "\n/goal\nUsing GOAL.md" in goal:
@@ -331,6 +403,23 @@ def goal_copies():
         "INTEGRATION: local-rebase-ff",
         "Safe Parallel Execution (Concurrent Leases)",
         "../<repo>.goal/",
+        "Protocol Resolution And Identity",
+        "`GOAL_PROTOCOL: <path>`",
+        "GOAL_IDENTITY:",
+        "record `none`",
+        "`ignored-stock <version>`",
+        "write no merged protocol into any project",
+        "It cannot weaken the review-fix gate",
+        "Recheck the whole block at every resume and before each child dispatch",
+        "never force either command",
+        "A resume sweep removes a leftover lease only when all of these hold",
+        "Preserve and report every uncertain lease",
+        "Pin the milestone's base commit and confirm the diff against it is non-empty",
+        "Check acceptance fidelity as its own concern",
+        "first establish one command that goes red on the reported symptom",
+        "becomes a proposed deterministic check",
+        "environment candidates found during the milestone",
+        "briefs point to those notes",
     ):
         if token not in flat_goal:
             problems.append(f"GOAL.md: missing protocol contract {token!r}")
@@ -432,8 +521,9 @@ AUTHORIZATION_DOC_CONTRACTS = {
         "Offer authorization guidance only as explicit adoption", "Absence grants no new authority",
         "triggers no automatic migration", "status preambles as pointers", "invent grants",
         "no repository approval ledger or audit dependency",
-        "When found, include an update of an earlier compatible protocol in the complete proposal",
-        "propose focused merges that preserve local restrictions and behavior",
+        "projects no longer keep a copy",
+        "propose reducing the file to those project-specific rules",
+        "Never write a merged protocol",
         "include its refresh in the same proposal",
         "Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`)",
         "do not copy previous-run approval as effective authority",
@@ -522,7 +612,7 @@ def authorization_example_problems(text: str) -> list[str]:
 def grant_launch_example_problems(text: str) -> list[str]:
     """Check full launch examples display the empty grants default explicitly."""
     examples = [block for block in fenced_blocks(text)
-                if "Using tabilet/GOAL.md" in block and "Completion condition:" in block]
+                if "Using the memory-bank goal protocol" in block and "Completion condition:" in block]
     if not examples:
         return ["missing full launch example"]
     return ["launch example must include AUTHORIZATION_GRANTS: {} as the empty default"
@@ -674,12 +764,13 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "complete skill bundle and pass its local sender check",
     ),
     "template/tabilet/memory-bank/status-M01.md": (
-        "move the interrupted `[~]` row to `[!]`", "all blockers clear",
-        "restore this row from `[!]` to `[~]`", "unfinished implementation cannot",
+        "suspend and resume an in-progress row as [standing corrective planning](milestone.md#standing-corrective-planning)",
     ),
     "template/tabilet/memory-bank/milestone.md": (
         "cannot weaken acceptance", "cancel unmet obligations",
         "own review cannot replace its next full review or bypass iteration 10",
+        "move the interrupted `[~]` row to `[!]`", "all blockers clear",
+        "restore the row from `[!]` to `[~]`", "unfinished implementation cannot",
     ),
     "docs/automation.md": ("Init and Propose propose `CORRECTIVE_PLANNING: auto`",
                            "Reconcile preserves an existing approved corrective policy"),
@@ -721,7 +812,7 @@ def corrective_email_contract():
                      "skills/memory-bank-goal/SKILL.md"):
         text = (ROOT / relative).read_text()
         blocks = [block for block in fenced_blocks(text)
-                  if "Using tabilet/GOAL.md" in block and "Completion condition:" in block]
+                  if "Using the memory-bank goal protocol" in block and "Completion condition:" in block]
         if not blocks or any("CORRECTIVE_PLANNING: confirm" not in block for block in blocks):
             problems.append(f"{relative}: launch examples need the corrective-planning default")
     return problems
@@ -787,7 +878,7 @@ def parallel_goal_contract():
     reference = (ROOT / "skills/memory-bank-goal/references/subagents.md").read_text()
     brief = " ".join(reference.split("### Distilled Context Brief", 1)[-1]
                      .split("### Milestone Execution", 1)[0].split())
-    for token in ("governing `tabilet/GOAL.md`", "complete resolved goal request",
+    for token in ("governing protocol and each applicable package addendum", "complete resolved goal request",
                   "`COMMIT_POLICY`", "`EXTERNAL_MUTATIONS`", "`PARALLELISM`",
                   "`INTEGRATION`", "User scope restrictions", "read-only",
                   "`INTEGRATION_REF`", "takes precedence over repository defaults",
@@ -1102,7 +1193,7 @@ def suggested_goal_reference():
         "COMMIT_POLICY: task",
         "EXTERNAL_MUTATIONS: none",
         "Completion condition:",
-        "When no compatible protocol exists",
+        "When the bundled goal protocol is unavailable",
     ):
         if token not in reconcile:
             problems.append(f"memory-bank-reconcile: missing launch contract {token!r}")
@@ -1215,7 +1306,8 @@ def adaptive_init_contract():
         "Never put a candidate direction",
         "Create `tabilet/memory-bank/suggested.txt` only when",
         "Otherwise omit the launch reference",
-        "sibling `GOAL.md`",
+        "`goal-protocol.json`",
+        "do not copy the protocol into the",
         "provider-specific plugin-root environment variables",
         "A trailing `?` is allowed only",
         "concrete project-state trigger",
@@ -1243,7 +1335,7 @@ def adaptive_init_contract():
             problems.append(f"template/tabilet/memory-bank/milestone.md: missing {token!r}")
 
     for token in (
-        "approved compatible `GOAL.md`",
+        "goal use is approved and the bundled protocol is available",
         "documented conditionally required active work",
         "adaptive topology gate",
         "must first use `memory-bank-archive`",
@@ -1334,8 +1426,7 @@ def archive_contract():
 
     execution_paths = [
         ROOT / "GOAL.md",
-        ROOT / "template" / "tabilet" / "GOAL.md",
-        SKILLS_DIR / "memory-bank-init" / "GOAL.md",
+        *(SKILLS_DIR / bundle / "GOAL.md" for bundle in GOAL_BUNDLES),
         ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md",
         *sorted((ROOT / "template" / "tabilet" / "memory-bank").glob("status-*.md")),
     ]
@@ -1397,7 +1488,7 @@ def reconcile_contract():
         "Keep current truth separate from target work",
         "Do not write a proposed fix or target architecture as current truth",
         "whole approved active horizon",
-        "When no compatible protocol exists",
+        "When the bundled goal protocol is unavailable",
         "Never advance past iteration 10",
         "Do not commit, push, tag, publish",
         "State explicitly that no finding was implemented",
@@ -2656,6 +2747,62 @@ def sqlite_browser_suite():
     return problems
 
 
+# --------------------------------------------------------------------------
+# 5. Ideas adopted in v2.12.0: each rule has one authoritative home, and the
+#    always-loaded template AGENTS.md stays a set of pointers.
+# --------------------------------------------------------------------------
+V212_CONTRACTS = {
+    "AGENTS.md": ("`GOAL_IDENTITY`", "addendum, never a replacement protocol", "`GOAL_PROTOCOL: <path>`",
+                  "A leftover lease worktree is removed only after recorded successful closure",
+                  "Out of scope register"),
+    "skills/memory-bank-goal/references/subagents.md": (
+        "**Acceptance & Scope**", "Resume Cleanup Sweep", "Briefs point to those notes",
+        "pins the milestone's base commit"),
+    "skills/memory-bank-goal/SKILL.md": ("Protocol Resolution And Identity", "GOAL_IDENTITY",
+                                         "`goal-protocol.json`", "never a\nreplacement protocol"),
+    "skills/memory-bank-init/SKILL.md": ("expand–contract", "rules **out of scope**"),
+    "skills/memory-bank-propose/references/plan-update.md": ("expand–contract", "Out of scope register",
+                                                             "`GOAL_IDENTITY`"),
+    "skills/memory-bank-reconcile/references/plan-update.md": ("expand–contract", "Out of scope register",
+                                                               "`GOAL_IDENTITY`"),
+    "skills/memory-bank-reconcile/references/write-contract.md": ("Out of scope register",
+                                                                  "GOAL_IDENTITY:"),
+    "skills/memory-bank-upgrade/SKILL.md": ("goal-protocol.json", "Out of scope register"),
+    "skills/memory-bank-next/SKILL.md": ("goes red", "environment retro"),
+    "template/tabilet/memory-bank/milestone.md": (
+        "## Out of scope", "environment retro", "mechanical one that a linter, test, or CI check could",
+        "Review acceptance fidelity separately", "Pin the milestone's base commit",
+        "bundled with the skills is one optional protocol"),
+    "template/tabilet/memory-bank/lessons.md": ("could catch it. If so, propose the check",),
+    "template/AGENTS.md": ("#standing-corrective-planning", "#authorization-requirements",
+                           "optional `tabilet/GOAL.md` is this project's addendum"),
+}
+TEMPLATE_AGENTS_MAX_LINES = 215
+
+
+@check("v2.12 rules keep one authoritative home and a small template AGENTS.md")
+def v212_contract():
+    problems = []
+    for relative, tokens in V212_CONTRACTS.items():
+        path = ROOT / relative
+        if not path.is_file():
+            problems.append(f"{relative}: missing v2.12 contract file")
+            continue
+        text = path.read_text()
+        flat = " ".join(text.split())
+        for token in tokens:
+            if " ".join(token.split()).lower() not in flat.lower():
+                problems.append(f"{relative}: missing v2.12 contract {token!r}")
+    agents = (ROOT / "template" / "AGENTS.md").read_text()
+    if len(agents.splitlines()) > TEMPLATE_AGENTS_MAX_LINES:
+        problems.append(f"template/AGENTS.md exceeds {TEMPLATE_AGENTS_MAX_LINES} lines; "
+                        "keep policy in its authoritative document and point to it")
+    for restated in ("`[+]` approve", "`SCOPE_POLICY: workspace-contained`", "Light profiles default"):
+        if restated in agents:
+            problems.append(f"template/AGENTS.md restates policy owned elsewhere: {restated!r}")
+    return problems
+
+
 def main() -> int:
     print(f"Checking {ROOT}\n")
     failures = 0
@@ -2679,4 +2826,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.dont_write_bytecode = True
+    if sys.argv[1:] == ["--sync-goal-protocol"]:
+        raise SystemExit(sync_goal_protocol())
     raise SystemExit(main())

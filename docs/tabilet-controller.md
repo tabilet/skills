@@ -5,7 +5,7 @@ one exact confirmation, and executes approved task rows in local Docker
 containers. The existing API runner remains a separate host-shell workflow.
 The seven skills also work without this controller.
 
-The controller executes its approved horizon serially. The v2.5 `GOAL.md`
+The controller executes its approved horizon serially. The v2.5 goal
 sub-agent protocol is used through a hosting agent with delegation capabilities;
 it does not add a parallel scheduler to this command. The controller's receipt
 and host-commit rules govern execution. Provider prompt caching follows the

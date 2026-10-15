@@ -75,9 +75,9 @@ class CheckHelperTests(unittest.TestCase):
                  "reset the originating milestone counter after a repair milestone passes"),
                 ("GOAL.md", "At iteration 10, unresolved findings stop further automatic repair cycles",
                  "At iteration 10 create a new repair milestone and continue"),
-                ("template/tabilet/memory-bank/status-M01.md", "move the interrupted `[~]` row to `[!]`",
+                ("template/tabilet/memory-bank/milestone.md", "move the interrupted `[~]` row to `[!]`",
                  "keep the interrupted `[~]` row while another row runs"),
-                ("template/tabilet/memory-bank/status-M01.md", "all blockers clear",
+                ("template/tabilet/memory-bank/milestone.md", "all blockers clear",
                  "a single blocker clears"),
                 ("skills/memory-bank-next/references/interactive-controls.md",
                  "restore the original row from `[!]` to `[~]`", "select unrelated work after prerequisite acceptance"),
@@ -349,11 +349,11 @@ class CheckHelperTests(unittest.TestCase):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((ROOT / source).read_bytes())
             regressions = (
-                ("When found, include an update of an earlier compatible protocol in the complete proposal",
-                 "Always leave existing goal protocols untouched"),
+                ("projects no longer keep a copy", "projects keep their own protocol copy"),
                 ("include its refresh in the same proposal", "never refresh existing launch input"),
-                ("propose focused merges that preserve local restrictions and behavior",
-                 "overwrite custom restrictions with defaults"),
+                ("propose reducing the file to those project-specific rules",
+                 "overwrite the file with the stock protocol"),
+                ("Never write a merged protocol", "Write a merged protocol"),
                 ("Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`)",
                  "Replace selection and policies with example defaults"),
                 ("do not copy previous-run approval as effective authority",
@@ -378,23 +378,34 @@ class CheckHelperTests(unittest.TestCase):
                         finally:
                             path.write_text(original)
 
-    def test_goal_copies_include_upgrade_payload(self) -> None:
-        copies = (
-            "GOAL.md", "template/tabilet/GOAL.md", "skills/memory-bank-init/GOAL.md",
-            "skills/memory-bank-upgrade/assets/template/tabilet/GOAL.md",
-        )
+    def test_goal_copies_cover_every_goal_bundle(self) -> None:
+        registry = '{"schema": "tabilet.goal-protocol/v1"}\n'
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)
-            for relative in copies:
-                path = fixture / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes((ROOT / relative).read_bytes())
+            (fixture / "GOAL.md").write_bytes((ROOT / "GOAL.md").read_bytes())
+            for bundle in repository_checks.GOAL_BUNDLES:
+                folder = fixture / "skills" / bundle
+                folder.mkdir(parents=True)
+                (folder / "GOAL.md").write_bytes((ROOT / "GOAL.md").read_bytes())
+                (folder / repository_checks.GOAL_REGISTRY_NAME).write_text(registry)
             with mock.patch.object(repository_checks, "ROOT", fixture), \
-                    mock.patch.object(repository_checks, "SKILLS_DIR", fixture / "skills"):
+                    mock.patch.object(repository_checks, "SKILLS_DIR", fixture / "skills"), \
+                    mock.patch.object(repository_checks, "expected_goal_registry",
+                                      return_value=(registry, [])):
                 self.assertEqual(repository_checks.goal_copies(), [])
-                upgrade = fixture / copies[-1]
-                upgrade.write_text(upgrade.read_text() + "\nDrift.\n")
-                self.assertTrue(any(copies[-1] in p for p in repository_checks.goal_copies()))
+                drifted = fixture / "skills/memory-bank-propose/GOAL.md"
+                drifted.write_text(drifted.read_text() + "\nDrift.\n")
+                self.assertTrue(any("memory-bank-propose/GOAL.md" in p for p in repository_checks.goal_copies()))
+                drifted.write_bytes((ROOT / "GOAL.md").read_bytes())
+                stale = fixture / "skills/memory-bank-goal" / repository_checks.GOAL_REGISTRY_NAME
+                stale.write_text("{}\n")
+                self.assertTrue(any("is stale" in p for p in repository_checks.goal_copies()))
+                stale.write_text(registry)
+                template_copy = fixture / "template/tabilet/GOAL.md"
+                template_copy.parent.mkdir(parents=True)
+                template_copy.write_text("copy\n")
+                self.assertTrue(any("no longer receive a protocol copy" in p
+                                    for p in repository_checks.goal_copies()))
 
     def test_parallel_goal_contract_rejects_review_regressions(self) -> None:
         paths = (

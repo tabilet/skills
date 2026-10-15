@@ -43,7 +43,7 @@ your-project/
 ├── AGENTS.md                 智能体最先读取的内容
 ├── docs/                     其他项目文档
 └── tabilet/
-    ├── GOAL.md               可选的多里程碑协议
+    ├── GOAL.md               可选的、附在自带 goal 协议上的项目附录
     ├── memory-bank/
     │   ├── product.md         这是什么，以及不是什么
     │   ├── architecture.md    布局、数据流、边界

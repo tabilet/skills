@@ -1,7 +1,7 @@
 # Milestone Authorization Requirements, Grants, and Hands-Free Execution
 
 This guide provides a comprehensive catalog of all manual authorization checkpoints,
-decision markers, and permission scopes in the [GOAL.md](../GOAL.md) multi-milestone
+decision markers, and permission scopes in the [goal protocol](../GOAL.md) multi-milestone
 execution protocol and [`skills/memory-bank-goal`](../skills/memory-bank-goal/SKILL.md),
 followed by configuration patterns for hands-free end-to-end autonomous execution.
 
@@ -271,7 +271,7 @@ AUTHORIZATION_GRANTS:
 ```text
 # Lean suggested.txt (~30 Lines)
 # Global launch reference only; milestone specifics live in milestone.md
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_PRIORITY:
 Kinet:M56, Kinet:W20, Kinet:M52, Kinet:W21, Kinet:U15, Kinet:M53, OpenUdon:A32, Kinet:M54?, Udon:M54?, UWS:C11?, APItools:M86?, Kinet:M55?
@@ -305,7 +305,7 @@ AUTHORIZATION_GRANTS:
 For a standalone project executing milestones `M01`, `M02`, and `M03` locally:
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: M01 -> M02 -> M03
 
@@ -337,7 +337,7 @@ AUTHORIZATION_GRANTS:
 For a goal spanning a core library `pkg/core` and an API service `services/api`:
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: core:M01 -> api:M02
 
@@ -378,7 +378,7 @@ When a multi-milestone goal spans multiple distinct Git repositories (e.g., `kin
 each repository must declare its own explicit 1-to-1 grant rather than combining repositories into a list:
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: kinet:M01 -> uws:M02
 
@@ -424,7 +424,7 @@ AUTHORIZATION_GRANTS:
 When managing a large workspace with sibling repositories (e.g. `kinet`, `openudon`, `udon`, `uws`, `apitools`):
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_PRIORITY: kinet:M01, openudon:A01, uws:M02
 

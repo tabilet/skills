@@ -445,7 +445,6 @@ Only after you approve does it write:
 ```text
 stomper/
 ├── AGENTS.md              ← commands, boundaries, hard rules
-├── tabilet/GOAL.md                ← copied, not written — a portable protocol
 ├── tabilet/memory-bank/
 │   ├── product.md         ← scope, domain model, and non-goals
 │   ├── architecture.md    ← module layout, the DOM-free rule
@@ -600,7 +599,7 @@ $memory-bank:memory-bank-goal M01 -> M02 -> M03 -> M04. COMMIT_POLICY: task. EXT
 ```
 
 These are alternative requests for Claude Code, Codex, and agy. They follow
-[GOAL.md](../GOAL.md) and explicitly select `COMMIT_POLICY: task` for per-row
+the [goal protocol](../GOAL.md) and explicitly select `COMMIT_POLICY: task` for per-row
 commits. Use `COMMIT_POLICY: none` when you want changes left uncommitted; it is
 the protocol's default, so the examples state their policy rather than relying
 on an implicit choice.
@@ -609,7 +608,7 @@ The [bounded review-fix gate](../GOAL.md#bounded-review-fix-gate) is not a singl
 pass. It advances only after a clean review and stops with the milestone
 incomplete if iteration 10 still finds a blocking issue.
 
-Because this example carries the bundled compatible `tabilet/GOAL.md`, init also writes
+Because this example opts into goal use with the bundled protocol, init also writes
 a complete active-horizon `STATUS_ORDER`, `STATUS_FILE_MAP`, and
 `DOWNSTREAM_IMPACTS` to `tabilet/memory-bank/suggested.txt`. It is disposable input, not
 project truth. Run the goal skill with no arguments to have it reconcile that
@@ -629,8 +628,7 @@ $memory-bank:memory-bank-reconcile <review source>
 The skill checks every finding against current code, proposes whether it belongs
 in open work, a new remediation milestone, or an unnumbered Candidate Direction,
 and waits for approval before changing the plan. It never reopens completed
-history or implements a fix. When the active graph changes and `tabilet/GOAL.md` remains
-compatible, it refreshes `tabilet/memory-bank/suggested.txt` for the whole horizon; then
+history or implements a fix. When the active graph changes and goal use is approved, it refreshes `tabilet/memory-bank/suggested.txt` for the whole horizon; then
 `memory-bank-next` or `memory-bank-goal` performs the approved work.
 
 If the review source is remote, the skill shows the exact URL and asks for a
@@ -646,17 +644,17 @@ implemented as planned and wrong.
 **In [Claude Code](https://code.claude.com/docs/en/goal) and
 [Codex](https://learn.chatgpt.com/use-cases/follow-goals), built-in `/goal` is
 an optional persistence layer** for a long run. It keeps the objective active;
-`tabilet/GOAL.md` still defines the execution protocol. Include the complete protocol
+the bundled goal protocol still defines the execution protocol. Include the complete protocol
 request, commit policy, and measurable completion condition in the invocation:
 
 ```text
-/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and node --test passes.
+/goal Using the memory-bank goal protocol, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and node --test passes.
 ```
 
 Use `/goal` with no arguments to see its status and `/goal clear` to stop it in
 either agent. Codex also supports `/goal pause` and `/goal resume`; if the
 command is not listed, run `codex features enable goals`. Built-in `/goal` does
-not discover `tabilet/GOAL.md` automatically, so keep the file name in the objective.
+not discover the protocol automatically, so select it in the objective.
 
 Then watch the first milestone. `git log` should show one commit per row, code
 and status-row flip together. If the agent closed three rows in one commit, say

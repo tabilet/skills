@@ -1,7 +1,7 @@
 # Sub-Agent Execution Reference
 
 Read this reference when sub-agent capabilities are available to accelerate
-milestone execution under `tabilet/GOAL.md`. This reference defines the
+milestone execution under the governing goal protocol. This reference defines the
 Tier 0 execution model, which shortens wall-clock time and avoids quadratic
 context inflation while strictly preserving the single-writer rule:
 **one execution owner for the active ledger, and zero or one general row in
@@ -28,8 +28,11 @@ bounded, hand off each milestone to a fresh sub-agent.
 ### Distilled Context Brief
 
 Every child brief, including a lease, reviewer, or reconciliation analyst,
-includes the governing `tabilet/GOAL.md` path and the complete resolved goal
-request. Carry these values explicitly, including defaults:
+includes the governing protocol and each applicable package addendum as paths
+with their hashes (the `GOAL_IDENTITY` block), plus the complete resolved goal
+request. Recheck `GOAL_IDENTITY` before each dispatch; any difference pauses the
+affected child and its dependents. Carry these values explicitly, including
+defaults:
 
 - The selected `STATUS_ORDER` or `STATUS_PRIORITY`, resolved file map, and
   downstream impacts relevant to the assignment.
@@ -74,6 +77,11 @@ owner for the resolved values. The focused project context also contains:
 - Reconciled contracts, schemas, and interfaces delivered by predecessor
   milestones.
 - The concrete verification commands required for acceptance.
+
+When several children need the same exploration, run one read-only
+exploration pass first and have it write notes in a directory outside every
+repository. Briefs point to those notes and to existing specifications, status
+files, and commits instead of restating them.
 
 The full request is context only beyond the child's effective subset. Children
 cannot expand or transfer grants. Read-only reviewers receive no mutation
@@ -148,16 +156,21 @@ without violating ledger rules.
 ### Review-Fix Gate Fan-Out
 
 In each iteration of the bounded review-fix gate:
-1. The owner spawns concurrent read-only reviewer sub-agents to examine the full
-   milestone diff through distinct lenses:
+1. The owner pins the milestone's base commit and confirms the diff against it
+   is non-empty, then spawns concurrent read-only reviewer sub-agents to examine
+   the full milestone diff through distinct lenses:
    - **Correctness & Reliability**: Logic errors, edge cases, failure semantics.
    - **Security & Privacy**: Access control, secret leaks, data validation.
    - **Compatibility & Contracts**: Public APIs, schema migrations, backwards
      compatibility.
    - **Tests & Documentation**: Regression test coverage, documentation parity.
+   - **Acceptance & Scope**: Acceptance requirements missing or partial, behavior
+     nobody asked for (scope creep), and requirements implemented wrongly, each
+     quoting its acceptance line.
 2. Each reviewer produces classified findings (P1, P2, P3).
-3. The owner merges all findings into **one** iteration report and records it in
-   the milestone status notes.
+3. The owner records all findings in **one** iteration report in the milestone
+   status notes, grouped by lens so one lens cannot hide another. Severity, not
+   the lens, decides the gate.
 4. The counter advances by **exactly one** per iteration.
 5. If P1 or P2 findings exist and the iteration is below 10, the owner applies
    fixes, verifies, and triggers the next iteration pass.
@@ -311,7 +324,8 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
    commit, so there is no second closure commit. Dependents become ready only
    after verified closure and integration both pass.
 7. **Cleanup**:
-   Remove the completed worktree and delete the local branch:
+   After verified closure and integration, record the lease as closed, then
+   remove the worktree and delete the local branch, never forcing either:
    ```bash
    git worktree remove ../<repo>.goal/<ID>
    git branch -d goal/<ID>
@@ -323,6 +337,14 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
   `goal/*` branches survive server and session restarts. Resuming means listing
   worktrees and continuing each lease from its status file and persisted review
   counter.
+- **Resume Cleanup Sweep**: Remove a leftover lease only when the owner's goal
+  state and the status record its milestone's successful closure and
+  fast-forward integration, its worktree path, branch, and assignment match the
+  recorded dispatch, it has no active writer (not marked running, no in-progress
+  row assigned to it, no live process using the worktree), and its branch is
+  fully merged into the captured `INTEGRATION_REF` with a clean worktree. A lease
+  just created at the integration tip, or integrated but interrupted before
+  closure, does not qualify. Preserve and report every uncertain lease.
 - **Failure Isolation**: A blocked row, conflict, or iteration-10 review failure
   stops that lease only. Its worktree and branch are retained for inspection, its
   dependents stay unscheduled, independent siblings continue, and the owner

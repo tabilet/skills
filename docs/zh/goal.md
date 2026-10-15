@@ -1,6 +1,6 @@
 # Goal
 
-按照项目的 `tabilet/GOAL.md` 协议，依次执行或继续执行记忆库中的里程碑。
+按照技能自带的 goal 协议和项目附录（如有），依次执行或继续执行记忆库中的里程碑。
 
 在项目里开启的会话中发送下面其中一条，把 ID 换成你已经批准的里程碑顺序：
 
@@ -32,16 +32,17 @@
 
 没有给出顺序时，技能会拿 `tabilet/memory-bank/suggested.txt` 与当前里程碑和状态文件核对。它优先采用
 一个有效的建议顺序，或者从 `milestone.md` 推导出一个，然后把完整请求摆出来供你确认。顺序有歧义
-时它会来问你。没有 `tabilet/GOAL.md`，这套工作流就走不下去；
-单任务执行仍可通过 [Next](next.md) 使用。
+时它会来问你。协议随技能一起提供，所以项目不需要 `tabilet/GOAL.md`；
+如果自带的副本缺失或已损坏，这套工作流就走不下去，单任务执行仍可通过 [Next](next.md) 使用。
 
-## GOAL.md 是可选做法，不是必需项
+## goal 协议是可选做法，不是必需项 {#the-goal-protocol-is-offered-never-required}
 
-`tabilet/GOAL.md` 只是一个可选协议。它得靠显式调用才生效，不会自动起作用：不管你用哪个智能体，启动
-一次运行的请求都要点名这个文件、执行顺序和提交策略。
+标准协议（[GOAL.md](https://github.com/tabilet/skills/blob/main/GOAL.md)）只是一个可选协议，
+随技能一起提供，不放进你的项目。它得靠显式调用才生效，不会自动起作用：不管你用哪个智能体，启动
+一次运行的请求都要选定协议、执行顺序和提交策略。
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
@@ -52,10 +53,30 @@ documented acceptance, verification, review, and closure requirements.
 ```
 
 这段内容可以粘贴给任何智能体。协议里没有项目专有的路径、通道字母或命令 —— 这些都从 `AGENTS.md`
-和记忆库中读取 —— 所以同一个文件在任何复制它的项目里都能原样使用。
+和记忆库中读取 —— 所以同一个自带文件在任何项目里都能原样使用。
 
-同一套项目文件也能配合另一种协议或单任务执行使用。`memory-bank-goal` 技能则明确要求
-`tabilet/GOAL.md`；至于项目要不要采用这个协议，仍然由你决定。
+同一套项目文件也能配合另一种协议或单任务执行使用。`GOAL_PROTOCOL: <路径>` 可以选定另一份完整协议；
+至于项目要不要采用任何协议，仍然由你决定。
+
+### 项目附录与协议身份 {#project-addendum-and-protocol-identity}
+
+包内可选的 `tabilet/GOAL.md` 是**项目附录**。它补充项目规则并收紧默认值（更严格的提交策略、
+额外验证、禁止的操作），在运行时与标准协议合并生效。技能从不写出合并后的文件；附录也不能削弱评审关卡、
+授权、唯一进行中所有权、必需验证、退役或提交策略安全。优先级是：请求、附录、协议。
+
+启动时，技能会用 `goal-protocol.json` 中的指纹对每个参与包的文件分类：
+
+| 包内文件 | 处理方式 |
+|---|---|
+| 不存在 | 记为 `none`。 |
+| 与某个已发布的标准副本逐字节相同 | 忽略，并提示可以删除。 |
+| 带本地改动的完整协议副本 | 运行停止，直到你把它精简为项目专有部分。 |
+| 其他（简短附录、项目记录） | 作为附录生效。 |
+
+结果会记录成 `GOAL_IDENTITY` 块（协议版本与哈希，加上每个包的附录哈希、`ignored-stock <版本>` 或 `none`），
+每次恢复以及派发每个子任务之前都会重新核对整块内容。插件更新、另一个智能体自带的不同版本，
+或附录被编辑或新增，都会暂停受影响的工作，直到你批准新的身份。跨包运行时由协调者的协议主导，
+每个子任务还要遵守自己所在包的附录。
 
 ## 授权要求与授予 {#authorization-requirements-and-grants}
 
@@ -166,9 +187,8 @@ Python 运行器和控制器不消费 goal 授予；控制器继续排除外部�
     这是正确行为，不是规则冲突。
 
 想要常规的逐行提交就写 `task`，想让改动保持未提交就写 `none`。用 `milestone` 将实现与收尾合并提交。
-对于并发租约，`GOAL.md` 规定了未发布检查点及所有者最终收尾步骤，以保证只集成一个里程碑提交。
-优先级顺序是：请求高于
-`tabilet/GOAL.md`，后者高于 `AGENTS.md`。提交策略的例外只在这次运行期间有效；
+对于并发租约，协议规定了未发布检查点及所有者最终收尾步骤，以保证只集成一个里程碑提交。
+优先级顺序是：请求高于项目附录，附录高于 goal 协议，后者高于 `AGENTS.md`。提交策略的例外只在这次运行期间有效；
 其他适用的项目规则照常生效。
 
 ## 常设纠正规划 {#standing-corrective-planning}
@@ -223,12 +243,11 @@ $memory-bank:memory-bank-goal --email abc@def.gh STATUS_ORDER: M01 -> M02. COMMI
 
 ## 内置的 `/goal` 是另一回事
 
-智能体原生的 goal 功能可以让一个目标跨多轮持续有效。它替代不了本项目的协议，也不会替你隐式选中
-`tabilet/GOAL.md`。如果要用原生 `/goal` 的持续执行来跑这套工作流，请把协议、提交策略和可衡量的
+智能体原生的 goal 功能可以让一个目标跨多轮持续有效。它替代不了 goal 协议，也不会替你隐式选中它。如果要用原生 `/goal` 的持续执行来跑这套工作流，请把协议、提交策略和可衡量的
 完成条件都写清楚：
 
 ```text
-/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current
+/goal Using the memory-bank goal protocol, reconcile tabilet/memory-bank/suggested.txt against the current
 memory bank, then execute the resolved loop. COMMIT_POLICY: task.
 EXTERNAL_MUTATIONS: none.
 Completion condition: every required status is complete, every triggered conditional

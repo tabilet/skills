@@ -144,8 +144,12 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
       memory-bank-archive|memory-bank-init|memory-bank-reconcile)
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/write-contract.md" ;;
     esac
+    case "$bundle" in
+      memory-bank-init|memory-bank-goal|memory-bank-propose|memory-bank-reconcile|memory-bank-upgrade)
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/GOAL.md"
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/goal-protocol.json" ;;
+    esac
     if test "$bundle" = memory-bank-init; then
-      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/GOAL.md"
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/discovery.md"
     fi
     if test "$bundle" = memory-bank-propose; then
@@ -168,7 +172,7 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
     fi
     if test "$bundle" = memory-bank-upgrade; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/migrate-v1.5-to-v2.py"
-      for resource in AGENTS.md tabilet/GOAL.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
+      for resource in AGENTS.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/assets/template/$resource"
       done
     fi
@@ -190,8 +194,9 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
 ```
 
 Copying only `SKILL.md` is incomplete. Initialization, archive, and reconciliation
-have `references/write-contract.md`; initialization also carries the portable
-`tabilet/GOAL.md`. Upgrade carries `assets/template/`, a complete reference copy of the
+have `references/write-contract.md`; the five bundles that run or plan goals (init,
+goal, propose, reconcile, upgrade) each carry the stock `GOAL.md` and its
+`goal-protocol.json` fingerprint registry. Upgrade carries `assets/template/`, a complete reference copy of the
 project payload; preserve that tree too. Goal includes `references/runtime-help.md`
 for invocation syntax and optional native continuation. Goal and Next include
 `scripts/email_notify.py` and `references/email-notifications.md`; Next also
@@ -200,8 +205,8 @@ Approval email requires the user's explicit flag, private Cloudflare setup and
 local sender check; installation sends no email. Native continuation must load
 the Goal bundle before relying on notifications. DSH returns a skill's directory as its resource base. Relative
 supporting resources resolve against that directory; project paths such as
-`tabilet/memory-bank/milestone.md` and the project's `tabilet/GOAL.md` resolve in the selected
-workspace. The init write contract explicitly identifies its bundled protocol.
+`tabilet/memory-bank/milestone.md` and the project's optional `tabilet/GOAL.md` addendum resolve in the selected
+workspace. The bundled protocol and its registry resolve against the skill directory.
 Init, archive, and reconcile read their write contracts before preparing the
 file-action proposal; approval gates writes, not those reads. Goal runtime help
 is loaded only when invocation or continuation guidance is needed.
@@ -259,8 +264,12 @@ bundles are backed up before any replacement is copied.
       memory-bank-archive|memory-bank-init|memory-bank-reconcile)
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/write-contract.md" ;;
     esac
+    case "$bundle" in
+      memory-bank-init|memory-bank-goal|memory-bank-propose|memory-bank-reconcile|memory-bank-upgrade)
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/GOAL.md"
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/goal-protocol.json" ;;
+    esac
     if test "$bundle" = memory-bank-init; then
-      test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/GOAL.md"
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/discovery.md"
     fi
     if test "$bundle" = memory-bank-propose; then
@@ -283,7 +292,7 @@ bundles are backed up before any replacement is copied.
     fi
     if test "$bundle" = memory-bank-upgrade; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/migrate-v1.5-to-v2.py"
-      for resource in AGENTS.md tabilet/GOAL.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
+      for resource in AGENTS.md tabilet/memory-bank/{product,architecture,tech-stack,lessons,milestone,status-M01}.md tabilet/evolution/{prompt-v1,result-v1}.md; do
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/assets/template/$resource"
       done
     fi
@@ -418,7 +427,7 @@ For an ordered run, supply the resolved request with its explicit policies and
 acceptance. Example after the project has approved this order:
 
 ```bash
-dsh --profile headless 'Use memory-bank-goal. Using tabilet/GOAL.md, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: none. EXTERNAL_MUTATIONS: none. Completion condition: both milestones meet their documented acceptance, verification, review, and closure requirements. Stop if any required answer or capability is unavailable.'
+dsh --profile headless 'Use memory-bank-goal. Using the memory-bank goal protocol, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: none. EXTERNAL_MUTATIONS: none. Completion condition: both milestones meet their documented acceptance, verification, review, and closure requirements. Stop if any required answer or capability is unavailable.'
 ```
 
 Replace these IDs and approvals with actual project decisions. A blanket
@@ -445,7 +454,7 @@ complete protocol request as the objective only when you intend to use
 [GOAL.md](../GOAL.md):
 
 ```text
-/goal Using tabilet/GOAL.md, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none. Completion condition: both required milestones meet their acceptance, verification, and bounded review gates, with downstream reconciliation and adopted retirement complete.
+/goal Using the memory-bank goal protocol, execute STATUS_ORDER: M01 -> M02. COMMIT_POLICY: task. EXTERNAL_MUTATIONS: none. Completion condition: both required milestones meet their acceptance, verification, and bounded review gates, with downstream reconciliation and adopted retirement complete.
 ```
 
 The [native goal service](https://github.com/deepseek-ai/deepseek-harness/tree/dsh-v0.1.5-rc.1/packages/goal/goal)
@@ -584,7 +593,7 @@ test processes. Telemetry and auxiliary LLM titles were disabled.
 | 4. One row and resumption | Resumed the sole existing `[~]` row, verified its behavior, corrected the invalidated current product fact, and made exactly one scoped commit. Historical `[-]` and remaining pending rows stayed byte-identical; the next row did not start. |
 | 5. Ordered goals | Explicit `M01 -> M02` and policies overrode a stale reversed suggestion. `none` left HEAD unchanged; `task` produced two task commits and two substantive closure commits. M01 reconciled the pending M02 consumer before execution. A controlled interruption persisted review iteration 4 as started; a fresh headless continuation completed that same iteration, with 4 retained in its frozen record. |
 | 6. Long-term memory | Current lessons became quantity-aware; the old literal wording, source, reason, and replacement survived in the knowledge journal. Both final goal fixtures passed the repository's actual retired-record parser and had no active status files. Retrieval and stale goal paths preserved every project-file hash. Init recognized all-retired identity. Additional cancelled and superseded milestone probes reported required acceptance incomplete without recreating history or executing an unauthorized successor. |
-| 7. Headless stopping | Missing proposal approval, missing `tabilet/GOAL.md`, missing required verification, and denied writes all stopped without project changes or commits. These live runs exited 0 while reporting incomplete work. The read-only denial caused no escalation attempt. |
+| 7. Headless stopping | Missing proposal approval, a missing bundled protocol, missing required verification, and denied writes all stopped without project changes or commits. These live runs exited 0 while reporting incomplete work. The read-only denial caused no escalation attempt. |
 
 ### Usage and cost
 

@@ -101,15 +101,25 @@ stages or withdraw already approved pending tasks for later planning.
 
 ## Existing goal protocol and launch reference
 
-When `tabilet/GOAL.md` exists, Upgrade includes an update of an earlier
-compatible protocol in its complete proposal. An approved canonical
-replacement uses the bundled copy byte-for-byte. For custom protocols, it
-proposes focused merges that preserve local restrictions and behavior;
-incompatible protocols require a compatibility decision.
+The goal protocol ships with the skills and projects no longer keep a copy.
+When `tabilet/GOAL.md` exists, Upgrade classifies it against the bundled
+`goal-protocol.json` and includes the result in its complete proposal:
+
+- a byte-identical stock copy: Upgrade proposes removing it;
+- a full protocol copy with local edits: it shows the local differences and
+  proposes reducing the file to those project-specific rules, and goal runs stop
+  on it until you do;
+- anything else, such as a short addendum or a project record: kept as the
+  project addendum.
+
+Upgrade never writes a merged protocol. It also rewrites `AGENTS.md` and
+`milestone.md` pointers that name `tabilet/GOAL.md` as the protocol, and offers
+the template's Out of scope register as an explicit adoption.
 
 When `tabilet/memory-bank/suggested.txt` also exists, Upgrade proposes a refresh
-against the whole live approved active horizon. It preserves explicit order
-or priority, commit, integration, external-mutation, and scope policies.
+against the whole live approved active horizon and adds the `GOAL_IDENTITY` block.
+It preserves explicit order or priority, commit, integration, external-mutation,
+and scope policies.
 It always includes `AUTHORIZATION_GRANTS`, using `{}` when no explicit grants
 are proposed, and labels nonempty proposals as unapproved. Existing grant text
 never transfers approval from a previous run. Requirements stay in milestone
