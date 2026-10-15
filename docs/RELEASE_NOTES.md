@@ -1,3 +1,52 @@
+# memory-bank v2.12.0
+
+v2.12.0 moves the goal protocol into the skills and adopts several ideas from a
+study of `mattpocock/skills`. The seven skills and the v2 project layout are
+unchanged.
+
+**The goal protocol is plugin-level.** The stock `GOAL.md` now ships inside the
+init, goal, propose, reconcile, and upgrade bundles, each with a byte-identical
+`goal-protocol.json` holding its version, hash, and the fingerprints of every
+released stock copy, so resolution works offline and in plain-file installs.
+Projects no longer receive a copy, and `template/` carries none. A package's
+optional `tabilet/GOAL.md` is now a **project addendum**: it adds rules and
+narrows defaults, is combined with the stock protocol at run time, and can never
+weaken the review gate, authorization, ownership, verification, or retirement
+rules. A request that names `tabilet/GOAL.md` (or "the memory-bank goal protocol")
+selects stock plus addendum; only `GOAL_PROTOCOL: <path>` selects a different full
+protocol. A byte-identical stock copy is ignored and reported as removable, and a
+modified full copy stops the run until you reduce it to the project-specific part.
+Goal state and launch input record a `GOAL_IDENTITY` block (the protocol hash and
+every participating package's addendum hash, `ignored-stock <version>`, or
+`none`), rechecked at every resume and child dispatch; any change pauses the
+affected work. Upgrade classifies an existing `tabilet/GOAL.md` and proposes
+removing a stock copy or reducing a modified one; it never writes a merged
+protocol. Existing packages keep working unchanged, and you can delete or
+truncate their `tabilet/GOAL.md` when convenient.
+
+**Lease cleanup.** The governing protocol now removes a finished lease worktree
+and its branch after recorded closure, and a resume sweep removes leftovers only
+when closure and integration are recorded, ownership matches, no writer is
+active, and the branch is merged with a clean worktree. A lease just created at
+the integration tip, or one interrupted before closure, is preserved.
+
+**Review and planning.** The review fan-out gains an Acceptance & Scope lens
+(missing or partial requirements, behavior nobody asked for), pins the base commit
+before reviewing, and groups findings by lens. Planning gains expand–contract
+sequencing for wide refactors and an Out of scope register for ruled-out work.
+Closure includes an environment retro: mechanical mistakes become proposed
+deterministic checks, judgement calls become lessons, and environment candidates
+are reported most severe first without becoming unapproved rows. Defect rows first
+establish a command that goes red on the reported symptom. Delegated goals can
+share one out-of-repository exploration pass through context pointers.
+
+**Smaller template `AGENTS.md`.** The corrective-planning, email, and
+authorization bullets became pointers to their authoritative sections, and the
+suspend/resume mechanics moved from the status-file preamble into
+`milestone.md`. `check.py` bounds the file's size and keeps each policy pinned in
+one place. Downstream projects adopt the new rules through a later
+memory-bank-upgrade run.
+
 # memory-bank v2.11.0
 
 Goal and Next support human-approved `CORRECTIVE_PLANNING: auto` for necessary

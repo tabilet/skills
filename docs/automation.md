@@ -1,7 +1,7 @@
 # Autonomous Goal Execution and Authorization Boundaries
 
 This guide describes how to achieve end-to-end autonomous execution across
-multiple milestones under the [GOAL.md](../GOAL.md) protocol, and defines the
+multiple milestones under the [goal protocol](../GOAL.md), and defines the
 deliberate safety boundaries where human intervention remains strictly enforced.
 For an exhaustive catalog of every manual authorization checkpoint and decision
 marker, see [Milestone Authorizations](authorizations.md).
@@ -10,7 +10,7 @@ marker, see [Milestone Authorizations](authorizations.md).
 
 ## 1. The Autonomous Execution Model
 
-Under `GOAL.md`, an orchestrating agent (such as `agy`, Claude Code, or Codex) can
+Under the goal protocol, an orchestrating agent (such as `agy`, Claude Code, or Codex) can
 theoretically execute an entire multi-milestone project roadmap from beginning
 to end without intermediate human pauses, provided that required permissions
 have been pre-authorized and policy configurations allow autonomous progression.
@@ -183,7 +183,7 @@ Below is a complete, copyable launch input block demonstrating full end-to-end
 autonomy for a multi-milestone goal:
 
 ```markdown
-Run milestones M01, M02, and M03 to completion under GOAL.md:
+Run milestones M01, M02, and M03 to completion under the memory-bank goal protocol:
 
 COMMIT_POLICY: task
 INTEGRATION: local-rebase-ff

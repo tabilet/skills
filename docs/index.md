@@ -42,7 +42,7 @@ your-project/
 ├── AGENTS.md                 what an agent reads first
 ├── docs/                     other project documentation
 └── tabilet/
-    ├── GOAL.md               optional multi-milestone protocol
+    ├── GOAL.md               optional project addendum to the bundled goal protocol
     ├── memory-bank/
     │   ├── product.md         what this is, and is not
     │   ├── architecture.md    layout, data flow, boundaries

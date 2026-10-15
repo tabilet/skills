@@ -144,7 +144,7 @@ stdout/stderr character budget for each command.
 
 ### Changes since v2.4.0
 
-The v2.5 `GOAL.md` protocol describes delegation and approved concurrent leases
+The v2.5 goal protocol describes delegation and approved concurrent leases
 for agents that can create and manage sub-agents. It is an instruction protocol;
 the Python API paths have no native sub-agent scheduler:
 

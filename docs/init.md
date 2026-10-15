@@ -115,13 +115,14 @@ or starts execution during Init. See [standing corrective planning](goal.md#stan
 
 ## The launch reference
 
-When the project contains an approved compatible `tabilet/GOAL.md`, init also writes
+When you approve goal use and the bundled protocol is available, init also writes
 `tabilet/memory-bank/suggested.txt`: a disposable launch request with the proposed
-status order, file map, and downstream impacts.
+status order, file map, downstream impacts, and the `GOAL_IDENTITY` block. Init no
+longer copies a protocol into the project.
 
 It is launch input, not project truth. It stays out of the required read order,
 and it should be checked against `milestone.md` and the current status files
-before use, then deleted once launched or stale. Without a compatible protocol,
+before use, then deleted once launched or stale. When goal use is not approved or the bundled protocol is unavailable,
 init omits it and one-task execution remains available.
 
 ## Verifying the result

@@ -109,8 +109,14 @@ test('actual loader discovers all seven complete bundles, policies, and resource
     }
     assert.deepEqual(await tree(skill.resourceBase.path), await tree(join(repo, 'skills', name)));
   }
-  assert.deepEqual(await readFile(join(f.dshHome, 'skills/memory-bank-init/GOAL.md')),
-    await readFile(join(repo, 'GOAL.md')));
+  for (const bundle of ['init', 'goal', 'propose', 'reconcile', 'upgrade']) {
+    for (const name of ['GOAL.md', 'goal-protocol.json']) {
+      assert.deepEqual(await readFile(join(f.dshHome, `skills/memory-bank-${bundle}`, name)),
+        await readFile(join(repo, 'skills', `memory-bank-${bundle}`, name)));
+    }
+    assert.deepEqual(await readFile(join(f.dshHome, `skills/memory-bank-${bundle}/GOAL.md`)),
+      await readFile(join(repo, 'GOAL.md')));
+  }
   assert.deepEqual(await tree(join(f.dshHome, 'skills/memory-bank-upgrade/assets/template')),
     await tree(join(repo, 'template')));
 });
@@ -234,7 +240,8 @@ test('incomplete source bundles stop installation and update before any changes'
   await mkdir(candidate);
   await cp(join(repo, 'skills'), join(candidate, 'skills'), { recursive: true });
   const original = await tree(f.dshHome);
-  for (const resource of ['memory-bank-init/GOAL.md', 'memory-bank-archive/references/write-contract.md',
+  for (const resource of ['memory-bank-init/GOAL.md', 'memory-bank-goal/goal-protocol.json',
+    'memory-bank-upgrade/GOAL.md', 'memory-bank-archive/references/write-contract.md',
     'memory-bank-goal/references/runtime-help.md',
     'memory-bank-goal/scripts/email_notify.py',
     'memory-bank-goal/references/email-notifications.md',

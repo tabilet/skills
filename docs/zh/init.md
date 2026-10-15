@@ -94,9 +94,9 @@ sandbox 和 least 提议 `confirm`；明确的人类策略优先。后续执行�
 
 ## 启动参考
 
-项目里有已获批准、版本兼容的 `tabilet/GOAL.md` 时，Init 还会写
+你批准使用 goal 且自带协议可用时，Init 还会写
 `tabilet/memory-bank/suggested.txt`。这是一份用完就丢的启动请求，其中包含建议的状态顺序、
-文件映射和下游影响。
+文件映射、下游影响和 `GOAL_IDENTITY` 块。Init 不再把协议复制进项目。
 
 它只是启动输入，不是项目事实。它不进必读清单；用之前先对照 `milestone.md` 和当前状态文件核
 一遍，一旦启动完成或者过期就删掉。没有兼容协议时，Init 直接省略它，单任务执行照样可用。

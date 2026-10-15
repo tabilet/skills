@@ -129,18 +129,30 @@ is sufficient. Keep current facts and frozen history intact; if resolving a
 conflict would materially supersede knowledge, propose that separate maintenance
 work rather than silently changing it as an upgrade.
 
-The project's `tabilet/GOAL.md` is optional. When found, include an update of an
-earlier compatible protocol in the complete proposal. Use the
-[bundled protocol](assets/template/tabilet/GOAL.md) as the target: an approved
-canonical replacement is byte-identical. Inspect customized protocols and
-propose focused merges that preserve local restrictions and behavior; do not
-silently overwrite custom rules. An unrelated or incompatible protocol needs
-an explicit compatibility decision. Preserve an absent protocol unless its
-creation is separately included in the approved proposal. Never synthesize
-the protocol from memory or execute it during upgrade.
+The goal protocol now ships with the skills: this bundle carries the stock
+[GOAL.md](GOAL.md) and its fingerprint registry `goal-protocol.json`, and
+projects no longer keep a copy. A project's `tabilet/GOAL.md`, when present, is a
+project addendum that narrows the stock protocol at run time. Classify an
+existing file with the registry, as the stock protocol's Protocol Resolution And
+Identity section describes, and include the result in the complete proposal:
 
-When existing `tabilet/memory-bank/suggested.txt` is found with a compatible
-approved goal protocol, include its refresh in the same proposal. Reconcile
+- byte-identical to a released stock copy: propose removing it, since the
+  bundled protocol supersedes it;
+- a full protocol copy with local edits: show the local differences against the
+  closest released copy and propose reducing the file to those project-specific
+  rules; the user decides, and goal runs stop on it until it is reduced;
+- anything else, including a project record: keep it as the addendum, and flag
+  any rule in it that would weaken a stock gate.
+
+Never write a merged protocol, synthesize one from memory, or execute it during
+upgrade. Rewrite `AGENTS.md` and `milestone.md` pointers that describe
+`tabilet/GOAL.md` as the protocol so they name the bundled goal protocol and the
+optional addendum. Offer the template's Out of scope register as explicit
+adoption.
+
+When existing `tabilet/memory-bank/suggested.txt` is found and the bundled goal
+protocol is available, include its refresh in the same proposal, naming the
+memory-bank goal protocol and adding its `GOAL_IDENTITY` block. Reconcile
 the whole current approved active horizon, permanent IDs, status paths,
 dependencies, conditional triggers, and downstream impacts before rewriting.
 Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`), commit,
@@ -155,8 +167,8 @@ Always emit `AUTHORIZATION_GRANTS: {}` when there are
 no proposed explicit grants, or the concrete proposed mapping when present.
 Requirements stay in milestone specifications and never become duplicate
 declarations in launch input. Preserve an absent launch reference; this upgrade
-does not create one by default. Without a compatible protocol, propose its
-preservation or removal and explain the blocker. An all-retired project gains
+does not create one by default. If the bundled protocol is unavailable, propose
+preserving or removing the launch reference and explain the blocker. An all-retired project gains
 no executable IDs. Upgrading these files never activates grants or launches a
 goal, and a repeat run with compatible files is a no-op.
 
@@ -189,8 +201,9 @@ Verify the resulting diff against the approval and original evidence:
   their original bytes, and an all-retired project stays initialized;
 - new rules point to existing project files, omitted optional features leave no
   dead links, and no unfilled project placeholder or example task was introduced;
-- an approved bundled `tabilet/GOAL.md` copy is byte-identical and the resolved commit
-  policy remains explicit;
+- no protocol copy or merged protocol was written into the project, an approved
+  `tabilet/GOAL.md` removal or reduction matches the proposal, and the resolved
+  commit policy remains explicit;
 - an existing refreshed launch reference matches live project truth, preserves
   explicit policies, includes `AUTHORIZATION_GRANTS` even when empty, and marks
   proposed grants as unapproved; absent optional files remain absent unless an

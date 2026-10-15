@@ -1,7 +1,7 @@
 # Sub-Agent Milestone Execution
 
 This guide defines the sub-agent execution architecture for multi-milestone
-workflows under [`tabilet/GOAL.md`](goal.md). It establishes how to accelerate
+workflows under the [goal protocol](goal.md). It establishes how to accelerate
 milestone delivery through fresh-context task execution and parallel read-only
 fan-out (Tier 0), as well as opt-in concurrent worktree leases (Tier 1), while
 strictly preserving milestone quality, verification rigor, and the
@@ -170,7 +170,8 @@ receives a focused brief rather than the owner's whole conversation:
 - the milestone specification and its status file;
 - exactly one `ASSIGNED_MILESTONE`, its `ASSIGNED_STATUS_FILE`, allowed writes,
   and the condition for returning to the owner;
-- the governing `tabilet/GOAL.md` and complete resolved request: the chosen
+- the governing protocol, each applicable package addendum (path and hash, the
+  `GOAL_IDENTITY` block), and complete resolved request: the chosen
   `STATUS_ORDER` or `STATUS_PRIORITY`, commit and external-mutation policies,
   concurrency/integration authority, user scope restrictions, and stop conditions;
 - the child's role and owned write boundaries, plus the captured integration
@@ -211,8 +212,11 @@ can fan out to read-only sub-agents without creating a second writer:
 - **Review.** In each review-fix iteration, several read-only reviewers examine
   the same full milestone diff through different lenses: correctness and
   failure semantics; security and privacy; compatibility and operations; tests
-  and documentation. The owner merges their findings into **one** iteration and
-  records it once, so the counter advances by exactly one per pass.
+  and documentation; and acceptance and scope (requirements missing, partial or
+  implemented wrongly, and behavior nobody asked for). The owner first pins the
+  milestone's base commit and confirms the diff is non-empty, then records all
+  findings in **one** iteration report grouped by lens, so the counter advances
+  by exactly one per pass and no lens hides another.
 - **Downstream reconciliation.** For each impacted pending consumer, a read-only
   analyst drafts the specification changes from the actual implementation
   diff. The owner reviews every draft and applies it.
@@ -236,7 +240,7 @@ Tier 0:
 2. The goal request authorizes it explicitly:
 
    ```text
-   Using tabilet/GOAL.md, execute this loop.
+   Using the memory-bank goal protocol, execute this loop.
 
    STATUS_PRIORITY: M01, A01, S01, P01
    DOWNSTREAM_IMPACTS:
@@ -362,8 +366,15 @@ Teardown worktree and branch; dispatch newly ready milestones
   caches. A milestone needing an exclusive resource serializes only its
   verification step, not its implementation.
 - **Stopping a lease.** A lease is stopped, its worktree removed, and its branch
-  deleted only after its work is integrated or the user directs otherwise. A
-  finished lease is closed at once, so idle sub-agents never hold capacity.
+  deleted only after its work is integrated and its closure is recorded, or the
+  user directs otherwise. A finished lease is closed at once, so idle sub-agents
+  never hold capacity.
+- **Cleanup sweep on resume.** A leftover lease is removed only when the owner's
+  goal state and the status record its successful closure and integration, its
+  worktree, branch and assignment match the recorded dispatch, it has no active
+  writer, and its branch is merged with a clean worktree. A lease just created at
+  the integration tip, or integrated but interrupted before closure, is kept, as
+  is any unrecorded lease; the owner reports every lease it preserves.
 
 ## Rejected approaches
 

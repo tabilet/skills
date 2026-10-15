@@ -68,8 +68,8 @@ replacement needs fresh planning and a new identity; cancelled work does not
 prove delivery. Work already underway needs separate handling.
 
 A material change of direction may add an `tabilet/evolution/` pair under the project's
-existing trigger. A compatible approved `tabilet/GOAL.md` may receive a refreshed
-`tabilet/memory-bank/suggested.txt` launch reference. Neither is automatic for an
+existing trigger. When goal use is approved, an existing
+`tabilet/memory-bank/suggested.txt` launch reference may be refreshed. Neither is automatic for an
 ordinary feature or candidate promotion.
 
 Propose ends with a planning handoff and explicit verification gaps. Request

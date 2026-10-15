@@ -46,7 +46,7 @@ The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the pub
     - 6.1 [Status ID lanes](#61-status-id-lanes)
     - 6.2 [Keep long-term memory without growing the active plan](#62-keep-long-term-memory-without-growing-the-active-plan)
     - 6.3 [Upgrade an existing project](#63-upgrade-an-existing-project)
-    - 6.4 [Run an ordered set of milestones (`tabilet/GOAL.md`)](#64-run-an-ordered-set-of-milestones)
+    - 6.4 [Run an ordered set of milestones (goal protocol)](#64-run-an-ordered-set-of-milestones)
 7. [Install the seven skills](#chapter-7-install-the-seven-skills)
     - 7.1 [Suggested models](#71-suggested-models)
     - 7.2 [Supported agents (Claude Code, Codex, agy, DSH)](#72-supported-agents-claude-code-codex-agy-dsh)
@@ -73,7 +73,7 @@ your-project/
 ├── AGENTS.md                 what an agent should read first
 ├── docs/                     other project documentation
 └── tabilet/
-    ├── GOAL.md               optional multi-milestone protocol
+    ├── GOAL.md               optional project addendum to the bundled goal protocol
     ├── stages.md             optional overview of delivery stages
     ├── audit.sqlite3         optional local audit database and index
     ├── memory-bank/           current facts and active work
@@ -167,7 +167,7 @@ Project-level sample files in [template/](template/), copied into a project
 root:
 
 - [template/AGENTS.md](template/AGENTS.md)
-- [template/tabilet/GOAL.md](template/tabilet/GOAL.md) — the multi-milestone execution protocol
+- [GOAL.md](GOAL.md) — the stock multi-milestone execution protocol; it ships inside the skills, not in the template
 - [template/tabilet/memory-bank/product.md](template/tabilet/memory-bank/product.md)
 - [template/tabilet/memory-bank/architecture.md](template/tabilet/memory-bank/architecture.md)
 - [template/tabilet/memory-bank/tech-stack.md](template/tabilet/memory-bank/tech-stack.md)
@@ -209,7 +209,7 @@ keep its supporting reference when copying the bundle.
 
 Unlike the copyable template, `memory-bank-init` can derive project-specific
 goal input; `memory-bank-reconcile` and `memory-bank-propose` can refresh it
-when approved planning changes the active graph. When the project contains an approved compatible `tabilet/GOAL.md`,
+when approved planning changes the active graph. When goal use is approved and the bundled protocol is available,
 they write `tabilet/memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
 `STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is advisory and disposable,
 covers only the approved active horizon, and excludes unnumbered candidate
@@ -610,7 +610,7 @@ inside a review do not authorize another fetch.
 The review is not copied into the project. Portable finding IDs, both severity
 classifications, current evidence, and lineage live with the planned rows. The
 skill updates downstream specifications and refreshes `suggested.txt` from the
-whole active horizon when a compatible `tabilet/GOAL.md` exists. It does not implement,
+whole active horizon when goal use is approved. It does not implement,
 commit, or launch the fixes; use `memory-bank-next` or `memory-bank-goal` after
 approving the reconciled plan.
 
@@ -625,7 +625,7 @@ optional, because the memory bank is plain markdown and works on its own:
 | Type a request to your agent | One row at a time, you in the loop | Nothing |
 | [`memory-bank-next`](#install-the-seven-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
 | [The Tabilet API harness](#install-the-api-harness) | One row per run, unattended | Python 3.9+ |
-| [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | `tabilet/GOAL.md` and an agent request or optional skill |
+| [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | The bundled goal protocol and an agent request or optional skill |
 
 With an agent such as Codex or Claude Code, the user-facing workflow can be as
 simple as typing:
@@ -822,8 +822,10 @@ is:
    frozen archives, custom rules, verification commands, and any review counter.
 3. Request a file-by-file proposal for merging the applicable rules. Preserve
    project facts, existing task states, permanent IDs, historical evidence,
-   local policies, and the persisted review count. Keep the optional project
-   `tabilet/GOAL.md` unless its replacement is explicitly included in that proposal.
+   local policies, and the persisted review count. Upgrade classifies an existing
+   `tabilet/GOAL.md` against the bundled protocol: it proposes removing a stock
+   copy, reducing a modified full copy to its project-specific rules, and keeps an
+   addendum; it never writes a merged protocol.
 4. After approval, apply the scoped merges and verify links, status tables,
    protocol compatibility, and the project's required checks. Do not copy
    template placeholders over live content or rerun initialization.
@@ -840,8 +842,8 @@ before writing.” This request does not authorize implementation tasks or commi
 ### 6.4 Run an ordered set of milestones
 
 The workflow above advances one row at a time. To work through several
-milestones in a defined order, [GOAL.md](template/tabilet/GOAL.md) is one protocol for
-that: it reconciles dependencies before each milestone, reconciles the
+milestones in a defined order, the [stock goal protocol](GOAL.md) is one protocol for
+that: it ships with the skills, so a project carries no copy of it, and it reconciles dependencies before each milestone, reconciles the
 milestones downstream of one that just closed, and stops rather than guessing
 when a decision or authority is missing.
 
@@ -870,10 +872,10 @@ attempts never replay automatically, and delivery never approves work.
 The Python API paths consume neither email nor corrective-planning options.
 
 It is invoked, not ambient. Whatever your agent, the request that starts a run is
-the same block, and it names the file, the order, and the commit policy:
+the same block, and it names the protocol, the order, and the commit policy:
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
@@ -881,18 +883,19 @@ COMMIT_POLICY: task
 
 When `memory-bank-init` creates the active horizon, or `memory-bank-reconcile`
 changes it after a new review, either skill writes the complete proposed request
-to `tabilet/memory-bank/suggested.txt` when the project has a compatible `tabilet/GOAL.md`.
+to `tabilet/memory-bank/suggested.txt` when goal use is approved.
 Treat that file as a launch suggestion, not a second roadmap: reconcile it
 against `milestone.md` and the current status files, then delete it after launch
 or whenever it becomes stale. It always shows `AUTHORIZATION_GRANTS`, with `{}`
 as the default when no explicit grants are proposed. Propose refreshes it for
-approved plan changes; Upgrade offers updates to an existing `GOAL.md` and
-`suggested.txt` in its complete approval proposal while preserving local rules
-and policies. Without a compatible protocol, planning skills omit this file
-and leave one-row execution available. To reference an existing suggestion directly:
+approved plan changes; Upgrade offers a refresh of an existing `suggested.txt` and a
+classification of an existing `tabilet/GOAL.md` in its complete approval proposal
+while preserving local rules and policies. If the bundled protocol is unavailable,
+planning skills omit this file and leave one-row execution available. To reference
+an existing suggestion directly:
 
 ```text
-Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
+Using the memory-bank goal protocol, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
 COMMIT_POLICY: task
 ```
 
@@ -915,7 +918,7 @@ Since v2.5.0, agents that support delegation can use fresh milestone contexts,
 read-only review fan-out, and explicitly approved concurrent worktree leases.
 See [Sub-Agent Milestone Execution](docs/subagents.md). `STATUS_ORDER` remains
 strict; `STATUS_PRIORITY` chooses among dependency-ready milestones. These are
-`GOAL.md` capabilities of the hosting agent. The standalone API runner and
+goal-protocol capabilities of the hosting agent. The standalone API runner and
 `tabilet` controller remain serial and keep their own commit requirements.
 
 #### 6.4.1 Keep a long run active
@@ -924,12 +927,12 @@ Both [Claude Code](https://code.claude.com/docs/en/goal) and
 [Codex](https://learn.chatgpt.com/use-cases/follow-goals) provide a built-in
 `/goal` for keeping a durable objective active. It is an optional persistence
 layer, not the memory-bank protocol: `/goal` keeps the run alive, while
-`tabilet/GOAL.md` defines how milestones are reconciled, implemented, reviewed, and
-closed. Give the built-in command the complete protocol request and a measurable
+the bundled goal protocol defines how milestones are reconciled, implemented,
+reviewed, and closed. Give the built-in command the complete protocol request and a measurable
 completion condition together:
 
 ```text
-/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
+/goal Using the memory-bank goal protocol, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
 ```
 
 In either agent, run `/goal` with no arguments to show its status and
@@ -938,7 +941,7 @@ In either agent, run `/goal` with no arguments to show its status and
 If `/goal` is not listed in Codex, enable it with `codex features enable goals`.
 
 Built-in `/goal` does not discover this repository's protocol automatically;
-the objective must name `tabilet/GOAL.md`, as in the example above. You can instead
+the objective must select the protocol, as in the example above. You can instead
 invoke `memory-bank-goal` directly using the Claude Code or Codex forms shown
 above; that is the portable non-persistent launcher. [Codex custom
 prompts](https://learn.chatgpt.com/docs/custom-prompts) are deprecated in favor
@@ -947,15 +950,16 @@ of skills, so this repository does not install or recommend a separate
 
 #### 6.4.2 Any other agent
 
-Paste the block as an ordinary request. Naming the file is all the protocol
-needs; nothing depends on a slash command existing.
+Paste the block as an ordinary request. Selecting the protocol is all it
+needs; nothing depends on a slash command existing. Without the plugin, copy the
+stock `GOAL.md` from this repository next to your skills and name its path.
 
 `COMMIT_POLICY` matters, and a goal run is a deliberate exception to the usual
 rule. For the length of the run it is the entire commit rule: `AGENTS.md` may say
 each status row is a commit unit, but `COMMIT_POLICY: none`, which is the
 protocol's default, means no commits at all. That is correct behavior rather
 than a conflict. Say `task` when you want the usual per-row commits. Precedence runs
-request, then `tabilet/GOAL.md`, then `AGENTS.md`, and only for commits, and only inside
+request, then the project addendum, then the goal protocol, then `AGENTS.md`, and only for commits, and only inside
 the run.
 
 A trailing `?` marks a milestone conditional: it is skipped, not cancelled, when
@@ -963,16 +967,26 @@ its documented trigger is absent. Use it only for work conditionally required to
 reach the active outcome; discretionary later work stays an unnumbered candidate
 direction instead.
 
-`tabilet/GOAL.md` carries no project-specific paths, lane letters, or commands. It
-discovers those from `AGENTS.md` and the memory bank, so the same file works
-unchanged in every project that copies it.
+The stock protocol carries no project-specific paths, lane letters, or commands. It
+discovers those from `AGENTS.md` and the memory bank, so the same bundled file
+works unchanged in every project.
 
-Nothing requires you to use it. Bring your own protocol, or none at all, and
-the memory bank behaves exactly the same. `tabilet/GOAL.md` is offered because writing
-one of these is fiddly,
-not because anything here depends on it. If you have your own, point the two
-`tabilet/GOAL.md` mentions at it instead, or delete them. They are in `AGENTS.md` and
-`tabilet/memory-bank/milestone.md`.
+**Project addendum.** An optional `tabilet/GOAL.md` in a project is an addendum
+that adds project rules and narrows defaults, such as a stricter commit policy or
+extra verification. It is combined with the stock protocol at run time; no merged
+file is ever written, and it cannot weaken the review gate, authorization, or
+ownership rules. A project file that is a byte-identical stock copy is ignored
+(and can be deleted); a modified full copy stops the run until you reduce it to
+the project-specific part. The goal skill records a `GOAL_IDENTITY` block (the
+protocol hash plus each participating package's addendum hash or `none`) and
+pauses if any of it changes on resume. Select an entirely different protocol with
+`GOAL_PROTOCOL: <path>`.
+
+Nothing requires you to use any of this. Bring your own protocol, or none at all, and
+the memory bank behaves exactly the same. The bundled protocol is offered because
+writing one of these is fiddly, not because anything here depends on it. If you
+have your own, select it with `GOAL_PROTOCOL`, or delete the `AGENTS.md` and
+`tabilet/memory-bank/milestone.md` mentions of the goal protocol.
 
 <a id="install-the-five-skills"></a>
 <a id="install-the-six-skills"></a>
@@ -1413,7 +1427,7 @@ The two API paths retain their existing execution scope:
 |---|---|---|
 | Standalone `tackle-memory-bank-api-loop` | Serial, one actionable row per run; fresh conversation for each row. | A commit is required per run. |
 | Optional `tabilet` controller | Serial rows within one approved horizon; separate planning, task, and closure conversations. | Host commits and required closure follow the approved receipt. |
-| Agent running `tabilet/GOAL.md` | Delegation and concurrency depend on the agent's capabilities and explicit project/request authorization. | The resolved goal `COMMIT_POLICY` governs. |
+| Agent running the goal protocol | Delegation and concurrency depend on the agent's capabilities and explicit project/request authorization. | The resolved goal `COMMIT_POLICY` governs. |
 
 Neither API path adds a native sub-agent scheduler. The controller still rejects
 linked worktrees, so it does not execute the goal protocol's concurrent leases.

@@ -38,7 +38,7 @@ than selecting a new one.
 6. Commit that row's work under the governing commit policy.
 
 The usual policy is one status row per commit. A governing explicit commit
-policy, including one inside a `tabilet/GOAL.md` run, can change that. A milestone is the
+policy, including one inside a goal-protocol run, can change that. A milestone is the
 unit of review.
 
 ## Status markers

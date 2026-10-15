@@ -34,19 +34,9 @@ performed-action evidence, or a missing-authority blocker; they never prove
 approval. Required unperformed actions prevent closure. No new task marker is
 introduced, and absent authorization metadata grants no additional authority.
 
-With human-approved `CORRECTIVE_PLANNING: auto`, the owner may prepare and
-check necessary repair plans within the original delivery outcome, existing
-grants and explicit limits. Preserve this row's identity and interrupted work;
-move the interrupted `[~]` row to `[!]` before activating a repair row. Record
-prerequisite IDs, standing approval source and resumption condition. Keep zero
-or one `[~]` row. Once every prerequisite is verified and accepted and all
-blockers clear, restore this row from `[!]` to `[~]` under the same approval.
-Recover this chain on resume; do not select unrelated work. Preserve partial
-implementation; suspension bookkeeping may join the scoped repair checkpoint,
-but unfinished implementation cannot. Pause if overlapping changes cannot be
-separated safely. Explicit project restrictions still govern.
-Preserve review counts and frozen history. Children report needs
-to the owner; a marker never grants planning or action authority.
+Repairs under human-approved `CORRECTIVE_PLANNING: auto` suspend and resume an
+in-progress row as [standing corrective planning](milestone.md#standing-corrective-planning)
+describes. Preserve review counts and frozen history.
 
 Each table row is a commit unit: after changing its state, verify the change,
 update the memory bank/docs, and make a scoped `git commit` before starting the

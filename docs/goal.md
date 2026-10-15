@@ -1,7 +1,7 @@
 # Goal
 
-Execute or resume ordered memory-bank milestones using the project's `tabilet/GOAL.md`
-protocol.
+Execute or resume ordered memory-bank milestones using the bundled goal protocol and
+any project addendum.
 
 Send one of these in a session for your project, replacing the IDs with your
 approved milestone order:
@@ -42,17 +42,19 @@ a time.
 When no order is supplied, the skill checks `tabilet/memory-bank/suggested.txt` against
 the current milestone and status files. It prefers a valid suggested order or
 derives one from `milestone.md`, then shows the complete request for confirmation.
-It asks you when the order is ambiguous. A missing `tabilet/GOAL.md` stops this workflow;
-one-task execution remains available through [Next](next.md).
+It asks you when the order is ambiguous. The protocol ships inside the skill, so a
+project needs no `tabilet/GOAL.md`; if the bundled copy is missing or damaged, this
+workflow stops, and one-task execution remains available through [Next](next.md).
 
-## GOAL.md is offered, never required
+## The goal protocol is offered, never required
 
-`tabilet/GOAL.md` is one optional protocol. It is invoked, not ambient: whatever your
-agent, the request that starts a run names the file, the order, and the commit
-policy.
+The stock protocol ([GOAL.md](https://github.com/tabilet/skills/blob/main/GOAL.md)) is one
+optional protocol. It ships inside the skills rather than in your project. It is
+invoked, not ambient: whatever your agent, the request that starts a run selects the
+protocol, the order, and the commit policy.
 
 ```text
-Using tabilet/GOAL.md, execute this loop.
+Using the memory-bank goal protocol, execute this loop.
 
 STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
@@ -64,11 +66,39 @@ documented acceptance, verification, review, and closure requirements.
 
 You can paste that at any agent. The protocol contains no project-specific
 paths, lane letters, or commands — it reads those from `AGENTS.md` and the
-memory bank — so the same file works unchanged in any project that copies it.
+memory bank — so the same bundled file works unchanged in any project.
 
 The same project files also work with another protocol or one-task execution.
-The `memory-bank-goal` skill specifically requires `tabilet/GOAL.md`; adopting that
-protocol remains optional for the project.
+`GOAL_PROTOCOL: <path>` selects a different full protocol; adopting any protocol
+remains optional for the project.
+
+### Project addendum and protocol identity
+
+An optional `tabilet/GOAL.md` in a package is a **project addendum**. It adds
+project rules and narrows defaults (a stricter commit policy, extra verification,
+forbidden actions) and is combined with the stock protocol at run time. The skill
+never writes a merged file, and an addendum cannot weaken the review gate,
+authorization, single in-progress ownership, required verification, retirement or
+commit-policy safety. Precedence is the request, then the addenda, then the
+protocol.
+
+At start the skill classifies each participating package's file against the
+fingerprints in `goal-protocol.json`:
+
+| Package file | Treatment |
+|---|---|
+| Absent | Recorded as `none`. |
+| Byte-identical to a released stock copy | Ignored and reported as removable. |
+| A full protocol copy with local edits | The run stops until you reduce it to the project-specific part. |
+| Anything else (a short addendum, a project record) | Applied as the addendum. |
+
+It records the result as a `GOAL_IDENTITY` block (the protocol version and hash plus
+each package's addendum hash, `ignored-stock <version>`, or `none`) and rechecks the
+whole block at every resume and before each child dispatch. A plugin update, a
+different bundled version in another agent, or an edited or newly added addendum
+pauses the affected work until you approve the new identity. In a cross-package
+run the coordinator's protocol governs, and each child also applies its own
+package's addendum.
 
 ## COMMIT_POLICY is the one that matters
 
@@ -80,10 +110,10 @@ protocol remains optional for the project.
 
 Write `task` when you want the usual per-row commits, or `none` when you want
 the changes left uncommitted. Use `milestone` to commit implementation and
-closure together. For concurrent leases, `GOAL.md` defines the unpublished
+closure together. For concurrent leases, the protocol defines the unpublished
 checkpoint and owner finalization needed to integrate one milestone commit.
-The request takes precedence over `tabilet/GOAL.md`, which
-takes precedence over `AGENTS.md`. The commit-policy exception lasts only for
+The request takes precedence over a project addendum, which takes precedence over
+the goal protocol, which takes precedence over `AGENTS.md`. The commit-policy exception lasts only for
 the run; other applicable project rules still govern.
 
 ## Authorization requirements and grants
@@ -300,12 +330,12 @@ as an alert gap, preserving the approval pause.
 ## Built-in `/goal` is a different thing
 
 An agent's native goal feature can keep an objective active across turns. It
-does not replace this project's protocol or implicitly select `tabilet/GOAL.md`.
+does not replace the goal protocol or implicitly select it.
 When using native `/goal` continuation for this workflow, name the protocol,
 commit policy, and measurable completion condition explicitly:
 
 ```text
-/goal Using tabilet/GOAL.md, reconcile tabilet/memory-bank/suggested.txt against the current
+/goal Using the memory-bank goal protocol, reconcile tabilet/memory-bank/suggested.txt against the current
 memory bank, then execute the resolved loop. COMMIT_POLICY: task.
 EXTERNAL_MUTATIONS: none.
 Completion condition: every required status is complete, every triggered conditional

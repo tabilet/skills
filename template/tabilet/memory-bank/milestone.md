@@ -13,8 +13,10 @@ fixes should be verified and committed before work starts on the next milestone.
 Do not create an extra milestone commit when the review produces no changes.
 
 The review procedure below covers one milestone. To run several in order, with
-dependency and downstream reconciliation between them, [../GOAL.md](../GOAL.md)
-is one optional protocol for that; any equivalent works just as well.
+dependency and downstream reconciliation between them, the memory-bank goal
+protocol bundled with the skills is one optional protocol for that; any
+equivalent works just as well. An optional `tabilet/GOAL.md` addendum narrows
+that protocol for this project and never restates it.
 
 When `tabilet/stages.md` exists, it records stable `STG-` IDs, the current
 stage, and provisional later ideas. Give each active milestone specification
@@ -80,7 +82,7 @@ authority. Inspect and resolve exact targets before seeking approval. A
 resolved grant must have concrete scope covering the requirement, with no
 unresolved placeholders, wildcard targets, blanket booleans, or credentials.
 
-Under [the optional goal protocol](../GOAL.md), `AUTHORIZATION_GRANTS` belongs
+Under the optional goal protocol, `AUTHORIZATION_GRANTS` belongs
 to the resolved human-approved request, not to this file. Requirements,
 proposed grants, status notes, and `suggested.txt` are evidence, not approval.
 Check authority before the action; pause affected work and dependents when it
@@ -119,6 +121,18 @@ ownership and interrupted evidence. All repair rows/commits/attempts count
 toward explicit limits. Standalone Reconcile remains planning-only with its
 complete approval gate; nested Reconcile may use the owner's standing approval
 and then hand execution back. Installation never activates this policy.
+
+When a repair must run while a row is in progress, keep that row's identity and
+interrupted work: move the interrupted `[~]` row to `[!]` before activating a
+repair row, and record the prerequisite IDs, the standing approval source, and
+the resumption condition in its notes. Keep zero or one `[~]` row. Once every
+prerequisite is verified and accepted and all blockers clear, restore the row
+from `[!]` to `[~]` under the same approval. Recover this chain on resume
+without selecting unrelated work. Preserve partial implementation; suspension
+bookkeeping may join the scoped repair checkpoint, but unfinished implementation
+cannot. Pause if overlapping changes cannot be separated safely. Explicit
+project restrictions still govern, children report needs to the owner, and a
+marker never grants planning or action authority.
 
 ## Status ID Pattern
 
@@ -251,6 +265,16 @@ trigger; do not duplicate every stage as a Candidate Direction.
 |---|---|---|
 | [Later direction.] | [Why detailed planning would be premature.] | [Decision, evidence, or completed milestone that makes it ready.] |
 
+## Out of scope
+
+Work ruled out of this project, with the reason. Unlike a candidate direction,
+an entry here never promotes and has no trigger; it returns only through a new
+approved direction. Record it here so the same idea is not proposed again.
+
+| Ruled out | Reason |
+|---|---|
+| [Work the project will not do.] | [Why it is outside this project's boundary.] |
+
 ## Review finding severity
 
 P1 and P2 are engineering review priorities. They describe the impact and
@@ -350,9 +374,12 @@ notes identify the consumed attempt or supersession and its accepted successor:
    - The initial deep-review pass is iteration 1. Read the persisted count and
      findings first. Record the iteration as started before review; resume an
      interrupted pass at that same number. Runtime round limits are separate.
-     Read the `git log` range and
-     review the full milestone diff for correctness, regressions, failure
-     semantics, boundary drift, stale docs, and missing tests.
+     Pin the milestone's base commit, confirm the diff is non-empty, read the
+     `git log` range, and review the full milestone diff for correctness,
+     regressions, failure semantics, boundary drift, stale docs, and missing
+     tests. Review acceptance fidelity separately: requirements missing or
+     partial, behavior nobody asked for, and requirements implemented wrongly,
+     each quoting its acceptance line. Record findings grouped by concern.
    - Record the iteration number and findings in the current status notes so a
      continuation cannot reset the counter. If the pass finds no P1, P2, or
      higher-severity issue, the gate passes. Otherwise, when the current
@@ -370,6 +397,13 @@ notes identify the consumed attempt or supersession and its accepted successor:
    product scope, domain terminology, concept relationships, or business
    invariants. Update `architecture.md` or `tech-stack.md` if it changed
    boundaries, dependencies, commands, data flow, or runtime assumptions.
+   Then run an environment retro on the mistakes found during the milestone.
+   Classify each first: a mechanical one that a linter, test, or CI check could
+   catch becomes a proposed deterministic check; a judgement call becomes a
+   lesson or a review rule. Also note a missing navigation pointer, missing
+   access to needed information, or an instruction that changes nothing. Report
+   these environment candidates, most severe first, for a later approved
+   proposal; they never become unapproved rows.
 5. Check `tabilet/evolution/`. Add the next `prompt-vN.md` and `result-vN.md` only when
    product direction, architecture boundary, milestone target, or public/private
    contract direction materially changes.

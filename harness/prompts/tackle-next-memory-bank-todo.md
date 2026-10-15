@@ -84,6 +84,9 @@ expanding into unrelated history.
 
 Tackle exactly one row:
 
+- For a defect or remediation row, first establish one command that goes red
+  on the reported symptom and run it. Then fix; that command going green is
+  part of the row's evidence.
 - Implement the change.
 - Update current memory-bank facts invalidated by this row in the same change.
   A later documentation row does not defer these current-fact corrections.
@@ -107,7 +110,9 @@ row to be `[~]`. The marker records the selected operation; it does not grant
 missing external-mutation authority.
 
 If completing this row completes a milestone, run the milestone review procedure
-from `tabilet/memory-bank/milestone.md` before final handoff. Commit review fixes
+from `tabilet/memory-bank/milestone.md` before final handoff, including its
+environment retro; report environment candidates, most severe first, as planning
+candidates only. Commit review fixes
 separately under the governing policy; a goal's commit-none restriction still
 means no commits, and its milestone policy includes fixes in milestone closure.
 

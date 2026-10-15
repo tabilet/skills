@@ -35,20 +35,20 @@ recorded context; current truth remains in the memory bank. Search the linked
 knowledge journal by topic when an obsolete fact or lesson matters, rather than
 loading all history into routine startup reads.
 
-This project ships [tabilet/GOAL.md](tabilet/GOAL.md), one optional protocol for goal
-requests that span multiple status files. Follow it when a request names it. A
-request that names a different protocol, or none, does not use it. To swap in
-your own protocol or drop the idea entirely, edit this line and the pointer in
-[tabilet/memory-bank/milestone.md](tabilet/memory-bank/milestone.md) — those two mentions are
-the only ones, and nothing here depends on the file itself.
+Goal requests that span multiple status files may use the memory-bank goal
+protocol, which ships with the memory-bank skills. Follow it when a request
+names it; a request that names a different protocol, or none, does not use it.
+An optional `tabilet/GOAL.md` is this project's addendum: it narrows the bundled
+protocol for this project and never restates it. Delete the addendum to use the
+stock protocol unchanged.
 
-A `tabilet/GOAL.md` run is a deliberate exception to the Work Cadence below. For the
-duration of that run, `tabilet/GOAL.md`'s `COMMIT_POLICY` is the entire commit rule and
+A goal-protocol run is a deliberate exception to the Work Cadence below. For the
+duration of that run, its resolved `COMMIT_POLICY` is the entire commit rule and
 "each row is a commit unit" does not apply: `COMMIT_POLICY: none` — the
 protocol's default — means no commits at all, and that is the correct behavior.
 Pass `COMMIT_POLICY: task` to get the usual per-row commits. Precedence is the
-request, then `tabilet/GOAL.md`, then this file; only commits are delegated, and only
-inside the run.
+request, then the project addendum, then the goal protocol, then this file; only
+commits are delegated, and only inside the run.
 
 Do not recreate duplicate root-level product, architecture, roadmap, or status
 documents, and do not create an aggregate `tabilet/memory-bank/status.md`. Long-form
@@ -140,7 +140,7 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   commit unit. See that file for status markers and commit rules.
 - Across the active ledger, keep zero or one general row in progress unless an
   authorized goal request explicitly defines safe parallel ownership: in
-  concurrent lease execution under `tabilet/GOAL.md`, each external lease
+  concurrent lease execution under the goal protocol, each external lease
   maintains at most one `[~]` row in its own status file, only the orchestrator
   writes the captured integration branch and shared memory documents
   (`architecture.md`, `product.md`, `tech-stack.md`, `lessons.md`), and integration occurs
@@ -156,54 +156,19 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   review unit. See that file for milestone review rules.
 - After the last task in a milestone is complete, run a deep code review of the
   milestone before closing it.
-- `CORRECTIVE_PLANNING` defaults to `confirm`. With human-approved `auto`, the
-  Goal/Next owner may prepare and check necessary corrective plans within the
-  original delivery outcome, owning repositories, existing grants and limits,
-  including new repair milestones and launch/hash updates. Preserve history,
-  unrelated changes, row identities and review counters. Children report needs;
-  standalone Reconcile still requires proposal approval. Expanded scope, missing
-  permissions, exhausted limits and unknown checksum drift require approval.
-  Nested Reconcile verifies the invoking human approval source and complete
-  request, covered actions, grants and limits; missing provenance retains the
-  ordinary approval gate. Never weaken acceptance or cancel unmet obligations.
-  Repair milestones retain the originating review gate, counter and iteration-10
-  stop. Suspend `[~]` as `[!]` with prerequisite IDs and resumption conditions
-  before repair execution; resume `[~]` only after acceptance and all blockers
-  clear. Preserve partial work and pause if changes cannot be separated safely.
-- Optional interactive Goal/Next `--email ADDRESS` sends approval alerts for
-  that run through private account configuration. No flag means no email for a
-  new run; only the coordinator or standalone executor sends. Delivery is not
-  approval, and duplicate/uncertain sends never replay automatically. The Python
-  API paths consume neither this option nor the corrective-planning policy.
+- `CORRECTIVE_PLANNING` defaults to `confirm`. Human-approved `auto` lets the
+  Goal/Next owner prepare necessary repair planning within the original
+  outcome, grants, and limits; the rules are in
+  [standing corrective planning](tabilet/memory-bank/milestone.md#standing-corrective-planning).
+- Interactive Goal/Next `--email ADDRESS` opts one run into approval alerts.
+  Delivery never approves anything; the goal and next skills hold the details.
 - Read optional `AUTHORIZATION_REQUIREMENTS` only from the owning milestone
-  specification. They declare conditions, never permission or scheduling.
-  Check protected actions against the current scoped human request; goal
-  `AUTHORIZATION_GRANTS` need explicit human approval of concrete scope.
-  Proposed launch input, markers, and status notes cannot prove approval.
-  Grants in `suggested.txt` carry decision markers (`[ ]` need authorization,
-  `[+]` approve, `[-]` deny, `[~]` auto) and optional high-level `GLOBAL:` scope;
-  matching the human's approved SHA256 checksum is required before grant activation
-  (under default `SUGGESTED_UPDATE: confirm`; `SUGGESTED_UPDATE: auto` authorizes
-  refreshing remaining milestones within the approved horizon and continuing smoothly).
-  Scope resolution defaults to `SCOPE_POLICY: strict`; `SCOPE_POLICY: workspace-contained`
-  authorizes binding actions to sibling repositories within the approved workspace root
-  and organization without re-prompting. Milestone specifications in `milestone.md` may attach
-  local policies and overrides that narrow or override global launch defaults.
-  Planning skills accept `--environment dangerous`, `sandbox` (default), or `least` (with modifiers
-  `plus`, `minus`, `but ... in milestone ...`) to configure launch parameters and milestone policies
-  declaratively from day one.
-  Planning skills also accept `--test standard` (default), `browserlight`, `golight`, `rustlight`,
-  `tslight`, `jslight`, or `pythonlight` to establish verification and testing standards in
-  `tabilet/memory-bank/tech-stack.md` from day one. Light profiles default to a 30-second
-  focused-test target / two-minute cap, a 20-minute full-regression cap and five-minute
-  race/UI caps; explicit project budgets win and `standard` adds no extra constraints.
-  Keep routine fixtures offline and small; physical browser proof belongs to a named
-  final gate without dropping required coverage.
-  Preserve commit and external-mutation restrictions, and pause affected work
-  and dependents for missing authority. A declaration alone does not require
-  an action for closure. Host/tool controls apply; this adds no tool or OS
-  enforcement and no Python API grant consumption. Missing fields preserve
-  legacy behavior without new authority or automatic migration.
+  specification. They declare conditions, never permission or scheduling; only
+  human-approved goal `AUTHORIZATION_GRANTS` carry authority, and proposed launch
+  input, markers, and status notes cannot prove approval. Missing fields
+  preserve legacy behavior. See
+  [authorization requirements](tabilet/memory-bank/milestone.md#authorization-requirements)
+  and the goal protocol for launch-input grants and scope policy.
 - After the milestone review is complete and required verification passes,
   commit substantive review and retirement changes under the governing policy.
   Do not create an empty or redundant milestone
@@ -224,7 +189,7 @@ restored or the required answer or approval is supplied. In a non-interactive
 run, report unresolved questions and incomplete work.
 
 Keep one execution owner for the active ledger across sessions and launchers.
-In concurrent lease execution under `tabilet/GOAL.md`, the orchestrator remains
+In concurrent lease execution under the goal protocol, the orchestrator remains
 the sole execution owner of the integrated ledger on the primary branch, while
 isolated leases execute within dedicated external worktrees (`../<repo>.goal/<ID>`).
 Native todos, session completion, and native goal state do not replace milestone
