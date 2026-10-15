@@ -165,7 +165,8 @@ export MEMORY_BANK_CHECKOUT=/absolute/path/to/skills
     case "$bundle" in
       memory-bank-goal|memory-bank-next)
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/scripts/email_notify.py"
-        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/email-notifications.md" ;;
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/email-notifications.md"
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/model-policy.md" ;;
     esac
     if test "$bundle" = memory-bank-next; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/interactive-controls.md"
@@ -200,7 +201,9 @@ goal, propose, reconcile, upgrade) each carry the stock `GOAL.md` and its
 project payload; preserve that tree too. Goal includes `references/runtime-help.md`
 for invocation syntax and optional native continuation. Goal and Next include
 `scripts/email_notify.py` and `references/email-notifications.md`; Next also
-includes `references/interactive-controls.md`. Preserve these complete bundles.
+includes `references/interactive-controls.md`. Both also carry the identical
+`references/model-policy.md` for opt-in host model/effort checks and fresh
+whole-milestone reviewers; installing the bundles selects no model. Preserve these complete bundles.
 Approval email requires the user's explicit flag, private Cloudflare setup and
 local sender check; installation sends no email. Native continuation must load
 the Goal bundle before relying on notifications. DSH returns a skill's directory as its resource base. Relative
@@ -285,7 +288,8 @@ bundles are backed up before any replacement is copied.
     case "$bundle" in
       memory-bank-goal|memory-bank-next)
         test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/scripts/email_notify.py"
-        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/email-notifications.md" ;;
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/email-notifications.md"
+        test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/model-policy.md" ;;
     esac
     if test "$bundle" = memory-bank-next; then
       test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/interactive-controls.md"

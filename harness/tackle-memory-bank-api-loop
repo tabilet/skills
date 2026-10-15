@@ -145,9 +145,13 @@ expanding into unrelated history.
 
 Tackle exactly one row:
 
-- For a defect or remediation row, first establish one command that goes red
-  on the reported symptom and run it. Then fix; that command going green is
-  part of the row's evidence.
+- For a defect or remediation row, prefer a command that goes red on the
+  reported symptom before fixing it, then record the same command going green.
+  Reproduce only when safely possible within current authority and budget.
+  For unavailable environments, protected actions, exhausted attempt limits or
+  non-reproducible incidents, record existing evidence and the reproduction
+  limitation instead of forcing retries or inventing a failure. Required
+  acceptance evidence and verification gates still apply; if missing, pause.
 - Implement the change.
 - Update current memory-bank facts invalidated by this row in the same change.
   A later documentation row does not defer these current-fact corrections.

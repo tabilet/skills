@@ -358,5 +358,24 @@
       }
     ],
     "problems": []
+  },
+  {
+    "name": "model-policy-and-protocol-identity-are-not-task-rows",
+    "kind": "status",
+    "text": "```yaml\nMODEL_POLICY:\n  DEFAULT:\n    model: vendor-one/implementation\n    reasoning_effort: high\n  WHOLE_MILESTONE_REVIEW:\n    model: vendor-two/review\n    reasoning_effort: xhigh\nGOAL_PROTOCOL: docs/custom-goal.md\nGOAL_IDENTITY:\n- protocol: docs/custom-goal.md sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n- fixture: none\n```\n\n| Item | State | Task | Notes |\n| --- | --- | --- | --- |\n| T01 | `[ ]` | Real task | Depends on M01/T01. |\n",
+    "rows": [
+      {
+        "item": "T01",
+        "state": "pending",
+        "cells": [
+          "T01",
+          "`[ ]`",
+          "Real task",
+          "Depends on M01/T01."
+        ],
+        "line": 17
+      }
+    ],
+    "problems": []
   }
 ]

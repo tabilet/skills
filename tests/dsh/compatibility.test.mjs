@@ -245,6 +245,8 @@ test('incomplete source bundles stop installation and update before any changes'
     'memory-bank-goal/references/runtime-help.md',
     'memory-bank-goal/scripts/email_notify.py',
     'memory-bank-goal/references/email-notifications.md',
+    'memory-bank-goal/references/model-policy.md',
+    'memory-bank-next/references/model-policy.md',
     'memory-bank-next/scripts/email_notify.py',
     'memory-bank-next/references/email-notifications.md',
     'memory-bank-next/references/interactive-controls.md',

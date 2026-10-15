@@ -209,7 +209,7 @@ keep its supporting reference when copying the bundle.
 
 Unlike the copyable template, `memory-bank-init` can derive project-specific
 goal input; `memory-bank-reconcile` and `memory-bank-propose` can refresh it
-when approved planning changes the active graph. When goal use is approved and the bundled protocol is available,
+when approved planning changes the active graph. When goal use is approved and the selected governing protocol is available and compatible,
 they write `tabilet/memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
 `STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is advisory and disposable,
 covers only the approved active horizon, and excludes unnumbered candidate
@@ -890,8 +890,10 @@ or whenever it becomes stale. It always shows `AUTHORIZATION_GRANTS`, with `{}`
 as the default when no explicit grants are proposed. Propose refreshes it for
 approved plan changes; Upgrade offers a refresh of an existing `suggested.txt` and a
 classification of an existing `tabilet/GOAL.md` in its complete approval proposal
-while preserving local rules and policies. If the bundled protocol is unavailable,
-planning skills omit this file and leave one-row execution available. To reference
+while preserving local rules, explicit `GOAL_PROTOCOL` and `MODEL_POLICY`, and
+other policies. If the selected governing protocol is unavailable or incompatible,
+planning skills omit new launch input and preserve existing input pending
+resolution; one-row execution remains available. To reference
 an existing suggestion directly:
 
 ```text
@@ -1014,10 +1016,16 @@ paraphrase of it.
 <a id="suggested-models"></a>
 ### 7.1 Suggested models
 
-The skills do not require, select, or bundle a particular language model. Each
-skill runs with the model chosen by its host agent, and the project files remain
-portable across providers. Model capability still matters because the skills do
-different kinds of work. The names below are current Codex examples, not names
+By default, skills run with the model chosen by their host agent, and project
+files remain portable across providers. Interactive Goal and Next also accept
+an opt-in [model policy](docs/goal.md#optional-model-policy): you choose the
+ordinary-work model and the model for fresh read-only whole-milestone reviewers
+from any provider supported by your host. Effort settings are optional and use
+that host's supported values. No OpenAI model or account is required.
+Without the field, host settings stay
+in effect. An unsupported selected policy pauses affected work for an explicit
+replacement; it never silently falls back. Model capability still matters
+because the skills do different kinds of work. The names below are current Codex examples, not names
 the skills recognize or require; Codex may rename or replace them, and other
 providers have their own model names.
 
@@ -1034,8 +1042,11 @@ from Luna to Terra or Sol when implementation exposes an unclear dependency,
 changes architecture, or fails verification repeatedly. Use Sol for a
 release-critical, security-sensitive, or unusually broad final review.
 
-A skill cannot change its parent session's model. In Codex, choose the model
-with `/model` or start the session with a model profile. A Goal run contains
+A skill cannot change its parent session's model or reasoning effort in place.
+A selected model policy checks the coordinator's actual settings and chooses
+the user-selected model and any requested effort for fresh children through
+supported host controls. In
+Codex, choose the model with `/model` or start the session with a model profile. A Goal run contains
 both implementation and the bounded milestone review, so a balanced model such
 as Terra is the practical default for the whole run. Next can use a fast model
 such as Luna for a clear row and then receive a manual review from a balanced

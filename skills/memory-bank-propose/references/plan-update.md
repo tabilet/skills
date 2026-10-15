@@ -22,14 +22,25 @@ launch execution. Grants cannot expand Python API authorization boundaries.
 Always emit `AUTHORIZATION_GRANTS` in refreshed launch input, using
 `AUTHORIZATION_GRANTS: {}` for the default with no explicit grants.
 Refresh launch input only when goal use is approved (an existing
-`suggested.txt` counts) and this bundle's stock goal protocol is available.
-Name it as the memory-bank goal protocol and always emit its `GOAL_IDENTITY`
-block: the protocol line from this bundle's `goal-protocol.json` (`version` and
-`sha256`), then one line per participating package with its `tabilet/GOAL.md`
-addendum hash, `ignored-stock <version>`, or `none`, classified as the bundled
-`GOAL.md` Protocol Resolution And Identity section describes. Never copy the
-protocol into a project or write a merged protocol. Requirements
+`suggested.txt` counts as goal-use intent, never execution approval) and the
+selected governing protocol is available and compatible. Preserve explicit
+`GOAL_PROTOCOL` selection and its actual path/hash. For stock selection, name
+the memory-bank goal protocol and use this bundle's `goal-protocol.json`
+`version` and `sha256`. For an alternative, retain `GOAL_PROTOCOL: <path>` and
+record `protocol: <path> sha256:<hash>` from the actual selected file, without
+requiring a package-local `tabilet/GOAL.md` or substituting stock metadata.
+Always emit a matching `GOAL_IDENTITY` with every participating package's
+addendum hash, `ignored-stock <version>`, or `none`. If a package file itself is
+the selected alternative protocol, record `selected-protocol sha256:<hash>`
+instead of applying it twice as an addendum. Keep invocation and addenda
+consistent with the selected protocol. A protocol switch requires explicit
+approval; a missing or incompatible selection pauses affected launch refresh
+and preserves existing input for resolution instead of silently replacing it.
+Never copy the protocol into a project or write a merged protocol. Requirements
 stay in the milestone specification; do not duplicate them in `suggested.txt`.
+Preserve explicit `MODEL_POLICY` on refresh. Omission preserves host model
+settings; add a policy only when requested, as a proposal for future execution,
+never as a preset or an effect of planning approval.
 Proposed grants in `suggested.txt` carry decision markers: `[ ]` (need authorization),
 `[+]` (approve), `[-]` (deny), and `[~]` (auto). High-level `GLOBAL:` grants declare
 common authorities across milestones. When refreshing `suggested.txt`, strictly preserve
@@ -144,10 +155,10 @@ record until ordinary review, disposition, and retirement close it.
 
 For a milestone whose acceptance depends on an expensive or protected check, apply the milestone file's expensive-check rule: acceptance covers only behavior the milestone owns, proved with the smallest workload; real producer or consumer pairing belongs to the adopting milestone; needed host capabilities get a cheap readiness probe as the first row; and an uncounted local diagnostic loop is named. Review intake must not move downstream pairing evidence into such a milestone.
 
-A wide refactor, one mechanical change whose blast radius breaks many call sites at once (renaming a shared symbol, column, or path), cannot land as one green row. Plan it as expand–contract: first add the new form beside the old, then migrate callers in batches with one row each, keeping verification green, and finally remove the old form once no caller remains.
+When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.
 
 Record work the user rules out of the project in the milestone file's Out of scope register with its reason. It gets no ID, never promotes, and returns only through a new approved direction; do not re-propose it as a candidate.
 
-Keep the active dependency graph closed and update affected pending downstream scope and acceptance; never prune downstream impacts to force parallel safety. When proposing new milestones, identify write sets and contract boundaries; parallel-safe defaults to no. Candidate Directions remain unnumbered and absent from launch input. When `tabilet/stages.md` exists, keep it aligned with current milestone stage references; stage ideas do not enter launch input. Put intended behavior and durable rationale in milestone/status records; current product, architecture, and stack documents describe only evidenced present facts. Add an evolution pair only when the project's existing material direction-change trigger is met. Refresh `tabilet/memory-bank/suggested.txt` only for an approved compatible `tabilet/GOAL.md` and the whole active horizon; otherwise omit it or propose removal of a stale copy. Never create or modify `tabilet/GOAL.md` as a planning side effect.
+Keep the active dependency graph closed and update affected pending downstream scope and acceptance; never prune downstream impacts to force parallel safety. When proposing new milestones, identify write sets and contract boundaries; parallel-safe defaults to no. Candidate Directions remain unnumbered and absent from launch input. When `tabilet/stages.md` exists, keep it aligned with current milestone stage references; stage ideas do not enter launch input. Put intended behavior and durable rationale in milestone/status records; current product, architecture, and stack documents describe only evidenced present facts. Add an evolution pair only when the project's existing material direction-change trigger is met. Refresh `tabilet/memory-bank/suggested.txt` for approved goal use with an available compatible governing protocol and the whole active horizon, following the selection and identity rules above. A package-local `tabilet/GOAL.md` is optional. Preserve unresolved existing launch input; propose removal of a stale copy only as an explicit file action. Never create or modify `tabilet/GOAL.md` as a planning side effect.
 
 Immediately before writing, re-read affected files, relevant worktree changes, status IDs, and retired identities. Compare an interrupted diff with the exact approved proposal. Continue approved compatible edits while preserving unrelated changes. A material change, collision, or uncovered file action requires a revised proposal and approval. Run available structural checks after writing; report verification gaps plainly. Planning writes do not implement work, prove acceptance, commit, retire milestones, launch execution, or mutate external systems.

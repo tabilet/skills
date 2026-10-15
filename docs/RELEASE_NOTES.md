@@ -1,3 +1,34 @@
+# memory-bank v2.13.0 (unreleased)
+
+Goal and interactive Next accept opt-in `MODEL_POLICY`: users choose the models
+for ordinary work and fresh read-only whole-milestone reviewers from any provider
+supported by their host. Effort settings are optional and host/model-specific;
+omission preserves the selected model's host default. No OpenAI model or account
+is required. Omission of the entire policy preserves host settings.
+Unsupported or unverifiable settings pause affected work for an explicit
+replacement policy. Review lenses may be combined or batched within host
+capacity; the coordinator alone records one report and applies fixes, retaining
+the review counter and iteration-10 stop. This is instruction-level host
+selection; Python API model selection and authorization are unchanged.
+
+Lease cleanup now inspects ignored artifacts and preserves cited qualification
+and recovery evidence before removing a clean merged worktree. Retention hashes
+and maintained references are verified before freezing retirement records;
+uncertain retention or frozen citations that still need the lease preserve it.
+
+Planning refreshes launch input without requiring a package-local protocol and
+preserves explicit `GOAL_PROTOCOL`, actual identity and `MODEL_POLICY`. Missing
+or incompatible selection pauses refresh instead of replacing it with stock.
+Legacy paused goals need approval for changed or uncertain protocol identity,
+without resetting grants, denials, counters, attempts or limits. The registry
+retains the published v2.12.0 stock fingerprint.
+
+Expand–contract applies when a bounded green change or compatibility transition
+needs it. Defect reproduction is preferred when safe within authority and
+budget; unavailable reproduction records evidence and limitations while
+preserving acceptance gates. Whole-milestone reviews include uncommitted work
+and still assess acceptance when no implementation diff is required.
+
 # memory-bank v2.12.0
 
 v2.12.0 moves the goal protocol into the skills and adopts several ideas from a

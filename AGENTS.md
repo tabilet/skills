@@ -60,7 +60,8 @@ verified planning bundles by `harness/tabilet_install.py`), the optional
 `harness/tabilet_audit_host.py` (installed as `tabilet-audit` with its
 audit/index modules and runner parser), and
 `skills/memory-bank-upgrade/migrate-v1.5-to-v2.py`. Goal and Next also bundle the
-optional `scripts/email_notify.py` approval-alert helper and its reference.
+optional `scripts/email_notify.py` approval-alert helper and its reference,
+plus `references/model-policy.md` for opt-in host model selection.
 `check.py` verifies this
 repository and is not payload.
 
@@ -451,7 +452,26 @@ spelling so an inbound link survives translation.
   child dispatch.
 - A leftover lease worktree is removed only after recorded successful closure,
   with matching ownership, no active writer, a merged branch, and a clean
-  worktree; anything uncertain is preserved and reported.
+  worktree. Both normal and resume cleanup inspect ignored artifacts and retain
+  required qualification, cited and recovery evidence in an approved durable
+  location, verifying hashes and references before freezing retirement records.
+  Never rewrite frozen citations for cleanup; anything uncertain is preserved
+  and reported.
+- Launch refresh preserves explicit `GOAL_PROTOCOL` and its actual path/hash;
+  stock metadata applies only to stock selection. Approved goal use and an
+  available compatible governing protocol permit launch generation without a
+  package-local protocol file. Changed or uncertain legacy resume identity needs
+  approval, preserving grants, denials, counters, attempts and limits.
+- `MODEL_POLICY` is opt-in; omission preserves host model settings. Users choose
+  the role models from any provider supported by the host; no provider or model
+  is required. Effort is optional and host-specific; omission records
+  `host-default` without requiring an effort control. The resolved request may select `DEFAULT` for ordinary work and `WHOLE_MILESTONE_REVIEW`
+  for fresh read-only reviewers at every bounded review iteration. The owner
+  consolidates results and fixes under `DEFAULT`, preserving the review counter.
+  Unavailable or unverifiable host settings pause affected work; never silently
+  fall back or claim an in-place model/effort change. Goal/Next carry identical
+  `references/model-policy.md`; planning preserves explicit policy and adds it
+  only when requested. The Python API paths do not consume model policy.
 - `GOAL.md` and the template milestone review use the same bounded review-fix
   gate. The initial deep-review pass is iteration 1; after every P1, P2, or
   higher-severity fix, verify and review the whole milestone again. A clean pass
@@ -627,4 +647,8 @@ spelling so an inbound link survives translation.
   never be behind the latest tag. A registry reads that version off the default
   branch, so a mismatch publishes a release claiming to be another one. Bump the
   manifest in the same change as the tag.
+  During an uncommitted release preparation on a tagged `HEAD`, verify the
+  committed manifest still matches that tag and allow only a working-tree
+  version strictly newer than every release tag. A dirty bump never conceals a
+  published mismatch.
 - Run the required verification before claiming a change is done.

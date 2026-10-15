@@ -374,12 +374,19 @@ notes identify the consumed attempt or supersession and its accepted successor:
    - The initial deep-review pass is iteration 1. Read the persisted count and
      findings first. Record the iteration as started before review; resume an
      interrupted pass at that same number. Runtime round limits are separate.
-     Pin the milestone's base commit, confirm the diff is non-empty, read the
+     Pin the milestone's base commit, inspect the full diff including staged,
+     unstaged and relevant untracked work under the commit policy, read the
      `git log` range, and review the full milestone diff for correctness,
      regressions, failure semantics, boundary drift, stale docs, and missing
      tests. Review acceptance fidelity separately: requirements missing or
      partial, behavior nobody asked for, and requirements implemented wrongly,
      each quoting its acceptance line. Record findings grouped by concern.
+     An empty implementation diff still needs acceptance review; do not
+     manufacture changes. Lenses are coverage obligations: combine them or
+     run batches within host capacity. When an interactive request selects
+     `MODEL_POLICY`, follow the Goal/Next bundled model-policy reference for
+     fresh read-only whole-milestone reviewers; the owner alone records results
+     and fixes under `DEFAULT`. Absence preserves host model settings.
    - Record the iteration number and findings in the current status notes so a
      continuation cannot reset the counter. If the pass finds no P1, P2, or
      higher-severity issue, the gate passes. Otherwise, when the current

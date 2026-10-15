@@ -2,7 +2,17 @@
 
 Read for direct interactive Next work. These controls do not apply inside the
 Python API runner/controller, which do not consume `--email` or
-`CORRECTIVE_PLANNING`; their row, commit and authorization gates still govern.
+`CORRECTIVE_PLANNING` or `MODEL_POLICY`; their row, commit and authorization gates still govern.
+
+## Model policy
+
+When the human request or governing approved goal selects `MODEL_POLICY`, read
+the bundled [model policy](model-policy.md) before work. Preserve the selected
+role models and optional effort settings and check host capabilities. Ordinary task work and task
+reviews use `DEFAULT`; each authoritative whole-milestone review uses fresh
+read-only `WHOLE_MILESTONE_REVIEW` agents. Missing or unverifiable settings
+pause affected work without silent fallback. Omission preserves host settings;
+direct Next does not require adoption of a goal protocol to use this option.
 
 ## Approval email
 

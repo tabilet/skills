@@ -88,6 +88,7 @@ fingerprints in `goal-protocol.json`:
 | Package file | Treatment |
 |---|---|
 | Absent | Recorded as `none`. |
+| The file is explicitly selected as `GOAL_PROTOCOL` | Recorded as `selected-protocol sha256:<hash>`; not also applied as an addendum. |
 | Byte-identical to a released stock copy | Ignored and reported as removable. |
 | A full protocol copy with local edits | The run stops until you reduce it to the project-specific part. |
 | Anything else (a short addendum, a project record) | Applied as the addendum. |
@@ -99,6 +100,63 @@ different bundled version in another agent, or an edited or newly added addendum
 pauses the affected work until you approve the new identity. In a cross-package
 run the coordinator's protocol governs, and each child also applies its own
 package's addendum.
+
+Launch refresh preserves an explicit `GOAL_PROTOCOL` and its actual path/hash;
+only stock selection uses the bundled registry's version/hash. Approved goal
+use with an available compatible governing protocol permits launch generation
+without a package-local `tabilet/GOAL.md`. A protocol switch needs explicit
+approval, and unavailable or incompatible selection pauses refresh while
+preserving existing input.
+
+For a legacy paused goal without `GOAL_IDENTITY`, compare its previously
+approved protocol path/hash with the proposed resolution and show the
+transition. Changed or uncertain identity needs approval once; a verified
+unchanged identity can be recorded without another approval. Preserve grants,
+denials, counters, attempts and limits. Plugin installation never silently
+upgrades the protocol of a paused run.
+
+## Optional model policy
+
+Goal and interactive Next accept an opt-in `MODEL_POLICY` in the human request.
+You choose both role models from any provider supported by your host; no provider
+or model is required. This template contains placeholders to replace:
+
+```yaml
+MODEL_POLICY:
+  DEFAULT:
+    model: "<your implementation model>"
+    reasoning_effort: "<optional host-supported effort>"
+  WHOLE_MILESTONE_REVIEW:
+    model: "<your review model>"
+    reasoning_effort: "<optional host-supported effort>"
+```
+
+`reasoning_effort` is optional and uses host/model-specific values. Omit it for
+models without that control or to keep the selected model's host default;
+record the resolved effort as `host-default` without claiming a particular
+level. Resolve model placeholders before execution. Omission of the entire
+policy preserves the host's model settings. Planning includes this policy
+only when requested, and launch refresh preserves an existing selection.
+`DEFAULT` covers coordination, implementation, focused verification, task
+reviews and review fixes. Every authoritative whole-milestone review iteration
+uses fresh read-only reviewers under `WHOLE_MILESTONE_REVIEW`. The coordinator
+alone records one iteration report and applies fixes under `DEFAULT`; the
+persisted review counter and iteration-10 stop still apply. All review lenses
+must be covered, with combined lenses or batches when host capacity is limited.
+
+The host must support the selected model, effort and fresh-agent controls.
+Check the selected model and any explicitly requested effort before work and
+dispatch; a running coordinator
+cannot claim an in-place change. Unavailable or unverifiable settings pause
+affected work and dependents until an explicit replacement policy is approved.
+Other authorized work can continue only if its policy is met. Host settings
+are established through supported launch controls or reported configuration,
+not a prompt claiming a reasoning level. This adds no tool enforcement, action
+authority or higher limits. The Python API paths do not consume this policy.
+
+Use your host's model catalog and supported effort controls. Models and
+providers may differ between the two roles when the host supports that choice;
+model selection does not require OpenAI or provider-specific configuration.
 
 ## COMMIT_POLICY is the one that matters
 

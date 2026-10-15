@@ -89,6 +89,15 @@ completed rows remain active until the whole milestone qualifies; unresolved
 work or missing closure evidence keeps it active. Updating the installed skills
 alone neither adopts these rules nor upgrades a separately installed API runner.
 
+Interactive Goal/Next may opt into `MODEL_POLICY` for ordinary work and fresh
+read-only whole-milestone reviewers; see [the model-policy guide](goal.md#optional-model-policy).
+The standalone runner and controller retain their existing provider/model
+selection and do not consume this policy or schedule these reviewers. Their
+shared defect guidance prefers safe reproduction within authority and budget;
+unavailable environments, protected actions, exhausted attempts and incidents
+that cannot be reproduced require an honest evidence/limitation record.
+Required acceptance evidence and verification remain mandatory.
+
 The agent retains current facts and useful learning in the memory bank, including
 `lessons.md`, and moves the complete milestone specification and status to
 `tabilet/docs/history/status-<LANE><NN>.md`. It adds the record to the history index and

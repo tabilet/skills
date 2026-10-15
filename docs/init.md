@@ -115,15 +115,16 @@ or starts execution during Init. See [standing corrective planning](goal.md#stan
 
 ## The launch reference
 
-When you approve goal use and the bundled protocol is available, init also writes
+When you approve goal use and the selected governing protocol is available and compatible, init also writes
 `tabilet/memory-bank/suggested.txt`: a disposable launch request with the proposed
 status order, file map, downstream impacts, and the `GOAL_IDENTITY` block. Init no
 longer copies a protocol into the project.
 
 It is launch input, not project truth. It stays out of the required read order,
 and it should be checked against `milestone.md` and the current status files
-before use, then deleted once launched or stale. When goal use is not approved or the bundled protocol is unavailable,
-init omits it and one-task execution remains available.
+before use, then deleted once launched or stale. Without approved goal use or
+an available compatible selected protocol, Init omits new launch input and
+preserves existing input pending resolution; one-task work remains available.
 
 ## Verifying the result
 
@@ -134,3 +135,19 @@ applicable checks pass and its acceptance requirements are met.
 
 Then request [Next](next.md) for one approved task, or [Goal](goal.md) for an
 explicit milestone order. Initialization does not launch implementation.
+
+## Planning protocol and model selection
+
+Approved goal use with an available compatible governing protocol permits
+launch input without a package-local `tabilet/GOAL.md`. Init defaults to stock;
+an explicit `GOAL_PROTOCOL` alternative keeps its actual path/hash and matching
+invocation and package identities. Missing or incompatible selection is
+reported instead of replaced. No stock or merged protocol is written into the
+project. Add [MODEL_POLICY](goal.md#optional-model-policy) only when requested;
+its omission preserves host settings.
+
+Use expand–contract when a refactor cannot safely fit into one bounded green
+change or needs a compatibility transition. A safely atomic mechanical rename
+may remain one row. Defect reproduction is preferred only within current
+authority and budget; record existing evidence and limitations when unsafe or
+unavailable, preserving required acceptance and verification gates.

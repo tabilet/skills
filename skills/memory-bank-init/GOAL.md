@@ -72,6 +72,9 @@ addendum, record, or partial file at that path stops the run.
 with the bundled `goal-protocol.json`:
 
 - absent: record `none`;
+- the file is the explicitly selected `GOAL_PROTOCOL`: record
+  `selected-protocol sha256:<hash>` for that package and its actual path/hash
+  in the protocol entry; do not also apply the same file as an addendum;
 - byte-identical to the current or a released stock copy: ignore it, record
   `ignored-stock <version>`, and report that it can be removed;
 - a full protocol copy (it begins with this file's title line) that matches no
@@ -108,6 +111,22 @@ new addendum, pauses the affected work and its dependents until the user
 approves the new identity; independent work may continue. A `GOAL_IDENTITY`
 supplied with a request or launch reference is verified the same way before
 execution.
+
+For a legacy paused goal without `GOAL_IDENTITY`, recover its previously
+approved protocol path/hash from the invoking conversation or trusted host state.
+Compare it with the proposed resolution and show the transition. A changed or
+uncertain identity requires human approval once before affected work resumes;
+do not silently adopt the installed stock version. A verified unchanged identity
+may be materialized without a new approval. Preserve grants, denials, persisted
+review counters, attempt usage and operational limits throughout the transition.
+Installing a plugin or refreshing launch input does not approve that transition.
+
+When planning refreshes launch input, preserve explicit `GOAL_PROTOCOL` selection
+and its actual path/hash; use the bundled version/hash only for stock selection.
+Keep the invocation, `GOAL_IDENTITY` and package addenda consistent with that
+selection. A protocol switch is a visible proposal requiring explicit approval,
+never an ordinary progress refresh. Missing or incompatible governing protocols
+pause affected launch refresh without replacing the existing selection.
 
 ## Goal Input
 
@@ -241,6 +260,51 @@ Input rules:
   Resolved requests and generated `suggested.txt` always include
   `AUTHORIZATION_GRANTS: {}` when there are no explicit grants. This empty
   mapping is the default; it adds no authority to the governing goal policies.
+
+## Optional Model Policy
+
+`MODEL_POLICY` is opt-in. Omission preserves the host's existing model settings;
+neither installation nor a planning preset selects a model. The user chooses
+both role models from any provider supported by the host; no provider or model
+is required. This shape is a template, not an executable selection:
+
+```yaml
+MODEL_POLICY:
+  DEFAULT:
+    model: "<your implementation model>"
+    reasoning_effort: "<optional host-supported effort>"
+  WHOLE_MILESTONE_REVIEW:
+    model: "<your review model>"
+    reasoning_effort: "<optional host-supported effort>"
+```
+
+`DEFAULT` governs coordination, implementation, focused verification, task
+reviews, downstream analysis and review fixes. `WHOLE_MILESTONE_REVIEW` governs
+every authoritative bounded whole-milestone review iteration, including the
+initial pass and later re-reviews. Use fresh read-only reviewers for each
+iteration, with the complete governing request and narrowed assignment. Cover
+all review lenses, combining them or batching reviewers within host capacity.
+The coordinator consolidates one iteration report and remains the sole ledger
+writer; review fixes return to `DEFAULT`. Preserve the existing review counter
+and iteration-10 stop, including when a reviewer is interrupted or replaced.
+
+`reasoning_effort` is optional and uses the host's supported values, with no
+universal effort scale. Omit it when the model has no such control or the user
+wants its host default. Record omitted effort as `host-default`, without
+claiming a specific effort level. Resolve both role models and any explicitly
+requested efforts before work and preserve them on resume and in every child
+brief. Read the Goal/Next bundle's
+`references/model-policy.md` when selected for host capability and dispatch
+checks. A running agent cannot claim to change its own model or reasoning
+effort. Verify the coordinator's selected model and any requested effort,
+and explicitly select those settings for fresh children through supported
+host controls. If a required model, explicit effort or fresh-agent capability
+is unavailable or unverifiable, pause affected work and dependents and request
+an explicit replacement policy; never silently
+fall back. Independent authorized work may continue only if its policy is met.
+Model selection grants no action authority or higher limits. This is an
+instruction-level policy, not tool enforcement; the Python API runner/controller
+do not consume it. No host configuration edit is required.
 
 ## Authorization Requirements And Grants
 
@@ -646,8 +710,9 @@ authorizes concurrent execution:
    changes only when files change. Under `milestone`, closure is already in the
    single integrated commit. Dependents become ready only after verified
    closure and integration both pass. After that, record the lease as closed and
-   remove it with `git worktree remove ../<repo>.goal/<ID>` and
-   `git branch -d goal/<ID>`; never force either command.
+   apply the evidence-preserving cleanup gate below before removing it with
+   `git worktree remove ../<repo>.goal/<ID>` and `git branch -d goal/<ID>`;
+   never force either command.
 6. **Failure & Resume**: Git worktrees and `goal/*` branches serve as durable
    lease records. A blocker, conflict, or iteration-10 failure halts that lease
    only; its worktree and branch are retained for inspection, its dependents
@@ -664,6 +729,20 @@ authorizes concurrent execution:
    lease that was just created at the integration tip, or that was integrated but
    interrupted before closure, does not qualify. Preserve and report every
    uncertain lease, including a foreign or unrecorded one.
+
+**Evidence-preserving cleanup gate (ordinary closure and resume).** A clean
+worktree can contain ignored evidence that `git worktree remove` deletes even
+without force. Inspect ignored artifacts as well as tracked and untracked
+changes, and reconcile qualification records, citations and recovery needs.
+Before freezing retirement references, retain required artifacts outside the
+lease in an approved durable location, verify their content hashes and update
+maintained references. Verify that the retained files remain accessible after
+lease removal. Never rewrite frozen records to make cleanup possible. If a
+frozen citation still needs the lease, no approved location exists, or retention
+is uncertain, preserve the worktree and report the reason. Only verified
+disposable artifacts may be deleted with the lease. For both cleanup paths,
+also require recorded successful closure and integration, matching ownership,
+no active writer, a merged branch and a clean worktree; never force removal.
 
 ### 1. Reconcile Before Starting
 
@@ -692,9 +771,13 @@ authorizes concurrent execution:
   In concurrent leases, the child updates owned code and status sources and
   returns shared-memory proposals; only the owner writes shared memory, including
   during milestone closure in a lease.
-- For a defect or remediation row, first establish one command that goes red
-  on the reported symptom, run it, then fix; the same command going green is
-  part of the row's evidence.
+- For a defect or remediation row, prefer a command that goes red on the
+  reported symptom before fixing it, then record the same command going green.
+  Reproduce only when safely possible within current authority and budget.
+  For unavailable environments, protected actions, exhausted attempt limits or
+  non-reproducible incidents, record existing evidence and the reproduction
+  limitation instead of forcing retries or inventing a failure. Required
+  acceptance evidence and verification gates still apply; if missing, pause.
 - Maintain relevant reusable lessons with evidence. When a mistake recurs,
   classify it first: a mechanical one that a linter, test, or CI check could
   catch becomes a proposed deterministic check; a judgement call becomes a
@@ -738,8 +821,10 @@ An expensive or protected check needs privileged setup, scarce hardware or
 quota, a physical or live environment, explicitly granted actions, or minutes
 per run. For a task whose acceptance depends on one:
 
-- Reproduce and fix failures first in the cheapest environment that can show
-  them, such as an unprivileged local run on disposable fixtures. Such
+- When safely possible within current authority and budget, reproduce and fix
+  failures first in the cheapest environment that can show them, such as an
+  unprivileged local run on disposable fixtures. Otherwise record the existing
+  evidence and reproduction limitation under the task rule above. Such
   diagnostic runs are ordinary verification and never satisfy acceptance.
 - Make each expensive run execute every case whose safety does not depend on an
   earlier result, and report all failures. Stop early only when continuing
@@ -772,8 +857,10 @@ iteration 1. In each iteration:
 
 1. Read the persisted review count and findings before starting. Record the
    current iteration as started before review; an interrupted pass resumes that
-   iteration, never resets to 1. Pin the milestone's base commit and confirm the
-   diff against it is non-empty before reviewing. Review the full milestone
+   iteration, never resets to 1. Pin the milestone's base commit and inspect the
+   full diff against it, including staged, unstaged and relevant untracked work
+   under the selected commit policy. An empty implementation diff does not
+   bypass acceptance review or require manufacturing a change. Review the full milestone
    implementation and diff, with special attention to
    fixes made by the preceding iteration. Check correctness, failure semantics,
    security/privacy, compatibility, operations, tests, and documentation.
@@ -781,6 +868,11 @@ iteration 1. In each iteration:
    partial, behavior nobody asked for, and requirements implemented wrongly,
    each quoting its acceptance line. Report findings grouped by concern so one
    concern cannot hide another; the severity rules decide the gate.
+   With `MODEL_POLICY`, dispatch fresh read-only `WHOLE_MILESTONE_REVIEW`
+   reviewers for this iteration and return all findings to the `DEFAULT`
+   coordinator. Lenses are coverage obligations, not a fixed reviewer count;
+   combine lenses or run batches within available host capacity. Do not close
+   the gate until every lens and required acceptance evidence is covered.
 2. Classify and record the findings. Persist the iteration number and findings
    in the current status notes or equivalent active goal state before applying
    fixes, so a continuation cannot reset the counter. If the pass finds no P1,

@@ -69,6 +69,7 @@ documented acceptance, verification, review, and closure requirements.
 | 包内文件 | 处理方式 |
 |---|---|
 | 不存在 | 记为 `none`。 |
+| 文件被明确选为 `GOAL_PROTOCOL` | 记为 `selected-protocol sha256:<hash>`，不再作为附录重复应用。 |
 | 与某个已发布的标准副本逐字节相同 | 忽略，并提示可以删除。 |
 | 带本地改动的完整协议副本 | 运行停止，直到你把它精简为项目专有部分。 |
 | 其他（简短附录、项目记录） | 作为附录生效。 |
@@ -77,6 +78,43 @@ documented acceptance, verification, review, and closure requirements.
 每次恢复以及派发每个子任务之前都会重新核对整块内容。插件更新、另一个智能体自带的不同版本，
 或附录被编辑或新增，都会暂停受影响的工作，直到你批准新的身份。跨包运行时由协调者的协议主导，
 每个子任务还要遵守自己所在包的附录。
+
+刷新启动参考时，保留明确的 `GOAL_PROTOCOL` 选择及其实际路径和哈希；只有选择标准协议时才使用捆绑注册表的版本和哈希。
+只要目标运行已获准且所选主导协议可用、兼容，就能生成启动参考，不要求项目存在 `tabilet/GOAL.md`。
+切换协议需要明确批准。协议不可用或不兼容时，暂停刷新并保留现有输入等待解决。
+
+旧的暂停目标可能没有 `GOAL_IDENTITY`。将此前获准的协议路径和哈希与新解析结果比较并展示过渡。
+身份变化或无法确认时需要一次批准；确认未变时可以直接记录身份。保留已有授予、拒绝、评审计数、尝试用量和运行限制。
+安装插件不会自动替换暂停运行已批准的协议。
+
+## 可选模型策略 {#optional-model-policy}
+
+Goal 与交互式 Next 支持在人类请求中明确选择 `MODEL_POLICY`。两种角色的模型由用户决定，
+可使用宿主支持的任意提供商，不要求特定提供商或模型。下面是需要替换占位符的模板：
+
+```yaml
+MODEL_POLICY:
+  DEFAULT:
+    model: "<your implementation model>"
+    reasoning_effort: "<optional host-supported effort>"
+  WHOLE_MILESTONE_REVIEW:
+    model: "<your review model>"
+    reasoning_effort: "<optional host-supported effort>"
+```
+
+`reasoning_effort` 是可选项，取值由宿主和模型决定；模型不支持该控制或用户希望沿用默认值时可省略。
+省略的强度记为 `host-default`，不声称某个具体等级；执行前须替换模型占位符。
+省略整个策略时沿用宿主模型设置。规划只在用户要求时加入策略，刷新时保留已有选择。
+`DEFAULT` 用于协调、实现、聚焦验证、任务评审和评审修复。每轮权威的整个里程碑评审都使用新的只读
+`WHOLE_MILESTONE_REVIEW` 评审智能体。协调者独自记录一轮汇总并在 `DEFAULT` 下修复；保留原有计数与第 10 轮停止规则。
+所有评审视角都要覆盖；宿主容量有限时，可合并视角或分批运行。
+
+开始工作及派发前，核对宿主支持所选模型、明确指定的可选推理强度与新智能体能力。运行中的协调者不能声称已原地改变设置。
+所需能力不可用或无法核实时，暂停受影响工作及其依赖，直到用户明确批准替代策略。其他已获准工作只有在满足自身策略时才能继续。
+设置依据是宿主报告或支持的启动控制，不能仅凭提示词声称。这不增加工具强制执行、操作权限或运行上限；Python API 路径不消费该策略。
+
+使用宿主的模型目录和支持的强度控制。宿主支持时，两种角色可选择不同模型或提供商；
+该策略不要求 OpenAI 或特定提供商的配置。
 
 ## 授权要求与授予 {#authorization-requirements-and-grants}
 

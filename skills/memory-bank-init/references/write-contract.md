@@ -29,9 +29,12 @@ destination. Never silently overwrite an existing file.
   copy as removable, report a modified full protocol copy as needing reduction to
   its project-specific part before goal use, and keep anything else as the
   project addendum. Remove or rewrite it only with explicit approval; never write
-  a merged protocol.
+  a merged protocol. Resolve `GOAL_PROTOCOL` selection first: a file explicitly
+  selected as the full alternative protocol is preserved in that role, not
+  reduced or removed as an addendum; record `selected-protocol sha256:<hash>`
+  for that package and its actual path/hash as the governing identity.
 - Create `tabilet/memory-bank/suggested.txt` only when the user approves goal use and
-  the bundled goal protocol is available. Otherwise omit the launch reference and
+  the selected governing protocol is available and compatible. Otherwise omit the launch reference and
   every optional goal-protocol paragraph or pointer from generated `AGENTS.md`
   and `tabilet/memory-bank/milestone.md`; do not generate a request that names a
   missing protocol.
@@ -175,10 +178,13 @@ the same in plugin and plain-file installs. Do not depend on provider-specific
 plugin-root environment variables, and do not copy the protocol into the
 project.
 
-If the bundled files cannot be found, say so and omit
-`tabilet/memory-bank/suggested.txt` rather than writing an approximation or a
-dead-end launch request. The project works one row at a time without the
-protocol.
+Use the bundled files for stock selection. Preserve an explicit
+`GOAL_PROTOCOL` alternative and inspect its actual file before proposing launch
+input. An alternative does not require the stock runtime to be its governing
+protocol. If the selected protocol is unavailable or incompatible, report the
+gap and omit new launch input; preserve any existing input pending resolution.
+Never approximate a protocol or silently replace the selection. One-row work
+remains available without a goal protocol.
 
 Tell the user the launch reference is optional and can be deleted at any time.
 The goal protocol is one way to run several active milestones in order, not a
@@ -263,7 +269,7 @@ AUTHORIZATION_REQUIREMENTS:
       commands: ["<specific remote operation>"]
 ```
 
-When goal use is approved and the bundled protocol is available, derive
+When goal use is approved and the selected governing protocol is available and compatible, derive
 `tabilet/memory-bank/suggested.txt` only from the approved active horizon. It is advisory
 launch input, not project truth. Do not add it to `AGENTS.md`'s required read
 order or the milestone index. Tell the user to delete it after launching the
@@ -315,9 +321,21 @@ conditional status is complete, and every milestone's documented verification
 passes.
 ```
 
-Fill `GOAL_IDENTITY` from the bundled `goal-protocol.json`: its `version` and
-`sha256` for the protocol line, then one line per participating package giving
-its `tabilet/GOAL.md` addendum hash, `ignored-stock <version>`, or `none`.
+The example selects stock. For stock selection, fill `GOAL_IDENTITY` from the
+bundled `goal-protocol.json`: its `version` and `sha256` for the protocol line.
+For an explicit alternative, retain `GOAL_PROTOCOL: <path>`, replace the stock
+invocation with an invocation of that selected protocol, and record
+`protocol: <path> sha256:<hash>` from its actual bytes. In both cases list every
+participating package's applicable addendum hash, `ignored-stock <version>`, or
+`none`. Preserve explicit selection and surface any proposed switch for human
+approval. A package-local protocol file is never required for stock use.
+
+Include `MODEL_POLICY` only when requested. Preserve an existing explicit
+policy and its user-selected role models and optional effort settings; omission
+preserves host model settings. Planning approval does not activate model routing
+for a paused run. Follow the stock protocol's Optional Model Policy section;
+no provider or model is required, and no environment preset chooses one.
+Explain that unavailable explicit host settings pause affected execution.
 
 Map every active status in `STATUS_ORDER` to exactly one file. Include known
 active downstream consumers; the goal loop will discover more. Use

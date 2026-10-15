@@ -2,7 +2,7 @@
 name: memory-bank-next
 description: Implement and verify one actionable memory-bank task, update its records, and commit under the governing policy. Use for one-task execution or resumption.
 disable-model-invocation: false
-argument-hint: "[--email ADDRESS] [CORRECTIVE_PLANNING: confirm|auto]"
+argument-hint: "[--email ADDRESS] [CORRECTIVE_PLANNING: confirm|auto] [MODEL_POLICY: ...]"
 ---
 
 # Tackle Next Memory-Bank Todo
@@ -10,9 +10,9 @@ argument-hint: "[--email ADDRESS] [CORRECTIVE_PLANNING: confirm|auto]"
 ## Interactive invocation
 
 For direct skill execution, read [references/interactive-controls.md](references/interactive-controls.md)
-before selecting work. It resolves optional `--email ADDRESS` and
-`CORRECTIVE_PLANNING` from the human request and defines scoped repair
-suspension/resumption. These controls are outside the shared API instruction.
+before selecting work. It resolves optional `--email ADDRESS`,
+`CORRECTIVE_PLANNING` and `MODEL_POLICY` from the human request and defines
+scoped repair suspension/resumption. These controls are outside the shared API instruction.
 
 <!-- shared-execution-start -->
 Before reading project state for this workflow, inspect the root layout. If
@@ -101,9 +101,13 @@ expanding into unrelated history.
 
 Tackle exactly one row:
 
-- For a defect or remediation row, first establish one command that goes red
-  on the reported symptom and run it. Then fix; that command going green is
-  part of the row's evidence.
+- For a defect or remediation row, prefer a command that goes red on the
+  reported symptom before fixing it, then record the same command going green.
+  Reproduce only when safely possible within current authority and budget.
+  For unavailable environments, protected actions, exhausted attempt limits or
+  non-reproducible incidents, record existing evidence and the reproduction
+  limitation instead of forcing retries or inventing a failure. Required
+  acceptance evidence and verification gates still apply; if missing, pause.
 - Implement the change.
 - Update current memory-bank facts invalidated by this row in the same change.
   A later documentation row does not defer these current-fact corrections.

@@ -414,9 +414,9 @@ def goal_copies():
         "never force either command",
         "A resume sweep removes a leftover lease only when all of these hold",
         "Preserve and report every uncertain lease",
-        "Pin the milestone's base commit and confirm the diff against it is non-empty",
+        "Pin the milestone's base commit and inspect the full diff",
         "Check acceptance fidelity as its own concern",
-        "first establish one command that goes red on the reported symptom",
+        "Reproduce only when safely possible within current authority and budget",
         "becomes a proposed deterministic check",
         "environment candidates found during the milestone",
         "briefs point to those notes",
@@ -722,7 +722,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "complete only necessary repair prerequisites, then return to the original selected task",
         "Count repair rows, commits and attempts against all explicit limits",
         "Only the standalone executor or governing goal coordinator sends one alert",
-        "do not consume `--email` or `CORRECTIVE_PLANNING`",
+        "do not consume `--email` or `CORRECTIVE_PLANNING` or `MODEL_POLICY`",
         "Missing or unverifiable provenance retains the ordinary complete-proposal approval gate",
         "move the interrupted `[~]` row to `[!]`",
         "restore the original row from `[!]` to `[~]`",
@@ -1193,7 +1193,7 @@ def suggested_goal_reference():
         "COMMIT_POLICY: task",
         "EXTERNAL_MUTATIONS: none",
         "Completion condition:",
-        "When the bundled goal protocol is unavailable",
+        "When the selected governing protocol is unavailable or incompatible",
     ):
         if token not in reconcile:
             problems.append(f"memory-bank-reconcile: missing launch contract {token!r}")
@@ -1488,7 +1488,7 @@ def reconcile_contract():
         "Keep current truth separate from target work",
         "Do not write a proposed fix or target architecture as current truth",
         "whole approved active horizon",
-        "When the bundled goal protocol is unavailable",
+        "When the selected governing protocol is unavailable or incompatible",
         "Never advance past iteration 10",
         "Do not commit, push, tag, publish",
         "State explicitly that no finding was implemented",
@@ -1631,11 +1631,23 @@ def plugin_version():
     latest = max(tags, key=lambda t: version_tuple(t[1:]))
     here = [t for t in git("tag", "--points-at", "HEAD") if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
     if here:
-        # At a tagged commit the two must be identical: this is what a registry
-        # and a release download would disagree about.
+        # Check the published commit even while an unreleased version bump is
+        # being reviewed in the worktree. A dirty file must never hide a bad tag.
         exact = max(here, key=lambda t: version_tuple(t[1:]))
+        committed = subprocess.run(["git", "show", "HEAD:.claude-plugin/plugin.json"],
+                                   cwd=ROOT, capture_output=True, text=True)
+        try:
+            committed_version = json.loads(committed.stdout).get("version")
+        except (ValueError, AttributeError):
+            committed_version = None
+        if committed.returncode or committed_version != exact[1:]:
+            return [f"HEAD is tagged {exact} but its committed plugin.json says {committed_version!r}"]
         if exact[1:] != version:
-            return [f"HEAD is tagged {exact} but plugin.json says {version}"]
+            changed = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", ".claude-plugin/plugin.json"],
+                                     cwd=ROOT, capture_output=True)
+            if changed.returncode != 1 or version_tuple(version) <= version_tuple(latest[1:]):
+                return [f"HEAD is tagged {exact} but plugin.json says {version}; "
+                        "an uncommitted bump must be strictly newer than every release tag"]
         return []
     if version_tuple(version) < version_tuple(latest[1:]):
         return [f"plugin.json says {version}, behind the latest tag {latest}"]
@@ -2800,6 +2812,166 @@ def v212_contract():
     for restated in ("`[+]` approve", "`SCOPE_POLICY: workspace-contained`", "Light profiles default"):
         if restated in agents:
             problems.append(f"template/AGENTS.md restates policy owned elsewhere: {restated!r}")
+    return problems
+
+
+# These guards verify the shipped instruction contracts, not an agent's runtime
+# compliance. Reject contradictory operative prose even if required guidance is
+# also present elsewhere in the document.
+V213_CONTRACTS = {
+    "AGENTS.md": ("inspect ignored artifacts", "`MODEL_POLICY` is opt-in",
+                  "Launch refresh preserves explicit `GOAL_PROTOCOL`",
+                  "no provider or model is required", "Effort is optional", "`host-default`"),
+    "GOAL.md": ("Evidence-preserving cleanup gate (ordinary closure and resume)",
+                "Inspect ignored artifacts as well as tracked and untracked",
+                "verify their content hashes", "Never rewrite frozen records",
+                "selected-protocol sha256:<hash>", "For a legacy paused goal",
+                "changed or uncertain identity requires human approval",
+                "Preserve grants, denials, persisted review counters, attempt usage",
+                "## Optional Model Policy", "Omission preserves the host's existing model settings",
+                "no provider or model is required", "`reasoning_effort` is optional",
+                "fresh read-only reviewers for each iteration", "review fixes return to `DEFAULT`",
+                "pause affected work and dependents", "instruction-level policy",
+                "An empty implementation diff does not bypass acceptance review",
+                "Reproduce only when safely possible within current authority and budget"),
+    "skills/memory-bank-goal/SKILL.md": ("references/model-policy.md", "Preserve explicit `GOAL_PROTOCOL`"),
+    "skills/memory-bank-goal/references/subagents.md": (
+        "full resolved `MODEL_POLICY`", "no mutation authority",
+        "combine them or run batches", "Inspect ignored artifacts",
+        "Never rewrite frozen records", "Only verified disposable artifacts"),
+    "skills/memory-bank-next/references/interactive-controls.md": (
+        "[model policy](model-policy.md)", "Omission preserves host settings"),
+    "skills/memory-bank-init/references/write-contract.md": (
+        "selected governing protocol is available and compatible",
+        "Preserve an explicit `GOAL_PROTOCOL`", "actual bytes",
+        "Include `MODEL_POLICY` only when requested"),
+    "skills/memory-bank-propose/references/plan-update.md": (
+        "selected governing protocol is available and compatible",
+        "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
+        "A protocol switch requires explicit approval",
+        "Preserve explicit `MODEL_POLICY`", "A package-local `tabilet/GOAL.md` is optional",
+        "A broad mechanical rename that is safely atomic"),
+    "skills/memory-bank-reconcile/references/plan-update.md": (
+        "selected governing protocol is available and compatible",
+        "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
+        "A protocol switch requires explicit approval", "Preserve explicit `MODEL_POLICY`"),
+    "skills/memory-bank-reconcile/references/write-contract.md": (
+        "selected governing protocol is available and compatible",
+        "preserve explicit `GOAL_PROTOCOL` and `MODEL_POLICY`",
+        "never substitute stock identity", "preserve existing input pending resolution"),
+    "skills/memory-bank-upgrade/SKILL.md": (
+        "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
+        "Preserve explicit `MODEL_POLICY`", "previously approved protocol path/hash",
+        "Preserve grants, denials, review counters, attempt usage and operational limits",
+        "Preserve a file selected as the alternative full protocol"),
+    "template/tabilet/memory-bank/milestone.md": (
+        "An empty implementation diff still needs acceptance review",
+        "run batches within host capacity", "fresh read-only whole-milestone reviewers"),
+    "docs/goal.md": ("## Optional model policy", "For a legacy paused goal"),
+    "docs/zh/goal.md": ("{#optional-model-policy}",),
+    "docs/subagents.md": ("including uncommitted work", "inspect ignored artifacts"),
+    "docs/zh/subagents.md": ("{#model-policy-and-retained-lease-evidence}",),
+}
+
+V213_FORBIDDEN = (
+    (r"refresh\b.{0,800}\bonly for an approved compatible `tabilet/GOAL\.md`",
+     "obsolete package-local protocol prerequisite"),
+    (r"always (?:use|name|select) (?:the )?(?:bundled )?(?:memory-bank )?stock (?:goal )?protocol",
+     "unconditional stock selection discards alternative protocols"),
+    (r"confirm\w* the (?:implementation )?diff is non-empty",
+     "non-empty diff prerequisite excludes acceptance-only review"),
+    (r"a wide refactor\b[^.]*\bcannot land as one green (?:row|slice)",
+     "unconditional expand-contract requirement"),
+    (r"(?:always|must) reproduce the (?:reported )?(?:symptom|defect) before (?:any )?fix",
+     "unconditional reproduction requirement"),
+    (r"if (?:the )?(?:model|effort|reviewer) is unavailable, (?:silently )?(?:continue|fall back)",
+     "silent model-policy fallback"),
+    (r"reviewers (?:may|must|should) (?:write|update|edit) (?:the )?(?:status|ledger)",
+     "reviewer mutation authority"),
+    (r"start each (?:fresh|new) reviewer with (?:the )?review counter (?:at|set to) 1",
+     "review counter reset on reviewer replacement"),
+)
+
+
+def v213_text_problems(relative: str, text: str) -> list[str]:
+    """Documentation lint only; never resolve goals, grants or model dispatch."""
+    flat = " ".join(text.split()).casefold()
+    problems = [f"{relative}: missing v2.13 contract {token!r}"
+                for token in V213_CONTRACTS.get(relative, ())
+                if " ".join(token.split()).casefold() not in flat]
+    operative = " ".join(prose(text).split())
+    for pattern, message in V213_FORBIDDEN:
+        if re.search(pattern, operative, re.I):
+            problems.append(f"{relative}: {message}")
+    return problems
+
+
+def model_policy_example_problems(text: str) -> list[str]:
+    """Lint documentation examples for complete roles, without a model allowlist.
+
+    This is not a YAML request parser or runtime capability check. Model names
+    and optional effort values belong to the user and host, not this checker.
+    """
+    blocks = [block for block in fenced_blocks(text)
+              if re.search(r"(?m)^MODEL_POLICY:\s*$", block)]
+    if not blocks:
+        return ["missing MODEL_POLICY example"]
+    problems = []
+    for block in blocks:
+        for role in ("DEFAULT", "WHOLE_MILESTONE_REVIEW"):
+            fields = yaml_block(block, role)
+            models = [match.group(1).strip().strip("\"'") for line in fields
+                      if (match := re.fullmatch(r"\s+model:\s*(.*?)\s*", line))]
+            if len(models) != 1 or not models[0]:
+                problems.append(f"{role}: exactly one nonempty user-selected model is required")
+            efforts = [match.group(1).strip().strip("\"'") for line in fields
+                       if (match := re.fullmatch(r"\s+reasoning_effort:\s*(.*?)\s*", line))]
+            if len(efforts) > 1 or any(not effort for effort in efforts):
+                problems.append(f"{role}: optional effort must be nonempty and unambiguous")
+    return problems
+
+
+@check("v2.13 remediation and opt-in model policy preserve evidence and selection")
+def v213_contract():
+    problems = []
+    for relative in V213_CONTRACTS:
+        path = ROOT / relative
+        if not path.is_file():
+            problems.append(f"missing {relative}")
+        else:
+            problems.extend(v213_text_problems(relative, path.read_text()))
+    copies = [ROOT / f"skills/memory-bank-{name}/references/model-policy.md"
+              for name in ("goal", "next")]
+    if any(not path.is_file() for path in copies):
+        problems.append("Goal/Next must each bundle references/model-policy.md")
+    else:
+        if copies[0].read_bytes() != copies[1].read_bytes():
+            problems.append("Goal/Next model-policy references differ")
+        for path in copies:
+            text = path.read_text()
+            relative = str(path.relative_to(ROOT))
+            problems.extend(v213_text_problems(relative, text))
+            flat = " ".join(text.split())
+            for token in ("Omission preserves the host's existing model settings",
+                          "Missing role models or conflicting policies need clarification",
+                          "no provider or model is required", "`reasoning_effort` is optional",
+                          "Record omitted effort as `host-default`",
+                          "pause affected work and dependents", "Never silently fall back",
+                          "no mutation authority", "sole ledger writer", "iteration-10 stop",
+                          "including uncommitted work", "An empty implementation diff",
+                          "A changed policy needs explicit human approval"):
+                if token not in flat:
+                    problems.append(f"{relative}: missing model-policy guidance {token!r}")
+            problems.extend(f"{relative}: {problem}" for problem in model_policy_example_problems(text))
+    problems.extend(f"GOAL.md: {problem}" for problem in
+                    model_policy_example_problems((ROOT / "GOAL.md").read_text()))
+    for block in fenced_blocks((ROOT / "docs/DSH.md").read_text()):
+        if 'cp -R "$MEMORY_BANK_CHECKOUT/skills/$bundle"' in block:
+            if 'test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/model-policy.md"' not in block:
+                problems.append("docs/DSH.md: install/update preflight omits model-policy.md")
+    for relative in ("harness/prompts/tackle-next-memory-bank-todo.md", "harness/tackle-memory-bank-api-loop"):
+        if "MODEL_POLICY" in (ROOT / relative).read_text():
+            problems.append(f"{relative}: interactive model policy leaked into Python API payload")
     return problems
 
 

@@ -37,6 +37,14 @@ defaults:
 - The selected `STATUS_ORDER` or `STATUS_PRIORITY`, resolved file map, and
   downstream impacts relevant to the assignment.
 - `COMMIT_POLICY`, `EXTERNAL_MUTATIONS`, `SUGGESTED_UPDATE`, `SCOPE_POLICY`, `PARALLELISM`, and `INTEGRATION`.
+- Explicit `GOAL_PROTOCOL` selection, actual governing path/hash and all package
+  identities. Preserve these during launch refresh and legacy resume transitions.
+- The full resolved `MODEL_POLICY` when selected, the role's model/effort pair,
+  host capability evidence and pause conditions. Read the bundled
+  [model policy](model-policy.md) before dispatch. Omission preserves host settings.
+  Use `DEFAULT` for implementers and coordination, and fresh read-only
+  `WHOLE_MILESTONE_REVIEW` reviewers for each authoritative review iteration.
+  Children cannot change the policy; unavailable settings pause affected work.
 - The resolved `CORRECTIVE_PLANNING` policy, original delivery outcome, owning
   repositories and all operational limits. Report required repairs to the
   coordinator; children cannot use `auto` to expand their assignment or write
@@ -108,7 +116,9 @@ The sub-agent performs the standard milestone loop:
 1. Implements task units row-by-row, keeping at most one `[~]` row in progress.
 2. Runs required verification commands.
 3. Executes the bounded review-fix gate (iterations 1–10), recording each pass
-   and its findings in the milestone status notes.
+   and its findings in the milestone status notes. With `MODEL_POLICY`, obtain
+   the whole review from fresh read-only reviewers under its review pair;
+   the assigned execution owner consolidates results under `DEFAULT`.
 4. Obeys the resolved `COMMIT_POLICY`: `none` creates no commits, `task` commits
    verified rows, and a sequential `milestone` handoff leaves its implementation
    uncommitted for the owner to include with closure in one milestone commit.
@@ -156,9 +166,13 @@ without violating ledger rules.
 ### Review-Fix Gate Fan-Out
 
 In each iteration of the bounded review-fix gate:
-1. The owner pins the milestone's base commit and confirms the diff against it
-   is non-empty, then spawns concurrent read-only reviewer sub-agents to examine
-   the full milestone diff through distinct lenses:
+1. The owner pins the milestone's base commit and inspects the full diff,
+   including staged, unstaged and relevant untracked work under the commit
+   policy. An empty implementation diff still needs acceptance review; do not
+   manufacture changes. With `MODEL_POLICY`, use fresh read-only reviewers
+   under `WHOLE_MILESTONE_REVIEW` for each iteration. Lenses are coverage
+   obligations: combine them or run batches within available host capacity.
+   Review the whole milestone through these lenses:
    - **Correctness & Reliability**: Logic errors, edge cases, failure semantics.
    - **Security & Privacy**: Access control, secret leaks, data validation.
    - **Compatibility & Contracts**: Public APIs, schema migrations, backwards
@@ -173,7 +187,10 @@ In each iteration of the bounded review-fix gate:
    the lens, decides the gate.
 4. The counter advances by **exactly one** per iteration.
 5. If P1 or P2 findings exist and the iteration is below 10, the owner applies
-   fixes, verifies, and triggers the next iteration pass.
+   fixes, verifies, and triggers the next iteration pass. With `MODEL_POLICY`,
+   consolidation and fixes use `DEFAULT`; each next whole review uses fresh
+   review agents. Missing capability or lens coverage cannot yield a clean pass.
+   An interrupted iteration resumes its persisted number, never resets it.
 
 ### Downstream Reconciliation Fan-Out
 
@@ -325,7 +342,16 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
    after verified closure and integration both pass.
 7. **Cleanup**:
    After verified closure and integration, record the lease as closed, then
-   remove the worktree and delete the local branch, never forcing either:
+   apply the stock protocol's evidence-preserving cleanup gate. Inspect ignored
+   artifacts as well as tracked and untracked changes; a clean worktree does
+   not protect cited evidence from removal. Before freezing retirement records,
+   retain required qualification/citation/recovery files in an approved durable
+   location, verify content hashes and update maintained references. Verify
+   accessibility after removal. Never rewrite frozen records for cleanup;
+   preserve the lease if a frozen citation needs it or retention is uncertain.
+   Only verified disposable artifacts may be removed. Recheck matching ownership,
+   no active writer, a merged branch and a clean worktree, then remove the
+   worktree and delete the local branch, never forcing either:
    ```bash
    git worktree remove ../<repo>.goal/<ID>
    git branch -d goal/<ID>
@@ -344,7 +370,10 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
   row assigned to it, no live process using the worktree), and its branch is
   fully merged into the captured `INTEGRATION_REF` with a clean worktree. A lease
   just created at the integration tip, or integrated but interrupted before
-  closure, does not qualify. Preserve and report every uncertain lease.
+  closure, does not qualify. Apply the same evidence-preserving cleanup gate
+  used at ordinary closure, including ignored artifacts. Retained evidence must
+  be safe and references valid before removal. Preserve and report every
+  uncertain lease, including when evidence retention is unresolved.
 - **Failure Isolation**: A blocked row, conflict, or iteration-10 review failure
   stops that lease only. Its worktree and branch are retained for inspection, its
   dependents stay unscheduled, independent siblings continue, and the owner

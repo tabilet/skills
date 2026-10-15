@@ -136,6 +136,10 @@ project addendum that narrows the stock protocol at run time. Classify an
 existing file with the registry, as the stock protocol's Protocol Resolution And
 Identity section describes, and include the result in the complete proposal:
 
+Resolve explicit `GOAL_PROTOCOL` selection first. Preserve a file selected as
+the alternative full protocol; do not classify it as an addendum to truncate
+or remove. Its package identity is `selected-protocol sha256:<hash>`.
+
 - byte-identical to a released stock copy: propose removing it, since the
   bundled protocol supersedes it;
 - a full protocol copy with local edits: show the local differences against the
@@ -150,9 +154,22 @@ upgrade. Rewrite `AGENTS.md` and `milestone.md` pointers that describe
 optional addendum. Offer the template's Out of scope register as explicit
 adoption.
 
-When existing `tabilet/memory-bank/suggested.txt` is found and the bundled goal
-protocol is available, include its refresh in the same proposal, naming the
-memory-bank goal protocol and adding its `GOAL_IDENTITY` block. Reconcile
+When existing `tabilet/memory-bank/suggested.txt` is found and the selected
+governing protocol is available and compatible, include its refresh in the same proposal.
+Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash; use the
+bundled registry's version/hash only for stock selection. Keep the invocation,
+`GOAL_IDENTITY` and applicable package addenda consistent with that selection.
+A protocol switch requires explicit approval; unavailable or incompatible
+selection pauses affected launch refresh and preserves existing input.
+Do not remove or truncate a file currently selected as the alternative full
+protocol merely because the stock addendum classifier would reject it.
+Preserve explicit `MODEL_POLICY`; omission preserves host model settings.
+Propose the optional policy only when requested, without activating it on a
+paused run. For legacy goals lacking `GOAL_IDENTITY`, compare the previously
+approved protocol path/hash with the proposed resolution, show the transition,
+and obtain approval for a changed or uncertain identity. Preserve grants,
+denials, review counters, attempt usage and operational limits; installing or
+adopting an upgrade never silently resumes a goal. Reconcile
 the whole current approved active horizon, permanent IDs, status paths,
 dependencies, conditional triggers, and downstream impacts before rewriting.
 Preserve explicit selection (`STATUS_ORDER` or `STATUS_PRIORITY`), commit,
@@ -167,8 +184,9 @@ Always emit `AUTHORIZATION_GRANTS: {}` when there are
 no proposed explicit grants, or the concrete proposed mapping when present.
 Requirements stay in milestone specifications and never become duplicate
 declarations in launch input. Preserve an absent launch reference; this upgrade
-does not create one by default. If the bundled protocol is unavailable, propose
-preserving or removing the launch reference and explain the blocker. An all-retired project gains
+does not create one by default. If the selected governing protocol is unavailable
+or incompatible, preserve the launch reference pending resolution and explain
+the blocker; any removal must be an explicit approved file action. An all-retired project gains
 no executable IDs. Upgrading these files never activates grants or launches a
 goal, and a repeat run with compatible files is a no-op.
 

@@ -236,11 +236,11 @@ Rules:
 
 - A milestone is a narrow, complete, independently verifiable vertical slice.
 - A row is one commit and fits in one fresh context window.
-- A wide refactor, one mechanical change whose blast radius breaks many call
-  sites at once (renaming a shared symbol, column, or path), cannot land as one
-  green slice. Plan it as expand–contract: first add the new form beside the old,
-  then migrate callers in batches with one row each, keeping verification green,
-  and finally remove the old form once no caller remains.
+- When a refactor cannot safely fit into one bounded green change or needs a
+  compatibility transition, plan expand–contract: add the new form, migrate
+  callers in green batches with one row each, then remove the old form.
+  A broad mechanical rename that is safely atomic may stay one bounded row;
+  do not add compatibility scaffolding solely because many call sites change.
 - Keep implementation, its tests, and corrections to current memory-bank facts
   it invalidates in the same row. Separate documentation rows cover additional
   reference work, not deferred corrections to current truth.

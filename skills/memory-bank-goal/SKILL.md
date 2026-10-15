@@ -2,7 +2,7 @@
 name: memory-bank-goal
 description: Execute or resume ordered memory-bank milestones using the bundled goal protocol and any project addendum.
 disable-model-invocation: false
-argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01 [--email ADDRESS]"
+argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01 [--email ADDRESS] [MODEL_POLICY: ...]"
 ---
 
 # Run An Ordered Set Of Milestones
@@ -26,7 +26,10 @@ directory. Follow the protocol's Protocol Resolution And Identity section before
 anything else: a package's `tabilet/GOAL.md` is a project addendum, never a
 replacement protocol, and only `GOAL_PROTOCOL: <path>` selects an alternative.
 Record the `GOAL_IDENTITY` block and recheck it at every resume and before each
-child dispatch. That protocol owns sequencing, verification, review,
+child dispatch. Preserve explicit `GOAL_PROTOCOL` and its actual path/hash on
+launch refresh. For legacy paused goals without `GOAL_IDENTITY`, compare the
+previously approved identity and obtain approval for a changed or uncertain
+resolution, preserving grants, denials, counters, attempts and limits. That protocol owns sequencing, verification, review,
 reconciliation, closure, and commit policy. This skill resolves the launch
 request; it does not define a second execution loop.
 When `tabilet/stages.md` exists, consult it before deriving an order from the
@@ -34,12 +37,19 @@ active milestone index. Stage IDs never enter `STATUS_ORDER` or `STATUS_PRIORITY
 future stages do not add status files. Preserve the protocol's dependency gate.
 
 A package without `tabilet/GOAL.md` needs nothing more: the stock protocol
-applies. If the bundled `GOAL.md` or `goal-protocol.json` is missing, or the
+applies. For stock selection, if the bundled `GOAL.md` or `goal-protocol.json` is missing, or the
 bundled protocol's SHA-256 differs from the registry's `sha256`, the skill
-installation is damaged: stop ordered execution, report it, and offer one-row
+installation is damaged: stop stock ordered execution, report it, and offer one-row
 work without starting either workflow.
 
 ## Resolve the request
+
+When `MODEL_POLICY` is selected, read the bundled
+[model policy](references/model-policy.md), materialize the user-selected role
+models and any explicit effort settings,
+and check host settings before work. Omission preserves host model settings.
+Preserve explicit policy in resolved requests and child briefs; unavailable or
+unverifiable settings pause affected work instead of silently falling back.
 
 Resolve `CORRECTIVE_PLANNING: confirm | auto` (default `confirm`) from the
 approved request. Follow the protocol's standing corrective-planning contract:

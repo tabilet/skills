@@ -103,7 +103,9 @@ stages or withdraw already approved pending tasks for later planning.
 
 The goal protocol ships with the skills and projects no longer keep a copy.
 When `tabilet/GOAL.md` exists, Upgrade classifies it against the bundled
-`goal-protocol.json` and includes the result in its complete proposal:
+`goal-protocol.json` and includes the result in its complete proposal. First
+resolve explicit `GOAL_PROTOCOL`: preserve a file selected as the full
+alternative protocol instead of reducing or removing it as an addendum:
 
 - a byte-identical stock copy: Upgrade proposes removing it;
 - a full protocol copy with local edits: it shows the local differences and
@@ -172,3 +174,20 @@ Include the warnings in the conversation: the sidebar displays them separately
 from the request text. Ask the agent to distinguish unsupported legacy syntax
 from actual ledger conflicts before proposing corrections. Preserve IDs, states,
 notes, review evidence, and history; do not bulk-rewrite them to clear a warning.
+
+## Preserving protocol and model selection
+
+Refresh launch input for approved goal use with an available compatible
+governing protocol; the package-local `tabilet/GOAL.md` is optional. Preserve an
+explicit `GOAL_PROTOCOL` and its actual path/hash, invocation and package
+identities. Use bundled stock metadata only when stock is selected. A protocol
+switch requires explicit approval; unavailable selection pauses refresh and
+preserves existing input. Do not remove or truncate a file selected as an
+alternative full protocol through stock-addendum cleanup.
+
+For legacy paused goals without `GOAL_IDENTITY`, show the old approved identity
+and proposed resolution. Changed or uncertain identity requires approval once,
+without resetting grants, denials, review counters, attempts or limits.
+Preserve an explicit [MODEL_POLICY](goal.md#optional-model-policy); propose it
+only when requested. Omission preserves host settings and an upgrade never
+activates model routing or resumes a goal.

@@ -209,14 +209,17 @@ resumes that lease after interruption.
 The slowest phases of a milestone are usually review and reconciliation. Both
 can fan out to read-only sub-agents without creating a second writer:
 
-- **Review.** In each review-fix iteration, several read-only reviewers examine
-  the same full milestone diff through different lenses: correctness and
+- **Review.** In each review-fix iteration, read-only reviewers examine
+  the same full milestone diff through these lenses: correctness and
   failure semantics; security and privacy; compatibility and operations; tests
   and documentation; and acceptance and scope (requirements missing, partial or
   implemented wrongly, and behavior nobody asked for). The owner first pins the
-  milestone's base commit and confirms the diff is non-empty, then records all
-  findings in **one** iteration report grouped by lens, so the counter advances
-  by exactly one per pass and no lens hides another.
+  milestone's base commit and inspects the full diff, including uncommitted
+  work under the selected commit policy. An empty implementation diff still
+  needs acceptance review. Lenses are coverage obligations: combine them or run
+  batches within host capacity. The owner records all findings in **one**
+  iteration report grouped by lens; an interrupted pass resumes its existing
+  number and each completed iteration advances the counter exactly once.
 - **Downstream reconciliation.** For each impacted pending consumer, a read-only
   analyst drafts the specification changes from the actual implementation
   diff. The owner reviews every draft and applies it.
@@ -308,7 +311,7 @@ Owner: fast-forward the captured integration branch (git merge --ff-only)
 Owner under task: integration check, reconcile impacts, update memory docs, retire
   │
   ▼
-Teardown worktree and branch; dispatch newly ready milestones
+Check retained evidence; teardown eligible lease; dispatch ready milestones
 ```
 
 ### Rules
@@ -388,3 +391,26 @@ Teardown worktree and branch; dispatch newly ready milestones
 | Reviewing only in isolation, then again after integration | Two gates with no single counter owner; the isolated pass never saw the integrated code |
 | Inferring write sets from task rows | Task rows do not list paths reliably; write sets must be declared |
 | An environment variable for concurrency | A goal-input field keeps authority in the request that starts the run |
+
+## Model policy and retained lease evidence
+
+Opt-in [MODEL_POLICY](goal.md#optional-model-policy) assigns ordinary work,
+coordination and fixes to `DEFAULT`, and every whole-milestone review iteration
+to fresh read-only `WHOLE_MILESTONE_REVIEW` agents. Each brief carries the full
+resolved policy, governing request, approval context, narrowed effective grants,
+assignment, pinned baseline, prior findings and persisted iteration. Reviewers
+have no mutation authority; the owner alone consolidates the report and writes
+the ledger. Missing model, effort or fresh-agent capability pauses affected
+work; omission preserves host settings. Parts A/B/C describe planning
+boundaries and execution choices, independently of this optional model policy.
+
+Before either closure cleanup or a resume cleanup sweep, inspect ignored
+artifacts as well as tracked and untracked changes. Git can remove a clean
+worktree containing ignored cited evidence without `--force`. Retain required
+qualification, cited and recovery artifacts in an approved durable location,
+verify content hashes and update maintained references before freezing
+retirement records. Verify that retained files remain accessible after removal.
+Do not rewrite frozen records to enable cleanup. Preserve the worktree when
+retention, ownership or references are uncertain; only verified disposable
+artifacts may be deleted. All existing closure, integration, ownership,
+no-active-writer, merged-branch, clean-tree and no-force conditions still apply.

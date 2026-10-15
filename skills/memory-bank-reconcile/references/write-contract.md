@@ -175,10 +175,16 @@ default with no explicit grants. Requirements stay in owning milestone
 specifications; do not duplicate them in the disposable launch reference.
 
 When goal use is approved (an existing `tabilet/memory-bank/suggested.txt` counts)
-and this bundle's stock goal protocol is available, replace
+and the selected governing protocol is available and compatible, replace
 `tabilet/memory-bank/suggested.txt` with a fresh launch reference derived from the whole
 approved active horizon, not only the new review findings. It is disposable
 input, never review history or active truth.
+
+Follow the shared plan-update reference to preserve explicit `GOAL_PROTOCOL`
+and `MODEL_POLICY`. The following example selects stock. For an alternative,
+retain `GOAL_PROTOCOL: <path>`, invoke that selected protocol, and use its actual
+path/hash in `GOAL_IDENTITY`; never substitute stock identity. A protocol
+switch requires explicit approval. A package-local `tabilet/GOAL.md` is optional.
 
 Use this shape with project values:
 
@@ -236,10 +242,11 @@ the SHA256 checksum of `suggested.txt` is required before grant activation. Use 
 trailing `?` only for an approved conditionally required status whose concrete
 trigger is documented in `milestone.md`. Never include Candidate Directions.
 
-When the bundled goal protocol is unavailable, omit
-`tabilet/memory-bank/suggested.txt`. Remove an existing stale reference only when that
-removal was in the approved file actions. Report one-row execution as the
-available path; never create or approximate a protocol copy in the project.
+When the selected governing protocol is unavailable or incompatible, pause
+affected launch refresh, preserve existing input pending resolution and omit
+new launch input. Remove an existing stale reference only when that removal was
+in the approved file actions. Report one-row execution as the available path;
+never replace the selected protocol with stock or approximate a project copy.
 
 ## Check the output
 
