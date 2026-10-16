@@ -25,6 +25,15 @@ Running multiple milestones in a single conversation causes monotonic context
 growth, increasing prompt costs and cognitive degradation. To keep context
 bounded, hand off each milestone to a fresh sub-agent.
 
+Within an assigned milestone, delegate coherent behavior changes together
+with affected callers and focused verification. Reuse a suitable implementer
+while its context remains relevant, and consolidate optional inspections at
+completed behavior boundaries. Additional handoffs or repeated checks should
+resolve a concrete uncertainty or satisfy a required gate; this creates no
+per-edit reporting step. Preserve assigned write sets, sole ledger ownership
+and mandatory task and whole-milestone reviews, including fresh reviewers
+where required.
+
 ### Distilled Context Brief
 
 Every child brief, including a lease, reviewer, or reconciliation analyst,

@@ -1,7 +1,7 @@
 {
   "schema": "tabilet.goal-protocol/v1",
-  "version": "2.13.1",
-  "sha256": "4b1970b8c78fe28da8e871f6adc2869fcbc72e6dec227199337942ae3aff120a",
+  "version": "2.13.2",
+  "sha256": "f277ec29daf5e1c847b5963adf162d6b938295af47a24b3a8e93bc7374741089",
   "released": [
     {
       "sha256": "b1ff0a748420bed7473b8109e0381ba42b188a8aa67575a9f4ee8c8768f37439",
@@ -110,7 +110,8 @@
     {
       "sha256": "4b1970b8c78fe28da8e871f6adc2869fcbc72e6dec227199337942ae3aff120a",
       "versions": [
-        "2.13.0"
+        "2.13.0",
+        "2.13.1"
       ]
     }
   ]

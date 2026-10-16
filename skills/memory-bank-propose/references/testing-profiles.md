@@ -26,6 +26,14 @@ Write a `Verification and testing standards` section containing the selected
 profile, concrete commands, targets, hard limits and timing scope. Add the
 matching `AGENTS.md` Hard Rules pointer to that section.
 
+Include this execution guidance in the generated section: keep implementation
+and focused verification together for each coherent behavior change. When
+handoffs, repeated inspections, or fixture setup delay progress, consolidate
+related work and reuse still-valid verification. Additional delegation or
+repeated checks should resolve a concrete uncertainty or satisfy a required
+gate. Preserve mandatory reviews, acceptance coverage, attempt records,
+authority, and limits. This adds no per-edit reporting step.
+
 | Check | Target | Hard limit | Cadence |
 |---|---|---|---|
 | Focused uncached tests | 30 seconds of test execution | 2 minutes per focused test package/batch | After the owning behavior changes |

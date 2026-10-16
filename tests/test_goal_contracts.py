@@ -242,6 +242,19 @@ class GoalInstructionContracts(unittest.TestCase):
         self.assertEqual(["review gate"], repository_checks.missing_contract_tokens(
             "review bypass", ("review gate",)))
 
+    def test_verification_attempt_gate_and_tech_stack_standards_are_enforced(self):
+        for relative, token in (
+            ("template/tabilet/memory-bank/tech-stack.md", "- **Execution cadence**:"),
+            ("template/tabilet/memory-bank/tech-stack.md", "- **Replacement coverage**:"),
+            ("template/tabilet/memory-bank/tech-stack.md", "- **Acceptance readiness**:"),
+            ("skills/memory-bank-next/SKILL.md", "Identify missing final-acceptance inputs, capabilities and authority early"),
+            ("harness/prompts/tackle-next-memory-bank-todo.md", "Distinguish executed\n  behavior, mocks, compile-only checks and deferred integration proof"),
+        ):
+            with self.subTest(relative=relative, token=token):
+                text = (ROOT / relative).read_text()
+                self.assertEqual([], repository_checks.v213_text_problems(relative, text))
+                self.assertTrue(repository_checks.v213_text_problems(relative, text.replace(token, "omitted")))
+
 
 class ProtocolRegistryFixtures(unittest.TestCase):
     """Real Git fixtures for registry generation; no agent resolver is implied."""

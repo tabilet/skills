@@ -108,6 +108,19 @@ subject to explicit project limits. Do not impose a 30-second full-suite ceiling
 Keep compilation and test execution timing distinct. Required physical evidence
 gets a named final gate and explicit handoff in the approved plan.
 
+For every testing profile, include these rules in the proposed verification
+standards and assign the required evidence to the relevant milestone owners:
+
+- **Replacement coverage.** When retiring an implementation, preserve meaningful
+  success and failure coverage for retained behavior through its successor.
+  Distinguish executed behavior, mocks, compile-only checks and deferred
+  integration proof; claim only what the evidence demonstrates.
+- **Acceptance readiness.** Identify missing final-acceptance inputs, capabilities
+  and authority early through permitted inspection. Prepare concrete approval
+  scope while independent authorized work continues. Keep deferred verification
+  with its named owner and gate, preserving dependencies, intermediate acceptance
+  and action limits. Use existing records.
+
 When a non-standard profile is chosen, add a rule under `AGENTS.md` Hard Rules:
 `- Follow the verification and testing standards defined in tabilet/memory-bank/tech-stack.md.`
 

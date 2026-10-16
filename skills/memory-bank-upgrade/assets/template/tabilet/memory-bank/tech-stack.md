@@ -58,6 +58,9 @@
 - **Timing and repetition**: [Separate one-time compilation from uncached test execution; run full regression once per unchanged closure candidate, repeating only for changes, failures or unresolved coverage].
 - **Budget precedence**: [Explicit project limits and smaller tool/authorization caps win; standard adds no extra constraints].
 - **Harness boundaries**: [e.g., Use in-memory/loopback mocks; no external supervisor daemons or multi-GB disk snapshots; defer physical/browser e2e to final release smoke tests].
+- **Execution cadence**: [Run focused package/module verification during task loops; run full-suite and race gates once at milestone review or when shared contracts change].
+- **Replacement coverage**: [When a refactoring replaces an internal path, migrate callers and delete obsolete tests in the same task].
+- **Acceptance readiness**: [Verify fixture, schema, and launcher prerequisites by fast preflight before starting counted acceptance attempts].
 
 ## Model eval harnesses
 

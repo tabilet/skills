@@ -372,7 +372,11 @@ spelling so an inbound link survives translation.
   focused-test target / two-minute cap, a 20-minute full-regression cap and five-minute
   race/UI caps; explicit project budgets win and `standard` adds no extra constraints.
   Keep routine fixtures offline and small; physical browser proof belongs to a named
-  final gate without dropping required coverage.
+  final gate without dropping required coverage. Verification standards also define
+  `Execution cadence` (focused verification during task loops; full-suite and race gates
+  once at milestone review or shared-contract changes), `Replacement coverage`
+  (migrate callers and delete dead code and obsolete tests in the same task), and
+  `Acceptance readiness` (fast preflight checks before counted acceptance attempts).
   Upgrade proposes updates to existing goal protocols and launch references while preserving custom
   restrictions and explicit policies; approval of the complete proposal gates
   these writes and never starts execution.
@@ -485,7 +489,11 @@ spelling so an inbound link survives translation.
   is required within 10 iterations, and the counter does not reset across
   sessions or reviewers; persist the iteration count in the active status or
   equivalent goal state. `milestone.md` owns the review-severity context and
-  project override rules; P1/P2 are not product-domain concepts.
+  project override rules; P1/P2 are not product-domain concepts. Task and
+  acceptance verification also use a bounded 3-attempt verification-attempt gate
+  per stage: persist attempt counts in status notes, never repeat an unchanged
+  failed attempt, run fast preflight checks before counted expensive attempts,
+  and mark `[!]` after 3 consecutive failed attempts.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.

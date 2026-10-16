@@ -159,6 +159,19 @@ record until ordinary review, disposition, and retirement close it.
 
 For a milestone whose acceptance depends on an expensive or protected check, apply the milestone file's expensive-check rule: acceptance covers only behavior the milestone owns, proved with the smallest workload; real producer or consumer pairing belongs to the adopting milestone; needed host capabilities get a cheap readiness probe as the first row; and an uncounted local diagnostic loop is named. Review intake must not move downstream pairing evidence into such a milestone.
 
+For every testing profile, include these rules in the proposed verification
+standards and assign the required evidence to the relevant milestone owners:
+
+- **Replacement coverage.** When retiring an implementation, preserve meaningful
+  success and failure coverage for retained behavior through its successor.
+  Distinguish executed behavior, mocks, compile-only checks and deferred
+  integration proof; claim only what the evidence demonstrates.
+- **Acceptance readiness.** Identify missing final-acceptance inputs, capabilities
+  and authority early through permitted inspection. Prepare concrete approval
+  scope while independent authorized work continues. Keep deferred verification
+  with its named owner and gate, preserving dependencies, intermediate acceptance
+  and action limits. Use existing records.
+
 When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.
 
 Record work the user rules out of the project in the milestone file's Out of scope register with its reason. It gets no ID, never promotes, and returns only through a new approved direction; do not re-propose it as a candidate.

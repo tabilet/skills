@@ -782,6 +782,11 @@ no active writer, a merged branch and a clean worktree; never force removal.
 - Re-read the current status and relevant project sources; earlier milestones
   may have changed them.
 - Confirm dependencies, triggers, required assets, and external inputs.
+- Identify missing final-acceptance inputs, capabilities and authority early
+  through permitted inspection. Prepare concrete approval scope while independent
+  authorized work continues. Keep deferred verification with its named owner and
+  gate, preserving dependencies, intermediate acceptance and action limits. Use
+  existing records.
 - Inspect current implementation and tests before assuming a task is missing.
 - Rewrite obsolete pending tasks before implementation. Do not redo existing
   work merely because an older plan described it differently.
@@ -797,6 +802,10 @@ no active writer, a merged branch and a clean worktree; never force removal.
 - Preserve public interfaces, schemas, state formats, cache/storage contracts,
   configuration, CLI/HTTP behavior, and deployment compatibility unless the
   milestone explicitly changes them.
+- When retiring an implementation, preserve meaningful success and failure
+  coverage for retained behavior through its successor. Distinguish executed
+  behavior, mocks, compile-only checks and deferred integration proof; claim
+  only what the evidence demonstrates.
 - Change related repositories in the same task only when project ownership and
   the goal scope include them.
 - Update code-adjacent documentation and project memory/status sources in the

@@ -2876,7 +2876,9 @@ def v212_contract():
 V213_CONTRACTS = {
     "AGENTS.md": ("inspect ignored artifacts", "`MODEL_POLICY` is opt-in",
                   "Launch refresh preserves explicit `GOAL_PROTOCOL`",
-                  "no provider or model is required", "Effort is optional", "`host-default`"),
+                  "no provider or model is required", "Effort is optional", "`host-default`",
+                  "bounded 3-attempt verification-attempt gate", "Execution cadence",
+                  "Replacement coverage", "Acceptance readiness"),
     "GOAL.md": ("Evidence-preserving cleanup gate (ordinary closure and resume)",
                 "Inspect ignored artifacts as well as tracked and untracked",
                 "verify their content hashes", "Never rewrite frozen records",
@@ -2894,12 +2896,24 @@ V213_CONTRACTS = {
         "full resolved `MODEL_POLICY`", "no mutation authority",
         "combine them or run batches", "Inspect ignored artifacts",
         "Never rewrite frozen records", "Only verified disposable artifacts"),
+    "skills/memory-bank-next/SKILL.md": (
+        "Identify missing final-acceptance inputs, capabilities and authority early",
+        "preserve meaningful success and failure coverage for retained behavior through its successor",
+        "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof"),
+    "harness/prompts/tackle-next-memory-bank-todo.md": (
+        "Identify missing final-acceptance inputs, capabilities and authority early",
+        "preserve meaningful success and failure coverage for retained behavior through its successor",
+        "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof"),
     "skills/memory-bank-next/references/interactive-controls.md": (
         "[model policy](model-policy.md)", "Omission preserves host settings"),
     "skills/memory-bank-init/references/write-contract.md": (
         "selected governing protocol is available and compatible",
         "Preserve an explicit `GOAL_PROTOCOL`", "actual bytes",
         "Include `MODEL_POLICY` only when requested"),
+    "skills/memory-bank-init/references/testing-profiles.md": (
+        "keep implementation and focused verification together",
+        "consolidate related work and reuse still-valid verification",
+        "Preserve mandatory reviews, acceptance coverage, attempt records"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
@@ -2927,6 +2941,8 @@ V213_CONTRACTS = {
         "run batches within host capacity", "fresh read-only whole-milestone reviewers",
         "Reproduce only when safely possible within current authority and budget",
         "Required acceptance evidence and verification gates still apply"),
+    "template/tabilet/memory-bank/tech-stack.md": (
+        "- **Execution cadence**:", "- **Replacement coverage**:", "- **Acceptance readiness**:"),
     "docs/goal.md": ("## Optional model policy", "For a legacy paused goal",
                      "Diagnose cheaply when safe", "missing required proof pauses acceptance"),
     "docs/zh/goal.md": ("{#optional-model-policy}",),

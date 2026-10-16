@@ -82,6 +82,12 @@ checked and current sources do not answer the question. Stop when the evidence
 supports the task decision; report missing required evidence rather than
 expanding into unrelated history.
 
+Identify missing final-acceptance inputs, capabilities and authority early
+through permitted inspection. Prepare concrete approval scope while independent
+authorized work continues. Keep deferred verification with its named owner and
+gate, preserving dependencies, intermediate acceptance and action limits. Use
+existing records.
+
 Tackle exactly one row:
 
 - For a defect or remediation row, prefer a command that goes red on the
@@ -92,6 +98,10 @@ Tackle exactly one row:
   limitation instead of forcing retries or inventing a failure. Required
   acceptance evidence and verification gates still apply; if missing, pause.
 - Implement the change.
+- When retiring an implementation, preserve meaningful success and failure
+  coverage for retained behavior through its successor. Distinguish executed
+  behavior, mocks, compile-only checks and deferred integration proof; claim
+  only what the evidence demonstrates.
 - Update current memory-bank facts invalidated by this row in the same change.
   A later documentation row does not defer these current-fact corrections.
   Update other relevant docs within this row's scope. Before committing,
