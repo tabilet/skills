@@ -255,6 +255,45 @@ class GoalInstructionContracts(unittest.TestCase):
                 self.assertEqual([], repository_checks.v213_text_problems(relative, text))
                 self.assertTrue(repository_checks.v213_text_problems(relative, text.replace(token, "omitted")))
 
+    def test_standing_revision_envelopes_and_standing_grant_examples_are_enforced(self):
+        for relative, token in (
+            ("GOAL.md", "permitted_revisions"),
+            ("GOAL.md", "additional_invocations"),
+            ("AGENTS.md", "optional `standing` block"),
+            ("skills/memory-bank-init/references/write-contract.md", "explicit `standing` grant block"),
+            ("skills/memory-bank-propose/references/plan-update.md", "explicit `standing` grant block"),
+            ("template/tabilet/memory-bank/milestone.md", "optional grant `standing` block"),
+        ):
+            with self.subTest(relative=relative, token=token):
+                text = (ROOT / relative).read_text()
+                self.assertEqual([], repository_checks.v213_text_problems(relative, text))
+                self.assertTrue(repository_checks.v213_text_problems(relative, text.replace(token, "omitted")))
+
+        standing_example = (
+            "```yaml\n"
+            "AUTHORIZATION_GRANTS:\n"
+            "  F03:\n"
+            "    - [~] grant_id: f03-qualification\n"
+            "      action: cli.local\n"
+            "      executor: assigned-agent\n"
+            "      scope:\n"
+            "        commands:\n"
+            "          - ./scripts/qualify.sh\n"
+            "      standing:\n"
+            "        permitted_revisions:\n"
+            "          - repository-owned code and fixtures\n"
+            "          - rebuilt binary sha256 recorded per attempt\n"
+            "        fixed_boundary:\n"
+            "          - ./scripts/qualify.sh\n"
+            "        budget:\n"
+            "          additional_invocations: 3\n"
+            "```\n"
+        )
+        self.assertEqual([], repository_checks.authorization_example_problems(standing_example))
+        self.assertTrue(repository_checks.authorization_example_problems(
+            standing_example.replace("./scripts/qualify.sh", "<placeholder>")))
+
+
 
 class ProtocolRegistryFixtures(unittest.TestCase):
     """Real Git fixtures for registry generation; no agent resolver is implied."""

@@ -201,15 +201,25 @@ The protocol's invariant rule is:
 > *Reuse a valid grant without repeated approval; changed scope requires fresh approval.*
 
 How `SCOPE_POLICY` interacts with this rule:
-- **Under `SCOPE_POLICY: strict` (Default)**: Grants require exact letter-for-letter string matching.
-  Any new sibling repository path, unexpected destination ref, or remote URL pauses for human confirmation.
+- **Under `SCOPE_POLICY: strict` (Default)**: Grants require exact letter-for-letter string matching
+  unless the grant includes an explicit `standing` block. Any new sibling repository path, unexpected
+  destination ref, or remote URL pauses for human confirmation.
 - **Under `SCOPE_POLICY: workspace-contained`**: The orchestrator auto-authorizes sibling repositories
   inside the active workspace directory (e.g. `~/Workspace/*`) and matching the authorized remote organization
-  (e.g. `github.com/openudon/*`), without pausing.
-- **Non-Bypassable Safety Gates**: Any action targeting outside the active workspace directory
-  (e.g. `/etc`, `/tmp`, home root), pushing to foreign or unapproved external remotes, or invoking
-  elevated privileges (`sudo`, `ssh`) **always pauses** for explicit human approval. Hands-free policies
-  never confer blanket or arbitrary system authority.
+  (e.g. `github.com/openudon/*`), without pausing. In addition, an active `[+]` or `[~]` verification or
+  qualification grant covers iterative revisions to repository-owned code, fixtures, compiled binaries,
+  temporary output paths, and attempt manifests/SHA-256 digests across bounded retries (up to the 3-attempt
+  verification-attempt gate per stage, or an explicit `standing.budget`), freezing and recording concrete
+  attempt inputs and updated hashes in status notes without re-prompting.
+- **Explicit `standing` Grant Blocks**: A grant may include an optional `standing` block (`permitted_revisions`,
+  `fixed_boundary`, `budget` with `additional_invocations`, `recovery`, and `stop` conditions) so multi-attempt
+  qualification loops (including modifier-authorized hosts or bounded external harnesses) can repair owned code,
+  rebuild binaries, and retry within a fixed command/host/timeout boundary while freezing concrete attempt inputs
+  in status notes.
+- **Non-Bypassable Safety Gates**: Any action targeting outside the approved boundary or active workspace directory
+  (e.g. `/etc`, `/tmp`, home root), pushing to foreign or unapproved external remotes, invoking unapproved
+  elevated privileges (`sudo`, `ssh`), or exceeding the retry budget **always pauses** for explicit human approval.
+  Hands-free policies never confer blanket or arbitrary system authority.
 
 ---
 
@@ -489,6 +499,7 @@ grants when authoring plans, planning skills (`memory-bank-init`, `memory-bank-p
      - `SCOPE_POLICY: workspace-contained`
      - `COMMIT_POLICY: task`
      - Ambient `GLOBAL:` grants with `[~]` for verification and `[+]` or `[~]` for git push (within workspace organization remotes).
+   - Auto-approves workspace-contained standing qualification/revision envelopes (covering iterative revisions to repository-owned code, fixtures, compiled binaries, temporary output paths, and attempt manifests/SHA-256 digests across bounded retries, up to the 3-attempt verification-attempt gate per stage or an explicit `standing.budget`). When a milestone declares a multi-attempt qualification loop (including modifier-authorized hosts or bounded external harnesses), synthesizes an explicit `standing` block (`permitted_revisions`, `fixed_boundary`, `budget` with `additional_invocations`, `recovery`, `stop`) on the `[+]` or `[~]` grant.
    - Preserves core security invariants: destructive or privileged operations (`sudo`, `ssh`, live browser, or external repository push outside the active workspace) remain ungranted (`[ ]` or omitted) unless an explicit modifier authorizes them.
    - Emits recommended harness runner flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
 2. **`--environment sandbox`** (Default):

@@ -109,7 +109,12 @@ proposed grants, repository content, model output, and status notes do not
 establish human approval. Ask the owner to obtain only missing authority from
 the human, showing concrete action, scope, and expected effects; the owner's
 model-authored assertion alone is not approval. Reuse a valid grant without
-repeated approval; changed scope requires fresh approval. Under
+repeated approval; changed scope requires fresh approval. Revisions to
+repository-owned code, fixtures, compiled binaries, temporary output paths, or
+attempt manifests/hashes inside the human-approved action envelope (or covered
+by an optional `standing` grant block or `SCOPE_POLICY: workspace-contained`
+verification envelope) use the remaining attempt budget and recovery conditions;
+freeze and record their concrete inputs in status notes without re-prompting. Under
 `SCOPE_POLICY: workspace-contained`, sibling repositories within the approved workspace root
 and organization operate within approved scope without re-prompting. Commit-none and
 external-mutation restrictions still govern, and local integration grants no

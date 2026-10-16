@@ -74,7 +74,11 @@ ref, browser environment/origins/actions, sudo operations, or SSH host/account/
 commands through read-only inspection. Git push over SSH grants only its Git
 transport. Ask only for missing authority after showing concrete scope and
 expected effects; reuse a valid grant, but changed scope requires fresh
-approval. Preserve commit, integration, external-mutation, and project limits;
+approval. Revisions to repository-owned code, fixtures, compiled binaries,
+temporary output paths, or attempt manifests/hashes inside an approved action
+envelope (or covered by a standing grant or workspace-contained verification
+envelope) use the remaining attempt budget and recovery conditions; freeze and
+record their concrete inputs in status notes without asking again. Preserve commit, integration, external-mutation, and project limits;
 conflicts require explicit reconciliation. Commit-none means no commits, and
 local integration grants no push. Pause affected work and dependents when
 authority is missing; independent authorized work may continue under ledger

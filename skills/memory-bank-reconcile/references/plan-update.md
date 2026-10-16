@@ -55,7 +55,13 @@ explicit `SUGGESTED_UPDATE` policy (defaulting to `confirm`).
 Under `--environment dangerous`, synthesize hands-free execution defaults from day one:
 `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`,
 and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local implementation and verification,
-and `- [+] global-repo-push` for workspace organization remotes). Destructive or privileged
+and `- [+] global-repo-push` for workspace organization remotes). `SCOPE_POLICY: workspace-contained`
+and `global-local-verify` (`[~]`) inherently cover iterative revisions to repository-owned code,
+fixtures, compiled binaries, temporary output paths, and attempt manifests/SHA-256 digests across
+bounded retries (up to the 3-attempt verification-attempt gate per stage) without per-milestone YAML
+boilerplate, and any explicit `standing` grant block (`permitted_revisions`, `fixed_boundary`,
+`budget`, `recovery`, `stop`) synthesized for local/disposable checks or `plus <action>` is marked
+`[~]` or `[+]` (auto-approved upon launch checksum approval). Destructive or privileged
 operations (`sudo`, `ssh`, live browser, external pushes outside the workspace) remain `[ ]` or
 omitted unless an explicit modifier (such as `plus sudo`) authorizes them. Add a launch comment
 with recommended runner flags: `# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`
@@ -68,7 +74,7 @@ Changing that standing policy requires human approval, even inside an automatic
 correction. Omitted selectors in an existing plan preserve its explicit policy.
 Under `--environment sandbox` (default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
-grants marked `[ ]`).
+grants, including any explicit `standing` blocks for protected actions, marked `[ ]`).
 Under `--environment least`, synthesize strict least privilege: `SUGGESTED_UPDATE: confirm`,
 `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring manual approval for every action.
 Modifier expressions like `but <action> in milestone <ID>` attach local milestone policy overrides

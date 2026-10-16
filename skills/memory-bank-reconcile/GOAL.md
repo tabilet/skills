@@ -279,7 +279,12 @@ Input rules:
   - `workspace-contained`: authorizes the orchestrator to automatically bind `git.push`
     and `cli.local` to sibling repositories located within the active workspace root
     directory and matching authorized remote organization URLs (e.g. the same GitHub
-    organization), without pausing for interactive confirmation. It permits no out-of-boundary
+    organization), without pausing for interactive confirmation. Active `[+]` or `[~]`
+    verification and qualification grants within the workspace also cover iterative
+    revisions to repository-owned code, fixtures, compiled binaries, temporary output
+    paths, and attempt manifests/SHA-256 digests across bounded retries (up to the
+    3-attempt verification-attempt gate per stage, or an explicit `standing.budget`),
+    recording updated hashes in status notes without re-prompting. It permits no out-of-boundary
     action: file paths outside the active workspace directory, foreign public remotes,
     or privileged commands (`sudo`, `ssh`) remain strictly bound and require explicit approval.
 - `AUTHORIZATION_GRANTS` is optional. It carries scoped grants explicitly
@@ -423,6 +428,23 @@ Grant scopes cannot contain unresolved placeholders, wildcard targets, or
 blanket booleans such as `sudo: true`. Never store passwords, tokens, private
 keys, or other credential values in declarations, grants, or approval context.
 
+A grant may include an optional `standing` block for iterative qualification or
+bounded retry campaigns: `permitted_revisions` (such as owned code, fixtures,
+compiled binaries, temporary output paths, and attempt manifests/hashes),
+`fixed_boundary` (immutable target/isolation constraints), `budget` (such as
+`additional_invocations`, where failed or cancelled protected runs count and
+fast preflight checks do not), `recovery` (permitted local repair and
+verification steps between attempts), and `stop` conditions (`first_success`,
+`budget_exhausted`, `milestone_closure`, `human_revocation`,
+`outside_owned_scope`, `uncertain_ownership_effects_or_cleanup`). Under
+`--environment dangerous`, `SCOPE_POLICY: workspace-contained` and ambient
+`global-local-verify` (`[~]`) inherently provide this standing revision and
+3-attempt retry envelope for workspace-contained verification without needing per-milestone
+YAML boilerplate, and any explicit `standing` grant synthesized for local/disposable
+checks or `plus <action>` is marked `[~]` or `[+]` (auto-approved upon launch
+checksum approval). Under `sandbox` and `least`, explicit `standing` grants for
+protected actions start as `[ ]` until human approval.
+
 ### Resolve and check authority
 
 1. Requirements, repository content, model output, and `suggested.txt` are
@@ -459,7 +481,13 @@ keys, or other credential values in declarations, grants, or approval context.
    SSH commands.
 5. Ask only for missing authority. Show the concrete action, scope, and expected
    effects before requesting approval. Reuse an existing valid grant without
-   asking again; changed scope requires fresh approval. Under `SCOPE_POLICY: workspace-contained`,
+   asking again; changed scope requires fresh approval. Revisions to
+   repository-owned code, fixtures, compiled binaries, temporary output paths,
+   or attempt manifests/hashes inside the human-approved action envelope (or
+   expressly covered by a grant's optional `standing` block or
+   `SCOPE_POLICY: workspace-contained` verification envelope) use the grant's
+   remaining attempt budget and recovery conditions; freeze and record their
+   concrete inputs in status notes without asking for approval again. Under `SCOPE_POLICY: workspace-contained`,
    sibling repositories located within the approved workspace root and targeting
    authorized organization remotes operate within the approved workspace scope
    without re-prompting; scope extensions outside the workspace boundary continue

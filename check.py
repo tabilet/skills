@@ -642,7 +642,7 @@ def authorization_example_problems(text: str) -> list[str]:
                     problems.append("grant example needs a named action")
                 if not executor or executor[1] not in {"coordinator", "assigned-agent"}:
                     problems.append("grant example needs a named executor")
-                scope = entry.partition("      scope:\n")[2]
+                scope, _, standing = entry.partition("      scope:\n")[2].partition("\n      standing:\n")
                 if not scope.strip():
                     problems.append("grant example needs concrete scope")
                 if action:
@@ -659,7 +659,9 @@ def authorization_example_problems(text: str) -> list[str]:
                         problems.append("grant example push mode must be fast-forward")
                 if re.search(r"<[^>]+>|\*|\?|:\s*(?:true|false)\b", scope, re.I):
                     problems.append("grant example scope has a placeholder, wildcard, or blanket boolean")
-                if re.search(r"^\s*(?:password|token|private_key|credential):", scope, re.M | re.I):
+                if standing and re.search(r"<[^>]+>|\*|\?", standing, re.I):
+                    problems.append("grant example standing block has a placeholder or wildcard")
+                if re.search(r"^\s*(?:password|token|private_key|credential):", scope + "\n" + standing, re.M | re.I):
                     problems.append("grant example must not include credential fields")
     return problems
 
@@ -2878,7 +2880,8 @@ V213_CONTRACTS = {
                   "Launch refresh preserves explicit `GOAL_PROTOCOL`",
                   "no provider or model is required", "Effort is optional", "`host-default`",
                   "bounded 3-attempt verification-attempt gate", "Execution cadence",
-                  "Replacement coverage", "Acceptance readiness"),
+                  "Replacement coverage", "Acceptance readiness",
+                  "standing qualification/revision envelopes", "optional `standing` block"),
     "GOAL.md": ("Evidence-preserving cleanup gate (ordinary closure and resume)",
                 "Inspect ignored artifacts as well as tracked and untracked",
                 "verify their content hashes", "Never rewrite frozen records",
@@ -2890,26 +2893,34 @@ V213_CONTRACTS = {
                 "fresh read-only reviewers for each iteration", "review fixes return to `DEFAULT`",
                 "pause affected work and dependents", "instruction-level policy",
                 "An empty implementation diff does not bypass acceptance review",
-                "Reproduce only when safely possible within current authority and budget"),
+                "Reproduce only when safely possible within current authority and budget",
+                "permitted_revisions", "fixed_boundary", "additional_invocations",
+                "freeze and record their concrete inputs in status notes without asking for approval again"),
     "skills/memory-bank-goal/SKILL.md": ("references/model-policy.md", "Preserve explicit `GOAL_PROTOCOL`"),
     "skills/memory-bank-goal/references/subagents.md": (
         "full resolved `MODEL_POLICY`", "no mutation authority",
         "combine them or run batches", "Inspect ignored artifacts",
-        "Never rewrite frozen records", "Only verified disposable artifacts"),
+        "Never rewrite frozen records", "Only verified disposable artifacts",
+        "optional `standing` grant block", "freeze and record their concrete inputs in status notes"),
     "skills/memory-bank-next/SKILL.md": (
         "Identify missing final-acceptance inputs, capabilities and authority early",
         "preserve meaningful success and failure coverage for retained behavior through its successor",
-        "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof"),
+        "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof",
+        "covered by a standing grant or workspace-contained verification envelope",
+        "without asking again"),
     "harness/prompts/tackle-next-memory-bank-todo.md": (
         "Identify missing final-acceptance inputs, capabilities and authority early",
         "preserve meaningful success and failure coverage for retained behavior through its successor",
-        "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof"),
+        "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof",
+        "covered by a standing grant or workspace-contained verification envelope",
+        "without asking again"),
     "skills/memory-bank-next/references/interactive-controls.md": (
         "[model policy](model-policy.md)", "Omission preserves host settings"),
     "skills/memory-bank-init/references/write-contract.md": (
         "selected governing protocol is available and compatible",
         "Preserve an explicit `GOAL_PROTOCOL`", "actual bytes",
-        "Include `MODEL_POLICY` only when requested"),
+        "Include `MODEL_POLICY` only when requested",
+        "iterative revisions to repository-owned code", "explicit `standing` grant block"),
     "skills/memory-bank-init/references/testing-profiles.md": (
         "keep implementation and focused verification together",
         "consolidate related work and reuse still-valid verification",
@@ -2919,15 +2930,19 @@ V213_CONTRACTS = {
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
         "A protocol switch requires explicit approval",
         "Preserve explicit `MODEL_POLICY`", "A package-local `tabilet/GOAL.md` is optional",
-        "A broad mechanical rename that is safely atomic"),
+        "A broad mechanical rename that is safely atomic",
+        "iterative revisions to repository-owned code", "explicit `standing` grant block"),
     "skills/memory-bank-reconcile/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
-        "A protocol switch requires explicit approval", "Preserve explicit `MODEL_POLICY`"),
+        "A protocol switch requires explicit approval", "Preserve explicit `MODEL_POLICY`",
+        "iterative revisions to repository-owned code", "explicit `standing` grant block"),
     "skills/memory-bank-reconcile/references/write-contract.md": (
         "selected governing protocol is available and compatible",
         "preserve explicit `GOAL_PROTOCOL` and `MODEL_POLICY`",
-        "never substitute stock identity", "preserve existing input pending resolution"),
+        "never substitute stock identity", "preserve existing input pending resolution",
+        "iterative workspace-contained code/fixture/binary-hash revisions across bounded retries",
+        "explicit `standing` grant"),
     "skills/memory-bank-reconcile/SKILL.md": (
         "Resolve explicit `GOAL_PROTOCOL` before classifying",
         "preserve its role and actual path/hash", "do not apply it again as an addendum"),
@@ -2935,16 +2950,20 @@ V213_CONTRACTS = {
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
         "Preserve explicit `MODEL_POLICY`", "previously approved protocol path/hash",
         "Preserve grants, denials, review counters, attempt usage and operational limits",
-        "Preserve a file selected as the alternative full protocol"),
+        "Preserve a file selected as the alternative full protocol",
+        "optional grant `standing` revision envelopes"),
     "template/tabilet/memory-bank/milestone.md": (
         "An empty implementation diff still needs acceptance review",
         "run batches within host capacity", "fresh read-only whole-milestone reviewers",
         "Reproduce only when safely possible within current authority and budget",
-        "Required acceptance evidence and verification gates still apply"),
+        "Required acceptance evidence and verification gates still apply",
+        "optional grant `standing` block",
+        "freezing and recording concrete attempt inputs in status notes"),
     "template/tabilet/memory-bank/tech-stack.md": (
         "- **Execution cadence**:", "- **Replacement coverage**:", "- **Acceptance readiness**:"),
     "docs/goal.md": ("## Optional model policy", "For a legacy paused goal",
-                     "Diagnose cheaply when safe", "missing required proof pauses acceptance"),
+                     "Diagnose cheaply when safe", "missing required proof pauses acceptance",
+                     "optional grant `standing` block"),
     "docs/zh/goal.md": ("{#optional-model-policy}",),
     "docs/subagents.md": ("including uncommitted work", "inspect ignored artifacts"),
     "docs/zh/subagents.md": ("{#model-policy-and-retained-lease-evidence}",),

@@ -362,13 +362,20 @@ the user authorizes the orchestrator to refresh remaining milestones without
 prompting for fresh authorization. Under `--environment dangerous`, synthesize hands-free
 launch defaults from day one: `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`,
 `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local
-verification and `- [+] global-repo-push` for workspace organization remotes). Destructive or
+verification and `- [+] global-repo-push` for workspace organization remotes). Under
+`--environment dangerous`, `SCOPE_POLICY: workspace-contained` and `global-local-verify` (`[~]`)
+inherently cover iterative revisions to repository-owned code, fixtures, compiled binaries,
+temporary output paths, and attempt manifests/SHA-256 digests across bounded retries (up to the
+3-attempt verification-attempt gate per stage) without per-milestone YAML boilerplate, and any
+explicit `standing` grant block (`permitted_revisions`, `fixed_boundary`, `budget`, `recovery`,
+`stop`) synthesized for local/disposable checks or `plus <action>` is marked `[~]` or `[+]`
+(auto-approved upon launch checksum approval). Destructive or
 privileged operations (`sudo`, `ssh`, live browser, external pushes outside the workspace)
 remain `[ ]` or omitted unless an explicit modifier authorizes them. Include recommended runner
 flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
 Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
-grants marked `[ ]`). Under `--environment least`, synthesize strict least privilege:
+grants, including any explicit `standing` blocks for protected actions, marked `[ ]`). Under `--environment least`, synthesize strict least privilege:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring
 manual approval for all actions. Modifier expressions like `but <action> in milestone <ID>`
 attach milestone-specific policy overrides in `milestone.md`.

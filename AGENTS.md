@@ -361,11 +361,20 @@ spelling so an inbound link survives translation.
   within the approved horizon and smoothly continue). Scope resolution defaults to
   `SCOPE_POLICY: strict` (exact string matches); `SCOPE_POLICY: workspace-contained`
   authorizes binding `git.push` and `cli.local` to sibling repositories within the approved
-  workspace root and organization without re-prompting. Milestone specifications in `milestone.md`
-  may attach local policies and requirement overrides that narrow or override global launch defaults.
+  workspace root and organization without re-prompting, and lets active `[+]` or `[~]`
+  verification/qualification grants cover iterative revisions to repository-owned code,
+  fixtures, compiled binaries, temporary output paths, and attempt manifests/SHA-256 digests
+  across bounded retries (up to the 3-attempt verification-attempt gate or an explicit
+  `standing.budget`), freezing and recording concrete attempt inputs in status notes without
+  re-prompting. Grants may also include an optional `standing` block (`permitted_revisions`,
+  `fixed_boundary`, `budget`, `recovery`, `stop`) to bound multi-attempt qualification loops.
+  Milestone specifications in `milestone.md` may attach local policies and requirement overrides
+  that narrow or override global launch defaults.
   Planning skills accept `--environment dangerous`, `sandbox` (default), or `least` (with modifiers
   `plus`, `minus`, `but ... in milestone ...`) to synthesize launch parameters and milestone policies
-  declaratively from day one.
+  declaratively from day one (`--environment dangerous` auto-approves workspace-contained standing
+  qualification/revision envelopes and attaches explicit `standing` blocks when milestones declare
+  multi-attempt qualification loops).
   Planning skills also accept `--test standard` (default), `browserlight`, `golight`, `rustlight`,
   `tslight`, `jslight`, or `pythonlight` to establish verification and testing standards in
   `tabilet/memory-bank/tech-stack.md` from day one. Light profiles default to a 30-second

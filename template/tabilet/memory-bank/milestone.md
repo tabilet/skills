@@ -86,7 +86,12 @@ Under the optional goal protocol, `AUTHORIZATION_GRANTS` belongs
 to the resolved human-approved request, not to this file. Requirements,
 proposed grants, status notes, and `suggested.txt` are evidence, not approval.
 Check authority before the action; pause affected work and dependents when it
-is missing. Independent authorized work may continue under the governing
+is missing. An active grant envelope (or an optional grant `standing` block or
+`SCOPE_POLICY: workspace-contained` verification envelope) covers revisions to
+repository-owned code, fixtures, compiled binaries, temporary output paths, and
+attempt manifests/hashes inside the approved boundary across bounded retries,
+freezing and recording concrete attempt inputs in status notes without
+re-prompting. Independent authorized work may continue under the governing
 order and ownership rules. Required unperformed task or acceptance actions
 prevent closure; listing an action here alone does not require its performance.
 Outside a goal, use the current scoped human request and applicable project
