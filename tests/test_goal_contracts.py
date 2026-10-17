@@ -259,40 +259,85 @@ class GoalInstructionContracts(unittest.TestCase):
         for relative, token in (
             ("GOAL.md", "permitted_revisions"),
             ("GOAL.md", "additional_invocations"),
-            ("AGENTS.md", "optional `standing` block"),
-            ("skills/memory-bank-init/references/write-contract.md", "explicit `standing` grant block"),
-            ("skills/memory-bank-propose/references/plan-update.md", "explicit `standing` grant block"),
-            ("template/tabilet/memory-bank/milestone.md", "optional grant `standing` block"),
+            ("GOAL.md", "The envelope never covers `sudo`, `ssh`, live `browser`"),
+            ("AGENTS.md", "is defined only in `GOAL.md`"),
+            ("skills/memory-bank-init/references/write-contract.md", "schema in `GOAL.md`"),
+            ("skills/memory-bank-propose/references/plan-update.md", "schema in `GOAL.md`"),
+            ("skills/memory-bank-goal/references/subagents.md",
+             "asks the owner to reserve each attempt from the persisted budget"),
+            ("template/tabilet/memory-bank/milestone.md",
+             "goal protocol's standing revision envelope covers it"),
         ):
             with self.subTest(relative=relative, token=token):
                 text = (ROOT / relative).read_text()
                 self.assertEqual([], repository_checks.v213_text_problems(relative, text))
                 self.assertTrue(repository_checks.v213_text_problems(relative, text.replace(token, "omitted")))
 
-        standing_example = (
-            "```yaml\n"
-            "AUTHORIZATION_GRANTS:\n"
-            "  F03:\n"
-            "    - [~] grant_id: f03-qualification\n"
-            "      action: cli.local\n"
-            "      executor: assigned-agent\n"
-            "      scope:\n"
-            "        commands:\n"
-            "          - ./scripts/qualify.sh\n"
-            "      standing:\n"
+    def standing_grant(self, *, action="cli.local", scope=None, standing=None, standing_first=False):
+        scope = scope if scope is not None else (
+            "        task: declared-implementation-and-verification\n")
+        standing = standing if standing is not None else (
             "        permitted_revisions:\n"
             "          - repository-owned code and fixtures\n"
-            "          - rebuilt binary sha256 recorded per attempt\n"
             "        fixed_boundary:\n"
             "          - ./scripts/qualify.sh\n"
             "        budget:\n"
             "          additional_invocations: 3\n"
-            "```\n"
-        )
-        self.assertEqual([], repository_checks.authorization_example_problems(standing_example))
-        self.assertTrue(repository_checks.authorization_example_problems(
-            standing_example.replace("./scripts/qualify.sh", "<placeholder>")))
+            "        stop:\n"
+            "          - first_success\n"
+            "          - budget_exhausted\n")
+        scope_part = "      scope:\n" + scope if scope else "      scope:\n"
+        standing_part = "      standing:\n" + standing
+        body = standing_part + scope_part if standing_first else scope_part + standing_part
+        return (
+            "```yaml\nAUTHORIZATION_GRANTS:\n  F03:\n"
+            f"    - [~] grant_id: f03-qualification\n      action: {action}\n"
+            "      executor: assigned-agent\n" + body + "```\n")
 
+    def test_standing_grant_lint_accepts_the_documented_schema_in_either_order(self):
+        for standing_first in (False, True):
+            with self.subTest(standing_first=standing_first):
+                self.assertEqual([], repository_checks.authorization_example_problems(
+                    self.standing_grant(standing_first=standing_first)))
+
+    def test_standing_grant_lint_isolates_each_standing_defect(self):
+        good_standing = self.standing_grant().split("      standing:\n", 1)[1].rsplit("```", 1)[0]
+        cases = (
+            ("empty scope before standing", dict(scope=""), "concrete scope"),
+            ("empty scope after standing", dict(scope="", standing_first=True), "concrete scope"),
+            ("blanket boolean recovery",
+             dict(standing=good_standing + "        recovery:\n          sudo: true\n"), "blanket boolean"),
+            ("placeholder revision",
+             dict(standing=good_standing.replace("repository-owned code and fixtures", "<anything>")),
+             "placeholder"),
+            ("wildcard boundary",
+             dict(standing=good_standing.replace("./scripts/qualify.sh", "./scripts/*.sh")), "wildcard"),
+            ("credential key in standing",
+             dict(standing=good_standing + "        password: hunter2\n"), "credential fields"),
+            ("unknown key", dict(standing=good_standing + "        escalate: later\n"), "unknown key"),
+            ("missing budget",
+             dict(standing=good_standing.replace("        budget:\n          additional_invocations: 3\n", "")),
+             "needs budget"),
+            ("missing stop",
+             dict(standing=good_standing.split("        stop:")[0]), "needs stop"),
+            ("budget above the gate default",
+             dict(standing=good_standing.replace("additional_invocations: 3", "additional_invocations: 9")),
+             "1 to 3"),
+            ("undocumented stop",
+             dict(standing=good_standing.replace("first_success", "whenever")), "not a documented condition"),
+            ("standing on sudo",
+             dict(action="sudo", scope="        commands:\n          - /usr/bin/true\n"),
+             "valid only on a cli.local"),
+            ("standing on push",
+             dict(action="git.push",
+                  scope="        repository: /workspace/a\n        remote: https://example.invalid/a.git\n"
+                        "        ref: refs/heads/release\n        mode: fast-forward\n"),
+             "valid only on a cli.local"),
+        )
+        for name, kwargs, diagnostic in cases:
+            with self.subTest(case=name):
+                problems = repository_checks.authorization_example_problems(self.standing_grant(**kwargs))
+                self.assertTrue(any(diagnostic in p for p in problems), problems)
 
 
 class ProtocolRegistryFixtures(unittest.TestCase):

@@ -56,14 +56,13 @@ Under `--environment dangerous`, synthesize hands-free execution defaults from d
 `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`,
 and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local implementation and verification,
 and `- [+] global-repo-push` for workspace organization remotes). `SCOPE_POLICY: workspace-contained`
-and `global-local-verify` (`[~]`) inherently cover iterative revisions to repository-owned code,
-fixtures, compiled binaries, temporary output paths, and attempt manifests/SHA-256 digests across
-bounded retries (up to the 3-attempt verification-attempt gate per stage) without per-milestone YAML
-boilerplate, and any explicit `standing` grant block (`permitted_revisions`, `fixed_boundary`,
-`budget`, `recovery`, `stop`) synthesized for local/disposable checks or `plus <action>` is marked
-`[~]` or `[+]` (auto-approved upon launch checksum approval). Destructive or privileged
+and `global-local-verify` (`[~]`) enable the goal protocol's standing revision envelope for unprivileged
+workspace-local verification; write an explicit `standing` block (schema in `GOAL.md`) only for such
+local, disposable `cli.local` checks, marked `[~]` (effective when the human approves the launch checksum)
+with a budget no larger than the gate's default of 3. Destructive or privileged
 operations (`sudo`, `ssh`, live browser, external pushes outside the workspace) remain `[ ]` or
-omitted unless an explicit modifier (such as `plus sudo`) authorizes them. Add a launch comment
+omitted unless an explicit modifier (such as `plus sudo`) authorizes them, and then as an exact-command
+grant without a `standing` block. Add a launch comment
 with recommended runner flags: `# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`
 (and `ALLOW_DANGEROUS_COMMANDS=1` if `sudo` is granted).
 For Init and Propose, also propose `CORRECTIVE_PLANNING: auto` in dangerous
@@ -74,9 +73,10 @@ Changing that standing policy requires human approval, even inside an automatic
 correction. Omitted selectors in an existing plan preserve its explicit policy.
 Under `--environment sandbox` (default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
-grants, including any explicit `standing` blocks for protected actions, marked `[ ]`).
+grants, including any explicit `standing` block for local verification, marked `[ ]`).
 Under `--environment least`, synthesize strict least privilege: `SUGGESTED_UPDATE: confirm`,
-`SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring manual approval for every action.
+`SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring manual approval for every action;
+a modifier-added grant, `standing` or not, is proposed as `[ ]`.
 Modifier expressions like `but <action> in milestone <ID>` attach local milestone policy overrides
 directly in `tabilet/memory-bank/milestone.md` without polluting global launch references. Goal execution
 requires verifying that the SHA256 checksum of `suggested.txt` matches human approval
@@ -165,9 +165,14 @@ record until ordinary review, disposition, and retirement close it.
 
 For a milestone whose acceptance depends on an expensive or protected check, apply the milestone file's expensive-check rule: acceptance covers only behavior the milestone owns, proved with the smallest workload; real producer or consumer pairing belongs to the adopting milestone; needed host capabilities get a cheap readiness probe as the first row; and an uncounted local diagnostic loop is named. Review intake must not move downstream pairing evidence into such a milestone.
 
-For every testing profile, include these rules in the proposed verification
-standards and assign the required evidence to the relevant milestone owners:
+For a light profile, include these rules in the proposed verification
+standards and assign the required evidence to the relevant milestone owners.
+`standard` adds none of them and keeps the project's existing commands:
 
+- **Execution cadence.** Run focused verification during task loops; run the
+  full suite once per unchanged closure candidate and race/UI checks when the
+  change touches concurrency or UI and at required closure; rerun the affected
+  checks after every review fix.
 - **Replacement coverage.** When retiring an implementation, preserve meaningful
   success and failure coverage for retained behavior through its successor.
   Distinguish executed behavior, mocks, compile-only checks and deferred
@@ -176,7 +181,8 @@ standards and assign the required evidence to the relevant milestone owners:
   and authority early through permitted inspection. Prepare concrete approval
   scope while independent authorized work continues. Keep deferred verification
   with its named owner and gate, preserving dependencies, intermediate acceptance
-  and action limits. Use existing records.
+  and action limits. Use existing records. Run a fast preflight of fixtures,
+  schemas and launchers before each counted expensive attempt.
 
 When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.
 

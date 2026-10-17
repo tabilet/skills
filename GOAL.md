@@ -279,14 +279,12 @@ Input rules:
   - `workspace-contained`: authorizes the orchestrator to automatically bind `git.push`
     and `cli.local` to sibling repositories located within the active workspace root
     directory and matching authorized remote organization URLs (e.g. the same GitHub
-    organization), without pausing for interactive confirmation. Active `[+]` or `[~]`
-    verification and qualification grants within the workspace also cover iterative
-    revisions to repository-owned code, fixtures, compiled binaries, temporary output
-    paths, and attempt manifests/SHA-256 digests across bounded retries (up to the
-    3-attempt verification-attempt gate per stage, or an explicit `standing.budget`),
-    recording updated hashes in status notes without re-prompting. It permits no out-of-boundary
-    action: file paths outside the active workspace directory, foreign public remotes,
-    or privileged commands (`sudo`, `ssh`) remain strictly bound and require explicit approval.
+    organization), without pausing for interactive confirmation. It also enables the
+    standing revision envelope defined with the authorization contract below for
+    effective unprivileged local verification grants. It permits no out-of-boundary
+    action: file paths outside the active workspace directory (the system temporary
+    directory included), foreign public remotes, or privileged commands (`sudo`,
+    `ssh`) remain strictly bound and require explicit approval.
 - `AUTHORIZATION_GRANTS` is optional. It carries scoped grants explicitly
   approved by the human for this goal, with optional high-level `GLOBAL:` grants
   and checkbox decision markers; resolve it under the authorization
@@ -428,22 +426,55 @@ Grant scopes cannot contain unresolved placeholders, wildcard targets, or
 blanket booleans such as `sudo: true`. Never store passwords, tokens, private
 keys, or other credential values in declarations, grants, or approval context.
 
-A grant may include an optional `standing` block for iterative qualification or
-bounded retry campaigns: `permitted_revisions` (such as owned code, fixtures,
-compiled binaries, temporary output paths, and attempt manifests/hashes),
-`fixed_boundary` (immutable target/isolation constraints), `budget` (such as
-`additional_invocations`, where failed or cancelled protected runs count and
-fast preflight checks do not), `recovery` (permitted local repair and
-verification steps between attempts), and `stop` conditions (`first_success`,
-`budget_exhausted`, `milestone_closure`, `human_revocation`,
-`outside_owned_scope`, `uncertain_ownership_effects_or_cleanup`). Under
-`--environment dangerous`, `SCOPE_POLICY: workspace-contained` and ambient
-`global-local-verify` (`[~]`) inherently provide this standing revision and
-3-attempt retry envelope for workspace-contained verification without needing per-milestone
-YAML boilerplate, and any explicit `standing` grant synthesized for local/disposable
-checks or `plus <action>` is marked `[~]` or `[+]` (auto-approved upon launch
-checksum approval). Under `sandbox` and `least`, explicit `standing` grants for
-protected actions start as `[ ]` until human approval.
+### Standing revision envelope
+
+A grant may include an optional `standing` block for iterative local verification
+or qualification. Its keys are `permitted_revisions`, `fixed_boundary`
+(immutable target and isolation constraints), `budget` (`additional_invocations`,
+a positive integer), `recovery` (permitted local repair and verification steps
+between attempts), and `stop` (any of `first_success`, `budget_exhausted`,
+`milestone_closure`, `human_revocation`, `outside_owned_scope`,
+`uncertain_ownership_effects_or_cleanup`).
+
+The envelope exists only for an effective (`[+]` or `[~]`) unprivileged
+workspace-local grant, such as `cli.local` verification, and applies when that
+grant carries a `standing` block or `SCOPE_POLICY: workspace-contained` is in
+force. Under `strict` without a `standing` block there is no envelope: a changed
+input to a protected action is a changed scope.
+
+Inside the envelope, across bounded retries, the agent may revise
+repository-owned code, fixtures, compiled binaries, temporary output paths, and
+attempt manifests/hashes, freezing and recording each attempt's concrete inputs
+in status notes without asking again. A temporary output path is a path inside
+the active workspace root or an absolute directory listed in
+`permitted_revisions`; the system temporary directory (`/tmp`, `$TMPDIR`) is
+outside the workspace and is covered only when listed, otherwise the action
+pauses.
+
+The envelope never covers `sudo`, `ssh`, live `browser`, `git.push`, or any
+action with external effects, under any scope policy. A `standing` block on such
+a grant is ignored and reported. For those actions a revised script, binary, or
+input is a changed scope: the approved grant names the exact command and
+artifact, and a changed artifact needs fresh approval.
+
+The `budget` counts every protected run, failed or cancelled included; fast
+preflight checks do not count. The owner holds the counter, persists the
+remaining count in goal state or status notes, and reserves one before
+dispatching each run. A lease asks the owner for a reservation instead of
+reading the counter, so concurrent leases sharing a grant cannot overspend it,
+and a resume reads the persisted value and never resets it. The bounded
+verification-attempt gate stays in force: a budget replaces its default three
+consecutive failures only when the human approved the number, whether through
+an explicit `[+]` grant or the checksum-approved launch input. A preset never
+writes a budget above the gate's default.
+
+Presets decide only which explicit grants planning skills write into launch
+input. The executor reads the resolved grants and markers and never infers a
+preset from `SCOPE_POLICY`. Planning skills may mark an explicit standing grant
+for local, disposable verification `[~]`, which is effective when the human
+approves the launch checksum; a standing grant under `sandbox` starts as `[ ]`
+until human approval, and `least` writes none unless a modifier adds one, also
+as `[ ]`.
 
 ### Resolve and check authority
 
@@ -481,13 +512,10 @@ protected actions start as `[ ]` until human approval.
    SSH commands.
 5. Ask only for missing authority. Show the concrete action, scope, and expected
    effects before requesting approval. Reuse an existing valid grant without
-   asking again; changed scope requires fresh approval. Revisions to
-   repository-owned code, fixtures, compiled binaries, temporary output paths,
-   or attempt manifests/hashes inside the human-approved action envelope (or
-   expressly covered by a grant's optional `standing` block or
-   `SCOPE_POLICY: workspace-contained` verification envelope) use the grant's
-   remaining attempt budget and recovery conditions; freeze and record their
-   concrete inputs in status notes without asking for approval again. Under `SCOPE_POLICY: workspace-contained`,
+   asking again; changed scope requires fresh approval. Revisions inside the
+   standing revision envelope above use the grant's remaining attempt budget and
+   recovery conditions; freeze and record their concrete inputs in status notes
+   without asking for approval again. Under `SCOPE_POLICY: workspace-contained`,
    sibling repositories located within the approved workspace root and targeting
    authorized organization remotes operate within the approved workspace scope
    without re-prompting; scope extensions outside the workspace boundary continue
@@ -906,8 +934,9 @@ per run. For a task whose acceptance depends on one:
 - Each expensive run is one attempt. Persist the task's attempt count in its
   status notes; a session change does not reset it. Stop after three
   consecutive failed attempts at the same stage (or the limit the milestone or
-  goal sets), or when the failing stage lies outside the behavior the milestone
-  owns. Record a short diagnosis with options, such as a correction, a rescope
+  goal sets, including a human-approved `standing.budget`), or when the failing
+  stage lies outside the behavior the milestone owns. Run the fast preflight
+  checks of the project's acceptance-readiness rule before each counted attempt. Record a short diagnosis with options, such as a correction, a rescope
   or an environment change, through the project's blocked-state mechanism, and
   ask the user. Approval to continue sets a new explicit limit. Never repeat an
   unchanged failed attempt.

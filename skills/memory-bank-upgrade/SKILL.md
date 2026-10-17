@@ -112,7 +112,7 @@ repeat run; cosmetic differences from the template do not prevent a no-op.
 
 Offer authorization guidance only as explicit adoption: optional milestone
 `AUTHORIZATION_REQUIREMENTS` and human-approved request `AUTHORIZATION_GRANTS`
-(including optional grant `standing` revision envelopes).
+(including the goal protocol's optional grant `standing` revision envelope).
 Absence grants no new authority and triggers no automatic migration. Preserve
 project restrictions and existing scoped human policies; reconcile conflicts
 in the complete proposal. Keep requirements in milestone specifications and

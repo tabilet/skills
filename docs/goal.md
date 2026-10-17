@@ -279,13 +279,17 @@ restrictions. A grant cannot silently override conflicting policy:
 
 Ask only for missing authority after showing concrete action, scope, and
 expected effects. Reuse a valid grant without repeated approval; changed
-scope requires fresh approval, while revisions to repository-owned code,
-fixtures, compiled binaries, temporary output paths, or attempt
-manifests/hashes inside an approved grant envelope (or an optional grant
-`standing` block or `SCOPE_POLICY: workspace-contained` verification
-envelope) use the grant's remaining attempt budget and record concrete
-attempt inputs in status notes without re-prompting. Check authority
-before each protected action.
+scope requires fresh approval. Only the
+[standing revision envelope](https://github.com/tabilet/skills/blob/main/GOAL.md#standing-revision-envelope)
+lets an effective unprivileged workspace-local verification grant cover revised
+owned code, fixtures, binaries, output paths, or attempt manifests across
+bounded retries, recording each attempt's inputs in status notes. It never
+covers `sudo`, `ssh`, live browser, or push grants; it treats the system
+temporary directory (`/tmp`, `$TMPDIR`) as outside the workspace unless the
+grant lists it; and its attempt budget is reserved and persisted by the goal
+owner, so a resume or concurrent lease cannot reset or overspend it. A
+`standing` block applies under `strict` as well, but only to such local
+verification grants. Check authority before each protected action.
 Missing authority pauses affected work and dependents; independent authorized
 work may continue under the protocol's order and ownership rules. Required
 unperformed task or acceptance actions prevent closure. A declaration alone

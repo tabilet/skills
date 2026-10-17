@@ -361,31 +361,25 @@ spelling so an inbound link survives translation.
   within the approved horizon and smoothly continue). Scope resolution defaults to
   `SCOPE_POLICY: strict` (exact string matches); `SCOPE_POLICY: workspace-contained`
   authorizes binding `git.push` and `cli.local` to sibling repositories within the approved
-  workspace root and organization without re-prompting, and lets active `[+]` or `[~]`
-  verification/qualification grants cover iterative revisions to repository-owned code,
-  fixtures, compiled binaries, temporary output paths, and attempt manifests/SHA-256 digests
-  across bounded retries (up to the 3-attempt verification-attempt gate or an explicit
-  `standing.budget`), freezing and recording concrete attempt inputs in status notes without
-  re-prompting. Grants may also include an optional `standing` block (`permitted_revisions`,
-  `fixed_boundary`, `budget`, `recovery`, `stop`) to bound multi-attempt qualification loops.
-  Milestone specifications in `milestone.md` may attach local policies and requirement overrides
+  workspace root and organization without re-prompting. The standing revision envelope
+  for unprivileged workspace-local verification retries (with its optional `standing` block)
+  is defined only in `GOAL.md`; it never covers `sudo`, `ssh`, live browser, or push grants,
+  treats `/tmp` as outside the workspace unless listed, and has its budget reserved and
+  persisted by the goal owner. Milestone specifications in `milestone.md` may attach local policies and requirement overrides
   that narrow or override global launch defaults.
   Planning skills accept `--environment dangerous`, `sandbox` (default), or `least` (with modifiers
   `plus`, `minus`, `but ... in milestone ...`) to synthesize launch parameters and milestone policies
-  declaratively from day one (`--environment dangerous` auto-approves workspace-contained standing
-  qualification/revision envelopes and attaches explicit `standing` blocks when milestones declare
-  multi-attempt qualification loops).
+  declaratively from day one. A preset only decides which explicit grants planning writes into
+  launch input; the executor reads the resolved grants and markers, never the preset.
   Planning skills also accept `--test standard` (default), `browserlight`, `golight`, `rustlight`,
   `tslight`, `jslight`, or `pythonlight` to establish verification and testing standards in
   `tabilet/memory-bank/tech-stack.md` from day one. Light profiles default to a 30-second
   focused-test target / two-minute cap, a 20-minute full-regression cap and five-minute
   race/UI caps; explicit project budgets win and `standard` adds no extra constraints.
   Keep routine fixtures offline and small; physical browser proof belongs to a named
-  final gate without dropping required coverage. Verification standards also define
-  `Execution cadence` (focused verification during task loops; full-suite and race gates
-  once at milestone review or shared-contract changes), `Replacement coverage`
-  (migrate callers and delete dead code and obsolete tests in the same task), and
-  `Acceptance readiness` (fast preflight checks before counted acceptance attempts).
+  final gate without dropping required coverage. A light profile's verification standards also
+  carry `Execution cadence`, `Replacement coverage`, and `Acceptance readiness` rules, defined
+  once in the planning contracts and mirrored by the template; `standard` adds none.
   Upgrade proposes updates to existing goal protocols and launch references while preserving custom
   restrictions and explicit policies; approval of the complete proposal gates
   these writes and never starts execution.
@@ -498,11 +492,12 @@ spelling so an inbound link survives translation.
   is required within 10 iterations, and the counter does not reset across
   sessions or reviewers; persist the iteration count in the active status or
   equivalent goal state. `milestone.md` owns the review-severity context and
-  project override rules; P1/P2 are not product-domain concepts. Task and
-  acceptance verification also use a bounded 3-attempt verification-attempt gate
-  per stage: persist attempt counts in status notes, never repeat an unchanged
-  failed attempt, run fast preflight checks before counted expensive attempts,
-  and mark `[!]` after 3 consecutive failed attempts.
+  project override rules; P1/P2 are not product-domain concepts. An expensive or
+  protected check also uses a bounded verification-attempt gate per stage: persist
+  attempt counts in status notes, never repeat an unchanged failed attempt, run the
+  acceptance-readiness preflight before each counted attempt, and stop after 3
+  consecutive failed attempts (or a human-approved milestone or goal limit) by
+  marking `[!]`.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.

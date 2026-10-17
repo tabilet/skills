@@ -86,12 +86,10 @@ Under the optional goal protocol, `AUTHORIZATION_GRANTS` belongs
 to the resolved human-approved request, not to this file. Requirements,
 proposed grants, status notes, and `suggested.txt` are evidence, not approval.
 Check authority before the action; pause affected work and dependents when it
-is missing. An active grant envelope (or an optional grant `standing` block or
-`SCOPE_POLICY: workspace-contained` verification envelope) covers revisions to
-repository-owned code, fixtures, compiled binaries, temporary output paths, and
-attempt manifests/hashes inside the approved boundary across bounded retries,
-freezing and recording concrete attempt inputs in status notes without
-re-prompting. Independent authorized work may continue under the governing
+is missing. A changed input to a protected action is a changed scope unless the
+goal protocol's standing revision envelope covers it; that envelope reaches only
+unprivileged workspace-local verification, never `sudo`, `ssh`, live browser,
+or push grants. Independent authorized work may continue under the governing
 order and ownership rules. Required unperformed task or acceptance actions
 prevent closure; listing an action here alone does not require its performance.
 Outside a goal, use the current scoped human request and applicable project
@@ -362,7 +360,9 @@ per run. For a row whose acceptance depends on one:
 - Each expensive run is one attempt. Persist the row's attempt count in its
   status notes; a session change does not reset it. Stop after three
   consecutive failed attempts at the same stage (or the limit the milestone
-  sets), or when the failing stage lies outside the behavior the milestone owns.
+  or a human-approved goal budget sets), or when the failing stage lies outside
+  the behavior the milestone owns. Run the fast preflight checks of the
+  project's acceptance-readiness rule before each counted attempt.
   Mark the row `[!]` with a short diagnosis and options, such as a correction, a
   rescope or an environment change, and ask the user. Approval to continue sets
   a new explicit limit. Never repeat an unchanged failed attempt.

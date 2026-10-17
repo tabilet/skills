@@ -27,6 +27,15 @@ sends one alert before a workflow approval pause; children report needs to their
 owner. Email delivery never approves work. Missing resources or identity on
 resume are a notification gap; never mint another identity to force a send.
 
+## Standing revision envelope
+
+The goal protocol alone defines a grant's standing revision envelope: bounded
+retries of unprivileged workspace-local verification, with its attempt budget
+reserved and persisted by the goal owner. Apply it only when a goal delegates
+this assignment and the resolved request carries the grant. Otherwise a changed
+input to a protected action is a changed scope and needs fresh approval. The
+Python API paths consume no goal grants.
+
 ## Corrective planning
 
 Resolve `CORRECTIVE_PLANNING: confirm | auto` (default `confirm`) from the

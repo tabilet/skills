@@ -601,6 +601,46 @@ AUTHORIZATION_DOC_CONTRACTS = {
 }
 
 
+STANDING_KEYS = ("permitted_revisions", "fixed_boundary", "budget", "recovery", "stop")
+STANDING_STOPS = {"first_success", "budget_exhausted", "milestone_closure", "human_revocation",
+                  "outside_owned_scope", "uncertain_ownership_effects_or_cleanup"}
+
+
+def grant_fields(entry: str) -> dict[str, str]:
+    """Split one grant object into its six-space-indented keys, in any order."""
+    fields: dict[str, str] = {}
+    current = None
+    for line in entry.splitlines(keepends=True):
+        match = re.match(r"^      ([a-z_]+):(.*)$", line)
+        if match:
+            current = match.group(1)
+            fields[current] = match.group(2) + "\n"
+        elif current is not None:
+            fields[current] += line
+    return fields
+
+
+def standing_block_problems(standing: str) -> list[str]:
+    """Lint the documented standing schema; never decide whether a run is permitted."""
+    problems = []
+    keys = re.findall(r"^        ([a-z_]+):", standing, re.M)
+    for key in keys:
+        if key not in STANDING_KEYS:
+            problems.append(f"grant example standing block has unknown key {key!r}")
+    for key in ("permitted_revisions", "budget", "stop"):
+        if key not in keys:
+            problems.append(f"grant example standing block needs {key}")
+    count = re.search(r"^          additional_invocations: (\d+)$", standing, re.M)
+    if "budget" in keys and (not count or not 1 <= int(count[1]) <= 3):
+        problems.append("grant example standing budget needs additional_invocations of 1 to 3")
+    stops = re.search(r"^        stop:\n((?:          - \S+\n?)+)", standing, re.M)
+    if stops:
+        for value in re.findall(r"- (\S+)", stops[1]):
+            if value not in STANDING_STOPS:
+                problems.append(f"grant example standing stop {value!r} is not a documented condition")
+    return problems
+
+
 def authorization_example_problems(text: str) -> list[str]:
     """Lint the bounded YAML examples in our docs; never evaluate permission."""
     problems = []
@@ -642,26 +682,32 @@ def authorization_example_problems(text: str) -> list[str]:
                     problems.append("grant example needs a named action")
                 if not executor or executor[1] not in {"coordinator", "assigned-agent"}:
                     problems.append("grant example needs a named executor")
-                scope, _, standing = entry.partition("      scope:\n")[2].partition("\n      standing:\n")
-                if not scope.strip():
+                fields = grant_fields(entry)
+                scope = fields.get("scope", "")
+                standing = fields.get("standing", "")
+                if not scope.strip() or scope.split("\n", 1)[0].strip():
                     problems.append("grant example needs concrete scope")
                 if action:
-                    fields = {
+                    required = {
                         "git.push": ("repository", "remote", "ref", "mode"),
                         "browser": ("environment", "origins", "actions"),
                         "sudo": ("commands",),
                         "ssh": ("host", "user", "commands"),
                     }.get(action[1], ())
-                    for field in fields:
+                    for field in required:
                         if not re.search(rf"^        {field}: \S", scope, re.M):
                             problems.append(f"grant example {action[1]} scope needs {field}")
                     if action[1] == "git.push" and "        mode: fast-forward\n" not in scope:
                         problems.append("grant example push mode must be fast-forward")
-                if re.search(r"<[^>]+>|\*|\?|:\s*(?:true|false)\b", scope, re.I):
-                    problems.append("grant example scope has a placeholder, wildcard, or blanket boolean")
-                if standing and re.search(r"<[^>]+>|\*|\?", standing, re.I):
-                    problems.append("grant example standing block has a placeholder or wildcard")
-                if re.search(r"^\s*(?:password|token|private_key|credential):", scope + "\n" + standing, re.M | re.I):
+                    if standing and action[1] != "cli.local":
+                        problems.append("grant example standing block is valid only on a cli.local grant")
+                for label, body in (("scope", scope), ("standing block", standing)):
+                    if re.search(r"<[^>]+>|\*|\?|:\s*(?:true|false)\b", body, re.I):
+                        problems.append(f"grant example {label} has a placeholder, wildcard, or blanket boolean")
+                if standing:
+                    problems.extend(standing_block_problems(standing))
+                if re.search(r"^\s*(?:password|token|private_key|credential):",
+                             scope + "\n" + standing, re.M | re.I):
                     problems.append("grant example must not include credential fields")
     return problems
 
@@ -2879,9 +2925,11 @@ V213_CONTRACTS = {
     "AGENTS.md": ("inspect ignored artifacts", "`MODEL_POLICY` is opt-in",
                   "Launch refresh preserves explicit `GOAL_PROTOCOL`",
                   "no provider or model is required", "Effort is optional", "`host-default`",
-                  "bounded 3-attempt verification-attempt gate", "Execution cadence",
+                  "bounded verification-attempt gate per stage", "Execution cadence",
                   "Replacement coverage", "Acceptance readiness",
-                  "standing qualification/revision envelopes", "optional `standing` block"),
+                  "standing revision envelope", "is defined only in `GOAL.md`",
+                  "never covers `sudo`, `ssh`, live browser, or push grants",
+                  "treats `/tmp` as outside the workspace unless listed"),
     "GOAL.md": ("Evidence-preserving cleanup gate (ordinary closure and resume)",
                 "Inspect ignored artifacts as well as tracked and untracked",
                 "verify their content hashes", "Never rewrite frozen records",
@@ -2895,32 +2943,33 @@ V213_CONTRACTS = {
                 "An empty implementation diff does not bypass acceptance review",
                 "Reproduce only when safely possible within current authority and budget",
                 "permitted_revisions", "fixed_boundary", "additional_invocations",
-                "freeze and record their concrete inputs in status notes without asking for approval again"),
+                "### Standing revision envelope", "The envelope never covers `sudo`, `ssh`, live `browser`",
+                "the system temporary directory (`/tmp`, `$TMPDIR`)", "A preset never writes a budget above"),
     "skills/memory-bank-goal/SKILL.md": ("references/model-policy.md", "Preserve explicit `GOAL_PROTOCOL`"),
     "skills/memory-bank-goal/references/subagents.md": (
         "full resolved `MODEL_POLICY`", "no mutation authority",
         "combine them or run batches", "Inspect ignored artifacts",
         "Never rewrite frozen records", "Only verified disposable artifacts",
-        "optional `standing` grant block", "freeze and record their concrete inputs in status notes"),
+        "standing revision envelope lets an effective unprivileged local",
+        "asks the owner to reserve each attempt from the persisted budget"),
     "skills/memory-bank-next/SKILL.md": (
         "Identify missing final-acceptance inputs, capabilities and authority early",
         "preserve meaningful success and failure coverage for retained behavior through its successor",
         "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof",
-        "covered by a standing grant or workspace-contained verification envelope",
-        "without asking again"),
+        "follow the project's verification-attempt gate"),
     "harness/prompts/tackle-next-memory-bank-todo.md": (
         "Identify missing final-acceptance inputs, capabilities and authority early",
         "preserve meaningful success and failure coverage for retained behavior through its successor",
         "Distinguish executed behavior, mocks, compile-only checks and deferred integration proof",
-        "covered by a standing grant or workspace-contained verification envelope",
-        "without asking again"),
+        "follow the project's verification-attempt gate"),
     "skills/memory-bank-next/references/interactive-controls.md": (
         "[model policy](model-policy.md)", "Omission preserves host settings"),
     "skills/memory-bank-init/references/write-contract.md": (
         "selected governing protocol is available and compatible",
         "Preserve an explicit `GOAL_PROTOCOL`", "actual bytes",
         "Include `MODEL_POLICY` only when requested",
-        "iterative revisions to repository-owned code", "explicit `standing` grant block"),
+        "enable the goal protocol's standing revision envelope",
+        "schema in `GOAL.md`", "grant without a `standing` block"),
     "skills/memory-bank-init/references/testing-profiles.md": (
         "keep implementation and focused verification together",
         "consolidate related work and reuse still-valid verification",
@@ -2931,18 +2980,21 @@ V213_CONTRACTS = {
         "A protocol switch requires explicit approval",
         "Preserve explicit `MODEL_POLICY`", "A package-local `tabilet/GOAL.md` is optional",
         "A broad mechanical rename that is safely atomic",
-        "iterative revisions to repository-owned code", "explicit `standing` grant block"),
+        "enable the goal protocol's standing revision envelope",
+        "schema in `GOAL.md`", "grant without a `standing` block"),
     "skills/memory-bank-reconcile/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
         "A protocol switch requires explicit approval", "Preserve explicit `MODEL_POLICY`",
-        "iterative revisions to repository-owned code", "explicit `standing` grant block"),
+        "enable the goal protocol's standing revision envelope",
+        "schema in `GOAL.md`", "grant without a `standing` block"),
     "skills/memory-bank-reconcile/references/write-contract.md": (
         "selected governing protocol is available and compatible",
         "preserve explicit `GOAL_PROTOCOL` and `MODEL_POLICY`",
         "never substitute stock identity", "preserve existing input pending resolution",
-        "iterative workspace-contained code/fixture/binary-hash revisions across bounded retries",
-        "explicit `standing` grant"),
+        "enable the goal protocol's standing",
+        "revision envelope for unprivileged workspace-local verification",
+        "without a `standing` block"),
     "skills/memory-bank-reconcile/SKILL.md": (
         "Resolve explicit `GOAL_PROTOCOL` before classifying",
         "preserve its role and actual path/hash", "do not apply it again as an addendum"),
@@ -2951,19 +3003,20 @@ V213_CONTRACTS = {
         "Preserve explicit `MODEL_POLICY`", "previously approved protocol path/hash",
         "Preserve grants, denials, review counters, attempt usage and operational limits",
         "Preserve a file selected as the alternative full protocol",
-        "optional grant `standing` revision envelopes"),
+        "optional grant `standing` revision envelope"),
     "template/tabilet/memory-bank/milestone.md": (
         "An empty implementation diff still needs acceptance review",
         "run batches within host capacity", "fresh read-only whole-milestone reviewers",
         "Reproduce only when safely possible within current authority and budget",
         "Required acceptance evidence and verification gates still apply",
-        "optional grant `standing` block",
-        "freezing and recording concrete attempt inputs in status notes"),
+        "goal protocol's standing revision envelope covers it",
+        "never `sudo`, `ssh`, live browser,"),
     "template/tabilet/memory-bank/tech-stack.md": (
         "- **Execution cadence**:", "- **Replacement coverage**:", "- **Acceptance readiness**:"),
     "docs/goal.md": ("## Optional model policy", "For a legacy paused goal",
                      "Diagnose cheaply when safe", "missing required proof pauses acceptance",
-                     "optional grant `standing` block"),
+                     "standing-revision-envelope",
+                     "attempt budget is reserved and persisted by the goal"),
     "docs/zh/goal.md": ("{#optional-model-policy}",),
     "docs/subagents.md": ("including uncommitted work", "inspect ignored artifacts"),
     "docs/zh/subagents.md": ("{#model-policy-and-retained-lease-evidence}",),
