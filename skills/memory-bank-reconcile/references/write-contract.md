@@ -231,14 +231,15 @@ downstream consumers. When refreshing `suggested.txt`, preserve existing human
 and synthesize new candidate grants with `[ ]` (or `[~]` under goal policy).
 Under `--environment dangerous`, synthesize hands-free defaults: `SUGGESTED_UPDATE: auto`,
 `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants
-(`- [~] global-local-verify`, `- [+] global-repo-push`), which inherently cover iterative
-workspace-contained code/fixture/binary-hash revisions across bounded retries, and mark any
-explicit `standing` grant synthesized for local/disposable checks or `plus <action>` as `[~]`
-or `[+]`, while destructive actions (`sudo`,
-`ssh`, live browser, external pushes outside the workspace) remain ungranted unless modified.
+(`- [~] global-local-verify`, `- [+] global-repo-push`), which enable the goal protocol's standing
+revision envelope for unprivileged workspace-local verification; write an explicit `standing`
+block only for local, disposable `cli.local` checks, marked `[~]`, with a budget no larger than the
+gate's default of 3, while destructive actions (`sudo`,
+`ssh`, live browser, external pushes outside the workspace) remain ungranted unless modified,
+and then as exact-command grants without a `standing` block.
 Include recommended runner flags in comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
-Under `--environment sandbox` (default when omitted), maintain standard fail-safe policies (marking explicit `standing` grants for protected actions as `[ ]`).
-Under `--environment least`, enforce strict least privilege (`AUTHORIZATION_GRANTS: {}`).
+Under `--environment sandbox` (default when omitted), maintain standard fail-safe policies (marking an explicit `standing` grant for local verification as `[ ]`).
+Under `--environment least`, enforce strict least privilege (`AUTHORIZATION_GRANTS: {}`; a modifier-added grant is proposed as `[ ]`).
 Modifier expressions like `but <action> in milestone <ID>` attach local milestone policy overrides.
 High-level `GLOBAL:` grants declare common authorities across milestones. Verifying
 the SHA256 checksum of `suggested.txt` is required before grant activation. Use a

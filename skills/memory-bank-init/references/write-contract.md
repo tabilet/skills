@@ -108,9 +108,14 @@ subject to explicit project limits. Do not impose a 30-second full-suite ceiling
 Keep compilation and test execution timing distinct. Required physical evidence
 gets a named final gate and explicit handoff in the approved plan.
 
-For every testing profile, include these rules in the proposed verification
-standards and assign the required evidence to the relevant milestone owners:
+For a light profile, include these rules in the proposed verification
+standards and assign the required evidence to the relevant milestone owners.
+`standard` adds none of them and keeps the project's existing commands:
 
+- **Execution cadence.** Run focused verification during task loops; run the
+  full suite once per unchanged closure candidate and race/UI checks when the
+  change touches concurrency or UI and at required closure; rerun the affected
+  checks after every review fix.
 - **Replacement coverage.** When retiring an implementation, preserve meaningful
   success and failure coverage for retained behavior through its successor.
   Distinguish executed behavior, mocks, compile-only checks and deferred
@@ -119,7 +124,8 @@ standards and assign the required evidence to the relevant milestone owners:
   and authority early through permitted inspection. Prepare concrete approval
   scope while independent authorized work continues. Keep deferred verification
   with its named owner and gate, preserving dependencies, intermediate acceptance
-  and action limits. Use existing records.
+  and action limits. Use existing records. Run a fast preflight of fixtures,
+  schemas and launchers before each counted expensive attempt.
 
 When a non-standard profile is chosen, add a rule under `AGENTS.md` Hard Rules:
 `- Follow the verification and testing standards defined in tabilet/memory-bank/tech-stack.md.`
@@ -364,20 +370,19 @@ launch defaults from day one: `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace
 `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local
 verification and `- [+] global-repo-push` for workspace organization remotes). Under
 `--environment dangerous`, `SCOPE_POLICY: workspace-contained` and `global-local-verify` (`[~]`)
-inherently cover iterative revisions to repository-owned code, fixtures, compiled binaries,
-temporary output paths, and attempt manifests/SHA-256 digests across bounded retries (up to the
-3-attempt verification-attempt gate per stage) without per-milestone YAML boilerplate, and any
-explicit `standing` grant block (`permitted_revisions`, `fixed_boundary`, `budget`, `recovery`,
-`stop`) synthesized for local/disposable checks or `plus <action>` is marked `[~]` or `[+]`
-(auto-approved upon launch checksum approval). Destructive or
+enable the goal protocol's standing revision envelope for unprivileged workspace-local
+verification; write an explicit `standing` block (schema in `GOAL.md`) only for such local,
+disposable `cli.local` checks, marked `[~]` (effective when the human approves the launch
+checksum) with a budget no larger than the gate's default of 3. Destructive or
 privileged operations (`sudo`, `ssh`, live browser, external pushes outside the workspace)
-remain `[ ]` or omitted unless an explicit modifier authorizes them. Include recommended runner
+remain `[ ]` or omitted unless an explicit modifier authorizes them, and then as an exact-command
+grant without a `standing` block. Include recommended runner
 flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
 Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
-grants, including any explicit `standing` blocks for protected actions, marked `[ ]`). Under `--environment least`, synthesize strict least privilege:
+grants, including any explicit `standing` block for local verification, marked `[ ]`). Under `--environment least`, synthesize strict least privilege:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}`, requiring
-manual approval for all actions. Modifier expressions like `but <action> in milestone <ID>`
+manual approval for all actions; a modifier-added grant, `standing` or not, is proposed as `[ ]`. Modifier expressions like `but <action> in milestone <ID>`
 attach milestone-specific policy overrides in `milestone.md`.
 Synthesize proposed `AUTHORIZATION_GRANTS` from
 active milestone `AUTHORIZATION_REQUIREMENTS` when present. Mark safe local commands

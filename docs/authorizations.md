@@ -202,22 +202,52 @@ The protocol's invariant rule is:
 
 How `SCOPE_POLICY` interacts with this rule:
 - **Under `SCOPE_POLICY: strict` (Default)**: Grants require exact letter-for-letter string matching
-  unless the grant includes an explicit `standing` block. Any new sibling repository path, unexpected
-  destination ref, or remote URL pauses for human confirmation.
+  for every target. A `standing` block never loosens that matching: it only adds bounded retry revisions
+  to an unprivileged workspace-local verification grant (see below). Any new sibling repository path,
+  unexpected destination ref, or remote URL pauses for human confirmation.
 - **Under `SCOPE_POLICY: workspace-contained`**: The orchestrator auto-authorizes sibling repositories
   inside the active workspace directory (e.g. `~/Workspace/*`) and matching the authorized remote organization
-  (e.g. `github.com/openudon/*`), without pausing. In addition, an active `[+]` or `[~]` verification or
-  qualification grant covers iterative revisions to repository-owned code, fixtures, compiled binaries,
-  temporary output paths, and attempt manifests/SHA-256 digests across bounded retries (up to the 3-attempt
-  verification-attempt gate per stage, or an explicit `standing.budget`), freezing and recording concrete
-  attempt inputs and updated hashes in status notes without re-prompting.
-- **Explicit `standing` Grant Blocks**: A grant may include an optional `standing` block (`permitted_revisions`,
-  `fixed_boundary`, `budget` with `additional_invocations`, `recovery`, and `stop` conditions) so multi-attempt
-  qualification loops (including modifier-authorized hosts or bounded external harnesses) can repair owned code,
-  rebuild binaries, and retry within a fixed command/host/timeout boundary while freezing concrete attempt inputs
-  in status notes.
+  (e.g. `github.com/openudon/*`), without pausing, and enables the standing revision envelope for effective
+  unprivileged local verification grants.
+- **Standing revision envelope** (defined only in
+  [`GOAL.md`](https://github.com/tabilet/skills/blob/main/GOAL.md#standing-revision-envelope)): an effective
+  `[+]` or `[~]` unprivileged workspace-local verification grant (`cli.local`) may repair owned code, fixtures,
+  binaries, output paths, and attempt manifests across bounded retries, freezing each attempt's inputs in
+  status notes. It applies under `workspace-contained`, or under `strict` when the grant carries a `standing`
+  block. It never covers `sudo`, `ssh`, live browser, or push grants (a `standing` block there is ignored and
+  reported; a revised script or binary is a changed scope needing fresh approval), and temporary output paths
+  mean paths inside the workspace or directories the grant lists, so `/tmp` pauses unless listed. The goal owner
+  reserves and persists the `additional_invocations` budget before each run, so concurrent leases cannot
+  overspend it and a resume cannot reset it. The default three-failure stop stays unless the human approved a
+  specific larger number.
+
+```yaml
+AUTHORIZATION_GRANTS:
+  M07:
+    - [~] grant_id: m07-local-qualify
+      action: cli.local
+      executor: assigned-agent
+      scope:
+        task: declared-implementation-and-verification
+      standing:
+        permitted_revisions:
+          - repository-owned code
+          - fixtures
+          - attempt manifests
+        fixed_boundary:
+          - workspace root only
+          - offline fixtures
+        budget:
+          additional_invocations: 3
+        recovery:
+          - rebuild
+          - rerun the focused checks
+        stop:
+          - first_success
+          - budget_exhausted
+```
 - **Non-Bypassable Safety Gates**: Any action targeting outside the approved boundary or active workspace directory
-  (e.g. `/etc`, `/tmp`, home root), pushing to foreign or unapproved external remotes, invoking unapproved
+  (e.g. `/etc`, `/tmp` unless the grant lists it, home root), pushing to foreign or unapproved external remotes, invoking unapproved
   elevated privileges (`sudo`, `ssh`), or exceeding the retry budget **always pauses** for explicit human approval.
   Hands-free policies never confer blanket or arbitrary system authority.
 
@@ -499,7 +529,7 @@ grants when authoring plans, planning skills (`memory-bank-init`, `memory-bank-p
      - `SCOPE_POLICY: workspace-contained`
      - `COMMIT_POLICY: task`
      - Ambient `GLOBAL:` grants with `[~]` for verification and `[+]` or `[~]` for git push (within workspace organization remotes).
-   - Auto-approves workspace-contained standing qualification/revision envelopes (covering iterative revisions to repository-owned code, fixtures, compiled binaries, temporary output paths, and attempt manifests/SHA-256 digests across bounded retries, up to the 3-attempt verification-attempt gate per stage or an explicit `standing.budget`). When a milestone declares a multi-attempt qualification loop (including modifier-authorized hosts or bounded external harnesses), synthesizes an explicit `standing` block (`permitted_revisions`, `fixed_boundary`, `budget` with `additional_invocations`, `recovery`, `stop`) on the `[+]` or `[~]` grant.
+   - Enables the standing revision envelope for unprivileged workspace-local verification only: the ambient `global-local-verify` grant is `[~]`, and a milestone that declares a multi-attempt local qualification loop gets an explicit `standing` block (budget at most the gate's default of 3) on a `[~]` `cli.local` grant. The executor reads only those resolved grants and markers, never the preset.
    - Preserves core security invariants: destructive or privileged operations (`sudo`, `ssh`, live browser, or external repository push outside the active workspace) remain ungranted (`[ ]` or omitted) unless an explicit modifier authorizes them.
    - Emits recommended harness runner flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
 2. **`--environment sandbox`** (Default):

@@ -1,3 +1,47 @@
+# memory-bank v2.13.4
+
+Remediates review findings against v2.13.2 and v2.13.3, which added light
+testing profiles and the standing revision envelope; neither release carried
+notes, so their content is summarized here.
+
+- v2.13.2: `--test` profiles (`browserlight`, `golight`, `rustlight`,
+  `tslight`, `jslight`, `pythonlight`) and the Execution cadence, Replacement
+  coverage and Acceptance readiness rules, plus a fast preflight before counted
+  attempts.
+- v2.13.3: an optional `standing` grant block and
+  `SCOPE_POLICY: workspace-contained` revision envelope for iterative local
+  verification.
+
+Changes in this release:
+
+- The envelope is defined once, in `GOAL.md`, and every other document points to
+  it. It reaches only effective unprivileged workspace-local verification
+  (`cli.local`); `sudo`, `ssh`, live browser and `git.push` grants never gain it,
+  and a revised artifact there is a changed scope needing fresh approval.
+  `/tmp` and `$TMPDIR` are outside the workspace unless the grant lists them.
+- `standing.budget` is owner-held and persisted, reserved before each run, counts
+  failed and cancelled runs, and replaces the gate's default only when a human
+  approved the number. Presets decide only which explicit grants planning writes
+  into launch input; the executor never infers a preset from `SCOPE_POLICY`.
+- `strict` stays exact-match for scope resolution; a `standing` block is the one
+  documented addition and only for local verification grants.
+- The API runner prompt no longer mentions the envelope or grants, and its
+  embedded twin matches the prompt copy.
+- Testing standards: `standard` adds no constraints; light profiles, execution
+  cadence and the 3-attempt gate read the same in the template, planning
+  contracts and `AGENTS.md`.
+- `check.py` parses grant fields independently of order, rejects an empty
+  `scope:` before or after `standing:`, blanket booleans, wildcards, credential
+  keys and unknown keys inside `standing`, a budget outside 1 to 3, undocumented
+  stop conditions and a `standing` block on a privileged grant. The docs carry a
+  linted `standing:` example, and each lint rule has an isolated test.
+- The Simplified Chinese goal guide again states that a changed scope needs
+  fresh approval.
+
+The stock goal protocol changed, so `GOAL_IDENTITY` records a new hash and
+paused goals pause for approval at resume under the existing rules. The
+v2.13.2 and v2.13.3 tags are kept at their original commits.
+
 # memory-bank v2.13.1
 
 Upgrade now checks maintained incoming links before proposing removal or
