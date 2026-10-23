@@ -356,7 +356,9 @@ runs `tabilet-audit reflect` when a milestone closes, and only when `tabilet-aud
 reports auditing enabled and `tabilet-audit reflect --check` passes; otherwise it warns at launch and
 at the end and carries on. Reflection drafts a proposal for `tech-stack.md` and `lessons.md`. `confirm`
 pauses for approval of the whole proposal. `auto` applies only additive, evidence-linked edits and never
-touches authorization, review or verification limits. Milestone graph changes count as corrective planning
+touches authorization, review or verification limits. Reflection reads later milestones only after a significant
+finding (a task that needed several runs, or a failed, blocked or slow run), only those listed in `suggested.txt`
+and still open, and spends at most 10% of the milestone's recorded time. Milestone graph changes count as corrective planning
 and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits.
 
 ## Standing corrective planning

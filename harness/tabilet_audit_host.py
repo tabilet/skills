@@ -107,6 +107,7 @@ def arguments(argv=None):
     reflect.add_argument('--format', choices=['tabilet', 'harness2'], default='tabilet', help='Output format: tabilet proposal/telemetry (default) or harness2 trajectory JSON.')
     reflect.add_argument('--backend', choices=['auto', 'claude', 'gemini', 'codex', 'openai'], default='auto', help='Improver LLM backend (auto-detects local CLI or API keys).')
     reflect.add_argument('--check', action='store_true', help='Verify the reflect toolkit is installed and compatible, then exit; reads no project data.')
+    reflect.add_argument('--budget-percent', type=float, default=10.0, help='Cap the model call at this percent of the milestone\'s recorded wall time (default 10; below 15 seconds the model is skipped).')
     reflect.add_argument('--probe', action='store_true', help='Dry-run the proposal probe commands without a shell; requires ALLOW_UNSANDBOXED_SHELL=1.')
     reflect.add_argument('--dry-run', action='store_true', help='Output extracted telemetry JSON without generating proposal file.')
     reflect.add_argument('--print-prompt', action='store_true', help='Output the assembled contrastive LLM prompt and exit.')
@@ -233,7 +234,7 @@ def dispatch(args):
         from tabilet_reflect import reflect_command
         if args.check:
             return {'status': 'ok', 'available': True}
-        return reflect_command(selected or '.', milestone_id=args.milestone, dry_run=args.dry_run, output_path=args.output, format_type=args.format, backend=args.backend, print_prompt=args.print_prompt, probe=args.probe)
+        return reflect_command(selected or '.', milestone_id=args.milestone, dry_run=args.dry_run, output_path=args.output, format_type=args.format, backend=args.backend, print_prompt=args.print_prompt, probe=args.probe, budget_percent=args.budget_percent)
     root=pathlib.Path(selected).expanduser().resolve() if selected else None
     write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish')) or (args.group=='index' and action=='sync')
     if root and write:

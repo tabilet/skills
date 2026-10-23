@@ -88,6 +88,11 @@ and `lessons.md`, never touching authorization, review or verification limits. A
 (amending downstream scopes, adding repair milestones, or marking obsolete pending milestones `[X]` with a
 named successor) only under human-approved `CORRECTIVE_PLANNING: auto`; otherwise propose them and pause.
 Refresh `suggested.txt` (recalculating its SHA256 checksum) only for changes made this way.
+Reflection reads later milestones only when it found something significant (a task that needed several runs,
+or a run that failed, blocked, or ran over two minutes), and then only the downstream milestones listed in
+`suggested.txt`, each re-checked against its live status file; a quiet milestone feeds nothing downstream.
+It spends at most 10% of the milestone's recorded wall time (`--budget-percent`), skips the model below
+15 seconds of budget, and never delays the run: a timeout leaves a model-free report and no edits.
 
 Accept optional `--email ADDRESS` from the current human request, including a
 native goal objective that invokes this skill. Read

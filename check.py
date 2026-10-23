@@ -804,6 +804,8 @@ CORRECTIVE_EMAIL_CONTRACTS = {
     "AGENTS.md": ("`OPTIMIZE_POLICY` defaults to `none`", "never mere file existence",
                   "are corrective planning and need human-approved `CORRECTIVE_PLANNING: auto`",
                   "only with `--probe` and `ALLOW_UNSANDBOXED_SHELL=1`",
+                  "only the downstream\n  milestones listed in `suggested.txt` that are still open",
+                  "within 10% of the milestone's recorded wall time",
                   "`CORRECTIVE_PLANNING` defaults to `confirm`", "two helpers and references stay byte-identical",
                   "durably reserve attempts before sending", "scripts/email_notify.py",
                   "shared execution block alone matches the API prompt"),

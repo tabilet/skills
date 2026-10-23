@@ -14,6 +14,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -22,6 +23,18 @@ import tabilet_audit as audit
 
 TOOLKIT_INTERFACE = 4
 DEFAULT_PROPOSAL_PATH = "tabilet/memory-bank/suggested-harness-update.md"
+STATUS_ID_RE = re.compile(r"\b[A-Z][0-9]{2}\b")
+MAX_DOWNSTREAM = 3
+SLOW_RUN_SEC = 120
+# Reflection may spend at most this share of the milestone's recorded wall time; below the
+# minimum the model is skipped rather than started and abandoned.
+DEFAULT_BUDGET_PERCENT = 10.0
+MODEL_TIMEOUT_CAP_SEC = 120
+MIN_MODEL_BUDGET_SEC = 15
+
+
+class BudgetExceeded(audit.AuditError):
+    """The model call could not finish inside the reflection time budget."""
 
 PROMPT_TEMPLATE = """You are the Harness² Contrastive Experience Reflector for Tabilet Memory Bank.
 Analyze the following execution telemetry from Milestone {milestone_id} in {project_root}.
@@ -39,6 +52,9 @@ C. Multi-Attempt Verification Hotspots (Tasks requiring retries):
 D. Turn-Level Efficiency & Truncated Error Traces (Capture mode: {capture_status}):
 {turn_efficiency_and_traces}
 
+E. Downstream Milestones (Gate: {downstream_gate}):
+{downstream_milestones}
+
 --- 2. CURRENT HARNESS STATE ---
 Current `tech-stack.md`:
 {current_tech_stack_md}
@@ -51,7 +67,12 @@ YOUR TASK:
 1. CONTRAST: Compare the verification commands and turn patterns of the Fast Baseline Runs (1A) against the Friction/Multi-Attempt Runs (1B/1C). Identify why slow/failed tasks diverged.
 2. PROPOSE: Formulate concise, additive updates to `tabilet/memory-bank/tech-stack.md` and `tabilet/memory-bank/lessons.md`.
 3. PROBE COMMAND EXTRACTION: If you propose any new or modified shell/test verification command for `tech-stack.md`, list the exact runnable shell command inside a fenced ```probe-commands``` block (one command per line) so the harness can dry-run and verify it before composing the final proposal.
-4. STRICT SAFETY CONSTRAINT: You must NOT modify, weaken, or remove any authorization blocks, security gates, review iteration limits, or verification attempt limits.
+4. DOWNSTREAM: Only when the gate in 1E is open, and only for a milestone listed there, propose a
+   concrete amendment (a narrower verification command, a split row, a missing prerequisite, a
+   redundant step). Skip any finding already covered by the milestone's own text or by `lessons.md`.
+   Name the milestone, cite the run or task evidence from section 1, and state the exact change.
+   If the gate is closed or nothing is both new and evidenced, write exactly `No downstream changes.`
+5. STRICT SAFETY CONSTRAINT: You must NOT modify, weaken, or remove any authorization blocks, security gates, review iteration limits, or verification attempt limits.
 
 OUTPUT FORMAT:
 Return ONLY a Markdown document containing:
@@ -59,6 +80,7 @@ Return ONLY a Markdown document containing:
 - ## Probe Commands (fenced `probe-commands` block with fast verification commands to dry-run, or empty if none)
 - ## Proposed Edits to tech-stack.md (Unified Diff)
 - ## Proposed Entry for lessons.md (Standard Tabilet Lesson Schema)
+- ## Proposed Downstream Amendments (per-milestone items with evidence, or `No downstream changes.`)
 """
 
 
@@ -93,6 +115,80 @@ def truncate_middle(text: str | None, head: int = 400, tail: int = 800) -> str:
         return text
     omitted = len(text) - (head + tail)
     return f"{text[:head]}\n... [truncated {omitted} chars] ...\n{text[-tail:]}"
+
+
+def significance_reasons(friction_runs: list[dict[str, Any]], multi_attempts: list[dict[str, Any]]) -> list[str]:
+    """Deterministic gate: what happened that is worth carrying forward to later milestones."""
+    reasons = []
+    for task in multi_attempts:
+        reasons.append(f"task `{task.get('task_label')}` needed {task.get('attempt_count')} runs")
+    for run in friction_runs:
+        if run.get("result") != "completed":
+            reasons.append(f"run {run.get('run_id')} ended {run.get('result')}")
+        else:
+            reasons.append(f"run {run.get('run_id')} took {run.get('duration_sec')}s (over {SLOW_RUN_SEC}s)")
+    return reasons[:8]
+
+
+def suggested_downstream(project_root: pathlib.Path, finished: str | None) -> list[str]:
+    """Downstream milestone IDs for the finished one, as listed in suggested.txt (a hint, not truth)."""
+    path = project_root / "tabilet" / "memory-bank" / "suggested.txt"
+    if not finished or not path.is_file():
+        return []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    found: list[str] = []
+    block = re.search(r"^DOWNSTREAM_IMPACTS:[ \t]*\n((?:[ \t]*\S.*\n?)+)", text, re.M)
+    for line in (block.group(1).splitlines() if block else []):
+        source, arrow, targets = line.partition("->")
+        if arrow and source.strip() == finished:
+            found += STATUS_ID_RE.findall(targets)
+    if not found:
+        order = re.search(r"^STATUS_ORDER:[ \t]*(\S.*|\n[ \t]*\S.*)$", text, re.M)
+        ids = STATUS_ID_RE.findall(order.group(1)) if order else []
+        if finished in ids:
+            found = ids[ids.index(finished) + 1:]
+    return list(dict.fromkeys(found))[:MAX_DOWNSTREAM]
+
+
+def milestone_spec(project_root: pathlib.Path, ident: str) -> str:
+    path = project_root / "tabilet" / "memory-bank" / "milestone.md"
+    if not path.is_file():
+        return ""
+    match = re.search(rf"^##[ \t]+{re.escape(ident)}\b.*?(?=^##[ \t]|\Z)", path.read_text(encoding="utf-8", errors="replace"), re.M | re.S)
+    return match.group(0).strip() if match else ""
+
+
+def downstream_context(project_root: pathlib.Path, finished: str | None) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Check each suggested downstream milestone against the live files; keep only open ones."""
+    included: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
+    for ident in suggested_downstream(project_root, finished):
+        status_file = project_root / "tabilet" / "memory-bank" / f"status-{ident}.md"
+        if not status_file.is_file():
+            skipped.append({"id": ident, "reason": "no active status file (missing or retired)"})
+            continue
+        try:
+            import tabilet_index
+            runner = tabilet_index.parser()
+            rows = runner.status_rows(status_file.read_text(encoding="utf-8", errors="replace"))
+            open_rows = [r for r in rows if r["state"] in runner.ACTIONABLE_STATES]
+        except Exception as exc:
+            skipped.append({"id": ident, "reason": f"status file could not be read ({type(exc).__name__})"})
+            continue
+        if not open_rows:
+            skipped.append({"id": ident, "reason": "no pending or in-progress rows"})
+            continue
+        included.append({
+            "id": ident,
+            "spec": truncate_middle(milestone_spec(project_root, ident) or "(no specification found in milestone.md)", 1200, 1200),
+            "open_rows": [{"item": r["item"], "state": r["state"]} for r in open_rows[:12]],
+        })
+    return included, skipped
+
+
+def model_budget_sec(wall_sec: float, percent: float) -> float:
+    """Time the model call may take: a share of the milestone's recorded wall time, capped."""
+    return min(float(MODEL_TIMEOUT_CAP_SEC), max(0.0, wall_sec) * percent / 100.0)
 
 
 def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str | None = None) -> dict[str, Any]:
@@ -217,7 +313,20 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         """, {"m": milestone_id}).fetchone()
         total_runs = total_runs_row[0] if total_runs_row else 0
 
+        wall_row = conn.execute("""
+            SELECT COALESCE(SUM(duration), 0) FROM (
+                SELECT (strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) AS duration
+                FROM runs r
+                WHERE r.run_id IN (SELECT DISTINCT e.run_id FROM events e WHERE (:m IS NULL OR e.milestone_id = :m))
+            )
+        """, {"m": milestone_id}).fetchone()
+        milestone_wall_sec = float(wall_row[0]) if wall_row else 0.0
+
     capture_mode = "relevant" if turn_stats else "metadata-only"
+    reasons = significance_reasons(friction_runs, multi_attempts)
+    downstream, downstream_skipped = ([], [])
+    if reasons and milestone_id:
+        downstream, downstream_skipped = downstream_context(project_root, milestone_id)
 
     # Read memory files
     tech_stack_file = project_root / "tabilet" / "memory-bank" / "tech-stack.md"
@@ -231,6 +340,14 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         "milestone": milestone_id or "ALL",
         "capture_mode": capture_mode,
         "total_runs_analyzed": total_runs,
+        "milestone_wall_sec": milestone_wall_sec,
+        "downstream": {
+            "gate": "open" if reasons and milestone_id else "closed",
+            "reasons": reasons,
+            "milestone_given": bool(milestone_id),
+            "milestones": downstream,
+            "skipped": downstream_skipped,
+        },
         "contrastive_fast_baselines": fast_baselines,
         "friction_runs": friction_runs,
         "multi_attempts": multi_attempts,
@@ -295,6 +412,16 @@ def build_reflection_prompt(telemetry: dict[str, Any], project_root: pathlib.Pat
         "bounded_error_traces": telemetry["bounded_error_traces"],
     }
 
+    down = telemetry["downstream"]
+    if not down["milestone_given"]:
+        gate, listing = "closed (no --milestone given)", "(none)"
+    elif down["gate"] == "closed":
+        gate, listing = "closed (no significant finding in this milestone)", "(none)"
+    else:
+        gate = "open: " + "; ".join(down["reasons"])
+        listing = json.dumps({"milestones": down["milestones"], "skipped": down["skipped"]}, indent=2) \
+            if down["milestones"] else "(no live downstream milestones are listed in suggested.txt)"
+
     return PROMPT_TEMPLATE.format(
         milestone_id=telemetry["milestone"],
         project_root=project_root.name,
@@ -303,6 +430,8 @@ def build_reflection_prompt(telemetry: dict[str, Any], project_root: pathlib.Pat
         multi_attempt_tasks=json.dumps(telemetry["multi_attempts"], indent=2),
         capture_status=telemetry["capture_mode"],
         turn_efficiency_and_traces=json.dumps(turn_and_traces, indent=2),
+        downstream_gate=gate,
+        downstream_milestones=listing,
         current_tech_stack_md=tech_stack_md,
         current_lessons_md=lessons_md,
     )
@@ -427,6 +556,20 @@ def generate_heuristic_proposal(telemetry: dict[str, Any]) -> str:
     else:
         proposal += "No multi-attempt retry hotspots detected.\n"
 
+    down = telemetry.get("downstream", {})
+    proposal += "\n### Downstream Milestones\n"
+    if not down.get("milestone_given"):
+        proposal += "Not considered: no `--milestone` was given.\n"
+    elif down.get("gate") == "closed":
+        proposal += "Not considered: no significant finding in this milestone.\n"
+    else:
+        proposal += "Gate open: " + "; ".join(down.get("reasons", [])) + ".\n"
+        for item in down.get("milestones", []):
+            proposal += f"- `{item['id']}` is live ({len(item['open_rows'])} open rows).\n"
+        for item in down.get("skipped", []):
+            proposal += f"- `{item['id']}` skipped: {item['reason']}.\n"
+        proposal += "No model ran, so no amendments are proposed.\n"
+
     proposal += """
 ---
 
@@ -440,19 +583,32 @@ PATH, or `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY`) and rerun
     return proposal
 
 
+def _is_timeout(exc: BaseException) -> bool:
+    return isinstance(exc, (TimeoutError, subprocess.TimeoutExpired)) or (
+        isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, TimeoutError))
+
+
 def invoke_improver_llm(
     telemetry: dict[str, Any],
     project_root: pathlib.Path,
     backend: str = "auto",
-    timeout_sec: int = 120,
+    timeout_sec: float = 120,
 ) -> tuple[str, str]:
     """
     Run the improver through a local CLI agent (Claude Code, Gemini CLI, or Codex CLI) on stdin,
-    then a REST API. Returns (markdown, source). Only when no backend is configured at all does it
-    return the model-free telemetry summary, labelled source "heuristic"; a configured backend that
-    fails raises AuditError rather than passing a template off as analysis.
+    then a REST API, all inside one shared deadline of `timeout_sec`. Returns (markdown, source).
+    Only when no backend is configured at all does it return the model-free telemetry summary,
+    labelled source "heuristic"; a configured backend that fails raises AuditError, and running
+    out of time raises BudgetExceeded, rather than passing a template off as analysis.
     """
     prompt = build_reflection_prompt(telemetry, project_root)
+    deadline = time.monotonic() + timeout_sec
+
+    def remaining() -> float:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise BudgetExceeded("reflection time budget exhausted")
+        return left
 
     cli_candidates: list[tuple[str, list[str]]] = [
         ("claude", ["claude", "-p", "Read the reflection prompt from stdin and output only the requested Markdown proposal."]),
@@ -464,6 +620,7 @@ def invoke_improver_llm(
         cli_candidates = [c for c in cli_candidates if c[0] == backend]
 
     failures: list[str] = []
+    timeouts = 0
     for name, cmd in cli_candidates:
         if shutil.which(cmd[0]) is None:
             continue
@@ -474,9 +631,10 @@ def invoke_improver_llm(
                 cwd=project_root,
                 capture_output=True,
                 text=True,
-                timeout=timeout_sec,
+                timeout=remaining(),
             )
         except (subprocess.TimeoutExpired, OSError) as exc:
+            timeouts += _is_timeout(exc)
             failures.append(f"{name} CLI: {type(exc).__name__}")
             continue
         if proc.returncode == 0 and proc.stdout.strip():
@@ -484,15 +642,19 @@ def invoke_improver_llm(
         failures.append(f"{name} CLI: exit {proc.returncode}" if proc.returncode else f"{name} CLI: empty output")
 
     try:
-        return _call_rest_fallback(prompt, backend=backend, timeout_sec=timeout_sec), f"rest:{backend}"
+        return _call_rest_fallback(prompt, backend=backend, timeout_sec=int(remaining()) or 1), f"rest:{backend}"
     except LookupError:
         if not failures:
             return generate_heuristic_proposal(telemetry), "heuristic"
     except urllib.error.HTTPError as exc:
         failures.append(f"REST API: HTTP {exc.code}")
     except (urllib.error.URLError, OSError, ValueError, KeyError, IndexError, TypeError) as exc:
+        timeouts += _is_timeout(exc)
         failures.append(f"REST API: {type(exc).__name__}")
-    raise audit.AuditError("reflection backend failed (" + "; ".join(failures) + "); no proposal was written")
+    detail = "; ".join(failures)
+    if timeouts == len(failures):
+        raise BudgetExceeded(f"reflection backend did not finish inside its time budget ({detail})")
+    raise audit.AuditError(f"reflection backend failed ({detail}); no proposal was written")
 
 
 # Executables a model-proposed probe must never start, even with the host-shell acknowledgment.
@@ -616,7 +778,8 @@ def _git_ignored(path: pathlib.Path, project_root: pathlib.Path) -> bool:
 def reflect_command(project_path: str = ".", milestone_id: str | None = None,
                     dry_run: bool = False, output_path: str | None = None,
                     format_type: str = "tabilet", backend: str = "auto",
-                    print_prompt: bool = False, probe: bool = False) -> dict[str, Any]:
+                    print_prompt: bool = False, probe: bool = False,
+                    budget_percent: float = DEFAULT_BUDGET_PERCENT) -> dict[str, Any]:
     """Execute the reflect command and return structured dictionary for tabilet-audit dispatch."""
     project_root, _ = resolve_project_db(project_path)
 
@@ -654,7 +817,17 @@ def reflect_command(project_path: str = ".", milestone_id: str | None = None,
         return {"status": "ok", "dry_run": True, "format": "tabilet", "telemetry": telemetry}
 
     # Propose -> Probe -> Compose
-    raw_proposal, source = invoke_improver_llm(telemetry, project_root, backend=backend)
+    budget = model_budget_sec(telemetry["milestone_wall_sec"], budget_percent)
+    note = None
+    if budget < MIN_MODEL_BUDGET_SEC:
+        raw_proposal, source = generate_heuristic_proposal(telemetry), "heuristic"
+        note = f"model skipped: {budget:.0f}s budget is under the {MIN_MODEL_BUDGET_SEC}s minimum"
+    else:
+        try:
+            raw_proposal, source = invoke_improver_llm(telemetry, project_root, backend=backend, timeout_sec=budget)
+        except BudgetExceeded as exc:
+            raw_proposal, source = generate_heuristic_proposal(telemetry), "heuristic"
+            note = f"model skipped: {exc}"
     probe_results = probe_proposed_commands(raw_proposal, project_root, enabled=probe)
     final_proposal = format_compose_report(raw_proposal, probe_results)
 
@@ -668,6 +841,10 @@ def reflect_command(project_path: str = ".", milestone_id: str | None = None,
         "output_file": str(out_file),
         "milestone_id": milestone_id,
         "proposal_source": source,
+        "model_budget_sec": round(budget, 1),
+        "budget_note": note,
+        "downstream_gate": telemetry["downstream"]["gate"],
+        "downstream_considered": [m["id"] for m in telemetry["downstream"]["milestones"]],
         "fast_baselines_count": len(telemetry["contrastive_fast_baselines"]),
         "friction_runs_count": len(telemetry["friction_runs"]),
         "multi_attempt_count": len(telemetry["multi_attempts"]),

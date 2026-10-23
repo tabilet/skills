@@ -340,6 +340,11 @@ spelling so an inbound link survives translation.
   commands only with `--probe` and `ALLOW_UNSANDBOXED_SHELL=1` (no shell), and
   writes captured transcripts only to an explicit path outside the project or
   Git-ignored. A backend failure writes nothing; a model-free report proposes no edits.
+  Reflection feeds later milestones to the model only after a significant finding
+  (a multi-run task, or a failed, blocked or over-two-minute run), only the downstream
+  milestones listed in `suggested.txt` that are still open in their live status files,
+  and within 10% of the milestone's recorded wall time; other planning triggers
+  (Reconcile, Propose, `CORRECTIVE_PLANNING`) are unchanged.
 - Interactive Goal/Next `--email ADDRESS` opts into approval alerts for that
   run only. A coordinator or standalone Next executor uses the shared optional
   Cloudflare REST helper and private account configuration; children send no

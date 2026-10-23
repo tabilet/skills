@@ -33,16 +33,29 @@ class ReflectTests(unittest.TestCase):
         self.assertNotIn('Traceback', result.stderr)
         return json.loads(result.stdout) if ok else result.stderr
 
-    def record_completed_task(self):
-        self.command('audit', 'enable', self.repo)
-        started = self.command('audit', 'begin', self.repo, 'next', '--run-id', 'fast')
+    def record_completed_task(self, run_id='fast', result='completed', enable=True):
+        if enable:
+            self.command('audit', 'enable', self.repo)
+        started = self.command('audit', 'begin', self.repo, 'next', '--run-id', run_id)
         self.command('audit', 'event', data={
-            'schema': 'tabilet.audit.event/v1', 'event_id': 'e1', 'run_id': 'fast',
+            'schema': 'tabilet.audit.event/v1', 'event_id': 'e-' + run_id, 'run_id': run_id,
             'workspace_id': started['workspace_id'], 'operation': 'next', 'event_type': 'task_transition',
             'subject': {'milestone_id': 'M01', 'task_label': 'Implement feature',
                         'old_state': 'pending', 'new_state': 'completed'},
             'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent', 'fidelity': 'summarized'}})
-        self.command('audit', 'finish', 'fast', 'completed')
+        self.command('audit', 'finish', run_id, result)
+
+    def write_downstream_project(self):
+        memory = self.repo / 'tabilet/memory-bank'
+        (memory / 'milestone.md').write_text(
+            '# Milestone\n\n## M01 - Delivery\n\nFirst.\n\n## M02 - Search\n\nSEARCH-SPEC run the whole suite.\n\n'
+            '## M03 - Billing\n\nBILLING-SPEC unlisted.\n\n## M04 - Docs\n\nDOCS-SPEC done already.\n')
+        for ident, state in (('M02', '[ ]'), ('M03', '[ ]'), ('M04', '[+]')):
+            (memory / f'status-{ident}.md').write_text(
+                '# Status\n\n| Item | State | Notes |\n|---|---|---|\n'
+                f'| Build {ident} | {h.marker(state)} | note |\n')
+        (memory / 'suggested.txt').write_text(
+            'STATUS_ORDER: M01 -> M02 -> M03 -> M04\n\nDOWNSTREAM_IMPACTS:\nM01 -> M02, M04, M09\n\nCOMMIT_POLICY: task\n')
 
     def test_project_selected_by_flag_or_cwd_without_positional(self):
         self.command('audit', 'enable', self.repo)
@@ -108,6 +121,78 @@ class ReflectTests(unittest.TestCase):
                 reflect._call_rest_fallback('prompt', 'gemini')
         self.assertNotIn('secret-key', captured[0].full_url)
         self.assertEqual(captured[0].get_header('X-goog-api-key'), 'secret-key')
+
+    def test_downstream_ids_come_from_impacts_then_strict_order(self):
+        self.write_downstream_project()
+        self.assertEqual(reflect.suggested_downstream(self.repo, 'M01'), ['M02', 'M04', 'M09'])
+        (self.repo / 'tabilet/memory-bank/suggested.txt').write_text(
+            'STATUS_ORDER: M01 -> M02? -> M03 -> M04 -> M05\n')
+        self.assertEqual(reflect.suggested_downstream(self.repo, 'M01'), ['M02', 'M03', 'M04'])
+        self.assertEqual(reflect.suggested_downstream(self.repo, None), [])
+
+    def test_quiet_milestone_feeds_nothing_downstream(self):
+        self.write_downstream_project()
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        self.assertEqual(telemetry['downstream']['gate'], 'closed')
+        self.assertEqual(telemetry['downstream']['milestones'], [])
+        prompt = reflect.build_reflection_prompt(telemetry, self.repo)
+        self.assertIn('closed (no significant finding', prompt)
+        self.assertNotIn('SEARCH-SPEC', prompt)
+
+    def test_significant_finding_feeds_only_listed_live_milestones(self):
+        self.write_downstream_project()
+        self.record_completed_task('first', 'failed')
+        self.record_completed_task('second', 'completed', enable=False)
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        down = telemetry['downstream']
+        self.assertEqual(down['gate'], 'open')
+        self.assertEqual([m['id'] for m in down['milestones']], ['M02'])
+        self.assertEqual({m['id']: m['reason'] for m in down['skipped']},
+                         {'M04': 'no pending or in-progress rows', 'M09': 'no active status file (missing or retired)'})
+        prompt = reflect.build_reflection_prompt(telemetry, self.repo)
+        self.assertIn('SEARCH-SPEC', prompt)
+        self.assertNotIn('BILLING-SPEC', prompt)
+        self.assertNotIn('DOCS-SPEC', prompt)
+        self.assertIn('No downstream changes.', prompt)
+
+    def test_no_milestone_means_no_downstream_feeding(self):
+        self.write_downstream_project()
+        self.record_completed_task('first', 'failed')
+        telemetry = reflect.extract_telemetry(self.repo)
+        self.assertEqual(telemetry['downstream']['gate'], 'closed')
+        self.assertEqual(telemetry['downstream']['milestones'], [])
+
+    def test_model_budget_is_a_capped_share_of_milestone_time(self):
+        self.assertEqual(reflect.model_budget_sec(1000, 10), 100)
+        self.assertEqual(reflect.model_budget_sec(5000, 10), reflect.MODEL_TIMEOUT_CAP_SEC)
+        self.assertEqual(reflect.model_budget_sec(0, 10), 0)
+
+    def test_short_milestone_skips_the_model_entirely(self):
+        self.record_completed_task()
+        with mock.patch.object(reflect, 'invoke_improver_llm', side_effect=AssertionError('model called')):
+            result = reflect.reflect_command(str(self.repo), milestone_id='M01')
+        self.assertEqual(result['proposal_source'], 'heuristic')
+        self.assertIn('model skipped', result['budget_note'])
+        self.assertTrue(Path(result['output_file']).is_file())
+
+    def test_budget_overrun_degrades_to_the_model_free_report(self):
+        self.record_completed_task()
+        with mock.patch.object(reflect, 'model_budget_sec', return_value=60), \
+                mock.patch.object(reflect, 'invoke_improver_llm', side_effect=reflect.BudgetExceeded('slow')):
+            result = reflect.reflect_command(str(self.repo), milestone_id='M01')
+        self.assertEqual(result['proposal_source'], 'heuristic')
+        self.assertIn('slow', result['budget_note'])
+
+    def test_backend_timeouts_count_as_budget_not_failure(self):
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo)
+        timeout = subprocess.TimeoutExpired('claude', 1)
+        with mock.patch.dict(os.environ, {}, clear=True), \
+                mock.patch('shutil.which', side_effect=lambda name: '/bin/x' if name == 'claude' else None), \
+                mock.patch('subprocess.run', side_effect=timeout):
+            with self.assertRaises(reflect.BudgetExceeded):
+                reflect.invoke_improver_llm(telemetry, self.repo, timeout_sec=5)
 
     def test_probes_are_opt_in_and_never_use_a_shell(self):
         marker = self.repo / 'pwned'
