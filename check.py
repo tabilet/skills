@@ -3173,7 +3173,7 @@ OPTIMIZER_EDITABLE = (
 # Only the frontmatter `description` line of these may change.
 OPTIMIZER_DESCRIPTION_ONLY = ("skills/*/SKILL.md",)
 OPTIMIZER_FROZEN = (
-    "GOAL.md", "skills/*/GOAL.md", "skills/*/goal-protocol.json",
+    "GOAL.md", "skills/*/GOAL.md", "skills/*/goal-protocol.json", "evals/**",
     "AGENTS.md", "CLAUDE.md", "template/AGENTS.md",
     "skills/memory-bank-upgrade/assets/template/AGENTS.md",
     "check.py", "harness/**", "tests/**", ".claude-plugin/**", ".github/**",
@@ -3230,13 +3230,15 @@ def optimizer_gate_problems(base: str) -> list[str]:
 @check("optimizer candidates stay behind the frozen surface and trap suite")
 def optimizer_gate_contract():
     problems = []
-    for required in ("GOAL.md", "skills/*/GOAL.md", "AGENTS.md", "check.py", "harness/**", "tests/**"):
+    for required in ("GOAL.md", "skills/*/GOAL.md", "AGENTS.md", "check.py", "harness/**", "tests/**", "evals/**"):
         if required not in OPTIMIZER_FROZEN:
             problems.append(f"check.py: OPTIMIZER_FROZEN must keep {required}")
     for relative, tokens in (
         ("AGENTS.md", ("python3 check.py --optimizer-gate <base-ref>", "`OPTIMIZER_FROZEN`",
+                       "python3 check.py --sync-optimizer-twins",
                        "The gate is structural, so human\n  review stays required")),
         ("docs/MODEL_EVAL.md", ("python3 check.py --optimizer-gate <base-ref>", "tests/test_trap_suite.py",
+                                "python3 check.py --sync-optimizer-twins",
                                 "The gate is structural.")),
     ):
         missing = missing_contract_tokens((ROOT / relative).read_text(), tokens)
@@ -3244,6 +3246,78 @@ def optimizer_gate_contract():
     scenarios = json.loads((ROOT / "tests/fixtures/trap-scenarios.json").read_text())
     if not any("Command rejected by harness guardrail" in s.get("tool_result_contains", []) for s in scenarios):
         problems.append("tests/fixtures/trap-scenarios.json: no DANGEROUS_RE rejection scenario")
+    return problems
+
+
+# Byte-identical copies inside the editable surface. Edit the first (canonical) file and run
+# `python3 check.py --sync-optimizer-twins`; the copies are overwritten, so never edit a copy.
+OPTIMIZER_TWINS = (
+    ("template/tabilet/memory-bank/tech-stack.md",
+     ("skills/memory-bank-upgrade/assets/template/tabilet/memory-bank/tech-stack.md",)),
+    ("skills/memory-bank-init/references/testing-profiles.md",
+     ("skills/memory-bank-propose/references/testing-profiles.md",
+      "skills/memory-bank-reconcile/references/testing-profiles.md")),
+)
+
+
+def sync_optimizer_twins() -> int:
+    """Maintenance: overwrite each editable-surface copy with its canonical file."""
+    for canonical, copies in OPTIMIZER_TWINS:
+        source = ROOT / canonical
+        if not source.is_file():
+            print(f"missing canonical {canonical}")
+            return 1
+        data = source.read_bytes()
+        for copy in copies:
+            target = ROOT / copy
+            if not target.parent.is_dir():
+                print(f"missing directory for {copy}")
+                return 1
+            changed = not target.is_file() or target.read_bytes() != data
+            target.write_bytes(data)
+            print(f"{'updated' if changed else 'unchanged'} {copy}")
+    return 0
+
+
+@check("every editable optimizer file has a canonical source and synced twins")
+def optimizer_twin_contract():
+    covered = {path for canonical, copies in OPTIMIZER_TWINS for path in (canonical, *copies)}
+    problems = []
+    for pattern in OPTIMIZER_EDITABLE:
+        matches = [p.relative_to(ROOT).as_posix() for p in ROOT.glob(pattern)]
+        if not matches:
+            problems.append(f"check.py: OPTIMIZER_EDITABLE pattern matches no file: {pattern}")
+        problems.extend(f"{match}: editable but missing from OPTIMIZER_TWINS" for match in matches
+                        if match not in covered)
+    for canonical, copies in OPTIMIZER_TWINS:
+        for path in (canonical, *copies):
+            if not (ROOT / path).is_file():
+                problems.append(f"{path}: listed in OPTIMIZER_TWINS but missing")
+            elif path != canonical and (ROOT / path).read_bytes() != (ROOT / canonical).read_bytes():
+                problems.append(f"{path}: differs from {canonical}; run python3 check.py --sync-optimizer-twins")
+    return problems
+
+
+REPOSITORY_ONLY_TERMS = ("harness2", "harness²", "workbuddy", "swe-bench")
+
+
+@check("benchmark tooling and Harness² stay out of the payload")
+def repository_only_tooling():
+    problems = []
+    text = (ROOT / "AGENTS.md").read_text()
+    for token in ("No benchmark tooling or Harness² in the payload", "stay repository-only"):
+        if missing_contract_tokens(text, (token,)):
+            problems.append(f"AGENTS.md: missing {token!r}")
+    for top in ("template", "skills", "harness"):
+        for path in sorted((ROOT / top).rglob("*")):
+            if not path.is_file() or "node_modules" in path.parts or "__pycache__" in path.parts:
+                continue
+            try:
+                body = path.read_text(encoding="utf-8").casefold()
+            except (UnicodeDecodeError, OSError):
+                continue
+            problems.extend(f"{path.relative_to(ROOT)}: names {term!r}, which stays repository-only"
+                            for term in REPOSITORY_ONLY_TERMS if term in body)
     return problems
 
 
@@ -3283,6 +3357,8 @@ if __name__ == "__main__":
     sys.dont_write_bytecode = True
     if sys.argv[1:] == ["--sync-goal-protocol"]:
         raise SystemExit(sync_goal_protocol())
+    if sys.argv[1:] == ["--sync-optimizer-twins"]:
+        raise SystemExit(sync_optimizer_twins())
     if len(sys.argv) == 3 and sys.argv[1] == "--optimizer-gate":
         raise SystemExit(optimizer_gate(sys.argv[2]))
     raise SystemExit(main())

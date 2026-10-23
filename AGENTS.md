@@ -126,6 +126,9 @@ npm test --prefix tests/browser
 # Accept an automated optimizer's candidate only inside the editable surface.
 python3 check.py --optimizer-gate <base-ref>
 
+# After editing the canonical file of an editable twin set, copy it onto its twins.
+python3 check.py --sync-optimizer-twins
+
 # Verify the published guides and links before claiming a website change is done.
 mkdocs build --strict
 
@@ -463,7 +466,9 @@ spelling so an inbound link survives translation.
   `OPTIMIZER_EDITABLE`, nothing on `OPTIMIZER_FROZEN` changes, and then every
   check, including the trap suite, passes. The gate is structural, so human
   review stays required; widening the editable surface is a reviewed
-  `check.py` change, never part of a candidate.
+  `check.py` change, never part of a candidate. Edit only the canonical file of
+  each twin set in `OPTIMIZER_TWINS`, then run `python3 check.py --sync-optimizer-twins`;
+  the copies are overwritten.
 - Keep the harness dependency-free: Python standard library only.
 - v2 project-owned files live under `tabilet/`; only `AGENTS.md` stays at the
   project root. Installing v2 never migrates v1.5.0 projects. The Upgrade

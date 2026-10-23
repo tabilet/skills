@@ -170,6 +170,10 @@ python3 check.py --optimizer-gate <base-ref>
    dangerous commands, history rewrites, blocked-row completion and similar,
    and the runner's guards must hold.
 
+Several editable files have byte-identical twins. Edit only the canonical file of each set in
+`OPTIMIZER_TWINS` and run `python3 check.py --sync-optimizer-twins`; it overwrites the copies,
+so an edit made to a copy is lost.
+
 The gate is structural. It stops edits to frozen files and the removal of
 pinned phrases; it cannot detect a rule weakened in words that avoid the pins.
 Human review of the diff stays required, and promotion still follows the rules

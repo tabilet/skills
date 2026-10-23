@@ -648,6 +648,54 @@ class OptimizerGateTests(unittest.TestCase):
             self.assertEqual(["check.py: OPTIMIZER_FROZEN must keep tests/**"],
                              repository_checks.optimizer_gate_contract())
 
+    def twin_fixture(self, tmp: str) -> pathlib.Path:
+        fixture = pathlib.Path(tmp)
+        for canonical, copies in repository_checks.OPTIMIZER_TWINS:
+            for path in (canonical, *copies):
+                (fixture / path).parent.mkdir(parents=True, exist_ok=True)
+                (fixture / path).write_text(f"{canonical}\n")
+        return fixture
+
+    def test_sync_overwrites_twins_and_the_contract_notices_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.twin_fixture(tmp)
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual([], repository_checks.optimizer_twin_contract())
+                canonical, copies = repository_checks.OPTIMIZER_TWINS[1]
+                (fixture / canonical).write_text("optimized wording\n")
+                (fixture / copies[0]).write_text("hand edit\n")
+                drift = repository_checks.optimizer_twin_contract()
+                self.assertEqual(len(copies), len(drift), drift)
+                self.assertTrue(all("--sync-optimizer-twins" in problem for problem in drift))
+                with mock.patch("builtins.print"):
+                    self.assertEqual(0, repository_checks.sync_optimizer_twins())
+                self.assertEqual([], repository_checks.optimizer_twin_contract())
+                self.assertTrue(all((fixture / copy).read_text() == "optimized wording\n" for copy in copies))
+
+    def test_unlisted_editable_file_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.twin_fixture(tmp)
+            extra = fixture / "skills/memory-bank-archive/references/testing-profiles.md"
+            extra.parent.mkdir(parents=True)
+            extra.write_text("new\n")
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual(
+                    ["skills/memory-bank-archive/references/testing-profiles.md: editable but missing from OPTIMIZER_TWINS"],
+                    repository_checks.optimizer_twin_contract())
+
+    def test_payload_naming_a_benchmark_is_rejected(self) -> None:
+        self.assertEqual([], repository_checks.repository_only_tooling())
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            (fixture / "AGENTS.md").write_text((ROOT / "AGENTS.md").read_text())
+            for top in ("template", "skills", "harness"):
+                (fixture / top).mkdir()
+            (fixture / "skills/leak.md").write_text("Run the WorkBuddy-Bench adapter.\n")
+            (fixture / "harness/quiet.py").write_text("print('ok')\n")
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                problems = repository_checks.repository_only_tooling()
+        self.assertEqual(["skills/leak.md: names 'workbuddy', which stays repository-only"], problems)
+
     def test_unknown_base_is_rejected(self) -> None:
         with mock.patch.object(repository_checks, "ROOT", ROOT):
             self.assertEqual(["no-such-ref: not a commit"], repository_checks.optimizer_gate_problems("no-such-ref"))
