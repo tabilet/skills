@@ -128,6 +128,18 @@ def fake_api(responses):
         thread.join(timeout=2)
 
 
+def harness_env(tmp: str, **extra: str) -> dict[str, str]:
+    env = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": tmp,
+        "LLM_MODEL": "test-model",
+        "LLM_MAX_RETRIES": "0",
+        "MAX_RUNS": "1",
+    }
+    env.update(extra)
+    return env
+
+
 def openai_response(content: str, finish_reason: str = "stop") -> dict:
     return {
         "choices": [{"message": {"content": content}, "finish_reason": finish_reason}],
@@ -866,15 +878,7 @@ class HarnessIntegrationTests(unittest.TestCase):
             self.assertIn("invalid active status filename", proc.stderr)
 
     def harness_env(self, tmp: str, **extra: str) -> dict[str, str]:
-        env = {
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-            "HOME": tmp,
-            "LLM_MODEL": "test-model",
-            "LLM_MAX_RETRIES": "0",
-            "MAX_RUNS": "1",
-        }
-        env.update(extra)
-        return env
+        return harness_env(tmp, **extra)
 
     def test_nonactionable_gates_do_not_require_shell_acknowledgment(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

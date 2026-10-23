@@ -1,0 +1,130 @@
+[
+  {
+    "name": "sudo is rejected before the shell runs",
+    "steps": [{"cmd": "touch pwned; sudo true"}, {"final": "done"}],
+    "expected_exit": 6,
+    "tool_result_contains": ["Command rejected by harness guardrail", "\"exit_code\": 126"],
+    "absent_paths": ["pwned"],
+    "head_unchanged": true
+  },
+  {
+    "name": "git reset --hard is rejected",
+    "steps": [{"cmd": "touch pwned; git reset --hard"}, {"final": "done"}],
+    "expected_exit": 6,
+    "tool_result_contains": ["Command rejected by harness guardrail"],
+    "absent_paths": ["pwned"],
+    "head_unchanged": true
+  },
+  {
+    "name": "git clean -fd is rejected",
+    "steps": [{"cmd": "touch pwned; git clean -fd"}, {"final": "done"}],
+    "expected_exit": 6,
+    "tool_result_contains": ["Command rejected by harness guardrail"],
+    "absent_paths": ["pwned"],
+    "head_unchanged": true
+  },
+  {
+    "name": "mkfs is rejected",
+    "steps": [{"cmd": "touch pwned; mkfs.ext4 /dev/null"}, {"final": "done"}],
+    "expected_exit": 6,
+    "tool_result_contains": ["Command rejected by harness guardrail"],
+    "absent_paths": ["pwned"],
+    "head_unchanged": true
+  },
+  {
+    "name": "dd if= is rejected",
+    "steps": [{"cmd": "touch pwned; dd if=/dev/zero of=blob count=1"}, {"final": "done"}],
+    "expected_exit": 6,
+    "tool_result_contains": ["Command rejected by harness guardrail"],
+    "absent_paths": ["pwned", "blob"],
+    "head_unchanged": true
+  },
+  {
+    "name": "fork bomb is rejected",
+    "steps": [{"cmd": "touch pwned; :(){ :|:& };:"}, {"final": "done"}],
+    "expected_exit": 6,
+    "tool_result_contains": ["Command rejected by harness guardrail"],
+    "absent_paths": ["pwned"],
+    "head_unchanged": true
+  },
+  {
+    "name": "rm -rf / is rejected",
+    "steps": [{"cmd": "touch pwned; rm -rf /"}, {"final": "done"}],
+    "expected_exit": 6,
+    "tool_result_contains": ["Command rejected by harness guardrail"],
+    "absent_paths": ["pwned"],
+    "head_unchanged": true
+  },
+  {
+    "name": "the dangerous-command override is visible to the suite",
+    "env": {"ALLOW_DANGEROUS_COMMANDS": "1"},
+    "steps": [{"cmd": "touch pwned; git reset --hard -q"}, {"final": "done"}],
+    "expected_exit": 5,
+    "tool_result_absent": ["Command rejected by harness guardrail"],
+    "head_unchanged": true
+  },
+  {
+    "name": "uncommitted work after the run stops with 5",
+    "steps": [{"cmd": "echo draft > notes.txt"}, {"final": "done"}],
+    "expected_exit": 5,
+    "head_unchanged": true
+  },
+  {
+    "name": "a run without a commit stops with 6",
+    "steps": [{"final": "nothing to do"}],
+    "expected_exit": 6,
+    "head_unchanged": true
+  },
+  {
+    "name": "replacing history with a parentless commit stops with 9",
+    "steps": [{"cmd": "git update-ref HEAD \"$(git commit-tree 'HEAD^{tree}' -m rewrite)\""}, {"final": "done"}],
+    "expected_exit": 9
+  },
+  {
+    "name": "completing a blocked row stops with 8",
+    "rows": [["Implement feature", "[!]"], ["Write docs", "[ ]"]],
+    "steps": [{"cmd": "sed -i 's/\\[!\\]/[+]/' tabilet/memory-bank/status-M01.md && git add -A && git commit -qm done"}, {"final": "done"}],
+    "expected_exit": 8
+  },
+  {
+    "name": "starting two rows at once stops with 8",
+    "rows": [["Implement feature", "[ ]"], ["Write docs", "[ ]"]],
+    "steps": [{"cmd": "sed -i 's/\\[ \\]/[~]/g' tabilet/memory-bank/status-M01.md && git add -A && git commit -qm start"}, {"final": "done"}],
+    "expected_exit": 8
+  },
+  {
+    "name": "exhausting the turn budget stops with 30",
+    "env": {"MAX_TURNS": "1"},
+    "steps": [{"cmd": "true"}, {"final": "done"}],
+    "expected_exit": 30,
+    "max_requests": 1,
+    "head_unchanged": true
+  },
+  {
+    "name": "a non-transient provider error stops with 20",
+    "steps": [{"status": 400, "body": {"error": {"message": "bad request"}}}],
+    "expected_exit": 20,
+    "head_unchanged": true
+  },
+  {
+    "name": "an unreachable provider stops with 21",
+    "api": "closed",
+    "steps": [],
+    "expected_exit": 21,
+    "head_unchanged": true
+  },
+  {
+    "name": "a refusal stops with 23",
+    "steps": [{"body": {"choices": [{"message": {"content": "", "refusal": "declined"}, "finish_reason": "stop"}], "usage": {}}}],
+    "expected_exit": 23,
+    "head_unchanged": true
+  },
+  {
+    "name": "least privilege outside a container stops with 14 before any request",
+    "env": {"ALLOW_UNSANDBOXED_SHELL": null, "LLM_ENVIRONMENT": "least"},
+    "steps": [{"final": "done"}],
+    "expected_exit": 14,
+    "max_requests": 0,
+    "head_unchanged": true
+  }
+]

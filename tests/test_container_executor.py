@@ -240,6 +240,18 @@ class DockerPreparationTests(unittest.TestCase):
         self.assertTrue(all('readonly' in mount for mount in audits))
         self.assertTrue(all('source='+str(self.root/'tabilet') in mount for mount in audits))
 
+    def test_dangerous_command_is_rejected_before_any_container_starts(self):
+        executor = object.__new__(container.DockerExecutor)
+        executor.core = core
+        executor.repo = self.root
+        with mock.patch.object(container.subprocess, 'Popen') as launch, \
+                mock.patch.object(container, '_run_docker') as run_docker:
+            result = executor(self.root, 'touch pwned; git reset --hard', 1, 4096, False, {})
+        self.assertEqual(result['exit_code'], 126)
+        self.assertIn('rejected by harness guardrail', result['stderr'])
+        launch.assert_not_called()
+        run_docker.assert_not_called()
+
     def test_daemon_override_is_rejected_before_context_inspection(self):
         with mock.patch.dict(os.environ, {"DOCKER_HOST": "tcp://remote.example:2376"}):
             with mock.patch.object(container, "_run_docker") as run_docker:
