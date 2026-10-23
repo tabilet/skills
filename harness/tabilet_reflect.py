@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline contrastive milestone reflection and Harness² Propose-Probe-Compose adapter for Tabilet Memory Bank."""
+"""Offline contrastive milestone reflection for Tabilet Memory Bank: propose, probe, then compose a proposal."""
 from __future__ import annotations
 
 import argparse
@@ -36,7 +36,7 @@ MIN_MODEL_BUDGET_SEC = 15
 class BudgetExceeded(audit.AuditError):
     """The model call could not finish inside the reflection time budget."""
 
-PROMPT_TEMPLATE = """You are the Harness² Contrastive Experience Reflector for Tabilet Memory Bank.
+PROMPT_TEMPLATE = """You are the Tabilet Milestone Reflector for Tabilet Memory Bank.
 Analyze the following execution telemetry from Milestone {milestone_id} in {project_root}.
 
 --- 1. CONTRASTIVE TELEMETRY ---
@@ -358,8 +358,8 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
     }
 
 
-def export_harness2_trajectories(project_path: str | pathlib.Path = ".", milestone_id: str | None = None) -> dict[str, Any]:
-    """Export audit records into Harness² trajectory format for empirical evaluation."""
+def export_trajectories(project_path: str | pathlib.Path = ".", milestone_id: str | None = None) -> dict[str, Any]:
+    """Export audit records as per-task trajectories (runs, verification, captured turns)."""
     _, db_path = resolve_project_db(project_path)
     conn = get_readonly_connection(db_path)
     with contextlib.closing(conn):
@@ -672,7 +672,7 @@ def _probe_skip(command: str, reason: str) -> dict[str, Any]:
 def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, timeout_sec: int = 15,
                             enabled: bool = False) -> list[dict[str, Any]]:
     """
-    Harness² Probe step: dry-run commands from ```probe-commands``` blocks. The block is model
+    Probe step: dry-run commands from ```probe-commands``` blocks. The block is model
     output built from untrusted transcript text, so it is inert unless the caller opts in with
     --probe AND ALLOW_UNSANDBOXED_SHELL=1. Even then each line runs without a shell, rejects shell
     metacharacters and denied executables, and runs in its own session that is killed on timeout.
@@ -783,22 +783,22 @@ def reflect_command(project_path: str = ".", milestone_id: str | None = None,
     """Execute the reflect command and return structured dictionary for tabilet-audit dispatch."""
     project_root, _ = resolve_project_db(project_path)
 
-    if format_type == "harness2":
-        trajectories = export_harness2_trajectories(project_root, milestone_id=milestone_id)
+    if format_type == "trajectories":
+        trajectories = export_trajectories(project_root, milestone_id=milestone_id)
         if dry_run:
-            return {"status": "ok", "dry_run": True, "format": "harness2", "trajectories": trajectories}
+            return {"status": "ok", "dry_run": True, "format": "trajectories", "trajectories": trajectories}
         # Trajectories carry captured transcripts that live only in the Git-ignored audit database.
         if not output_path:
-            raise audit.AuditError("--output is required for harness2 trajectories: they contain captured transcripts")
+            raise audit.AuditError("--output is required for trajectories: they contain captured transcripts")
         out_file = (project_root / output_path).resolve()
         if _inside(out_file, project_root) and not _git_ignored(out_file, project_root):
-            raise audit.AuditError("harness2 trajectories contain captured transcripts; write them outside the project or to a Git-ignored path")
+            raise audit.AuditError("trajectories contain captured transcripts; write them outside the project or to a Git-ignored path")
         out_file.parent.mkdir(parents=True, exist_ok=True)
         out_file.write_text(json.dumps(trajectories, indent=2) + "\n", encoding="utf-8")
         return {
             "status": "ok",
             "dry_run": False,
-            "format": "harness2",
+            "format": "trajectories",
             "output_file": str(out_file),
             "milestone_id": milestone_id,
             "task_trajectories_count": len(trajectories.get("tasks", [])),

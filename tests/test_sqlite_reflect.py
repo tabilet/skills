@@ -80,12 +80,12 @@ class ReflectTests(unittest.TestCase):
     def test_output_paths_are_contained(self):
         self.record_completed_task()
         self.assertIn('inside the project', self.command('reflect', self.repo, '--output', '../escape.md', ok=False))
-        self.assertIn('--output is required', self.command('reflect', self.repo, '--format', 'harness2', ok=False))
+        self.assertIn('--output is required', self.command('reflect', self.repo, '--format', 'trajectories', ok=False))
         tracked = 'tabilet/memory-bank/trajectories.json'
-        self.assertIn('Git-ignored', self.command('reflect', self.repo, '--format', 'harness2',
+        self.assertIn('Git-ignored', self.command('reflect', self.repo, '--format', 'trajectories',
                                                    '--output', tracked, ok=False))
         outside = self.base / 'out' / 'trajectories.json'
-        self.command('reflect', self.repo, '--format', 'harness2', '--output', outside)
+        self.command('reflect', self.repo, '--format', 'trajectories', '--output', outside)
         self.assertTrue(outside.is_file())
 
     def test_no_backend_report_is_labelled_and_proposes_no_edits(self):
