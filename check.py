@@ -283,7 +283,7 @@ def harness_parses():
         ROOT / "harness/tabilet_planning.py", ROOT / "harness/tabilet_install.py",
         ROOT / "harness/tabilet_proposal.py", ROOT / "harness/tabilet_horizon.py",
         ROOT / "harness/tabilet_recovery.py", ROOT / "harness/tabilet_status.py",
-        ROOT / "harness/tabilet_cli.py", ROOT / "harness/tabilet",
+        ROOT / "harness/tabilet_cli.py", ROOT / "harness/tabilet_reflect.py", ROOT / "harness/tabilet",
         SKILLS_DIR / "memory-bank-goal/scripts/email_notify.py",
         SKILLS_DIR / "memory-bank-next/scripts/email_notify.py",
     ):
@@ -796,8 +796,15 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "Private delivery state suppresses duplicate and uncertain attempts",
         "failed alert leaves the original approval pause intact",
         "the Python API runner/controller do not consume `--email` or send these alerts",
+        "Graph changes (amending downstream milestones, creating repair milestones, or cancelling",
+        "they follow `CORRECTIVE_PLANNING` and need",
+        "A pending row is cancelled only when a named successor retains every obligation",
+        "`tabilet-audit reflect --check` fails",
     ),
-    "AGENTS.md": ("`CORRECTIVE_PLANNING` defaults to `confirm`", "two helpers and references stay byte-identical",
+    "AGENTS.md": ("`OPTIMIZE_POLICY` defaults to `none`", "never mere file existence",
+                  "are corrective planning and need human-approved `CORRECTIVE_PLANNING: auto`",
+                  "only with `--probe` and `ALLOW_UNSANDBOXED_SHELL=1`",
+                  "`CORRECTIVE_PLANNING` defaults to `confirm`", "two helpers and references stay byte-identical",
                   "durably reserve attempts before sending", "scripts/email_notify.py",
                   "shared execution block alone matches the API prompt"),
     "skills/memory-bank-init/references/write-contract.md": (
@@ -916,6 +923,8 @@ def corrective_email_contract():
                   if "Using the memory-bank goal protocol" in block and "Completion condition:" in block]
         if not blocks or any("CORRECTIVE_PLANNING: confirm" not in block for block in blocks):
             problems.append(f"{relative}: launch examples need the corrective-planning default")
+        if any("OPTIMIZE_POLICY: none" not in block for block in blocks):
+            problems.append(f"{relative}: launch examples need the optimize-policy default")
     return problems
 
 
@@ -1804,7 +1813,7 @@ def sqlite_bundle_contract():
     if 'tabilet-audit --project /absolute/project audit finish' not in reference_text:
         problems.append('optional audit reference must retain the project selector at finish')
     versions = []
-    for name in ('tabilet_audit.py', 'tabilet_index.py', 'tabilet_audit_host.py', 'tabilet_explorer.py'):
+    for name in ('tabilet_audit.py', 'tabilet_index.py', 'tabilet_audit_host.py', 'tabilet_explorer.py', 'tabilet_reflect.py'):
         tree = ast.parse((ROOT / 'harness' / name).read_text())
         value = next((ast.literal_eval(node.value) for node in tree.body
                       if isinstance(node, ast.Assign)
@@ -1812,13 +1821,13 @@ def sqlite_bundle_contract():
                               for target in node.targets)), None)
         versions.append(value)
     if None in versions or len(set(versions)) != 1:
-        problems.append('audit, index, CLI, and explorer toolkit interfaces must agree')
+        problems.append('audit, index, CLI, explorer, and reflect toolkit interfaces must agree')
     for name in (
         "tabilet_audit.py", "tabilet_index.py", "tabilet_audit_host.py",
         "tabilet_controller.py", "tabilet_container.py", "tabilet_planning.py",
         "tabilet_install.py", "tabilet_proposal.py", "tabilet_horizon.py",
         "tabilet_recovery.py", "tabilet_status.py",
-        "tabilet_cli.py", "tabilet",
+        "tabilet_cli.py", "tabilet_reflect.py", "tabilet",
         "tackle-memory-bank-api-loop",
     ):
         if not (ROOT / "harness" / name).is_file():

@@ -324,6 +324,22 @@ spelling so an inbound link survives translation.
   Suspend `[~]` as `[!]` with prerequisite IDs and resumption conditions before
   another row starts; resume `[~]` only after prerequisite acceptance and all
   blockers clear. Preserve partial work; pause if changes cannot be separated.
+- `OPTIMIZE_POLICY` defaults to `none`. When set to `confirm` or `auto`, the Goal
+  owner runs offline milestone reflection via `tabilet-audit reflect` upon
+  milestone closure. At launch, the skill checks that project auditing is enabled
+  (`tabilet-audit audit status`, never mere file existence) and that
+  `tabilet-audit reflect --check` passes; otherwise it emits start and end
+  warnings and gracefully bypasses reflection without failing. Reflection only
+  drafts proposals. `confirm` pauses for approval of the complete proposal; `auto`
+  applies only additive, evidence-linked edits to `tech-stack.md` and `lessons.md`
+  and never touches authorization, review or verification limits. Milestone graph
+  changes (amending, repair milestones, cancelling pending rows `[X]`) are
+  corrective planning and need human-approved `CORRECTIVE_PLANNING: auto`; under
+  `confirm` they are proposed and pause. The reflect command reads the checkout it
+  is run in, writes its proposal only inside the project, runs model-proposed probe
+  commands only with `--probe` and `ALLOW_UNSANDBOXED_SHELL=1` (no shell), and
+  writes captured transcripts only to an explicit path outside the project or
+  Git-ignored. A backend failure writes nothing; a model-free report proposes no edits.
 - Interactive Goal/Next `--email ADDRESS` opts into approval alerts for that
   run only. A coordinator or standalone Next executor uses the shared optional
   Cloudflare REST helper and private account configuration; children send no

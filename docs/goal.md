@@ -349,6 +349,16 @@ A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may
 use `goal-policy`. Every other browser environment needs explicit authority.
 
+## Offline reflection
+
+`OPTIMIZE_POLICY` is `none` by default. With `--optimize confirm` or `--optimize auto`, the Goal owner
+runs `tabilet-audit reflect` when a milestone closes, and only when `tabilet-audit audit status`
+reports auditing enabled and `tabilet-audit reflect --check` passes; otherwise it warns at launch and
+at the end and carries on. Reflection drafts a proposal for `tech-stack.md` and `lessons.md`. `confirm`
+pauses for approval of the whole proposal. `auto` applies only additive, evidence-linked edits and never
+touches authorization, review or verification limits. Milestone graph changes count as corrective planning
+and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits.
+
 ## Standing corrective planning
 
 `CORRECTIVE_PLANNING: confirm` is the default, including for older requests.

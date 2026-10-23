@@ -2,7 +2,7 @@
 name: memory-bank-goal
 description: Execute or resume ordered memory-bank milestones using the bundled goal protocol and any project addendum.
 disable-model-invocation: false
-argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01 [--email ADDRESS] [MODEL_POLICY: ...]"
+argument-hint: "STATUS_ORDER: M01 -> S01 -> A01? | STATUS_PRIORITY: M01, A01, S01 [--email ADDRESS] [--optimize confirm|auto] [MODEL_POLICY: ...]"
 ---
 
 # Run An Ordered Set Of Milestones
@@ -66,6 +66,28 @@ Missing provenance retains the ordinary gate. Never weaken acceptance or cancel
 unmet obligations; repair milestones retain the originating review counter.
 Use the protocol's explicit `[~]` to `[!]` suspension and conditional resumption
 when prerequisites require another active row.
+
+Resolve `OPTIMIZE_POLICY: none | confirm | auto` (default `none`, or from optional `--optimize [confirm|auto]`).
+When it is not `none`, run these preflight checks before milestone execution:
+1. Run `tabilet-audit audit status .` and require `"enabled":true`. A database file that exists
+   but is disabled does not count, and a linked worktree is judged by the owner's saved setting.
+   If auditing is disabled, emit at start:
+   `WARNING: OPTIMIZE_POLICY is configured, but SQLite auditing is not enabled on this project. Offline reflection optimization will be bypassed during this run. Run 'tabilet-audit audit enable .' to enable telemetry.`
+   Set an internal bypass flag, and emit at the end:
+   `NOTICE: OPTIMIZE_POLICY was skipped because project auditing was disabled. To benefit from offline reflection and milestone acceleration on future runs, enable auditing with: tabilet-audit audit enable .`
+2. Run `tabilet-audit reflect --check`; it exits 0 only when the reflect toolkit is installed and compatible.
+   If it fails, emit at start:
+   `WARNING: OPTIMIZE_POLICY is configured, but offline reflection is not installed (tabilet-audit reflect --check failed). Offline reflection optimization will be bypassed during this run. Install tabilet_reflect.py beside tabilet-audit to enable it.`
+   Set an internal bypass flag, and emit at the end:
+   `NOTICE: OPTIMIZE_POLICY was skipped because offline reflection was not installed. Install tabilet_reflect.py beside tabilet-audit to enable offline reflection on future runs.`
+When both pass, run `tabilet-audit reflect . --milestone <ID>` upon milestone closure and read its proposal
+(`proposal_source` of `heuristic` means no model ran; treat it as a summary with no edits). Probe commands
+are not run unless you pass `--probe` with the host-shell acknowledgment. Under `confirm`, pause for human
+approval of the complete proposal. Under `auto`, apply only additive, evidence-linked edits to `tech-stack.md`
+and `lessons.md`, never touching authorization, review or verification limits. Apply milestone graph changes
+(amending downstream scopes, adding repair milestones, or marking obsolete pending milestones `[X]` with a
+named successor) only under human-approved `CORRECTIVE_PLANNING: auto`; otherwise propose them and pause.
+Refresh `suggested.txt` (recalculating its SHA256 checksum) only for changes made this way.
 
 Accept optional `--email ADDRESS` from the current human request, including a
 native goal objective that invokes this skill. Read
@@ -154,6 +176,7 @@ INTEGRATION: <resolved authority, or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}

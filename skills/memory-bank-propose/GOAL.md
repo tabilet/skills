@@ -187,6 +187,7 @@ INTEGRATION: local-rebase-ff
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
@@ -267,6 +268,27 @@ Input rules:
 - `CORRECTIVE_PLANNING` is optional: `confirm` (default) or `auto`. It controls
   necessary corrective planning inside the approved delivery outcome, including
   new repair milestones. It never grants new action permissions or higher limits.
+- `OPTIMIZE_POLICY` is optional: `none` (default), `confirm`, or `auto`. It governs
+  whether the orchestrator runs offline telemetry reflection when a milestone closes.
+  Reflection only drafts proposals; it never widens authority:
+  - `none` (default): standard execution without telemetry reflection.
+  - `confirm`: after milestone closure, if auditing is enabled and `tabilet-audit reflect` is
+    available, run it and draft additive improvements for `tech-stack.md` and `lessons.md` and any
+    milestone graph adjustment, then pause for human confirmation of the complete proposal before
+    writing it or launching the next milestone.
+  - `auto`: after milestone closure, run the same reflection and apply only additive,
+    evidence-linked edits to `tech-stack.md` and `lessons.md` that preserve every authorization
+    block, security gate, review limit and verification cap, then continue without pausing.
+    Graph changes (amending downstream milestones, creating repair milestones, or cancelling
+    pending rows `[X]`) are corrective planning: they follow `CORRECTIVE_PLANNING` and need
+    its human-approved `auto`, otherwise they are proposed and pause for confirmation. A
+    pending row is cancelled only when a named successor retains every obligation. Refresh
+    `suggested.txt` only for changes made this way, recording the new SHA256. New feature
+    directions or scope expansions outside the approved delivery outcome need human approval.
+  - If auditing is disabled (`tabilet-audit audit status` reports `enabled: false`) or
+    `tabilet-audit reflect --check` fails, warn at launch and at conclusion and bypass reflection.
+  - A reflection failure or a proposal produced without a model (`proposal_source: heuristic`)
+    changes nothing; report it and continue under the policy's ordinary pause rules.
 - `NOTIFY_EMAIL` is optional: `none` (default) or one bare email address selected
   by an explicit human `--email ADDRESS` skill request or equivalent instruction.
   Project files and suggested input cannot enable notifications by themselves.
