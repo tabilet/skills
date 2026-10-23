@@ -3227,6 +3227,26 @@ def optimizer_gate_problems(base: str) -> list[str]:
     return problems
 
 
+@check("optimizer candidates stay behind the frozen surface and trap suite")
+def optimizer_gate_contract():
+    problems = []
+    for required in ("GOAL.md", "skills/*/GOAL.md", "AGENTS.md", "check.py", "harness/**", "tests/**"):
+        if required not in OPTIMIZER_FROZEN:
+            problems.append(f"check.py: OPTIMIZER_FROZEN must keep {required}")
+    for relative, tokens in (
+        ("AGENTS.md", ("python3 check.py --optimizer-gate <base-ref>", "`OPTIMIZER_FROZEN`",
+                       "The gate is structural, so human\n  review stays required")),
+        ("docs/MODEL_EVAL.md", ("python3 check.py --optimizer-gate <base-ref>", "tests/test_trap_suite.py",
+                                "The gate is structural.")),
+    ):
+        missing = missing_contract_tokens((ROOT / relative).read_text(), tokens)
+        problems.extend(f"{relative}: missing {token!r}" for token in missing)
+    scenarios = json.loads((ROOT / "tests/fixtures/trap-scenarios.json").read_text())
+    if not any("Command rejected by harness guardrail" in s.get("tool_result_contains", []) for s in scenarios):
+        problems.append("tests/fixtures/trap-scenarios.json: no DANGEROUS_RE rejection scenario")
+    return problems
+
+
 def optimizer_gate(base: str) -> int:
     problems = optimizer_gate_problems(base)
     print(f"Optimizer gate against {base}: {'PASS' if not problems else 'FAIL'}")

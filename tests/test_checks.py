@@ -641,6 +641,13 @@ class OptimizerGateTests(unittest.TestCase):
                 self.assertEqual(1, len(problems), problems)
                 self.assertTrue(problems[0].startswith(path + ":") and reason in problems[0], problems)
 
+    def test_contract_rejects_a_trimmed_frozen_surface(self) -> None:
+        self.assertEqual([], repository_checks.optimizer_gate_contract())
+        trimmed = tuple(p for p in repository_checks.OPTIMIZER_FROZEN if p != "tests/**")
+        with mock.patch.object(repository_checks, "OPTIMIZER_FROZEN", trimmed):
+            self.assertEqual(["check.py: OPTIMIZER_FROZEN must keep tests/**"],
+                             repository_checks.optimizer_gate_contract())
+
     def test_unknown_base_is_rejected(self) -> None:
         with mock.patch.object(repository_checks, "ROOT", ROOT):
             self.assertEqual(["no-such-ref: not a commit"], repository_checks.optimizer_gate_problems("no-such-ref"))

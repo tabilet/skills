@@ -147,6 +147,35 @@ The [lifecycle reference](../README.md#keep-long-term-memory-without-growing-the
 defines the storage locations and triggers; the API runner validates structure,
 not the semantic quality of consolidation or retrieval.
 
+## Optimizer Candidates
+
+An automated instruction optimizer (for example a Propose-Probe-Compose loop)
+may propose edits to this repository's shipped instructions. Judge every such
+candidate in two credential-free steps before any paid comparison:
+
+```bash
+python3 check.py --optimizer-gate <base-ref>
+```
+
+1. **Editable surface.** Every path changed since `<base-ref>` must be on the
+   allow-list `OPTIMIZER_EDITABLE` in `check.py`: the tech-stack template and
+   its upgrade twin, the testing-profile references, and the frontmatter
+   `description` of an existing `SKILL.md`. `OPTIMIZER_FROZEN` always wins:
+   `GOAL.md` and its bundled copies and registries, the `AGENTS.md` files,
+   `check.py`, `harness/`, `tests/`, and the plugin and workflow manifests.
+2. **Everything else.** A candidate inside the surface then runs every check,
+   so pinned contract phrases, byte-identical twins and the full test suite
+   must still pass. That includes the trap suite (`tests/test_trap_suite.py`
+   with `tests/fixtures/trap-scenarios.json`), in which a scripted model tries
+   dangerous commands, history rewrites, blocked-row completion and similar,
+   and the runner's guards must hold.
+
+The gate is structural. It stops edits to frozen files and the removal of
+pinned phrases; it cannot detect a rule weakened in words that avoid the pins.
+Human review of the diff stays required, and promotion still follows the rules
+below. Widening the editable surface is a reviewed change to `check.py`, never
+part of an optimizer candidate.
+
 ## Promotion Rules
 
 Before promoting a new model, prompt, or agent workflow, define:
