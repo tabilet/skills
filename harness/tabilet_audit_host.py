@@ -26,7 +26,7 @@ import tabilet_index as index
 TOOLKIT_INTERFACE = 4
 
 
-def check_toolkit(include_explorer=False):
+def check_toolkit(include_explorer=False, include_reflect=False):
     modules = {'tabilet_audit': audit, 'tabilet_index': index}
     versions = {name: getattr(module, 'TOOLKIT_INTERFACE', None) for name, module in modules.items()}
     if include_explorer:
@@ -35,6 +35,12 @@ def check_toolkit(include_explorer=False):
         except ImportError as exc:
             raise audit.AuditError('incomplete explorer toolkit; reinstall the toolkit files together') from exc
         versions['tabilet_explorer'] = explorer_interface
+    if include_reflect:
+        try:
+            from tabilet_reflect import TOOLKIT_INTERFACE as reflect_interface
+        except ImportError as exc:
+            raise audit.AuditError('incomplete reflect toolkit; reinstall the toolkit files together') from exc
+        versions['tabilet_reflect'] = reflect_interface
     if any(value != TOOLKIT_INTERFACE for value in versions.values()):
         raise audit.AuditError(f'incompatible toolkit modules: expected interface {TOOLKIT_INTERFACE}, got {versions}; reinstall the toolkit files together')
 
@@ -95,6 +101,16 @@ def arguments(argv=None):
     explorer.add_argument('project')
     explorer.add_argument('--host', default='127.0.0.1')
     explorer.add_argument('--port', type=int, default=8000)
+    reflect=groups.add_parser('reflect', help='extract milestone telemetry and generate Harness² optimization proposal')
+    reflect.add_argument('project', nargs='?', default=None, help='Project directory; defaults to --project or current directory.')
+    reflect.add_argument('--milestone', help='Target milestone ID (e.g. M01).')
+    reflect.add_argument('--format', choices=['tabilet', 'harness2'], default='tabilet', help='Output format: tabilet proposal/telemetry (default) or harness2 trajectory JSON.')
+    reflect.add_argument('--backend', choices=['auto', 'claude', 'gemini', 'codex', 'openai'], default='auto', help='Improver LLM backend (auto-detects local CLI or API keys).')
+    reflect.add_argument('--check', action='store_true', help='Verify the reflect toolkit is installed and compatible, then exit; reads no project data.')
+    reflect.add_argument('--probe', action='store_true', help='Dry-run the proposal probe commands without a shell; requires ALLOW_UNSANDBOXED_SHELL=1.')
+    reflect.add_argument('--dry-run', action='store_true', help='Output extracted telemetry JSON without generating proposal file.')
+    reflect.add_argument('--print-prompt', action='store_true', help='Output the assembled contrastive LLM prompt and exit.')
+    reflect.add_argument('--output', help='File to write the proposal or trajectories to. Proposals default to tabilet/memory-bank/suggested-harness-update.md and must stay inside the project; trajectories contain captured transcripts and require an explicit path that is outside the project or Git-ignored.')
     args=parser.parse_args(argv)
     if args.event is not None:
         if args.group:parser.error('--event cannot be combined with a command group')
@@ -213,6 +229,11 @@ def dispatch(args):
     if args.group == 'explorer':
         from tabilet_explorer import serve
         return serve(args.project, host=args.host, port=args.port)
+    if args.group == 'reflect':
+        from tabilet_reflect import reflect_command
+        if args.check:
+            return {'status': 'ok', 'available': True}
+        return reflect_command(selected or '.', milestone_id=args.milestone, dry_run=args.dry_run, output_path=args.output, format_type=args.format, backend=args.backend, print_prompt=args.print_prompt, probe=args.probe)
     root=pathlib.Path(selected).expanduser().resolve() if selected else None
     write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish')) or (args.group=='index' and action=='sync')
     if root and write:
@@ -298,7 +319,7 @@ def main(argv=None):
     try:
         if hasattr(sys.stdout, 'reconfigure'):
             sys.stdout.reconfigure(encoding='utf-8')
-        check_toolkit(args.group == 'explorer')
+        check_toolkit(include_explorer=(args.group == 'explorer'), include_reflect=(args.group == 'reflect'))
         print(audit.canonical_json(dispatch(args)))
         return 0
     except (audit.AuditError,sqlite3.Error,OSError,ValueError,TypeError) as exc:

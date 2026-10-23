@@ -386,7 +386,7 @@ From a checkout containing this feature:
 ```bash
 mkdir -p ~/.local/bin
 install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
-install -m 644 harness/tabilet_audit.py harness/tabilet_index.py ~/.local/bin/
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py ~/.local/bin/
 install -m 755 harness/tabilet_explorer.py ~/.local/bin/
 install -d ~/.local/share/tabilet/explorer
 install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
