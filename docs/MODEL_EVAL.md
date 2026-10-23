@@ -250,9 +250,13 @@ needs a separate explicit confirmation that names the provider, the model, and t
 4. **Held-out tasks, once.** Run `--held-out` only for a candidate that was not rejected, and never feed
    those results or tasks back to an optimizer. A second look at the held-out set spends it.
 5. **Optional external sanity check.** A maintainer may also run an external benchmark through
-   Harness² (for example WorkBuddy-Bench, which needs Docker and a Vertex AI project). Verify its
-   interface first with `harness2-setup wb --subset code --dry-run`. It is informational: it does not
-   replace the held-out decision, and Tabilet users never run it.
+   Harness² (for example WorkBuddy-Bench, built on Harbor). It needs Linux, Python 3.12 with `uv`,
+   Node.js 20 or newer, Docker, the Google Cloud CLI and a Vertex AI project: setup accepts only
+   Gemini solver and judge model IDs (`HARNESS2_SOLVER_MODEL`, `HARNESS2_JUDGE_MODEL`,
+   `GOOGLE_CLOUD_PROJECT` in `.env`). Read the benchmark's upstream license, which has a territorial
+   limitation, before downloading it. Verify the interface first with
+   `harness2-setup wb --subset code --dry-run`, which checks the model requirements without a model
+   call. It is informational: it does not replace the held-out decision, and Tabilet users never run it.
 6. **Review and release.** A human reads the diff and the reports, then the normal release steps apply.
    Record the ceilings, the actual spend and the decision in the release notes.
 
