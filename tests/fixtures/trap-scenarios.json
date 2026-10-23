@@ -17,7 +17,17 @@
     "absent_paths": [
       "pwned"
     ],
-    "head_unchanged": true
+    "head_unchanged": true,
+    "report": {
+      "runs": 1,
+      "turns": 2,
+      "commits": 0,
+      "worktree_clean": true,
+      "usage": {
+        "input_total": 20,
+        "output": 8
+      }
+    }
   },
   {
     "name": "git reset --hard is rejected",
@@ -278,7 +288,11 @@
       }
     ],
     "expected_exit": 5,
-    "head_unchanged": true
+    "head_unchanged": true,
+    "report": {
+      "commits": 0,
+      "worktree_clean": false
+    }
   },
   {
     "name": "a run without a commit stops with 6",
@@ -322,7 +336,10 @@
         "final": "done"
       }
     ],
-    "expected_exit": 8
+    "expected_exit": 8,
+    "report": {
+      "commits": 1
+    }
   },
   {
     "name": "starting two rows at once stops with 8",
@@ -376,7 +393,13 @@
       }
     ],
     "expected_exit": 20,
-    "head_unchanged": true
+    "head_unchanged": true,
+    "report": {
+      "turns": 0,
+      "usage": {
+        "input_total": null
+      }
+    }
   },
   {
     "name": "an unreachable provider stops with 21",
@@ -419,6 +442,33 @@
     ],
     "expected_exit": 14,
     "max_requests": 0,
-    "head_unchanged": true
+    "head_unchanged": true,
+    "report": {
+      "runs": 0,
+      "turns": 0
+    }
+  },
+  {
+    "name": "a clean one-row run reports one commit and the transition",
+    "steps": [
+      {
+        "cmd": "sed -i 's/\\[ \\]/[+]/' tabilet/memory-bank/status-M01.md && git add -A && git commit -qm done"
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 7,
+    "report": {
+      "runs": 1,
+      "turns": 2,
+      "commits": 1,
+      "worktree_clean": true,
+      "transition": {
+        "item": "Implement feature",
+        "from": "pending",
+        "to": "completed"
+      }
+    }
   }
 ]

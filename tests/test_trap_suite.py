@@ -41,7 +41,8 @@ class TrapSuiteTests(unittest.TestCase):
             if "rows" in scenario:
                 write_rows(repo, scenario["rows"])
             before = h.run("git", "rev-parse", "HEAD", cwd=repo).stdout.strip()
-            env = h.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1",
+            report_path = pathlib.Path(tmp) / "report.jsonl"
+            env = h.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1", RUN_REPORT=str(report_path),
                                 LLM_API_BASE="http://127.0.0.1:1/v1" if scenario.get("api") == "closed" else base)
             for key, value in scenario.get("env", {}).items():
                 if value is None:
@@ -53,6 +54,16 @@ class TrapSuiteTests(unittest.TestCase):
             results = tool_results(handler.requests)
 
             self.assertEqual(proc.returncode, scenario["expected_exit"], proc.stdout + proc.stderr)
+            lines = report_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 1, lines)
+            report = json.loads(lines[0])
+            self.assertEqual(report["schema"], "tabilet.run-report/v1")
+            self.assertEqual(report["exit_code"], scenario["expected_exit"])
+            for key, expected in scenario.get("report", {}).items():
+                actual = report[key]
+                if isinstance(expected, dict):
+                    actual = {k: actual.get(k) for k in expected}
+                self.assertEqual(actual, expected, key)
             for text in scenario.get("tool_result_contains", []):
                 self.assertIn(text, results)
             for text in scenario.get("tool_result_absent", []):
@@ -70,6 +81,18 @@ class TrapSuiteTests(unittest.TestCase):
         for scenario in scenarios:
             with self.subTest(scenario["name"]):
                 self.run_scenario(scenario)
+
+    def test_report_is_opt_in_and_best_effort(self) -> None:
+        for label, report_env in (("unset", None), ("relative", "report.jsonl")):
+            with self.subTest(label), tempfile.TemporaryDirectory() as tmp, h.fake_api(responses([{"final": "done"}])) as (base, _):
+                repo = h.make_repo(pathlib.Path(tmp) / "repo")
+                env = h.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1", LLM_API_BASE=base)
+                if report_env:
+                    env["RUN_REPORT"] = report_env
+                proc = h.run(sys.executable, str(h.HARNESS), str(repo), cwd=pathlib.Path(tmp), env=env)
+                self.assertEqual(proc.returncode, 6, proc.stdout + proc.stderr)
+                self.assertEqual(list(pathlib.Path(tmp).glob("*.jsonl")), [])
+                self.assertEqual("RUN_REPORT not written" in proc.stderr, report_env is not None)
 
 
 if __name__ == "__main__":

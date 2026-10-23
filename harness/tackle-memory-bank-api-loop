@@ -1530,6 +1530,56 @@ class UsageTotals:
                 self.values[name] = (self.values[name] or 0) + value
 
 
+RUN_REPORT_SCHEMA = "tabilet.run-report/v1"
+RUN_STATE: dict = {
+    "started": time.time(),
+    "runs": 0,
+    "repo": None,
+    "before": None,
+    "provider": None,
+    "model": None,
+    "transition": None,
+    "totals": UsageTotals(),
+}
+
+
+def write_run_report(exit_code: int) -> None:
+    """Append one JSON line about this invocation when RUN_REPORT names an absolute file.
+
+    Opt-in and best effort: a failure here prints a warning and never changes the exit code.
+    """
+    path = os.environ.get("RUN_REPORT", "")
+    if not path:
+        return
+    try:
+        if not os.path.isabs(path):
+            raise ValueError("RUN_REPORT must be an absolute path")
+        totals = RUN_STATE["totals"]
+        report = {
+            "schema": RUN_REPORT_SCHEMA,
+            "exit_code": exit_code,
+            "runs": RUN_STATE["runs"],
+            "turns": totals.turns,
+            "usage": dict(totals.values),
+            "duration_sec": round(time.time() - RUN_STATE["started"], 3),
+            "provider": RUN_STATE["provider"],
+            "model": RUN_STATE["model"],
+            "transition": RUN_STATE["transition"],
+            "commits": None,
+            "worktree_clean": None,
+        }
+        repo, before = RUN_STATE["repo"], RUN_STATE["before"]
+        if repo is not None and before:
+            counted = git_local(["rev-list", "--count", f"{before}..HEAD"], repo)
+            if counted.returncode == 0 and counted.stdout.strip().isdigit():
+                report["commits"] = int(counted.stdout.strip())
+            report["worktree_clean"] = git_clean(repo)
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(report, sort_keys=True) + "\n")
+    except Exception as exc:
+        print(f"RUN_REPORT not written: {type(exc).__name__}: {exc}", file=sys.stderr)
+
+
 def call_openai(
     api_base: str,
     api_key: str,
@@ -2316,6 +2366,7 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
     print(f"Provider: {args.provider}")
     print(f"Model: {args.model}")
     print(f"API: {args.api_base.rstrip('/')}{endpoint}")
+    RUN_STATE.update(repo=repo, provider=args.provider, model=args.model)
 
     for run in range(1, args.max_runs + 1):
         try:
@@ -2397,6 +2448,8 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
 
         before = git_head(repo)
         before_branch = git_branch(repo)
+        RUN_STATE["before"] = RUN_STATE["before"] or before
+        RUN_STATE["runs"] += 1
         audit = AuditRun(
             args,
             repo,
@@ -2424,9 +2477,14 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
             )
             print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
             started = time.time()
+
+            def observe_usage(normalized):
+                RUN_STATE["totals"].add(normalized)
+                audit.add_usage(normalized)
+
             try:
                 run_result = one_agent_run(
-                    args, repo, run, summary, in_progress, after_model_response=audit.add_usage,
+                    args, repo, run, summary, in_progress, after_model_response=observe_usage,
                 )
             except KeyboardInterrupt:
                 audit.emit("run_interrupted", details={"reason": "keyboard interrupt"})
@@ -2455,6 +2513,8 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
             )
             transition = candidate
             transition_recorded = False
+            if transition:
+                RUN_STATE["transition"] = {"item": transition[0][1], "from": transition[1], "to": transition[2]}
 
             def record_transition():
                 nonlocal transition_recorded
@@ -2538,11 +2598,17 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
 
 
 if __name__ == "__main__":
+    exit_code = 0
     try:
         main()
-    except SystemExit:
+    except SystemExit as exc:
+        exit_code = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
         raise
     except KeyboardInterrupt:
+        exit_code = 130
         raise SystemExit(130)
     except Exception as exc:
+        exit_code = 1
         fail(f"Unexpected harness failure: {type(exc).__name__}: {exc}", 1)
+    finally:
+        write_run_report(exit_code)
