@@ -232,6 +232,30 @@ model call or provider settings. A candidate is rejected when it selects fewer c
 activates a skill on more negative prompts than the baseline, beyond `--allowed-regressions`.
 Provider settings are the runner's own (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_BASE`, API key).
 
+## Paid Runs
+
+Paid runs are the last step, after every credential-free gate passes: `python3 check.py`
+(including the trap suite and the eval-runner tests) and `python3 check.py --optimizer-gate
+<base-ref>`. They are run by a maintainer, never in CI or on a pull request, and each step below
+needs a separate explicit confirmation that names the provider, the model, and the ceilings.
+
+1. **Plan the cost.** `catalog_probe.py --dry-run` prints the exact call count. For the eval runner,
+   estimate tasks x repeats x 2 refs x the task `max_turns`, and set `--max-calls` and `--max-tokens`
+   below that; the ceilings are checked between trials, so allow one trial of overshoot.
+2. **Measure the noise floor.** Run the probe and the eval runner with the same ref as baseline and
+   candidate. Any task that passes sometimes and fails sometimes is flaky; raise `--repeats` before
+   trusting a difference smaller than that noise.
+3. **Catalog probe, then dev tasks.** Probe baseline against the candidate, then run the eval runner on
+   the dev tasks inside a disposable sandbox, with reports written outside the checkout.
+4. **Held-out tasks, once.** Run `--held-out` only for a candidate that was not rejected, and never feed
+   those results or tasks back to an optimizer. A second look at the held-out set spends it.
+5. **Optional external sanity check.** A maintainer may also run an external benchmark through
+   Harness² (for example WorkBuddy-Bench, which needs Docker and a Vertex AI project). Verify its
+   interface first with `harness2-setup wb --subset code --dry-run`. It is informational: it does not
+   replace the held-out decision, and Tabilet users never run it.
+6. **Review and release.** A human reads the diff and the reports, then the normal release steps apply.
+   Record the ceilings, the actual spend and the decision in the release notes.
+
 ## Promotion Rules
 
 Before promoting a new model, prompt, or agent workflow, define:
