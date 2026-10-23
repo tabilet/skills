@@ -180,6 +180,38 @@ Human review of the diff stays required, and promotion still follows the rules
 below. Widening the editable surface is a reviewed change to `check.py`, never
 part of an optimizer candidate.
 
+## Eval Runner
+
+`evals/run_eval.py` is the repository-only tool that compares two refs on the same tasks. It is
+not installed and users never run it.
+
+```bash
+python3 evals/run_eval.py --baseline <ref> --candidate <ref|WORKTREE> \
+  --report-dir /outside/the/checkout --max-calls 300 --max-tokens 2000000 \
+  --repeats 3 --allow-unsandboxed-shell
+```
+
+- **Trials.** For each task and repeat, each ref gets a scratch project built from that ref's
+  `template/` plus the task's overlay under `evals/tasks/<name>/project/`, runs that ref's
+  runner once with `RUN_REPORT`, then runs the task's `verify` command. An overlay may not
+  contain `tabilet/memory-bank/tech-stack.md`: the ref's own template is what is measured.
+- **Tasks.** Tasks are `capability` or `trap`. Dev tasks drive optimization; `held_out` tasks
+  are run with `--held-out` only to decide promotion and must never be shown to an optimizer.
+- **Decision**, in order: any candidate trap failure rejects; fewer clean one-commit runs rejects;
+  more tasks passed less often than `--allowed-regressions` rejects; an improvement (more passes,
+  or at least `--min-gain-percent` fewer turns and tokens on paired passes) is only claimed with
+  at least `--min-repeats` repeats and is otherwise inconclusive; else no difference.
+- **Spend.** `--max-calls` and `--max-tokens` are required and checked between trials, so one
+  trial can overshoot. The runner executes model-chosen host commands, so the tool needs
+  `--allow-unsandboxed-shell` (or `ALLOW_UNSANDBOXED_SHELL=1`) and belongs in a disposable sandbox.
+- **Output.** `eval-report.json` and `eval-report.md` list what changed, aggregates, improved,
+  regressed and flaky tasks, cost, tokens the provider did not report, and the decision. Exit
+  codes: `0` promote or no difference, `1` reject, `2` setup error, `3` inconclusive.
+
+`tests/test_eval_runner.py` drives it with a scripted fake provider, so the decision logic is
+tested without credentials. The eval exercises the runner and the template files; the
+catalog-selection probe covers skill descriptions separately.
+
 ## Promotion Rules
 
 Before promoting a new model, prompt, or agent workflow, define:

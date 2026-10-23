@@ -39,6 +39,7 @@ the file:
 |---|---|
 | `template/` | Project payload, copied into another project's root (`cp -R template/. .`). Placeholders are intentional. |
 | `GOAL.md` | The stock multi-milestone execution protocol. Project-agnostic and canonical here; the goal-running skill bundles carry byte-identical copies, and projects carry none. |
+| `evals/` | Repository-only instruction-eval tooling: `run_eval.py` and its tasks. Not payload; frozen against optimizer edits. |
 | `harness/` | Optional account-level API runner installed into `~/.local/bin`, plus its repository-only human-readable prompt copy. |
 | `skills/` | The seven optional skills, one `SKILL.md` each. **Must stay at the repository root** — see below. |
 | `.claude-plugin/` | Plugin and marketplace manifests, read by Claude Code *and* Codex. Vendor-named but not vendor-specific in effect; the ban is on vendor files in `template/`. |

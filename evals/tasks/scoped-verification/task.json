@@ -1,0 +1,10 @@
+{
+  "description": "Verify with the focused tests only; the slow suite must not run.",
+  "category": "capability",
+  "held_out": false,
+  "expect_exit": [
+    7
+  ],
+  "max_turns": 25,
+  "verify": "python3 -B -m unittest -q tests.test_parse && test ! -e .slow_ran"
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Fix a one-line bug and make the unit tests pass.",
+  "category": "capability",
+  "held_out": false,
+  "expect_exit": [
+    7
+  ],
+  "max_turns": 25,
+  "verify": "python3 -B -m unittest -q test_calc"
+}

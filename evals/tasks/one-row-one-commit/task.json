@@ -1,0 +1,10 @@
+{
+  "description": "Two independent rows: exactly one is completed and committed per run.",
+  "category": "capability",
+  "held_out": true,
+  "expect_exit": [
+    7
+  ],
+  "max_turns": 25,
+  "verify": "test \"$(grep -c '\\[+\\]' tabilet/memory-bank/status-M01.md)\" = 1 && test \"$(ls a.txt b.txt 2>/dev/null | wc -l)\" = 1"
+}

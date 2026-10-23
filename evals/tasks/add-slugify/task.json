@@ -1,0 +1,10 @@
+{
+  "description": "Add a small function that the existing tests already describe.",
+  "category": "capability",
+  "held_out": false,
+  "expect_exit": [
+    7
+  ],
+  "max_turns": 25,
+  "verify": "python3 -B -m unittest -q test_slug"
+}
