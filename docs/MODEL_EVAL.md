@@ -212,6 +212,26 @@ python3 evals/run_eval.py --baseline <ref> --candidate <ref|WORKTREE> \
 tested without credentials. The eval exercises the runner and the template files; the
 catalog-selection probe covers skill descriptions separately.
 
+## Catalog Probe
+
+`evals/catalog_probe.py` measures the one `SKILL.md` field the optimizer gate allows an automated
+edit to change, the frontmatter `description`. It builds the skill catalog (names and descriptions)
+at two refs, sends each prompt in `evals/catalog-prompts.json` (one positive request per command and
+nearby explanation, status and ordinary coding requests that should select nothing), and compares
+selections. It does not prove runtime invocation or workflow acceptance.
+
+```bash
+python3 evals/catalog_probe.py --baseline <ref> --candidate <ref|WORKTREE> --max-calls 60 --dry-run
+python3 evals/catalog_probe.py --baseline <ref> --candidate WORKTREE --max-calls 60 \
+  --report-dir /outside/the/checkout
+```
+
+Cost is exact: prompts x repeats x 2 refs model calls, and the tool refuses to start when that
+exceeds the required `--max-calls`. `--dry-run` prints the plan and the changed descriptions without a
+model call or provider settings. A candidate is rejected when it selects fewer correct skills or
+activates a skill on more negative prompts than the baseline, beyond `--allowed-regressions`.
+Provider settings are the runner's own (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_BASE`, API key).
+
 ## Promotion Rules
 
 Before promoting a new model, prompt, or agent workflow, define:

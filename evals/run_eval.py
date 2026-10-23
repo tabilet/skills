@@ -70,11 +70,12 @@ def git(*args: str, cwd: pathlib.Path = ROOT, check: bool = True) -> subprocess.
     return proc
 
 
-def materialize_ref(ref: str, dest: pathlib.Path) -> pathlib.Path:
-    """Return a tree holding the ref's template/ and harness/. WORKTREE uses the checkout as is."""
+def materialize_ref(ref: str, dest: pathlib.Path, paths: tuple[str, ...] = ("template", "harness"),
+                    repo: pathlib.Path = ROOT) -> pathlib.Path:
+    """Return a tree holding the ref's `paths`. WORKTREE uses the repository as is."""
     if ref == WORKTREE:
-        return ROOT
-    archive = git("archive", "--format=tar", ref, "template", "harness").stdout
+        return repo
+    archive = git("archive", "--format=tar", ref, *paths, cwd=repo).stdout
     dest.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         if hasattr(tarfile, "data_filter"):

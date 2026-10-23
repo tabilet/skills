@@ -1,0 +1,58 @@
+[
+  {
+    "prompt": "This service has twelve packages and no docs. Capture a frozen snapshot of the existing architecture facts before we plan anything.",
+    "expect": "memory-bank-archive"
+  },
+  {
+    "prompt": "Run all the remaining milestones in order, M01 then S01 then A01, committing after each row until everything is done.",
+    "expect": "memory-bank-goal"
+  },
+  {
+    "prompt": "We have a new repo with no milestone or status files yet. Set up the memory bank and plan the first milestones with me.",
+    "expect": "memory-bank-init"
+  },
+  {
+    "prompt": "Tackle the next pending item in the memory bank and commit it.",
+    "expect": "memory-bank-next"
+  },
+  {
+    "prompt": "Add a CSV export feature to the plan: draft the new milestone and rows for my approval, but do not implement it.",
+    "expect": "memory-bank-propose"
+  },
+  {
+    "prompt": "Here is an engineering review of milestone M02 with nine findings. Turn the valid ones into planning changes.",
+    "expect": "memory-bank-reconcile"
+  },
+  {
+    "prompt": "I installed newer skills. Update this project's workflow rules without losing our milestones, local policies or history.",
+    "expect": "memory-bank-upgrade"
+  },
+  {
+    "prompt": "Explain what the status markers [~] and [!] mean in a status file.",
+    "expect": null
+  },
+  {
+    "prompt": "Which rows of milestone M02 are still pending right now?",
+    "expect": null
+  },
+  {
+    "prompt": "Write a Python function that converts a list of dicts to CSV.",
+    "expect": null
+  },
+  {
+    "prompt": "Review my pull request for security bugs.",
+    "expect": null
+  },
+  {
+    "prompt": "Write a README for this library.",
+    "expect": null
+  },
+  {
+    "prompt": "Why did the last test run fail? Here is the traceback: KeyError: 'id' in orders.py line 41.",
+    "expect": null
+  },
+  {
+    "prompt": "Summarize in two sentences what the memory-bank-goal skill does.",
+    "expect": null
+  }
+]
