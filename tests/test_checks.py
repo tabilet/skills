@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 import re
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -578,6 +579,71 @@ class CheckHelperTests(unittest.TestCase):
                 repository_checks.anchors(path),
                 {"real-heading", "real-bridge"},
             )
+
+
+class OptimizerGateTests(unittest.TestCase):
+    FILES = {
+        "GOAL.md": "# Protocol\n",
+        "check.py": "print('checks')\n",
+        "tests/test_x.py": "pass\n",
+        "docs/guide.md": "# Guide\n",
+        "template/tabilet/memory-bank/tech-stack.md": "# Tech stack\n",
+        "skills/memory-bank-next/SKILL.md": (
+            "---\nname: memory-bank-next\ndescription: Run one task.\n"
+            "argument-hint: \"[--email ADDRESS]\"\n---\n\nBody rule.\n"
+        ),
+    }
+
+    def gate(self, edits: dict[str, str | None]) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative, text in self.FILES.items():
+                (fixture / relative).parent.mkdir(parents=True, exist_ok=True)
+                (fixture / relative).write_text(text)
+            git = lambda *args: subprocess.run(["git", *args], cwd=fixture, check=True, capture_output=True)
+            git("init", "-q")
+            git("add", "-A")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+            for relative, text in edits.items():
+                target = fixture / relative
+                if text is None:
+                    target.unlink()
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text(text)
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                return repository_checks.optimizer_gate_problems("HEAD")
+
+    def test_editable_surface_passes(self) -> None:
+        self.assertEqual([], self.gate({}))
+        self.assertEqual([], self.gate({"template/tabilet/memory-bank/tech-stack.md": "# Tech stack\nFocused tests first.\n"}))
+        skill = self.FILES["skills/memory-bank-next/SKILL.md"].replace("Run one task.", "Implement one task.")
+        self.assertEqual([], self.gate({"skills/memory-bank-next/SKILL.md": skill}))
+
+    def test_rejections_name_the_path(self) -> None:
+        skill = self.FILES["skills/memory-bank-next/SKILL.md"]
+        for edits, path, reason in (
+            ({"GOAL.md": "# Weaker\n"}, "GOAL.md", "frozen surface"),
+            ({"check.py": "pass\n"}, "check.py", "frozen surface"),
+            ({"tests/test_x.py": "skip\n"}, "tests/test_x.py", "frozen surface"),
+            ({"tests/new_test.py": "skip\n"}, "tests/new_test.py", "frozen surface"),
+            ({"docs/guide.md": "# Changed\n"}, "docs/guide.md", "not on the optimizer's editable surface"),
+            ({"skills/memory-bank-next/SKILL.md": skill.replace("Body rule.", "Body rule, unless hurried.")},
+             "skills/memory-bank-next/SKILL.md", "only the frontmatter description may change"),
+            ({"skills/memory-bank-next/SKILL.md": skill.replace("[--email ADDRESS]", "[--fast]")},
+             "skills/memory-bank-next/SKILL.md", "only the frontmatter description may change"),
+            ({"skills/memory-bank-new/SKILL.md": skill}, "skills/memory-bank-new/SKILL.md", "may not add or remove skills"),
+            ({"template/tabilet/memory-bank/tech-stack.md": None},
+             "template/tabilet/memory-bank/tech-stack.md", "may not delete it"),
+        ):
+            with self.subTest(path=path, reason=reason):
+                problems = self.gate(edits)
+                self.assertEqual(1, len(problems), problems)
+                self.assertTrue(problems[0].startswith(path + ":") and reason in problems[0], problems)
+
+    def test_unknown_base_is_rejected(self) -> None:
+        with mock.patch.object(repository_checks, "ROOT", ROOT):
+            self.assertEqual(["no-such-ref: not a commit"], repository_checks.optimizer_gate_problems("no-such-ref"))
 
 
 if __name__ == "__main__":

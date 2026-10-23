@@ -3157,6 +3157,87 @@ def v213_contract():
     return problems
 
 
+# --------------------------------------------------------------------------
+# Optimizer candidates. `--optimizer-gate BASE` accepts a candidate from an
+# automated instruction optimizer only if every path changed since BASE is on
+# this allow-list, and then runs every check above. Frozen paths win over
+# editable ones. The gate is structural: it keeps frozen files and pinned
+# phrases intact, but cannot see a weakening worded around the pins, so a
+# human still reviews every candidate.
+# --------------------------------------------------------------------------
+OPTIMIZER_EDITABLE = (
+    "template/tabilet/memory-bank/tech-stack.md",
+    "skills/memory-bank-upgrade/assets/template/tabilet/memory-bank/tech-stack.md",
+    "skills/*/references/testing-profiles.md",
+)
+# Only the frontmatter `description` line of these may change.
+OPTIMIZER_DESCRIPTION_ONLY = ("skills/*/SKILL.md",)
+OPTIMIZER_FROZEN = (
+    "GOAL.md", "skills/*/GOAL.md", "skills/*/goal-protocol.json",
+    "AGENTS.md", "CLAUDE.md", "template/AGENTS.md",
+    "skills/memory-bank-upgrade/assets/template/AGENTS.md",
+    "check.py", "harness/**", "tests/**", ".claude-plugin/**", ".github/**",
+)
+DESCRIPTION_LINE_RE = re.compile(r"^description:.*\n(?:[ \t]+.*\n)*", re.M)
+
+
+def optimizer_pattern_matches(pattern: str, path: str) -> bool:
+    regex = "".join(".*" if part == "**" else re.escape(part).replace(r"\*", "[^/]*")
+                    for part in re.split(r"(\*\*)", pattern))
+    return re.fullmatch(regex, path) is not None
+
+
+def without_description(text: str) -> str | None:
+    match = re.match(r"^---\n(.*?\n)---\n", text, re.S)
+    if not match or not DESCRIPTION_LINE_RE.search(match.group(1)):
+        return None
+    return DESCRIPTION_LINE_RE.sub("", match.group(1), count=1) + text[match.end():]
+
+
+def optimizer_gate_problems(base: str) -> list[str]:
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True)
+
+    if git("rev-parse", "--verify", "--quiet", f"{base}^{{commit}}").returncode:
+        return [f"{base}: not a commit"]
+    tracked = git("diff", "--name-only", "-z", "--no-renames", base, "--")
+    untracked = git("ls-files", "--others", "--exclude-standard", "-z")
+    if tracked.returncode or untracked.returncode:
+        return ["cannot list the candidate's changed paths"]
+    changed = sorted({p for p in (tracked.stdout + untracked.stdout).decode().split("\0") if p})
+    problems = []
+    for path in changed:
+        current = ROOT / path
+        if any(optimizer_pattern_matches(p, path) for p in OPTIMIZER_FROZEN):
+            problems.append(f"{path}: frozen surface; an optimizer may not change it")
+        elif any(optimizer_pattern_matches(p, path) for p in OPTIMIZER_DESCRIPTION_ONLY):
+            before = git("show", f"{base}:{path}")
+            if before.returncode or not current.is_file():
+                problems.append(f"{path}: an optimizer may not add or remove skills")
+                continue
+            old = without_description(before.stdout.decode())
+            new = without_description(current.read_text())
+            if old is None or new is None or old != new:
+                problems.append(f"{path}: only the frontmatter description may change")
+        elif any(optimizer_pattern_matches(p, path) for p in OPTIMIZER_EDITABLE):
+            if not current.is_file():
+                problems.append(f"{path}: editable, but an optimizer may not delete it")
+        else:
+            problems.append(f"{path}: not on the optimizer's editable surface")
+    return problems
+
+
+def optimizer_gate(base: str) -> int:
+    problems = optimizer_gate_problems(base)
+    print(f"Optimizer gate against {base}: {'PASS' if not problems else 'FAIL'}")
+    for problem in problems:
+        print(f"          {problem}")
+    if problems:
+        return 1
+    print()
+    return main()
+
+
 def main() -> int:
     print(f"Checking {ROOT}\n")
     failures = 0
@@ -3182,4 +3263,6 @@ if __name__ == "__main__":
     sys.dont_write_bytecode = True
     if sys.argv[1:] == ["--sync-goal-protocol"]:
         raise SystemExit(sync_goal_protocol())
+    if len(sys.argv) == 3 and sys.argv[1] == "--optimizer-gate":
+        raise SystemExit(optimizer_gate(sys.argv[2]))
     raise SystemExit(main())
