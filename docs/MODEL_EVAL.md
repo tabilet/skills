@@ -234,6 +234,10 @@ activates a skill on more negative prompts than the baseline, beyond `--allowed-
 An improvement needs a net gain of at least `--min-gain` trials (default 2): in a baseline-versus-baseline
 run on 34 prompts, one unstable negative prompt moved false activations from 4 to 3, which is noise and
 not a gain. Measure that floor with the same ref on both sides before trusting a small difference.
+On the 34 shipped prompts at 2 repeats, `claude-haiku-5-5` selected all 34 positives correctly with no false
+activations, while `deepseek-flash` falsely selected `memory-bank-next` on three or four negative prompts.
+The description is therefore not a defect for Haiku; a model-specific miss is not by itself a reason to
+reword a shipped description.
 Provider settings are the runner's own (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_BASE`, API key).
 
 ## Paid Runs
