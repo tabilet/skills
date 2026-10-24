@@ -38,6 +38,25 @@ Changes in this release:
 - The Simplified Chinese goal guide again states that a changed scope needs
   fresh approval.
 
+Also in this release, all optional and off by default:
+
+- Offline milestone reflection: `tabilet-audit reflect` drafts suggested edits to
+  `tech-stack.md` and `lessons.md` from a milestone's recorded runs, and
+  `OPTIMIZE_POLICY` / `--optimize confirm|auto` runs it when a goal milestone
+  closes. It needs auditing enabled and `tabilet_reflect.py` installed, spends at
+  most 10% of the milestone's recorded time, and a report made without a model
+  proposes no edits. The proposal is written to a Git-ignored path that
+  `tabilet-audit audit enable` sets up; rerun it on a project enabled earlier.
+  `reflect --check` lists the model backends it found. Agent CLI backends run from a
+  temporary directory, and `--probe` starts only a project test runner.
+- `--format trajectories` exports per-task trajectories to an explicit path outside
+  the project or Git-ignored.
+- `RUN_REPORT` makes the API runner append one JSON line per invocation to an
+  absolute path outside the repository.
+- The runner's dangerous-command filter also blocks `git checkout --`, its long
+  options and `-f`, and `rm -rf` of `~/*`, `$HOME/*`, `"$HOME"` and `${HOME}/*`; a
+  credential-free trap suite pins each case.
+
 The stock goal protocol changed, so `GOAL_IDENTITY` records a new hash and
 paused goals pause for approval at resume under the existing rules. The
 v2.13.2 and v2.13.3 tags are kept at their original commits.
