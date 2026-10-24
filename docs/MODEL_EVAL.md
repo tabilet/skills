@@ -340,7 +340,10 @@ needs a separate explicit confirmation that names the provider, the model, and t
    `GOOGLE_CLOUD_PROJECT` in `.env`). Read the benchmark's upstream license, which has a territorial
    limitation, before downloading it. Verify the interface first with
    `harness2-setup wb --subset code --dry-run`, which checks the model requirements without a model
-   call. It is informational: it does not replace the held-out decision, and Tabilet users never run it.
+   call. Harness² edits and scores the benchmark's own agent harness; nothing here feeds it Tabilet's
+   instruction text, so a run says nothing about a Tabilet candidate until a maintainer writes that adapter.
+   The benchmark's license excludes use within the European Union. It is informational: it does not replace
+   the held-out decision, and Tabilet users never run it.
 6. **Review and release.** A human reads the diff and the reports, then the normal release steps apply.
    Record the ceilings, the actual spend and the decision in the release notes.
 
