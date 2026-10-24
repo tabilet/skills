@@ -24,9 +24,10 @@ SKILLS = {
     "gamma-skill": ("gamma grape ritual", "gamma grape ritual"),
 }
 PROMPTS = [
-    {"prompt": "please run the alpha apple procedure", "expect": "alpha-skill"},
-    {"prompt": "do the gamma grape ritual now", "expect": "gamma-skill"},
-    {"prompt": "what is the weather", "expect": None},
+    {"prompt": "please run the alpha apple procedure", "expect": "alpha-skill", "held_out": False},
+    {"prompt": "do the gamma grape ritual now", "expect": "gamma-skill", "held_out": False},
+    {"prompt": "what is the weather", "expect": None, "held_out": False},
+    {"prompt": "now run the alpha apple procedure again", "expect": "alpha-skill", "held_out": True},
 ]
 
 
@@ -160,11 +161,45 @@ class CatalogProbeTests(unittest.TestCase):
 
     def test_shipped_prompts_cover_every_skill_and_include_negatives(self):
         catalog = probe.build_catalog(ROOT)
-        cases = probe.load_prompts(probe.PROMPTS, set(catalog))
+        cases = probe.load_prompts(probe.PROMPTS, set(catalog)) + probe.load_prompts(probe.PROMPTS, set(catalog), held_out=True)
         self.assertEqual({c["expect"] for c in cases if c["expect"]}, set(catalog))
         self.assertGreaterEqual(sum(c["expect"] is None for c in cases), 5)
         self.assertEqual(len(catalog), 7)
 
+    def test_held_out_and_dev_prompt_split(self):
+        catalog = probe.build_catalog(ROOT)
+        dev_cases = probe.load_prompts(probe.PROMPTS, set(catalog), held_out=False)
+        held_out_cases = probe.load_prompts(probe.PROMPTS, set(catalog), held_out=True)
+        self.assertEqual(len(dev_cases) + len(held_out_cases), 34)
+        self.assertEqual(len(dev_cases), 22)
+        self.assertEqual(len(held_out_cases), 12)
+        self.assertEqual({c["expect"] for c in dev_cases if c["expect"]}, set(catalog))
+        self.assertEqual({c["expect"] for c in held_out_cases if c["expect"]}, set(catalog))
+
+
+    def test_report_records_the_split_and_each_trial_carries_it(self):
+        self.run_probe("--max-calls", "100")
+        dev = self.report()
+        self.assertEqual(dev["prompts"], "dev")
+        self.assertEqual({t["held_out"] for t in dev["trials"]}, {False})
+        self.assertEqual(len(dev["trials"]), 6)
+        self.run_probe("--max-calls", "100", "--held-out")
+        held = self.report()
+        self.assertEqual(held["prompts"], "held-out")
+        self.assertEqual({t["held_out"] for t in held["trials"]}, {True})
+        self.assertEqual(len(held["trials"]), 2)
+        self.assertIn("Prompts: held-out.", (self.base / "out/catalog-report.md").read_text())
+
+    def test_all_prompts_flag_is_gone(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            probe.parse_args(["--baseline", "a", "--candidate", "b", "--max-calls", "1", "--all-prompts"])
+
+    def test_a_prompt_without_a_split_is_rejected(self):
+        for bad in ({"prompt": "x", "expect": None}, {"prompt": "x", "expect": None, "held_out": "no"}):
+            path = self.base / "bad.json"
+            path.write_text(json.dumps([bad]))
+            with self.assertRaises(probe.run_eval.EvalError):
+                probe.load_prompts(path, set())
 
 if __name__ == "__main__":
     unittest.main()

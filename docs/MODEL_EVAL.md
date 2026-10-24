@@ -216,14 +216,18 @@ catalog-selection probe covers skill descriptions separately.
 
 `evals/catalog_probe.py` measures the one `SKILL.md` field the optimizer gate allows an automated
 edit to change, the frontmatter `description`. It builds the skill catalog (names and descriptions)
-at two refs, sends each prompt in `evals/catalog-prompts.json` (one or two positive requests per
-command, some worded without the skill's own vocabulary, plus explanation, status, ordinary coding and
-nearby-vocabulary requests that should select nothing), and compares
-selections. It does not prove runtime invocation or workflow acceptance.
+at two refs, sends each prompt in `evals/catalog-prompts.json` (split into 22 dev prompts and 12 held-out
+prompts), and compares selections: every positive prompt should choose its skill, and no negative prompt
+should choose any. By default it runs the dev prompts; `--held-out` runs the held-out set, and every prompt
+must declare which it is. The report records the split (`"prompts": "dev"` or `"held-out"`, and `held_out`
+on each trial). The held-out prompts decide promotion and must never be shown to an optimizer. The probe
+does not prove runtime invocation or workflow acceptance.
 
 ```bash
 python3 evals/catalog_probe.py --baseline <ref> --candidate <ref|WORKTREE> --max-calls 60 --dry-run
-python3 evals/catalog_probe.py --baseline <ref> --candidate WORKTREE --max-calls 60 \
+python3 evals/catalog_probe.py --baseline <ref> --candidate WORKTREE --max-calls 44 \
+  --report-dir /outside/the/checkout
+python3 evals/catalog_probe.py --baseline <ref> --candidate WORKTREE --max-calls 24 --held-out \
   --report-dir /outside/the/checkout
 ```
 
@@ -333,7 +337,17 @@ needs a separate explicit confirmation that names the provider, the model, and t
    the dev tasks inside a disposable sandbox, with reports written outside the checkout.
 4. **Held-out tasks, once.** Run `--held-out` only for a candidate that was not rejected, and never feed
    those results or tasks back to an optimizer. A second look at the held-out set spends it.
-5. **Optional external sanity check.** A maintainer may also run an external benchmark through
+   `evals/propose_candidate.py` enforces this for descriptions: it refuses a catalog report that is not
+   from the dev prompts.
+5. **Optional proposal.** `evals/propose_candidate.py --catalog-report <dev catalog-report.json>` reads the
+   candidate's dev routing misses and makes exactly one model call, to the provider and model in the
+   runner's environment (`LLM_PROVIDER`, `LLM_MODEL`, and the key); it prints both before it calls and has
+   no fallback. It needs the same separate confirmation as any paid step, naming the provider, the model
+   and the one call. `--dry-run` prints the prompt without a call. `--apply` needs a clean worktree, writes
+   only frontmatter `description:` lines, runs `check.py --optimizer-gate`, and restores the previous file
+   bytes if the gate fails. Its output is a candidate: probe it against the baseline with the catalog
+   probe (step 3), then continue from there.
+6. **Optional external sanity check.** A maintainer may also run an external benchmark through
    Harness² (for example WorkBuddy-Bench, built on Harbor). It needs Linux, Python 3.12 with `uv`,
    Node.js 20 or newer, Docker, the Google Cloud CLI and a Vertex AI project: setup accepts only
    Gemini solver and judge model IDs (`HARNESS2_SOLVER_MODEL`, `HARNESS2_JUDGE_MODEL`,

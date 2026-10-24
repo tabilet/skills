@@ -3,7 +3,8 @@
 
 Repository-only tooling. It measures the one thing the optimizer gate lets an automated edit
 change in a SKILL.md, the frontmatter `description`. For two refs it builds the skill catalog,
-sends each prompt in evals/catalog-prompts.json, and compares selection: every positive prompt
+sends each dev prompt (or, with --held-out, each held-out prompt) in
+evals/catalog-prompts.json, and compares selection: every positive prompt
 should choose its skill, and no negative prompt should choose any. It does not prove runtime
 invocation or workflow acceptance. Cost is exact: prompts x repeats x 2 refs model calls, refused
 up front when that exceeds --max-calls. Provider settings come from the runner's own environment
@@ -57,14 +58,17 @@ def build_catalog(tree: pathlib.Path) -> dict[str, str]:
     return catalog
 
 
-def load_prompts(path: pathlib.Path, names: set[str]) -> list[dict]:
+def load_prompts(path: pathlib.Path, names: set[str], held_out: bool = False) -> list[dict]:
+    """The dev prompts, or the held-out prompts. Every prompt must declare which it is."""
     cases = json.loads(path.read_text(encoding="utf-8"))
     for index, case in enumerate(cases):
         if not isinstance(case.get("prompt"), str) or not case["prompt"].strip():
             raise run_eval.EvalError(f"prompt {index}: needs a non-empty prompt")
         if case.get("expect") is not None and case["expect"] not in names:
             raise run_eval.EvalError(f"prompt {index}: expects unknown skill {case['expect']!r}")
-    return cases
+        if not isinstance(case.get("held_out"), bool):
+            raise run_eval.EvalError(f"prompt {index}: needs a boolean held_out")
+    return [c for c in cases if c["held_out"] == held_out]
 
 
 def parse_choice(content: str, names: set[str]) -> tuple[str | None, bool]:
@@ -116,6 +120,7 @@ def decide(base: dict, cand: dict, allowed: int, min_gain: int = 2) -> dict:
 def render_markdown(report: dict) -> str:
     d = report["decision"]
     lines = [f"# Catalog probe: {d['decision']}", "",
+             f"Prompts: {report['prompts']}. "
              f"Baseline `{report['baseline']}` vs candidate `{report['candidate']}`; {report['repeats']} repeat(s); "
              f"{report['calls']} model call(s); tokens reported: {report['tokens']}.", ""]
     lines += [f"- {r}" for r in d["reasons"]]
@@ -141,6 +146,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--repeats", type=int, default=1)
     p.add_argument("--min-gain", type=int, default=2, help="net trial gain needed to claim an improvement")
     p.add_argument("--allowed-regressions", type=int, default=0, help="net trial losses tolerated")
+    p.add_argument("--held-out", action="store_true", help="run the held-out prompts instead of the dev prompts")
     p.add_argument("--prompts", type=pathlib.Path, default=PROMPTS)
     p.add_argument("--repo", type=pathlib.Path, default=ROOT, help="repository holding the refs (tests use a scratch one)")
     p.add_argument("--dry-run", action="store_true", help="print the catalogs and planned calls; no model call")
@@ -159,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         names = set(catalogs["baseline"]) | set(catalogs["candidate"])
         if not catalogs["baseline"] or not catalogs["candidate"]:
             raise run_eval.EvalError("a ref has no skills with a name and description")
-        cases = load_prompts(args.prompts, names)
+        cases = load_prompts(args.prompts, names, held_out=args.held_out)
         planned = len(cases) * args.repeats * len(ROLES)
         changed = sorted(n for n in names if catalogs["baseline"].get(n) != catalogs["candidate"].get(n))
         if planned > args.max_calls:
@@ -184,10 +190,12 @@ def main(argv: list[str] | None = None) -> int:
                     usage = runner.normalize_usage(llm.provider, response.get("usage"))
                     tokens += (usage.get("input_total") or 0) + (usage.get("output") or 0)
                     trials.append({"role": role, "repeat": repeat, "prompt": case["prompt"], "expect": case.get("expect"),
-                                   "chosen": chosen, "parsed": parsed})
+                                   "chosen": chosen, "parsed": parsed,
+                                   "held_out": case["held_out"]})
         scores = {role: score([t for t in trials if t["role"] == role]) for role in ROLES}
         decision = decide(scores["baseline"], scores["candidate"], args.allowed_regressions, args.min_gain)
-        report = {"schema": "tabilet.catalog-report/v1", "baseline": args.baseline, "candidate": args.candidate,
+        report = {"schema": "tabilet.catalog-report/v1", "prompts": "held-out" if args.held_out else "dev",
+                  "baseline": args.baseline, "candidate": args.candidate,
                   "repeats": args.repeats, "calls": len(trials), "tokens": tokens, "score": scores,
                   "decision": decision, "changed_descriptions": changed, "trials": trials}
         if args.report_dir:
