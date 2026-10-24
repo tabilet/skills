@@ -1,0 +1,17 @@
+{
+  "description": "Another writer takes M03 after the proposal: the write must recheck IDs and use a free one.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "Plan a command that exports all tasks to a CSV file. Use the columns id, title, done; overwrite an existing file; add no dependencies; expose it as a function export_csv(path) in src/tasklist.py. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1
+  },
+  "between": [
+    "printf '# Status M03 - Audit log\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Record audit events | `[ ]` | |\\n' > tabilet/memory-bank/status-M03.md && printf '| M03 | [status-M03.md](status-M03.md) | Audit log. |\\n' >> tabilet/memory-bank/milestone.md"
+  ]
+}

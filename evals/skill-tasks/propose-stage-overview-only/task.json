@@ -1,0 +1,17 @@
+{
+  "description": "A stage-only request writes tabilet/stages.md with stable STG IDs and creates no status file.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "--stages Record two later stages in the overview: Reporting (exports and summaries) and Sync (sharing between devices). These are direction only: do not plan any milestones or tasks for them. Show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 0,
+    "files_contain": {
+      "tabilet/stages.md": "STG-0[0-9]"
+    }
+  }
+}

@@ -264,6 +264,15 @@ Grading is deterministic and uses no model. A trial passes only when every hard 
 - `rows_preserved`: every earlier status row keeps its state.
 - `new_status`: the expected number of new `status-<LANE><NN>.md` files exists, none reuses an ID that is
   active or retired, every new row is pending, and each new ID appears in `milestone.md`.
+- `expected_files`: each file named in `expect.files_contain` exists and matches its pattern, for example
+  `tabilet/stages.md` containing a stable `STG-` ID.
+
+A task may also script an outside change with `between`: one shell command per reply, run in the project
+after the model's message and before the reply, to play another writer. The model is then judged against the
+project as that command left it, so a harder task can check that the write rechecks IDs and rows it did not
+make. The shipped tasks cover the approval gate, a new feature, a candidate promotion, a trap that asks for
+implementation, an ID taken by another writer, unfinished rows that must survive a reprioritising request, and
+a stage-only request.
 
 Spend and decisions work as in the Eval Runner: `--max-calls` and `--max-tokens` are required and checked
 between trials, `--allow-unsandboxed-shell` is required, and the paired decision, the instability guard and

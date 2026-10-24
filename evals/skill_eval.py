@@ -85,6 +85,19 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
     expect = task.get("expect")
     if not isinstance(expect, dict) or not isinstance(expect.get("new_status_files"), int) or expect["new_status_files"] < 0:
         problems.append("expect.new_status_files must be a non-negative integer")
+    contains = (expect or {}).get("files_contain", {}) if isinstance(expect, dict) else {}
+    if not isinstance(contains, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in contains.items()):
+        problems.append("expect.files_contain must map paths to regular expressions")
+    else:
+        for pattern in contains.values():
+            try:
+                re.compile(pattern)
+            except re.error:
+                problems.append(f"expect.files_contain has an invalid pattern {pattern!r}")
+    between = task.get("between")
+    if between is not None and (not isinstance(between, list) or len(between) != len(task.get("replies", []))
+                                or not all(c is None or (isinstance(c, str) and c.strip()) for c in between)):
+        problems.append("between must have one shell command or null per reply")
     if not isinstance(task.get("allowed_paths"), list) or not task["allowed_paths"]:
         problems.append("allowed_paths must be a non-empty list")
     project = task["dir"] / "project"
@@ -142,26 +155,30 @@ def read_rows(runner, project: pathlib.Path, files: dict) -> dict[tuple[str, str
 
 
 def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows: dict,
-          checkpoints: list[dict], final: dict, finished: bool) -> tuple[list[str], dict]:
-    """Return (failed hard check names, soft facts). Pure given the snapshots and the final files."""
+          checkpoints: list[dict], final: dict, finished: bool, rebased: dict | None = None) -> tuple[list[str], dict]:
+    """Return (failed hard check names, soft facts). Pure given the snapshots and the final files.
+
+    `rebased` is the snapshot after a scripted outside change between replies (another writer);
+    the model is judged against it, while the approval gate is judged against the start."""
     failed: list[str] = []
     if not finished or not checkpoints:
         return ["finished"], {}
     if changed_paths(initial, checkpoints[0]) or checkpoints[0]["head"] != initial["head"]:
         failed.append("gate")
-    changes = changed_paths(initial, final)
+    base = rebased or initial
+    changes = changed_paths(base, final)
     if any(not path_allowed(p, task["allowed_paths"]) for p in changes):
         failed.append("planning_only")
-    if final["head"] != initial["head"]:
+    if final["head"] != base["head"]:
         failed.append("no_commit")
     if any(p.startswith(HISTORY) for p in changes):
         failed.append("history_frozen")
     final_rows = read_rows(runner, project, final["files"])
     if any(final_rows.get(key) != state for key, state in initial_rows.items()):
         failed.append("rows_preserved")
-    new_files = sorted(set(active_status_files(final["files"])) - set(active_status_files(initial["files"])))
+    new_files = sorted(set(active_status_files(final["files"])) - set(active_status_files(base["files"])))
     new_ids = [STATUS_NAME.search(n).group(1) for n in new_files]
-    reserved = status_ids(initial["files"])
+    reserved = status_ids(base["files"])
     problems = len(new_files) != task["expect"]["new_status_files"]
     problems = problems or any(i in reserved for i in new_ids)
     milestone = project / "tabilet/memory-bank/milestone.md"
@@ -171,6 +188,11 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         problems = problems or not rows or any(r["state"] != "pending" for r in rows) or new_id not in index
     if problems:
         failed.append("new_status")
+    for relative, pattern in task["expect"].get("files_contain", {}).items():
+        path = project / relative
+        if not path.is_file() or not re.search(pattern, path.read_text(encoding="utf-8")):
+            failed.append("expected_files")
+            break
     return failed, {"new_ids": new_ids, "changed": changes}
 
 
@@ -179,6 +201,7 @@ def converse(runner, llm, project: pathlib.Path, system: str, task: dict, budget
     messages = [{"role": "system", "content": system}, {"role": "user", "content": task["request"]}]
     replies = list(task["replies"])
     checkpoints, finals = [], []
+    rebased = None
     turns = tokens = 0
     tokens_known = True
     while True:
@@ -214,7 +237,12 @@ def converse(runner, llm, project: pathlib.Path, system: str, task: dict, budget
         finals.append(command["final"])
         if not replies:
             return {"finished": True, "checkpoints": checkpoints, "finals": finals, "turns": turns,
-                    "tokens": tokens, "tokens_known": tokens_known, "note": ""}
+                    "tokens": tokens, "tokens_known": tokens_known, "note": "", "rebased": rebased}
+        outside = (task.get("between") or [None] * len(task["replies"]))[len(task["replies"]) - len(replies)]
+        if outside:
+            subprocess.run(["bash", "-c", outside], cwd=project, capture_output=True, timeout=60)
+            rebased = snapshot(project)
+            rebased["rows"] = read_rows(runner, project, rebased["files"])
         messages.append({"role": "user", "content": replies.pop(0)})
 
 
@@ -253,7 +281,9 @@ def run_trial(runner, llm, tree: pathlib.Path, task: dict, role: str, repeat: in
         error = f"provider or runner failure (exit {exc.code})"
         outcome = {"finished": False, "checkpoints": [], "finals": [], "turns": 0, "tokens": 0, "tokens_known": False, "note": error}
     final = snapshot(project)
-    failed, facts = grade(task, runner, project, initial, initial_rows, outcome["checkpoints"], final, outcome["finished"])
+    rebased = outcome.get("rebased")
+    base_rows = rebased["rows"] if rebased else initial_rows
+    failed, facts = grade(task, runner, project, initial, base_rows, outcome["checkpoints"], final, outcome["finished"], rebased)
     return {"task": task["name"], "category": task["category"], "role": role, "repeat": repeat,
             "passed": not failed, "failed_checks": failed, "clean": None, "turns": outcome["turns"],
             "tokens": outcome["tokens"], "tokens_known": outcome["tokens_known"],

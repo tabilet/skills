@@ -24,12 +24,25 @@ STATUS = ("printf '# Status {id} - New\\n\\n| Item | State | Notes |\\n|---|---|
 APPROVED = "Approved. Use your stated defaults for any open question."
 
 
+STAGES = "printf '# Stages\\n\\n## STG-01 - Reporting\\n\\n## STG-02 - Sync\\n' > tabilet/stages.md"
+
+
 def write_script(task, behavior):
     """The shell command a scripted model runs to write its plan, or None when it writes nothing."""
     if behavior == "no_write" or (task in ("propose-no-approval-no-write", "propose-already-owned") and behavior != "duplicates"):
         return None
-    new_id = "M02" if (task == "propose-taken-id" and behavior == "reuses_id") else "M03"
+    if task == "propose-stage-overview-only":
+        if behavior == "no_stage_file":
+            return None
+        return STAGES + (" && " + STATUS.format(id="M03", state="[ ]") if behavior == "plans_milestone" else "")
+    new_id = "M03"
+    if task == "propose-taken-id" and behavior == "reuses_id":
+        new_id = "M02"
+    if task == "propose-id-race":
+        new_id = "M03" if behavior == "stale_id" else "M04"
     command = STATUS.format(id=new_id, state="[+]" if behavior == "bad_rows" else "[ ]")
+    if behavior == "edits_rows":
+        command += " && sed -i 's/`\\[~\\]`/`[ ]`/' tabilet/memory-bank/status-M02.md"
     if behavior == "implements":
         command += " && echo '# csv export' >> src/tasklist.py"
     if behavior == "commits":
@@ -121,7 +134,7 @@ class SkillEvalTests(unittest.TestCase):
     def test_a_model_that_follows_the_rules_passes_every_dev_task(self):
         code, report, _ = self.evaluate({})
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
-        self.assertEqual(len(report["trials"]), 8)
+        self.assertEqual(len(report["trials"]), 14)
         self.assertTrue(all(t["passed"] for t in report["trials"]), [t for t in report["trials"] if not t["passed"]])
         self.assertTrue((self.out / "skill-eval-report.md").is_file())
 
@@ -167,6 +180,29 @@ class SkillEvalTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("new_status", self.failed(report)["propose-already-owned"])
 
+    def test_a_write_that_ignores_a_new_writers_id_is_rejected(self):
+        code, report, _ = self.evaluate({("candidate", "propose-id-race"): "stale_id"}, tasks=("propose-id-race",))
+        self.assertEqual(code, 1)
+        self.assertEqual(self.failed(report), {"propose-id-race": ["rows_preserved", "new_status"]})
+
+    def test_the_other_writers_milestone_is_not_counted_as_the_models_work(self):
+        code, report, _ = self.evaluate({}, tasks=("propose-id-race",))
+        self.assertEqual(code, 0)
+        trial = [t for t in report["trials"] if t["role"] == "candidate"][0]
+        self.assertEqual(trial["facts"]["new_ids"], ["M04"])
+
+    def test_changing_an_unfinished_row_is_rejected(self):
+        code, report, _ = self.evaluate({("candidate", "propose-keeps-unfinished-rows"): "edits_rows"}, tasks=("propose-keeps-unfinished-rows",))
+        self.assertEqual(code, 1)
+        self.assertEqual(self.failed(report), {"propose-keeps-unfinished-rows": ["rows_preserved"]})
+
+    def test_a_stage_only_request_must_write_the_overview_and_no_milestone(self):
+        for behavior, expected in (("plans_milestone", ["new_status"]), ("no_stage_file", ["expected_files"])):
+            with self.subTest(behavior):
+                code, report, _ = self.evaluate({("candidate", "propose-stage-overview-only"): behavior}, tasks=("propose-stage-overview-only",))
+                self.assertEqual(code, 1)
+                self.assertEqual(self.failed(report), {"propose-stage-overview-only": expected})
+
     def test_ceiling_stops_cleanly_and_is_reported(self):
         code, report, _ = self.evaluate({}, max_calls="3", tasks=("propose-new-feature",))
         self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
@@ -194,7 +230,7 @@ class SkillEvalTests(unittest.TestCase):
                     self.assertTrue(rows, task["name"])
                     for name in skill_eval.active_status_files(snap["files"]):
                         self.assertEqual(runner.status_marker_problems((project / name).read_text()), [], name)
-        self.assertEqual(len(names), 6)
+        self.assertEqual(len(names), 9)
         self.assertTrue(any(n.startswith("trap-") for n in names))
 
     def test_snapshots_ignore_git_ignored_files_and_see_every_other_change(self):
