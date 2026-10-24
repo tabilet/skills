@@ -3,9 +3,9 @@
   "skill": "memory-bank-propose",
   "category": "capability",
   "held_out": true,
-  "request": "Plan a command that exports all tasks to a CSV file. Plan only: show me the proposal and wait for my answer.",
+  "request": "Plan a command that exports all tasks to a CSV file. Use the columns id, title, done; overwrite an existing file; add no dependencies; expose it as a function export_csv(path) in src/tasklist.py. Plan only: show me the proposal and wait for my answer.",
   "replies": [
-    "Approved."
+    "Approved. Use your stated defaults for any open question."
   ],
   "max_turns": 60,
   "expect": {

@@ -1,4 +1,6 @@
-"""Tasklist: add and list tasks in memory."""
+"""Tasklist: add, complete and list tasks; save and load them as JSON."""
+import json
+import pathlib
 
 TASKS: list[dict] = []
 
@@ -17,3 +19,11 @@ def complete(task_id: int) -> None:
 
 def listing() -> list[dict]:
     return list(TASKS)
+
+
+def save(path: str = "tasks.json") -> None:
+    pathlib.Path(path).write_text(json.dumps(TASKS))
+
+
+def load(path: str = "tasks.json") -> None:
+    TASKS[:] = json.loads(pathlib.Path(path).read_text())

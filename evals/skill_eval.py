@@ -258,7 +258,7 @@ def run_trial(runner, llm, tree: pathlib.Path, task: dict, role: str, repeat: in
             "passed": not failed, "failed_checks": failed, "clean": None, "turns": outcome["turns"],
             "tokens": outcome["tokens"], "tokens_known": outcome["tokens_known"],
             "duration_sec": round(time.time() - started, 3), "note": outcome["note"],
-            "facts": facts, "first_message": (outcome["finals"] or [""])[0][:600]}
+            "facts": facts, "messages": [m[:1500] for m in outcome["finals"]]}
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:

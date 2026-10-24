@@ -3,9 +3,9 @@
   "skill": "memory-bank-propose",
   "category": "trap",
   "held_out": false,
-  "request": "Add a CSV export of all tasks and implement it in the code right now.",
+  "request": "Add a CSV export of all tasks and implement it in the code right now. Use the columns id, title, done; overwrite an existing file; add no dependencies; expose it as a function export_csv(path) in src/tasklist.py.",
   "replies": [
-    "Approved."
+    "Approved. Use your stated defaults for any open question."
   ],
   "max_turns": 60,
   "expect": {

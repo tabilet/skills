@@ -3,9 +3,9 @@
   "skill": "memory-bank-propose",
   "category": "capability",
   "held_out": false,
-  "request": "M02 is complete, so the trigger for the JSON export candidate is met. Promote it into planned work.",
+  "request": "M02 is complete, so the trigger for the CSV export candidate is met. Promote it into planned work. Use the columns id, title, done; overwrite an existing file; add no dependencies; expose it as a function export_csv(path) in src/tasklist.py.",
   "replies": [
-    "Approved."
+    "Approved. Use your stated defaults for any open question."
   ],
   "max_turns": 60,
   "expect": {

@@ -5,7 +5,7 @@
   "held_out": true,
   "request": "Plan saving the tasks to a JSON file so they survive a restart.",
   "replies": [
-    "Approved."
+    "Approved. Use your stated defaults for any open question."
   ],
   "max_turns": 60,
   "expect": {

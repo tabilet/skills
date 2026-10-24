@@ -21,7 +21,7 @@ SPEC.loader.exec_module(skill_eval)
 
 STATUS = ("printf '# Status {id} - New\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Do the work | `{state}` | |\\n' "
           "> tabilet/memory-bank/status-{id}.md && printf '| {id} | [status-{id}.md](status-{id}.md) | New. |\\n' >> tabilet/memory-bank/milestone.md")
-APPROVED = "Approved."
+APPROVED = "Approved. Use your stated defaults for any open question."
 
 
 def write_script(task, behavior):

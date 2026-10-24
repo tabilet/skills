@@ -60,7 +60,7 @@ promoted, and a promotion needs fresh planning and approval.
 
 | Direction | Why Deferred | Promotion Trigger |
 |---|---|---|
-| Export tasks to JSON | Storage format not settled | M02 is complete |
+| Export tasks to CSV | Column choice not settled | M02 is complete |
 
 ## Out of scope
 
