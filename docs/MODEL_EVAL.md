@@ -240,6 +240,43 @@ The description is therefore not a defect for Haiku; a model-specific miss is no
 reword a shipped description.
 Provider settings are the runner's own (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_BASE`, API key).
 
+## Skill Eval
+
+`evals/skill_eval.py` measures whether a skill's text makes a model follow that skill's own rules. It
+does not measure how Claude Code or Codex invoke a skill: it gives the model the ref's `SKILL.md` as
+instructions, with the skill bundle copied outside the project so `references/...` links can be read
+with the shell tool. The first skill covered is `memory-bank-propose`; the driver is generic and takes
+the skill name from each task.
+
+A task in `evals/skill-tasks/<name>/task.json` names the skill, the user's request, the scripted human
+replies (for example `["Approved."]`, or none), and how many new status files a correct run creates. Its
+`project/` overlay is applied over `evals/skill-tasks/_base/project/` and the ref's `template/`, so a
+fixture can be a few small files. The model works until it returns a `final` message, which stands for
+asking the user; the driver then sends the next scripted reply, and stops when the replies run out.
+
+Grading is deterministic and uses no model. A trial passes only when every hard check holds:
+
+- `gate`: nothing changed before the first message to the user, including `HEAD`.
+- `planning_only`: every changed path is under the task's `allowed_paths` (by default the memory bank,
+  `tabilet/stages.md` and `tabilet/evolution/`), so implementation files stay untouched.
+- `no_commit`: `HEAD` is unchanged.
+- `history_frozen`: nothing under `tabilet/docs/history/` changed.
+- `rows_preserved`: every earlier status row keeps its state.
+- `new_status`: the expected number of new `status-<LANE><NN>.md` files exists, none reuses an ID that is
+  active or retired, every new row is pending, and each new ID appears in `milestone.md`.
+
+Spend and decisions work as in the Eval Runner: `--max-calls` and `--max-tokens` are required and checked
+between trials, `--allow-unsandboxed-shell` is required, and the paired decision, the instability guard and
+the held-out split are `run_eval.decide`'s. Each trial is roughly 10 to 40 model calls. Known limits: the
+scripted human cannot react to a surprising question, the fixtures are small compared with a real project,
+and a strict check can fail a correct run, so read a failing trial before blaming the text. Skill bodies are
+not on the optimizer's editable surface; use this eval to compare a human edit with its base.
+
+```bash
+python3 evals/skill_eval.py --baseline <ref> --candidate WORKTREE --max-calls 600 --max-tokens 8000000 \
+  --report-dir /outside/the/checkout --allow-unsandboxed-shell
+```
+
 ## Paid Runs
 
 Paid runs are the last step, after every credential-free gate passes: `python3 check.py`

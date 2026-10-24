@@ -1,0 +1,14 @@
+{
+  "description": "A candidate whose trigger is met is promoted with a fresh permanent ID.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "M02 is complete, so the trigger for the JSON export candidate is met. Promote it into planned work.",
+  "replies": [
+    "Approved."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1
+  }
+}

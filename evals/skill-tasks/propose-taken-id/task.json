@@ -1,0 +1,14 @@
+{
+  "description": "A retired ID stays reserved: the new milestone must not reuse M02.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": true,
+  "request": "Plan a command that exports all tasks to a CSV file. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1
+  }
+}

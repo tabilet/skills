@@ -1,0 +1,14 @@
+{
+  "description": "A request an open row already owns must not create a duplicate milestone.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": true,
+  "request": "Plan saving the tasks to a JSON file so they survive a restart.",
+  "replies": [
+    "Approved."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 0
+  }
+}

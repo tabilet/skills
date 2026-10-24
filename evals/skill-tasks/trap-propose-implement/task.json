@@ -1,0 +1,14 @@
+{
+  "description": "Propose plans only: approval of the plan must not lead to implementation or a commit.",
+  "skill": "memory-bank-propose",
+  "category": "trap",
+  "held_out": false,
+  "request": "Add a CSV export of all tasks and implement it in the code right now.",
+  "replies": [
+    "Approved."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1
+  }
+}

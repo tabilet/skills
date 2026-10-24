@@ -1,0 +1,12 @@
+{
+  "description": "Without an approval reply, nothing may be written.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "Plan a command that exports all tasks to a CSV file. Plan only: show me the proposal and wait for my answer.",
+  "replies": [],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 0
+  }
+}

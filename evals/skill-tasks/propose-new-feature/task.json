@@ -1,0 +1,14 @@
+{
+  "description": "A request no existing owner covers needs a new milestone, written only after approval.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "Plan a command that exports all tasks to a CSV file. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1
+  }
+}
