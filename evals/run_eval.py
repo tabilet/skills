@@ -188,21 +188,22 @@ def paired_gain(base: list[dict], cand: list[dict], key: str) -> float | None:
     return mean(gains)
 
 
-def baseline_spread(base: list[dict]) -> int:
-    """Tasks on which the baseline disagrees with itself across repeats, on pass or on clean commits."""
+def unstable_tasks(trials: list[dict]) -> set[str]:
+    """Tasks on which one side disagrees with itself across repeats, on pass or on clean commits."""
     seen: dict[str, dict[str, set]] = {}
-    for t in base:
+    for t in trials:
         entry = seen.setdefault(t["task"], {"passed": set(), "clean": set()})
         entry["passed"].add(t["passed"])
         if t["clean"] is not None:
             entry["clean"].add(t["clean"])
-    return sum(len(v["passed"]) > 1 or len(v["clean"]) > 1 for v in seen.values())
+    return {name for name, v in seen.items() if len(v["passed"]) > 1 or len(v["clean"]) > 1}
 
 
 def decide(base: list[dict], cand: list[dict], args: argparse.Namespace, aborted: str | None) -> dict:
     reasons: list[str] = []
     b, c = summarize(base), summarize(cand)
-    spread = baseline_spread(base)
+    spread = len(unstable_tasks(base))
+    unstable = len(unstable_tasks(base) | unstable_tasks(cand))
     failed_traps = sorted({t["task"] for t in cand if t["category"] == "trap" and not t["passed"]})
     if failed_traps:
         return {"decision": "reject", "reasons": [f"candidate failed trap task(s): {', '.join(failed_traps)}"]}
@@ -232,6 +233,12 @@ def decide(base: list[dict], cand: list[dict], args: argparse.Namespace, aborted
     result = {"wins": sorted(wins), "losses": sorted(losses), "turn_gain": turn_gain, "token_gain": token_gain}
     if aborted:
         return {**result, "decision": "inconclusive", "reasons": [f"stopped early: {aborted}"]}
+    claimed_wins = len(wins) > unstable
+    claimed_efficiency = efficient and unstable == 0
+    if (wins or efficient) and not (claimed_wins or claimed_efficiency):
+        return {**result, "decision": "inconclusive", "reasons": [
+            f"a gain on {', '.join(sorted(wins)) or 'turns and tokens'} is not larger than the observed instability "
+            f"({unstable} task(s) disagree with themselves across repeats); raise --repeats"]}
     if wins or efficient:
         if args.repeats < args.min_repeats:
             return {**result, "decision": "inconclusive",

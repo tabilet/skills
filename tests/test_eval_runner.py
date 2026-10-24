@@ -137,6 +137,19 @@ class EvalRunnerTests(unittest.TestCase):
         steady_base = [trial("baseline", 1, True, True), trial("baseline", 2, True, True)]
         self.assertEqual(run_eval.decide(steady_base, worse, args, None)["decision"], "reject")
 
+    def test_a_gain_inside_the_observed_instability_is_not_promoted(self):
+        def trial(role, repeat, passed, clean=True, turns=10):
+            return {"task": "t", "category": "capability", "role": role, "repeat": repeat, "passed": passed,
+                    "clean": clean, "turns": turns, "tokens": turns * 10, "tokens_known": True}
+        args = run_eval.parse_args(["--baseline", "a", "--candidate", "b", "--report-dir", "x", "--max-calls", "1",
+                                    "--max-tokens", "1", "--repeats", "3"])
+        base = [trial("baseline", i, False, turns=20) for i in (1, 2, 3)]
+        unstable = [trial("candidate", 1, True, turns=10), trial("candidate", 2, False, turns=10),
+                    trial("candidate", 3, True, turns=10)]
+        self.assertEqual(run_eval.decide(base, unstable, args, None)["decision"], "inconclusive")
+        steady = [trial("candidate", i, True, turns=10) for i in (1, 2, 3)]
+        self.assertEqual(run_eval.decide(base, steady, args, None)["decision"], "promote")
+
     def test_improvement_needs_enough_repeats_to_be_claimed(self):
         behavior = {("baseline", "fix-add-bug"): "bad"}
         code, report = self.evaluate(behavior, tasks=("fix-add-bug",))

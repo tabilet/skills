@@ -257,6 +257,9 @@ needs a separate explicit confirmation that names the provider, the model, and t
    3/6), from three unstable tasks and from `__pycache__` files left untracked by the model's own test
    runs. Task projects now ignore bytecode, and a clean-commit or pass-rate drop no larger than the
    baseline's own repeat-to-repeat spread is `inconclusive`, not `reject`.
+   A third run, with 3 repeats and the same ref on both sides, still reported `promote` (3 of 9 capability
+   passes against 6 of 9). A gain is now claimed only when it covers more tasks than the number that
+   disagree with themselves across repeats on either side, and an efficiency-only gain only when none do.
 3. **Catalog probe, then dev tasks.** Probe baseline against the candidate, then run the eval runner on
    the dev tasks inside a disposable sandbox, with reports written outside the checkout.
 4. **Held-out tasks, once.** Run `--held-out` only for a candidate that was not rejected, and never feed
