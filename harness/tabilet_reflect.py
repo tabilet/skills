@@ -200,7 +200,11 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         q_friction = """
         SELECT r.run_id, r.operation, r.result, r.git_head,
                (strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) AS duration_sec,
-               COALESCE(e.task_label, 'N/A') AS task_label,
+               COALESCE(e.task_label, (
+                   SELECT e3.task_label FROM events e3
+                   WHERE e3.run_id = r.run_id AND e3.task_label IS NOT NULL
+                   ORDER BY e3.sequence DESC LIMIT 1
+               ), 'N/A') AS task_label,
                COALESCE(e.event_type, 'N/A') AS terminal_event_type,
                COALESCE(e.new_state, 'N/A') AS final_task_state,
                json_extract(e.details_json, '$.exit_code') AS exit_code,
@@ -210,7 +214,9 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
                ) AS failure_reason
         FROM runs r
         JOIN events e ON r.run_id = e.run_id
-        WHERE (:m IS NULL OR e.milestone_id = :m)
+        -- A run belongs to the milestone when any of its events names it: the runner's
+        -- run_failed and run_blocked events carry no subject, so the terminal event cannot decide.
+        WHERE (:m IS NULL OR r.run_id IN (SELECT run_id FROM events WHERE milestone_id = :m))
           AND e.sequence = (
               SELECT MAX(e2.sequence)
               FROM events e2

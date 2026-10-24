@@ -156,6 +156,23 @@ class ReflectTests(unittest.TestCase):
         self.assertNotIn('DOCS-SPEC', prompt)
         self.assertIn('No downstream changes.', prompt)
 
+    def test_failed_run_with_an_unattributed_terminal_event_still_counts_for_its_milestone(self):
+        self.command('audit', 'enable', self.repo)
+        started = self.command('audit', 'begin', self.repo, 'next', '--run-id', 'broken')
+        for index, (event_type, subject) in enumerate((
+                ('task_observed', {'milestone_id': 'M01', 'task_label': 'Implement feature', 'old_state': 'in_progress'}),
+                ('run_failed', {}))):
+            self.command('audit', 'event', data={
+                'schema': 'tabilet.audit.event/v1', 'event_id': f'broken-{index}', 'run_id': 'broken',
+                'workspace_id': started['workspace_id'], 'operation': 'next', 'event_type': event_type,
+                'subject': subject, 'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent',
+                            'fidelity': 'summarized', 'reason': 'model made no commit'}})
+        self.command('audit', 'finish', 'broken', 'failed')
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        self.assertEqual([(r['run_id'], r['task_label']) for r in telemetry['friction_runs']], [('broken', 'Implement feature')])
+        self.assertEqual(telemetry['downstream']['reasons'], ['run broken ended failed'])
+        self.assertEqual(reflect.extract_telemetry(self.repo, 'M02')['friction_runs'], [])
+
     def test_no_milestone_means_no_downstream_feeding(self):
         self.write_downstream_project()
         self.record_completed_task('first', 'failed')
