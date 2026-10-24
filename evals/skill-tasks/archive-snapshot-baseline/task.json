@@ -1,0 +1,23 @@
+{
+  "description": "An archive run writes one frozen snapshot at the inspected commit, registers its lane and archive in architecture.md, and touches no milestone, status row, source file or commit.",
+  "skill": "memory-bank-archive",
+  "category": "capability",
+  "held_out": false,
+  "request": "Archive the tasklist package as a single context called Task storage, in archive lane C. Show me the proposal and wait for my answer before writing anything.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "allowed_paths": [
+    "tabilet/docs/archive-*.md",
+    "tabilet/memory-bank/product.md",
+    "tabilet/memory-bank/architecture.md"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "files_contain": {
+      "tabilet/docs/archive-C01.md": "[0-9a-f]{40}",
+      "tabilet/memory-bank/architecture.md": "(?sm)^\\| C \\|.*archive-C01\\.md"
+    }
+  }
+}

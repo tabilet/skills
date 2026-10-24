@@ -1,0 +1,23 @@
+{
+  "description": "R-2 exists only because of R-1, so it joins the new remediation milestone's rows instead of a second milestone or the pending storage milestone; R-3 amends that pending owner; R-4 is a candidate; completed work is not reopened.",
+  "skill": "memory-bank-reconcile",
+  "category": "capability",
+  "held_out": false,
+  "request": "Reconcile the review in reviews/code-review-1.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/status-M03.md|tabilet/memory-bank/milestone.md": "P1",
+      "tabilet/memory-bank/status-M03.md": "R-2",
+      "tabilet/memory-bank/status-M02.md": "R-3",
+      "tabilet/memory-bank/milestone.md": "(?is)Candidate Directions.*list_tasks"
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/status-M02.md": "R-[12]\\b"
+    }
+  }
+}

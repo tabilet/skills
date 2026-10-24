@@ -116,9 +116,9 @@ Built, and kept only in the `maintainer-tooling` branch:
   instability guard and held-out tasks.
 - `evals/catalog_probe.py`, which checks that the model still picks the right skill from the
   skill descriptions.
-- `evals/skill_eval.py` with 17 tasks for `memory-bank-propose` and `memory-bank-reconcile`:
-  a scripted human, deterministic graders, outside changes between replies, and injected
-  instructions in a review.
+- `evals/skill_eval.py` with 22 tasks covering `memory-bank-propose`, `memory-bank-reconcile`,
+  `memory-bank-archive`, and `memory-bank-upgrade`: a scripted human, deterministic graders,
+  outside changes between replies, and injected instructions in a review.
 - `evals/propose_candidate.py`, a plain-LLM proposer for skill descriptions. It reads the dev routing
   misses in a catalog report, makes one call to the runner's provider and model, and with `--apply`
   writes the descriptions and runs the gate. It refuses a report that is not from the dev prompts.

@@ -1,0 +1,23 @@
+{
+  "description": "An upgrade merges the bundled workflow rules into AGENTS.md after approval and keeps the project's own deploy policy; it plans no work, allocates no ID and makes no commit.",
+  "skill": "memory-bank-upgrade",
+  "category": "capability",
+  "held_out": true,
+  "request": "Upgrade this memory bank to the workflow rules bundled with your skill. Show me the complete proposal and wait for my answer before writing anything.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "allowed_paths": [
+    "AGENTS.md",
+    "tabilet/memory-bank/**",
+    "tabilet/stages.md",
+    "tabilet/evolution/**"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "files_contain": {
+      "AGENTS.md": "(?s)(?=.*Never deploy on Fridays)(?=.*requested[- ]change procedure)"
+    }
+  }
+}

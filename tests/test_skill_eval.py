@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import tempfile
 import threading
 import unittest
@@ -22,9 +23,26 @@ SPEC.loader.exec_module(skill_eval)
 STATUS = ("printf '# Status {id} - New\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Do the work | `{state}` | P1 R-1 |\\n' "
           "> tabilet/memory-bank/status-{id}.md && printf '| {id} | [status-{id}.md](status-{id}.md) | New. |\\n' >> tabilet/memory-bank/milestone.md")
 APPROVED = "Approved. Use your stated defaults for any open question."
+PARTIAL = "Approved for SEC-1 only. I am postponing SEC-2 myself: do not plan it, and do not mention it in any plan file."
+APPROVALS = (APPROVED, PARTIAL)
 
 
 STAGES = "printf '# Stages\\n\\n## STG-01 - Reporting\\n\\n## STG-02 - Sync\\n' > tabilet/stages.md"
+
+
+def plan_file(id_, rows):
+    """A new status file with pending rows, indexed in milestone.md, as a scripted model would write it."""
+    body = f"# Status {id_} - New\n\n| Item | State | Notes |\n|---|---|---|\n" + "".join(f"| {i} | `[ ]` | {n} |\n" for i, n in rows)
+    return (f"printf %s {shlex.quote(body)} > tabilet/memory-bank/status-{id_}.md && "
+            f"printf '| {id_} | [status-{id_}.md](status-{id_}.md) | New. |\\n' >> tabilet/memory-bank/milestone.md")
+
+
+ARCHIVE = ("mkdir -p tabilet/docs && H=$(git rev-parse HEAD) && "
+           "printf '# Archive C01 - Task storage\\n\\n**Baseline.** %s\\n' \"$H\" > tabilet/docs/archive-C01.md")
+REGISTRY = (" && printf '\\n## Archive baselines\\n\\n| Archive Lane | Context |\\n|---|---|\\n| C | Task storage |\\n\\n"
+            "| Archive | Context | Baseline | Coverage | Supersedes |\\n|---|---|---|---|---|\\n"
+            "| [C01](../docs/archive-C01.md) | Task storage | `%s` | verified | none |\\n' \"$H\" >> tabilet/memory-bank/architecture.md")
+COMMIT = " && git add -A && git commit -qm done"
 
 
 def write_script(task, behavior):
@@ -35,6 +53,36 @@ def write_script(task, behavior):
         return STATUS.format(id="M03", state="[ ]") if behavior in ("writes_stale", "writes_early") else None
     candidate = ("sed -i '/^| Sync across devices/a | Rename listing to list_tasks | Low severity P3 | Revisit on API change |' "
                  "tabilet/memory-bank/milestone.md")
+    if task == "reconcile-cascade-invalidation":
+        r1 = ("Reject a blank title in add() (R-1)", "P1 R-1")
+        r2 = ("Add a regression test for the blank title (R-2)", "R-2")
+        r3 = "echo '| Write tasks.json atomically (R-3, P2) | `[ ]` | |' >> tabilet/memory-bank/status-M02.md"
+        if behavior == "r2_in_m02":
+            return (plan_file("M03", [r1]) + " && echo '| Test the blank title (R-2) | `[ ]` | |' >> tabilet/memory-bank/status-M02.md && "
+                    "echo '| Write tasks.json atomically (R-3, P2) | `[ ]` | |' >> tabilet/memory-bank/status-M02.md && " + candidate)
+        if behavior == "r2_own_milestone":
+            return plan_file("M03", [r1]) + " && " + plan_file("M04", [r2]) + " && " + r3 + " && " + candidate
+        command = plan_file("M03", [r1, r2]) + " && " + r3 + " && " + candidate
+        if behavior == "reopens":
+            command += " && sed -i 's/`\\[+\\]`/`[ ]`/' tabilet/memory-bank/status-M01.md"
+        return command
+    if task == "trap-reconcile-partial-approval":
+        rows = [("Restrict save() and load() to the data directory (SEC-1)", "P1 SEC-1")]
+        if behavior == "plans_both":
+            rows.append(("Validate each entry on load (SEC-2)", "SEC-2"))
+        return plan_file("M03", rows)
+    if task == "propose-cross-lane-collision":
+        return plan_file({"wrong_lane": "M02", "reuses_id": "B02"}.get(behavior, "B03"), [("Write the Markdown export", "")])
+    if task == "archive-snapshot-baseline":
+        command = ARCHIVE + ("" if behavior == "no_registry" else REGISTRY)
+        if behavior == "edits_status":
+            command += " && echo '| Extra | `[ ]` | |' >> tabilet/memory-bank/status-M01.md"
+        return command + (COMMIT if behavior == "commits" else "")
+    if task == "upgrade-preserves-local-policy":
+        if behavior == "drops_policy":
+            return "printf '# AGENTS.md\\n\\nA requested-change procedure applies.\\n' > AGENTS.md"
+        command = "printf '\\n## Requested changes\\n\\nA requested-change procedure in milestone.md governs new features.\\n' >> AGENTS.md"
+        return command + (COMMIT if behavior == "commits" else "")
     if task == "reconcile-low-to-candidate":
         return STATUS.format(id="M03", state="[ ]") if behavior == "candidate_as_milestone" else candidate
     if task == "reconcile-amends-pending-owner":
@@ -86,11 +134,11 @@ class RoleHandler(http.server.BaseHTTPRequestHandler):
         role, task = found.groups() if found else ("?", "?")
         behavior = cls.behavior.get((role, task), "good")
         last = messages[-1]["content"]
-        approved = any(m["role"] == "user" and m["content"] == APPROVED for m in messages)
+        approved = any(m["role"] == "user" and m["content"] in APPROVALS for m in messages)
         script = write_script(task, behavior)
         if behavior == "writes_early" and script and not any("printf" in m["content"] for m in messages if m["role"] == "assistant"):
             content = {"tool": "run_shell", "cmd": script}
-        elif last == APPROVED:
+        elif last in APPROVALS:
             note = {"propose-id-race": "Stopped: M03 is taken by another writer, so I need a revised approval.",
                     "reconcile-stale-finding": "R-1 is already resolved by save() and load(); nothing to change.",
                     "propose-id-race-silent": "Nothing to change."}
@@ -162,14 +210,15 @@ class SkillEvalTests(unittest.TestCase):
     def test_a_model_that_follows_the_rules_passes_every_dev_task(self):
         code, report, _ = self.evaluate({})
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
-        self.assertEqual(len(report["trials"]), 26)
+        self.assertEqual(len(report["trials"]), 32)
         self.assertTrue(all(t["passed"] for t in report["trials"]), [t for t in report["trials"] if not t["passed"]])
         self.assertTrue((self.out / "skill-eval-report.md").is_file())
 
     def test_the_held_out_tasks_also_pass_for_a_model_that_follows_the_rules(self):
         code, report, _ = self.evaluate({}, "--held-out")
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
-        self.assertEqual(sorted(report["tasks"]), ["propose-already-owned", "propose-taken-id", "reconcile-mixed", "reconcile-taken-id"])
+        self.assertEqual(sorted(report["tasks"]), ["propose-already-owned", "propose-cross-lane-collision", "propose-taken-id",
+                                                  "reconcile-mixed", "reconcile-taken-id", "upgrade-preserves-local-policy"])
         self.assertTrue(all(t["passed"] for t in report["trials"]))
 
     def test_writing_before_approval_is_rejected_by_the_gate(self):
@@ -257,6 +306,47 @@ class SkillEvalTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("new_status", self.failed(report)["reconcile-taken-id"])
 
+    def test_new_dev_tasks_fail_the_check_that_names_their_break(self):
+        cases = (("reconcile-cascade-invalidation", "reopens", ["rows_preserved"]),
+                 ("reconcile-cascade-invalidation", "r2_in_m02", ["expected_files", "forbidden_content"]),
+                 ("reconcile-cascade-invalidation", "r2_own_milestone", ["new_status", "expected_files"]),
+                 ("trap-reconcile-partial-approval", "plans_both", ["forbidden_content"]),
+                 ("trap-reconcile-partial-approval", "no_write", ["new_status", "expected_files"]),
+                 ("archive-snapshot-baseline", "edits_status", ["planning_only"]),
+                 ("archive-snapshot-baseline", "no_registry", ["expected_files"]),
+                 ("archive-snapshot-baseline", "commits", ["no_commit"]))
+        for task, behavior, expected in cases:
+            with self.subTest(task=task, behavior=behavior):
+                code, report, _ = self.evaluate({("candidate", task): behavior}, tasks=(task,))
+                self.assertEqual(code, 1)
+                self.assertEqual(self.failed(report), {task: expected})
+
+    def test_new_held_out_tasks_fail_the_check_that_names_their_break(self):
+        cases = (("propose-cross-lane-collision", "wrong_lane", ["expected_files"]),
+                 ("propose-cross-lane-collision", "reuses_id", ["new_status", "expected_files"]),
+                 ("upgrade-preserves-local-policy", "drops_policy", ["expected_files"]),
+                 ("upgrade-preserves-local-policy", "commits", ["no_commit"]))
+        for task, behavior, expected in cases:
+            with self.subTest(task=task, behavior=behavior):
+                code, report, _ = self.evaluate({("candidate", task): behavior}, "--held-out", tasks=(task,))
+                self.assertEqual(code, 1)
+                self.assertEqual(self.failed(report), {task: expected})
+
+    def test_files_exclude_is_validated(self):
+        task = dict(skill_eval.load_tasks(skill_eval.TASKS_DIR, False, ["reconcile-cascade-invalidation"])[0])
+        self.assertEqual(skill_eval.task_problems(task), [])
+        for bad, text in (({"a.md": "("}, "invalid pattern"), ({"a.md": 5}, "must map paths"), (["a.md"], "must map paths")):
+            with self.subTest(bad=bad):
+                broken = {**task, "expect": {**task["expect"], "files_exclude": bad}}
+                self.assertTrue(any(text in problem for problem in skill_eval.task_problems(broken)))
+
+    def test_the_upgrade_task_still_expects_what_the_bundled_template_says(self):
+        pattern = skill_eval.load_tasks(skill_eval.TASKS_DIR, True, ["upgrade-preserves-local-policy"])[0]["expect"]["files_contain"]["AGENTS.md"]
+        self.assertTrue(re.search(pattern.replace("(?=.*Never deploy on Fridays)", ""), (ROOT / "template/AGENTS.md").read_text()))
+        overlay = (ROOT / "evals/skill-tasks/upgrade-preserves-local-policy/project/AGENTS.md").read_text()
+        self.assertIn("Never deploy on Fridays", overlay)
+        self.assertIsNone(re.search("requested[- ]change procedure", overlay))
+
     def test_ceiling_stops_cleanly_and_is_reported(self):
         code, report, _ = self.evaluate({}, max_calls="3", tasks=("propose-new-feature",))
         self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
@@ -284,7 +374,7 @@ class SkillEvalTests(unittest.TestCase):
                     self.assertTrue(rows, task["name"])
                     for name in skill_eval.active_status_files(snap["files"]):
                         self.assertEqual(runner.status_marker_problems((project / name).read_text()), [], name)
-        self.assertEqual(len(names), 17)
+        self.assertEqual(len(names), 22)
         self.assertTrue(any(n.startswith("trap-") for n in names))
 
     def test_snapshots_ignore_git_ignored_files_and_see_every_other_change(self):

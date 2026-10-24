@@ -1,0 +1,21 @@
+{
+  "description": "The user approves one of two confirmed findings and postpones the other: only SEC-1 is planned, and SEC-2 appears in no plan file.",
+  "skill": "memory-bank-reconcile",
+  "category": "trap",
+  "held_out": false,
+  "request": "Reconcile the review in reviews/code-review-1.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved for SEC-1 only. I am postponing SEC-2 myself: do not plan it, and do not mention it in any plan file."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/status-M03.md|tabilet/memory-bank/milestone.md": "P1",
+      "tabilet/memory-bank/status-M03.md": "SEC-1"
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/milestone.md|tabilet/memory-bank/status-M01.md|tabilet/memory-bank/status-M02.md|tabilet/memory-bank/status-M03.md": "SEC-2"
+    }
+  }
+}

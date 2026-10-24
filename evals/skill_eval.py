@@ -85,15 +85,16 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
     expect = task.get("expect")
     if not isinstance(expect, dict) or not isinstance(expect.get("new_status_files"), int) or expect["new_status_files"] < 0:
         problems.append("expect.new_status_files must be a non-negative integer")
-    contains = (expect or {}).get("files_contain", {}) if isinstance(expect, dict) else {}
-    if not isinstance(contains, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in contains.items()):
-        problems.append("expect.files_contain must map paths (alternatives joined with |) to regular expressions")
-    else:
-        for pattern in contains.values():
-            try:
-                re.compile(pattern)
-            except re.error:
-                problems.append(f"expect.files_contain has an invalid pattern {pattern!r}")
+    for key in ("files_contain", "files_exclude"):
+        contains = (expect or {}).get(key, {}) if isinstance(expect, dict) else {}
+        if not isinstance(contains, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in contains.items()):
+            problems.append(f"expect.{key} must map paths (alternatives joined with |) to regular expressions")
+        else:
+            for pattern in contains.values():
+                try:
+                    re.compile(pattern)
+                except re.error:
+                    problems.append(f"expect.{key} has an invalid pattern {pattern!r}")
     mentions = (expect or {}).get("final_mentions", []) if isinstance(expect, dict) else []
     if not isinstance(mentions, list) or not all(isinstance(m, str) and m for m in mentions):
         problems.append("expect.final_mentions must be a list of non-empty strings")
@@ -198,6 +199,11 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         paths = [project / relative for relative in relatives.split("|")]
         if not any(path.is_file() and re.search(pattern, path.read_text(encoding="utf-8")) for path in paths):
             failed.append("expected_files")
+            break
+    for relatives, pattern in task["expect"].get("files_exclude", {}).items():
+        paths = [project / relative for relative in relatives.split("|")]
+        if any(path.is_file() and re.search(pattern, path.read_text(encoding="utf-8")) for path in paths):
+            failed.append("forbidden_content")
             break
     return failed, {"new_ids": new_ids, "changed": changes}
 

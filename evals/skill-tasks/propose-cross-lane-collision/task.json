@@ -1,0 +1,17 @@
+{
+  "description": "A request for a reporting feature belongs in the reporting lane, and the next ID there skips the retired B02: the milestone is B03, not M02, B02 or B01.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": true,
+  "request": "Plan a Markdown export of the task list: a function export_markdown(path) in src/tasklist.py that writes one '- [ ] title' line per task, with '[x]' for a done task. Add no dependencies. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/status-B03.md": "."
+    }
+  }
+}
