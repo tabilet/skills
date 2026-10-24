@@ -15,6 +15,6 @@
     ]
   },
   "between": [
-    "printf '# Status M03 - Audit log\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Record audit events | `[ ]` | |\\n' > tabilet/memory-bank/status-M03.md && printf '| M03 | [status-M03.md](status-M03.md) | Audit log. |\\n' >> tabilet/memory-bank/milestone.md"
+    "printf '# Status M03 - Audit log\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Record audit events | `[ ]` | |\\n' > tabilet/memory-bank/status-M03.md && sed -i '/^| M02 | \\[status-M02.md\\]/a | M03 | [status-M03.md](status-M03.md) | Audit log. |' tabilet/memory-bank/milestone.md"
   ]
 }
