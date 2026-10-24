@@ -99,6 +99,11 @@ is only worth anything if additions are argued against something:
 - **No vendor-specific agent files in `template/`.** `AGENTS.md` is the open
   cross-vendor standard; tools that read another filename get a documented
   one-line bridge in the README.
+- **No benchmark tooling or Harness² in the payload.** Instruction-optimizer
+  tooling, benchmark adapters and their datasets stay repository-only, like
+  `tests/dsh/`. Nothing in `template/`, `skills/` or `harness/` installs, requires or
+  names Harness², WorkBuddy or SWE-bench, and users never run them: they receive
+  a reviewed release through `memory-bank-upgrade`.
 - **No per-feature artifact directories.** No `.skills/`, no scaffold, no
   generated plan folders that accumulate with the project.
 - **No memory bank for this repository itself.** `skills` is the generator that
