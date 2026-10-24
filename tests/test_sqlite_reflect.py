@@ -281,6 +281,128 @@ class ReflectTests(unittest.TestCase):
             result = reflect.probe_proposed_commands(proposal, self.repo, timeout_sec=1, enabled=True)
         self.assertEqual(result[0]['status'], 'TIMEOUT')
 
+    def test_extract_coverage_evidence_various_runners(self):
+        # Unittest
+        cov = reflect.extract_coverage_evidence("Ran 5 tests in 0.012s\n\nOK")
+        self.assertEqual(cov["tests_run"], 5)
+        self.assertTrue(cov["has_coverage"])
+        self.assertEqual(cov["summary"], "Ran 5 tests")
+
+        cov_zero = reflect.extract_coverage_evidence("Ran 0 tests in 0.000s\n\nOK")
+        self.assertEqual(cov_zero["tests_run"], 0)
+        self.assertFalse(cov_zero["has_coverage"])
+
+        # Pytest
+        cov_pytest = reflect.extract_coverage_evidence("= 12 passed, 2 failed in 0.35s =")
+        self.assertEqual(cov_pytest["tests_run"], 14)
+        self.assertTrue(cov_pytest["has_coverage"])
+        self.assertIn("12 passed, 2 failed", cov_pytest["summary"])
+
+        cov_pytest_zero = reflect.extract_coverage_evidence("collected 0 items\n\n= no tests ran in 0.01s =")
+        self.assertEqual(cov_pytest_zero["tests_run"], 0)
+        self.assertFalse(cov_pytest_zero["has_coverage"])
+
+        # Jest / Vitest
+        cov_jest = reflect.extract_coverage_evidence("Tests: 8 passed, 8 total\nTime: 1.2s")
+        self.assertEqual(cov_jest["tests_run"], 8)
+        self.assertTrue(cov_jest["has_coverage"])
+
+        cov_jest_zero = reflect.extract_coverage_evidence("Tests: 0 passed, 0 total\nTime: 0.1s")
+        self.assertEqual(cov_jest_zero["tests_run"], 0)
+        self.assertFalse(cov_jest_zero["has_coverage"])
+
+        # Mocha
+        cov_mocha = reflect.extract_coverage_evidence("  22 passing (450ms)")
+        self.assertEqual(cov_mocha["tests_run"], 22)
+        self.assertTrue(cov_mocha["has_coverage"])
+
+        # Cargo test
+        cov_cargo = reflect.extract_coverage_evidence("test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out")
+        self.assertEqual(cov_cargo["tests_run"], 14)
+        self.assertTrue(cov_cargo["has_coverage"])
+
+        cov_cargo_zero = reflect.extract_coverage_evidence("test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out")
+        self.assertEqual(cov_cargo_zero["tests_run"], 0)
+        self.assertFalse(cov_cargo_zero["has_coverage"])
+
+        # Go test
+        cov_go = reflect.extract_coverage_evidence("PASS\nok  \texample/pkg\t0.014s")
+        self.assertTrue(cov_go["has_coverage"])
+
+        cov_go_zero = reflect.extract_coverage_evidence("?   \texample/empty\t[no test files]")
+        self.assertFalse(cov_go_zero["has_coverage"])
+
+        # Unrecognised
+        cov_none = reflect.extract_coverage_evidence("random tool output without test statistics")
+        self.assertIsNone(cov_none["has_coverage"])
+        self.assertIsNone(cov_none["tests_run"])
+
+    def test_probe_proposed_commands_detects_zero_coverage(self):
+        (self.repo / 'test_real.py').write_text(
+            'import unittest\n\nclass Real(unittest.TestCase):\n    def test_ok(self):\n        pass\n'
+        )
+        proposal = (
+            "```probe-commands\n"
+            "python3 -m unittest test_real\n"
+            "python3 -m unittest -k nonexistent\n"
+            "```\n"
+        )
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            results = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]['status'], 'PASSED')
+        self.assertTrue(results[0]['coverage']['has_coverage'])
+        self.assertEqual(results[0]['coverage']['tests_run'], 1)
+        self.assertIsNotNone(results[0]['duration_sec'])
+
+        self.assertEqual(results[1]['status'], 'ZERO_COVERAGE')
+        self.assertFalse(results[1]['coverage']['has_coverage'])
+        self.assertEqual(results[1]['coverage']['tests_run'], 0)
+
+    def test_format_compose_report_recommends_fastest_and_warns_zero_coverage(self):
+        proposal_md = "## Proposed Edits to tech-stack.md\n\n```diff\n+ fast test\n```\n"
+        probe_results = [
+            {
+                "command": "python3 -m unittest discover tests",
+                "status": "PASSED",
+                "exit_code": 0,
+                "duration_sec": 1.25,
+                "coverage": {"tests_run": 50, "has_coverage": True, "summary": "Ran 50 tests"},
+                "output_snippet": "Ran 50 tests in 1.2s OK",
+            },
+            {
+                "command": "python3 -m unittest tests/test_fast.py",
+                "status": "PASSED",
+                "exit_code": 0,
+                "duration_sec": 0.35,
+                "coverage": {"tests_run": 10, "has_coverage": True, "summary": "Ran 10 tests"},
+                "output_snippet": "Ran 10 tests in 0.3s OK",
+            },
+            {
+                "command": "python3 -m unittest -k nonexistent",
+                "status": "ZERO_COVERAGE",
+                "exit_code": 0,
+                "duration_sec": 0.05,
+                "coverage": {"tests_run": 0, "has_coverage": False, "summary": "Ran 0 tests"},
+                "output_snippet": "Ran 0 tests in 0.0s OK",
+            },
+        ]
+        report = reflect.format_compose_report(proposal_md, probe_results)
+
+        # Contains table with duration and coverage columns
+        self.assertIn("| Proposed Command | Probe Status | Avg Duration | Coverage Evidence | Output Snippet |", report)
+        self.assertIn("1.25s", report)
+        self.assertIn("0.35s", report)
+        self.assertIn("Ran 50 tests", report)
+
+        # Recommends the fastest candidate with non-zero coverage
+        self.assertIn("Recommended Test Profile:", report)
+        self.assertIn("`python3 -m unittest tests/test_fast.py` is the fastest verified candidate (0.35s avg, Ran 10 tests)", report)
+
+        # Emits zero coverage warning
+        self.assertIn("WARNING:** One or more proposed commands executed 0 tests", report)
+
 
 if __name__ == '__main__':
     unittest.main()
