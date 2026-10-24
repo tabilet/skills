@@ -1,5 +1,5 @@
 {
-  "description": "Another writer takes M03 after the proposal: the write must recheck IDs and use a free one.",
+  "description": "Another writer takes M03 after the proposal: the skill requires a revised approval, so nothing is written and the collision is named.",
   "skill": "memory-bank-propose",
   "category": "capability",
   "held_out": false,
@@ -9,7 +9,10 @@
   ],
   "max_turns": 60,
   "expect": {
-    "new_status_files": 1
+    "new_status_files": 0,
+    "final_mentions": [
+      "M03"
+    ]
   },
   "between": [
     "printf '# Status M03 - Audit log\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Record audit events | `[ ]` | |\\n' > tabilet/memory-bank/status-M03.md && printf '| M03 | [status-M03.md](status-M03.md) | Audit log. |\\n' >> tabilet/memory-bank/milestone.md"

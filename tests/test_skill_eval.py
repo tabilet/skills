@@ -39,6 +39,8 @@ def write_script(task, behavior):
     if task == "propose-taken-id" and behavior == "reuses_id":
         new_id = "M02"
     if task == "propose-id-race":
+        if behavior not in ("stale_id", "writes_m04"):
+            return None
         new_id = "M03" if behavior == "stale_id" else "M04"
     command = STATUS.format(id=new_id, state="[+]" if behavior == "bad_rows" else "[ ]")
     if behavior == "edits_rows":
@@ -69,7 +71,12 @@ class RoleHandler(http.server.BaseHTTPRequestHandler):
         if behavior == "writes_early" and script and not any("printf" in m["content"] for m in messages if m["role"] == "assistant"):
             content = {"tool": "run_shell", "cmd": script}
         elif last == APPROVED:
-            content = {"tool": "run_shell", "cmd": script} if script else {"final": "Nothing to change."}
+            note = {"propose-id-race": "Stopped: M03 is taken by another writer, so I need a revised approval.",
+                    "propose-id-race-silent": "Nothing to change."}
+            if script:
+                content = {"tool": "run_shell", "cmd": script}
+            else:
+                content = {"final": "Nothing to change." if behavior == "silent_stop" else note.get(task, "Nothing to change.")}
         elif last.startswith("Tool result") and not approved and len(messages) < 4:
             content = {"final": "Proposal: plan the work as a new milestone. Approve?"}
         elif last.startswith("Tool result") and approved:
@@ -180,16 +187,19 @@ class SkillEvalTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("new_status", self.failed(report)["propose-already-owned"])
 
-    def test_a_write_that_ignores_a_new_writers_id_is_rejected(self):
-        code, report, _ = self.evaluate({("candidate", "propose-id-race"): "stale_id"}, tasks=("propose-id-race",))
-        self.assertEqual(code, 1)
-        self.assertEqual(self.failed(report), {"propose-id-race": ["rows_preserved", "new_status"]})
+    def test_a_collision_must_stop_the_write_and_be_named(self):
+        for behavior, expected in (("stale_id", ["rows_preserved", "final_mentions"]), ("writes_m04", ["new_status", "final_mentions"]),
+                                   ("silent_stop", ["final_mentions"])):
+            with self.subTest(behavior):
+                code, report, _ = self.evaluate({("candidate", "propose-id-race"): behavior}, tasks=("propose-id-race",))
+                self.assertEqual(code, 1)
+                self.assertEqual(self.failed(report), {"propose-id-race": expected})
 
-    def test_the_other_writers_milestone_is_not_counted_as_the_models_work(self):
+    def test_stopping_for_a_revised_approval_passes_and_the_other_writers_files_are_not_the_models(self):
         code, report, _ = self.evaluate({}, tasks=("propose-id-race",))
         self.assertEqual(code, 0)
         trial = [t for t in report["trials"] if t["role"] == "candidate"][0]
-        self.assertEqual(trial["facts"]["new_ids"], ["M04"])
+        self.assertEqual((trial["passed"], trial["facts"]["new_ids"], trial["facts"]["changed"]), (True, [], []))
 
     def test_changing_an_unfinished_row_is_rejected(self):
         code, report, _ = self.evaluate({("candidate", "propose-keeps-unfinished-rows"): "edits_rows"}, tasks=("propose-keeps-unfinished-rows",))

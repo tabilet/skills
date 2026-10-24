@@ -94,6 +94,9 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
                 re.compile(pattern)
             except re.error:
                 problems.append(f"expect.files_contain has an invalid pattern {pattern!r}")
+    mentions = (expect or {}).get("final_mentions", []) if isinstance(expect, dict) else []
+    if not isinstance(mentions, list) or not all(isinstance(m, str) and m for m in mentions):
+        problems.append("expect.final_mentions must be a list of non-empty strings")
     between = task.get("between")
     if between is not None and (not isinstance(between, list) or len(between) != len(task.get("replies", []))
                                 or not all(c is None or (isinstance(c, str) and c.strip()) for c in between)):
@@ -155,7 +158,8 @@ def read_rows(runner, project: pathlib.Path, files: dict) -> dict[tuple[str, str
 
 
 def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows: dict,
-          checkpoints: list[dict], final: dict, finished: bool, rebased: dict | None = None) -> tuple[list[str], dict]:
+          checkpoints: list[dict], final: dict, finished: bool, rebased: dict | None = None,
+          finals: list[str] | None = None) -> tuple[list[str], dict]:
     """Return (failed hard check names, soft facts). Pure given the snapshots and the final files.
 
     `rebased` is the snapshot after a scripted outside change between replies (another writer);
@@ -188,6 +192,8 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         problems = problems or not rows or any(r["state"] != "pending" for r in rows) or new_id not in index
     if problems:
         failed.append("new_status")
+    if any(text not in (finals or [""])[-1] for text in task["expect"].get("final_mentions", [])):
+        failed.append("final_mentions")
     for relative, pattern in task["expect"].get("files_contain", {}).items():
         path = project / relative
         if not path.is_file() or not re.search(pattern, path.read_text(encoding="utf-8")):
@@ -283,7 +289,7 @@ def run_trial(runner, llm, tree: pathlib.Path, task: dict, role: str, repeat: in
     final = snapshot(project)
     rebased = outcome.get("rebased")
     base_rows = rebased["rows"] if rebased else initial_rows
-    failed, facts = grade(task, runner, project, initial, base_rows, outcome["checkpoints"], final, outcome["finished"], rebased)
+    failed, facts = grade(task, runner, project, initial, base_rows, outcome["checkpoints"], final, outcome["finished"], rebased, outcome["finals"])
     return {"task": task["name"], "category": task["category"], "role": role, "repeat": repeat,
             "passed": not failed, "failed_checks": failed, "clean": None, "turns": outcome["turns"],
             "tokens": outcome["tokens"], "tokens_known": outcome["tokens_known"],

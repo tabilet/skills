@@ -266,11 +266,13 @@ Grading is deterministic and uses no model. A trial passes only when every hard 
   active or retired, every new row is pending, and each new ID appears in `milestone.md`.
 - `expected_files`: each file named in `expect.files_contain` exists and matches its pattern, for example
   `tabilet/stages.md` containing a stable `STG-` ID.
+- `final_mentions`: the last message to the user contains every string in `expect.final_mentions`, for
+  example the colliding ID when a plan must stop for a revised approval.
 
 A task may also script an outside change with `between`: one shell command per reply, run in the project
 after the model's message and before the reply, to play another writer. The model is then judged against the
-project as that command left it, so a harder task can check that the write rechecks IDs and rows it did not
-make. The shipped tasks cover the approval gate, a new feature, a candidate promotion, a trap that asks for
+project as that command left it, so a harder task can check that a collision stops the write for a revised approval, as the skill requires,
+and that the stop names it. The shipped tasks cover the approval gate, a new feature, a candidate promotion, a trap that asks for
 implementation, an ID taken by another writer, unfinished rows that must survive a reprioritising request, and
 a stage-only request.
 
