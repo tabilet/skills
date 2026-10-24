@@ -130,6 +130,13 @@ class ReflectTests(unittest.TestCase):
         self.assertEqual(reflect.suggested_downstream(self.repo, 'M01'), ['M02', 'M03', 'M04'])
         self.assertEqual(reflect.suggested_downstream(self.repo, None), [])
 
+    def test_inline_downstream_impacts_are_honoured(self):
+        suggested = self.repo / 'tabilet/memory-bank/suggested.txt'
+        suggested.write_text('STATUS_ORDER: M01 -> M02 -> M03\n\nDOWNSTREAM_IMPACTS: none\n\nCOMMIT_POLICY: task\n')
+        self.assertEqual(reflect.suggested_downstream(self.repo, 'M01'), [])
+        suggested.write_text('STATUS_ORDER: M01 -> M02 -> M03\n\nDOWNSTREAM_IMPACTS: M01 -> M03\n\nCOMMIT_POLICY: task\n')
+        self.assertEqual(reflect.suggested_downstream(self.repo, 'M01'), ['M03'])
+
     def test_quiet_milestone_feeds_nothing_downstream(self):
         self.write_downstream_project()
         self.record_completed_task()

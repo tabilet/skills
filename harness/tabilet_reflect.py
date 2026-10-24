@@ -137,8 +137,10 @@ def suggested_downstream(project_root: pathlib.Path, finished: str | None) -> li
         return []
     text = path.read_text(encoding="utf-8", errors="replace")
     found: list[str] = []
-    block = re.search(r"^DOWNSTREAM_IMPACTS:[ \t]*\n((?:[ \t]*\S.*\n?)+)", text, re.M)
-    for line in (block.group(1).splitlines() if block else []):
+    block = re.search(r"^DOWNSTREAM_IMPACTS:[ \t]*(.*)\n?((?:[ \t]*\S.*\n?)*)", text, re.M)
+    if block and block.group(1).strip().lower() == "none":
+        return []  # an explicit declaration of no impacts; STATUS_ORDER is not a substitute
+    for line in ([block.group(1), *block.group(2).splitlines()] if block else []):
         source, arrow, targets = line.partition("->")
         if arrow and source.strip() == finished:
             found += STATUS_ID_RE.findall(targets)
@@ -162,14 +164,16 @@ def downstream_context(project_root: pathlib.Path, finished: str | None) -> tupl
     """Check each suggested downstream milestone against the live files; keep only open ones."""
     included: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
+    runner = None
     for ident in suggested_downstream(project_root, finished):
         status_file = project_root / "tabilet" / "memory-bank" / f"status-{ident}.md"
         if not status_file.is_file():
             skipped.append({"id": ident, "reason": "no active status file (missing or retired)"})
             continue
         try:
-            import tabilet_index
-            runner = tabilet_index.parser()
+            if runner is None:
+                import tabilet_index
+                runner = tabilet_index.parser()
             rows = runner.status_rows(status_file.read_text(encoding="utf-8", errors="replace"))
             open_rows = [r for r in rows if r["state"] in runner.ACTIONABLE_STATES]
         except Exception as exc:
