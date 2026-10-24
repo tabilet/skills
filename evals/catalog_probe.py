@@ -97,15 +97,19 @@ def score(trials: list[dict]) -> dict:
     }
 
 
-def decide(base: dict, cand: dict, allowed: int) -> dict:
+def decide(base: dict, cand: dict, allowed: int, min_gain: int = 2) -> dict:
     lost = max(0, base["positive_correct"] - cand["positive_correct"])
     extra = max(0, cand["false_activations"] - base["false_activations"])
     if lost + extra > allowed:
         return {"decision": "reject", "reasons": [
             f"selection regressed: {lost} fewer correct positives, {extra} more false activations"]}
-    gained = cand["positive_correct"] > base["positive_correct"] or cand["false_activations"] < base["false_activations"]
-    if gained:
-        return {"decision": "improved", "reasons": ["more correct selections or fewer false activations, no regression"]}
+    gain = (cand["positive_correct"] - base["positive_correct"]) + (base["false_activations"] - cand["false_activations"])
+    if gain >= min_gain:
+        return {"decision": "improved", "reasons": [
+            f"{gain} more correct selections or fewer false activations (at least {min_gain} required), no regression"]}
+    if gain > 0:
+        return {"decision": "no_difference", "reasons": [
+            f"a gain of {gain} is below --min-gain {min_gain}; one flipped answer is within noise"]}
     return {"decision": "no_difference", "reasons": ["selection is unchanged"]}
 
 
@@ -135,6 +139,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--report-dir", type=pathlib.Path, help="write catalog-report.json/.md here (outside the checkout)")
     p.add_argument("--max-calls", required=True, type=int, help="refuse to start if the planned calls exceed this")
     p.add_argument("--repeats", type=int, default=1)
+    p.add_argument("--min-gain", type=int, default=2, help="net trial gain needed to claim an improvement")
     p.add_argument("--allowed-regressions", type=int, default=0, help="net trial losses tolerated")
     p.add_argument("--prompts", type=pathlib.Path, default=PROMPTS)
     p.add_argument("--repo", type=pathlib.Path, default=ROOT, help="repository holding the refs (tests use a scratch one)")
@@ -181,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
                     trials.append({"role": role, "repeat": repeat, "prompt": case["prompt"], "expect": case.get("expect"),
                                    "chosen": chosen, "parsed": parsed})
         scores = {role: score([t for t in trials if t["role"] == role]) for role in ROLES}
-        decision = decide(scores["baseline"], scores["candidate"], args.allowed_regressions)
+        decision = decide(scores["baseline"], scores["candidate"], args.allowed_regressions, args.min_gain)
         report = {"schema": "tabilet.catalog-report/v1", "baseline": args.baseline, "candidate": args.candidate,
                   "repeats": args.repeats, "calls": len(trials), "tokens": tokens, "score": scores,
                   "decision": decision, "changed_descriptions": changed, "trials": trials}

@@ -128,9 +128,16 @@ class CatalogProbeTests(unittest.TestCase):
         self.assertEqual(self.report()["decision"]["decision"], "no_difference")
 
     def test_a_better_description_is_reported_as_improved(self):
-        code, _ = self.run_probe("--max-calls", "100", baseline="HEAD", candidate="HEAD~1")
+        code, _ = self.run_probe("--max-calls", "100", "--min-gain", "1", baseline="HEAD", candidate="HEAD~1")
         self.assertEqual(code, 0)
         self.assertEqual(self.report()["decision"]["decision"], "improved")
+
+    def test_a_single_flipped_answer_is_not_an_improvement_by_default(self):
+        base = {"positive_correct": 5, "false_activations": 3}
+        one = {"positive_correct": 5, "false_activations": 2}
+        two = {"positive_correct": 6, "false_activations": 2}
+        self.assertEqual(probe.decide(base, one, 0)["decision"], "no_difference")
+        self.assertEqual(probe.decide(base, two, 0)["decision"], "improved")
 
     def test_planned_calls_over_the_ceiling_are_refused_before_any_call(self):
         code, calls = self.run_probe("--max-calls", "5")

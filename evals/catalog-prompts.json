@@ -54,5 +54,85 @@
   {
     "prompt": "Summarize in two sentences what the memory-bank-goal skill does.",
     "expect": null
+  },
+  {
+    "prompt": "The test plan for M03 got a harsh review last week; pull out which complaints still hold and fold them into the pending work, no coding yet.",
+    "expect": "memory-bank-reconcile"
+  },
+  {
+    "prompt": "I want SSO added to the roadmap. Work out where it fits among the milestones and show me the changes before touching any file.",
+    "expect": "memory-bank-propose"
+  },
+  {
+    "prompt": "Do just the next open row in our status file, run its tests, and commit it. Then stop.",
+    "expect": "memory-bank-next"
+  },
+  {
+    "prompt": "Keep going through every unfinished milestone without stopping to ask me, and commit per row.",
+    "expect": "memory-bank-goal"
+  },
+  {
+    "prompt": "This monorepo has five unrelated domains and nobody knows how they fit; record what is actually there at this commit so later planning has a stable baseline.",
+    "expect": "memory-bank-archive"
+  },
+  {
+    "prompt": "Our rules files came from the old v1.5 layout and the new skills expect something different; bring them up to date but keep our milestone numbers.",
+    "expect": "memory-bank-upgrade"
+  },
+  {
+    "prompt": "We just inherited a project that has code but no plan. Interview me about goals and build the milestone list.",
+    "expect": "memory-bank-init"
+  },
+  {
+    "prompt": "A stakeholder asked for audit logging next quarter. Add it as a candidate direction in the plan only if it fits.",
+    "expect": "memory-bank-propose"
+  },
+  {
+    "prompt": "Here is the external security audit report. Check each finding against the code as it stands and schedule fixes for the real ones, without implementing them.",
+    "expect": "memory-bank-reconcile"
+  },
+  {
+    "prompt": "Resume the goal run that paused yesterday and continue with the remaining milestones.",
+    "expect": "memory-bank-goal"
+  },
+  {
+    "prompt": "Rename the status column header in our database migration from state to status.",
+    "expect": null
+  },
+  {
+    "prompt": "What is a milestone in agile terms, and how long should one be?",
+    "expect": null
+  },
+  {
+    "prompt": "Draft a roadmap slide for the board with three quarters of themes.",
+    "expect": null
+  },
+  {
+    "prompt": "Commit my current changes with a good message.",
+    "expect": null
+  },
+  {
+    "prompt": "Implement the CSV export function in export.py and add a unit test.",
+    "expect": null
+  },
+  {
+    "prompt": "Upgrade the Python dependencies in requirements.txt to their latest versions.",
+    "expect": null
+  },
+  {
+    "prompt": "Initialize a new git repository and add a .gitignore for Node.",
+    "expect": null
+  },
+  {
+    "prompt": "Archive last year's log files into a tarball.",
+    "expect": null
+  },
+  {
+    "prompt": "Triage this bug report and tell me which module is probably at fault.",
+    "expect": null
+  },
+  {
+    "prompt": "Plan a two-week sprint for the team, listing tasks and owners.",
+    "expect": null
   }
 ]

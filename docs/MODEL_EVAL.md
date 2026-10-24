@@ -216,8 +216,9 @@ catalog-selection probe covers skill descriptions separately.
 
 `evals/catalog_probe.py` measures the one `SKILL.md` field the optimizer gate allows an automated
 edit to change, the frontmatter `description`. It builds the skill catalog (names and descriptions)
-at two refs, sends each prompt in `evals/catalog-prompts.json` (one positive request per command and
-nearby explanation, status and ordinary coding requests that should select nothing), and compares
+at two refs, sends each prompt in `evals/catalog-prompts.json` (one or two positive requests per
+command, some worded without the skill's own vocabulary, plus explanation, status, ordinary coding and
+nearby-vocabulary requests that should select nothing), and compares
 selections. It does not prove runtime invocation or workflow acceptance.
 
 ```bash
@@ -230,6 +231,9 @@ Cost is exact: prompts x repeats x 2 refs model calls, and the tool refuses to s
 exceeds the required `--max-calls`. `--dry-run` prints the plan and the changed descriptions without a
 model call or provider settings. A candidate is rejected when it selects fewer correct skills or
 activates a skill on more negative prompts than the baseline, beyond `--allowed-regressions`.
+An improvement needs a net gain of at least `--min-gain` trials (default 2): in a baseline-versus-baseline
+run on 34 prompts, one unstable negative prompt moved false activations from 4 to 3, which is noise and
+not a gain. Measure that floor with the same ref on both sides before trusting a small difference.
 Provider settings are the runner's own (`LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_BASE`, API key).
 
 ## Paid Runs
