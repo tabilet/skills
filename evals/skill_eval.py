@@ -87,7 +87,7 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
         problems.append("expect.new_status_files must be a non-negative integer")
     contains = (expect or {}).get("files_contain", {}) if isinstance(expect, dict) else {}
     if not isinstance(contains, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in contains.items()):
-        problems.append("expect.files_contain must map paths to regular expressions")
+        problems.append("expect.files_contain must map paths (alternatives joined with |) to regular expressions")
     else:
         for pattern in contains.values():
             try:
@@ -194,9 +194,9 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         failed.append("new_status")
     if any(text not in (finals or [""])[-1] for text in task["expect"].get("final_mentions", [])):
         failed.append("final_mentions")
-    for relative, pattern in task["expect"].get("files_contain", {}).items():
-        path = project / relative
-        if not path.is_file() or not re.search(pattern, path.read_text(encoding="utf-8")):
+    for relatives, pattern in task["expect"].get("files_contain", {}).items():
+        paths = [project / relative for relative in relatives.split("|")]
+        if not any(path.is_file() and re.search(pattern, path.read_text(encoding="utf-8")) for path in paths):
             failed.append("expected_files")
             break
     return failed, {"new_ids": new_ids, "changed": changes}

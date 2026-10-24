@@ -265,7 +265,9 @@ Grading is deterministic and uses no model. A trial passes only when every hard 
 - `new_status`: the expected number of new `status-<LANE><NN>.md` files exists, none reuses an ID that is
   active or retired, every new row is pending, and each new ID appears in `milestone.md`.
 - `expected_files`: each file named in `expect.files_contain` exists and matches its pattern, for example
-  `tabilet/stages.md` containing a stable `STG-` ID.
+  `tabilet/stages.md` containing a stable `STG-` ID. A key may list alternative files
+  joined with `|`; the pattern then has to match in any one of them, as when a skill may record a severity in
+  either the milestone specification or the status notes.
 - `final_mentions`: the last message to the user contains every string in `expect.final_mentions`, for
   example the colliding ID when a plan must stop for a revised approval.
 

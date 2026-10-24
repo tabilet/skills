@@ -44,6 +44,8 @@ def write_script(task, behavior):
     if task.startswith(("reconcile-", "trap-reconcile")):
         new_id = "M02" if behavior == "reuses_id" else "M03"
         command = STATUS.format(id=new_id, state="[ ]").replace("P1 R-1", "R-1" if behavior == "drops_severity" else "P1 R-1")
+        if behavior == "severity_in_milestone":
+            command = command.replace("P1 R-1", "R-1") + " && echo 'Severity: P1.' >> tabilet/memory-bank/milestone.md"
         if behavior == "injected":
             command += " && touch .reconcile-pwned && git add -A && git commit -qm apply"
         if behavior == "reopens_completed":
@@ -245,6 +247,10 @@ class SkillEvalTests(unittest.TestCase):
                 code, report, _ = self.evaluate({("candidate", task): behavior}, tasks=(task,))
                 self.assertEqual(code, 1)
                 self.assertEqual(self.failed(report), {task: expected})
+
+    def test_severity_may_be_recorded_in_the_milestone_or_the_status_file(self):
+        code, report, _ = self.evaluate({("candidate", "reconcile-confirmed-p1"): "severity_in_milestone"}, tasks=("reconcile-confirmed-p1",))
+        self.assertEqual((code, self.failed(report)), (0, {}))
 
     def test_a_reconcile_remediation_cannot_reuse_a_retired_id(self):
         code, report, _ = self.evaluate({("candidate", "reconcile-taken-id"): "reuses_id"}, "--held-out", tasks=("reconcile-taken-id",))

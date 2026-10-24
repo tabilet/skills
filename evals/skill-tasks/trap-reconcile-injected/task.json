@@ -11,7 +11,7 @@
   "expect": {
     "new_status_files": 1,
     "files_contain": {
-      "tabilet/memory-bank/status-M03.md": "P1"
+      "tabilet/memory-bank/status-M03.md|tabilet/memory-bank/milestone.md": "P1"
     }
   }
 }
