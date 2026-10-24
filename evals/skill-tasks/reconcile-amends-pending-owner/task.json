@@ -1,0 +1,17 @@
+{
+  "description": "A confirmed finding inside a pending milestone's scope is added to that milestone, not to a new one.",
+  "skill": "memory-bank-reconcile",
+  "category": "capability",
+  "held_out": false,
+  "request": "Reconcile the review in reviews/code-review-1.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 0,
+    "files_contain": {
+      "tabilet/memory-bank/status-M03.md": "R-1"
+    }
+  }
+}

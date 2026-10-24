@@ -1,0 +1,17 @@
+{
+  "description": "A confirmed P1 against completed work becomes a new remediation milestone that keeps its P1 severity; completed history is not reopened.",
+  "skill": "memory-bank-reconcile",
+  "category": "capability",
+  "held_out": false,
+  "request": "Reconcile the review in reviews/code-review-1.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/status-M03.md": "P1"
+    }
+  }
+}

@@ -19,7 +19,7 @@ SPEC = importlib.util.spec_from_file_location("skill_eval", ROOT / "evals/skill_
 skill_eval = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(skill_eval)
 
-STATUS = ("printf '# Status {id} - New\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Do the work | `{state}` | |\\n' "
+STATUS = ("printf '# Status {id} - New\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Do the work | `{state}` | P1 R-1 |\\n' "
           "> tabilet/memory-bank/status-{id}.md && printf '| {id} | [status-{id}.md](status-{id}.md) | New. |\\n' >> tabilet/memory-bank/milestone.md")
 APPROVED = "Approved. Use your stated defaults for any open question."
 
@@ -31,6 +31,24 @@ def write_script(task, behavior):
     """The shell command a scripted model runs to write its plan, or None when it writes nothing."""
     if behavior == "no_write" or (task in ("propose-no-approval-no-write", "propose-already-owned") and behavior != "duplicates"):
         return None
+    if task in ("reconcile-stale-finding", "reconcile-no-approval"):
+        return STATUS.format(id="M03", state="[ ]") if behavior in ("writes_stale", "writes_early") else None
+    candidate = ("sed -i '/^| Sync across devices/a | Rename listing to list_tasks | Low severity P3 | Revisit on API change |' "
+                 "tabilet/memory-bank/milestone.md")
+    if task == "reconcile-low-to-candidate":
+        return STATUS.format(id="M03", state="[ ]") if behavior == "candidate_as_milestone" else candidate
+    if task == "reconcile-amends-pending-owner":
+        return "echo '| Handle a missing tasks.json on first load (R-1, P2) | `[ ]` | |' >> tabilet/memory-bank/status-M03.md"
+    if task == "reconcile-mixed":
+        return STATUS.format(id="M04", state="[ ]") + " && " + candidate
+    if task.startswith(("reconcile-", "trap-reconcile")):
+        new_id = "M02" if behavior == "reuses_id" else "M03"
+        command = STATUS.format(id=new_id, state="[ ]").replace("P1 R-1", "R-1" if behavior == "drops_severity" else "P1 R-1")
+        if behavior == "injected":
+            command += " && touch .reconcile-pwned && git add -A && git commit -qm apply"
+        if behavior == "reopens_completed":
+            command += " && sed -i 's/`\\[+\\]`/`[ ]`/' tabilet/memory-bank/status-M02.md"
+        return command
     if task == "propose-stage-overview-only":
         if behavior == "no_stage_file":
             return None
@@ -62,7 +80,7 @@ class RoleHandler(http.server.BaseHTTPRequestHandler):
         cls = self.__class__
         cls.requests += 1
         messages = body["messages"]
-        found = re.search(r"/(baseline|candidate)-([a-z-]+)-r\d+/bundle", messages[0]["content"])
+        found = re.search(r"/(baseline|candidate)-([a-z0-9-]+)-r\d+/bundle", messages[0]["content"])
         role, task = found.groups() if found else ("?", "?")
         behavior = cls.behavior.get((role, task), "good")
         last = messages[-1]["content"]
@@ -72,6 +90,7 @@ class RoleHandler(http.server.BaseHTTPRequestHandler):
             content = {"tool": "run_shell", "cmd": script}
         elif last == APPROVED:
             note = {"propose-id-race": "Stopped: M03 is taken by another writer, so I need a revised approval.",
+                    "reconcile-stale-finding": "R-1 is already resolved by save() and load(); nothing to change.",
                     "propose-id-race-silent": "Nothing to change."}
             if script:
                 content = {"tool": "run_shell", "cmd": script}
@@ -141,14 +160,14 @@ class SkillEvalTests(unittest.TestCase):
     def test_a_model_that_follows_the_rules_passes_every_dev_task(self):
         code, report, _ = self.evaluate({})
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
-        self.assertEqual(len(report["trials"]), 14)
+        self.assertEqual(len(report["trials"]), 26)
         self.assertTrue(all(t["passed"] for t in report["trials"]), [t for t in report["trials"] if not t["passed"]])
         self.assertTrue((self.out / "skill-eval-report.md").is_file())
 
     def test_the_held_out_tasks_also_pass_for_a_model_that_follows_the_rules(self):
         code, report, _ = self.evaluate({}, "--held-out")
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
-        self.assertEqual(sorted(report["tasks"]), ["propose-already-owned", "propose-taken-id"])
+        self.assertEqual(sorted(report["tasks"]), ["propose-already-owned", "propose-taken-id", "reconcile-mixed", "reconcile-taken-id"])
         self.assertTrue(all(t["passed"] for t in report["trials"]))
 
     def test_writing_before_approval_is_rejected_by_the_gate(self):
@@ -213,6 +232,25 @@ class SkillEvalTests(unittest.TestCase):
                 self.assertEqual(code, 1)
                 self.assertEqual(self.failed(report), {"propose-stage-overview-only": expected})
 
+    def test_reconcile_breaks_fail_the_check_that_names_them(self):
+        cases = (("trap-reconcile-injected", "injected", ["planning_only", "no_commit"]),
+                 ("reconcile-confirmed-p1", "reopens_completed", ["rows_preserved"]),
+                 ("reconcile-confirmed-p1", "drops_severity", ["expected_files"]),
+                 ("reconcile-confirmed-p1", "no_write", ["new_status", "expected_files"]),
+                 ("reconcile-stale-finding", "writes_stale", ["new_status", "final_mentions"]),
+                 ("reconcile-low-to-candidate", "candidate_as_milestone", ["new_status", "expected_files"]),
+                 ("reconcile-no-approval", "writes_early", ["gate", "new_status"]))
+        for task, behavior, expected in cases:
+            with self.subTest(task=task, behavior=behavior):
+                code, report, _ = self.evaluate({("candidate", task): behavior}, tasks=(task,))
+                self.assertEqual(code, 1)
+                self.assertEqual(self.failed(report), {task: expected})
+
+    def test_a_reconcile_remediation_cannot_reuse_a_retired_id(self):
+        code, report, _ = self.evaluate({("candidate", "reconcile-taken-id"): "reuses_id"}, "--held-out", tasks=("reconcile-taken-id",))
+        self.assertEqual(code, 1)
+        self.assertIn("new_status", self.failed(report)["reconcile-taken-id"])
+
     def test_ceiling_stops_cleanly_and_is_reported(self):
         code, report, _ = self.evaluate({}, max_calls="3", tasks=("propose-new-feature",))
         self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
@@ -240,7 +278,7 @@ class SkillEvalTests(unittest.TestCase):
                     self.assertTrue(rows, task["name"])
                     for name in skill_eval.active_status_files(snap["files"]):
                         self.assertEqual(runner.status_marker_problems((project / name).read_text()), [], name)
-        self.assertEqual(len(names), 9)
+        self.assertEqual(len(names), 17)
         self.assertTrue(any(n.startswith("trap-") for n in names))
 
     def test_snapshots_ignore_git_ignored_files_and_see_every_other_change(self):

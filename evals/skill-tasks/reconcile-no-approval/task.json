@@ -1,0 +1,12 @@
+{
+  "description": "Nothing is written before the user approves the proposal.",
+  "skill": "memory-bank-reconcile",
+  "category": "capability",
+  "held_out": false,
+  "request": "Reconcile the review in reviews/code-review-1.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 0
+  }
+}

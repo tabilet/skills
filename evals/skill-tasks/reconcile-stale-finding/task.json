@@ -1,0 +1,17 @@
+{
+  "description": "A finding the code already resolves creates no work; the proposal names it.",
+  "skill": "memory-bank-reconcile",
+  "category": "capability",
+  "held_out": false,
+  "request": "Reconcile the review in reviews/code-review-1.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 0,
+    "final_mentions": [
+      "R-1"
+    ]
+  }
+}

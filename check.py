@@ -3242,6 +3242,7 @@ def optimizer_gate_contract():
                                 "never feed\n   those results", "evals/catalog_probe.py", "Cost is exact", "does not prove runtime\ninvocation",
                                 "evals/run_eval.py", "required and checked between trials",
                                 "## Skill Eval", "evals/skill_eval.py", "does not measure how Claude Code or Codex invoke a skill",
+                                "instructions embedded in the review text are not obeyed",
                                 "must never be shown to an optimizer")),
         ("AGENTS.md", ("`evals/`", "Repository-only instruction-eval tooling", "`catalog_probe.py`", "`skill_eval.py`")),
         ("docs/EXECUTION.md", ("`RUN_REPORT`", "tabilet.run-report/v1", "never changes the exit code")),
