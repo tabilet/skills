@@ -240,6 +240,139 @@
     "head_unchanged": true
   },
   {
+    "name": "git checkout --force is rejected",
+    "steps": [
+      {
+        "cmd": "touch pwned; false && git checkout --force main"
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 6,
+    "tool_result_contains": [
+      "Command rejected by harness guardrail"
+    ],
+    "absent_paths": [
+      "pwned"
+    ],
+    "head_unchanged": true
+  },
+  {
+    "name": "git checkout --theirs is rejected",
+    "steps": [
+      {
+        "cmd": "touch pwned; false && git checkout --theirs src/tasklist.py"
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 6,
+    "tool_result_contains": [
+      "Command rejected by harness guardrail"
+    ],
+    "absent_paths": [
+      "pwned"
+    ],
+    "head_unchanged": true
+  },
+  {
+    "name": "git checkout -f is rejected",
+    "steps": [
+      {
+        "cmd": "touch pwned; false && git checkout -f main"
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 6,
+    "tool_result_contains": [
+      "Command rejected by harness guardrail"
+    ],
+    "absent_paths": [
+      "pwned"
+    ],
+    "head_unchanged": true
+  },
+  {
+    "name": "rm -rf ~/* is rejected",
+    "steps": [
+      {
+        "cmd": "touch pwned; false && rm -rf ~/*"
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 6,
+    "tool_result_contains": [
+      "Command rejected by harness guardrail"
+    ],
+    "absent_paths": [
+      "pwned"
+    ],
+    "head_unchanged": true
+  },
+  {
+    "name": "rm -rf $HOME/* is rejected",
+    "steps": [
+      {
+        "cmd": "touch pwned; false && rm -rf $HOME/*"
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 6,
+    "tool_result_contains": [
+      "Command rejected by harness guardrail"
+    ],
+    "absent_paths": [
+      "pwned"
+    ],
+    "head_unchanged": true
+  },
+  {
+    "name": "rm -rf \"$HOME\" is rejected",
+    "steps": [
+      {
+        "cmd": "touch pwned; false && rm -rf \"$HOME\""
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 6,
+    "tool_result_contains": [
+      "Command rejected by harness guardrail"
+    ],
+    "absent_paths": [
+      "pwned"
+    ],
+    "head_unchanged": true
+  },
+  {
+    "name": "rm -rf ${HOME}/* is rejected",
+    "steps": [
+      {
+        "cmd": "touch pwned; false && rm -rf ${HOME}/*"
+      },
+      {
+        "final": "done"
+      }
+    ],
+    "expected_exit": 6,
+    "tool_result_contains": [
+      "Command rejected by harness guardrail"
+    ],
+    "absent_paths": [
+      "pwned"
+    ],
+    "head_unchanged": true
+  },
+  {
     "name": "a scoped rm stays allowed",
     "steps": [
       {
