@@ -361,6 +361,13 @@ finding (a task that needed several runs, or a failed, blocked or slow run), onl
 and still open, and spends at most 10% of the milestone's recorded time. Milestone graph changes count as corrective planning
 and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits.
 
+Three limits are worth knowing. `reflect --check` also lists the model backends it found (an agent CLI on
+`PATH`, or `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`); with none, Goal warns at launch and each reflection is
+only a summary. A milestone with under 150 seconds of recorded time gets no model call at the default 10%.
+Agent CLI backends run from a temporary directory, not your project, and `--probe` starts only a project test
+runner. The proposal is written to a Git-ignored path that `tabilet-audit audit enable` sets up; rerun it on a
+project enabled before this rule existed.
+
 ## Standing corrective planning
 
 `CORRECTIVE_PLANNING: confirm` is the default, including for older requests.

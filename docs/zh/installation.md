@@ -333,7 +333,7 @@ tabilet-audit explorer /absolute/project --port 8000
 ```
 
 用户必须为每个项目手动启用审计；数据库保存该设置，新会话沿用它。
-提交 `tabilet/.gitignore` 中的 `/audit.sqlite3*`，让数据库及旁文件保持未跟踪。
+提交 `tabilet/.gitignore` 中的 `/audit.sqlite3*` 与离线反思提案路径，让数据库、旁文件和提案保持未跟踪。
 创建或刷新索引不会启用审计。`audit disable` 保留历史；删除数据库后审计保持关闭。
 仅安装技能不会创建数据库。Windows 或未安装命令时，用
 `py -3 C:\path\to\skills\harness\tabilet_audit_host.py` 运行同样的子命令。相关消息捕获需单独启用；原始聊天文本必须由宿主提供。

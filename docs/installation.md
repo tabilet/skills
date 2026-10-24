@@ -399,8 +399,8 @@ tabilet-audit explorer /absolute/project --port 8000
 ```
 
 The user manually enables each project; the saved setting survives new sessions.
-Commit the generated `tabilet/.gitignore` with `/audit.sqlite3*`; the database and
-its sidecars remain ignored. Index creation does not enable audit, and disabling
+Commit the generated `tabilet/.gitignore` with `/audit.sqlite3*` and the reflection proposal path;
+the database, its sidecars and the proposal remain ignored. Index creation does not enable audit, and disabling
 preserves history. Deleting storage leaves audit disabled. Installing skills
 alone never creates storage. For Windows or an uninstalled CLI, run the same
 commands with `py -3 C:\path\to\skills\harness\tabilet_audit_host.py` instead of

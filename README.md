@@ -1326,7 +1326,7 @@ Install the toolkit from a `skills` checkout:
 ```bash
 install -d "$HOME/.local/bin"
 install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
-install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py "$HOME/.local/bin/"
 install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
 export PATH="$HOME/.local/bin:$PATH"
 ```
@@ -1346,7 +1346,8 @@ py -3 C:\path\to\skills\harness\tabilet_audit_host.py audit enable C:\path\to\pr
 py -3 C:\path\to\skills\harness\tabilet_audit_host.py audit status C:\path\to\project
 ```
 
-Setup creates or preserves `tabilet/.gitignore` and appends `/audit.sqlite3*`.
+Setup creates or preserves `tabilet/.gitignore` and appends `/audit.sqlite3*`, plus the
+offline-reflection proposal path `/memory-bank/suggested-harness-update.md`.
 Commit that ignore file; the database, WAL, shared-memory, journal, and temporary
 initialization files remain untracked. No environment variable or database-path
 option is needed. The saved setting survives new agent sessions; enabling A

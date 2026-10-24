@@ -336,8 +336,9 @@ spelling so an inbound link survives translation.
   changes (amending, repair milestones, cancelling pending rows `[X]`) are
   corrective planning and need human-approved `CORRECTIVE_PLANNING: auto`; under
   `confirm` they are proposed and pause. The reflect command reads the checkout it
-  is run in, writes its proposal only inside the project, runs model-proposed probe
-  commands only with `--probe` and `ALLOW_UNSANDBOXED_SHELL=1` (no shell), and
+  is run in, writes its proposal only inside the project at a Git-ignored path, runs agent CLI
+  backends from a temporary directory, runs model-proposed probe commands only with `--probe`
+  and `ALLOW_UNSANDBOXED_SHELL=1` (no shell, test runners only), and
   writes captured transcripts only to an explicit path outside the project or
   Git-ignored. A backend failure writes nothing; a model-free report proposes no edits.
   Reflection feeds later milestones to the model only after a significant finding
@@ -412,7 +413,7 @@ spelling so an inbound link survives translation.
   worktrees share the primary checkout's file and saved opt-in. Each project
   requires manual `tabilet-audit audit enable`; the default stays off and index
   creation never enables recording. Database path options and environment overrides
-  are removed. Setup preserves `tabilet/.gitignore` and appends `/audit.sqlite3*`;
+  are removed. Setup preserves `tabilet/.gitignore` and appends `/memory-bank/suggested-harness-update.md` and `/audit.sqlite3*`;
   commit the ignore file, never the database or its sidecars. Deleting storage
   returns the project to disabled. Controller commands mount existing audit files
   read-only alongside read-only `.git`. The seven optional audit references stay

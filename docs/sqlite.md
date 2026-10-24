@@ -29,7 +29,8 @@ This saves `audit_enabled=1` in SQLite metadata. A missing setting or database
 means disabled; creating or refreshing an index never enables audit. `audit
 status PROJECT` is read-only, and `audit disable PROJECT` saves disabled without
 removing evidence. Setup preserves `tabilet/.gitignore` and appends
-`/audit.sqlite3*`, excluding the database, sidecars, and initialization files.
+`/audit.sqlite3*`, excluding the database, sidecars, and initialization files, and
+`/memory-bank/suggested-harness-update.md`, the offline-reflection proposal.
 Commit the ignore file before launching a workflow that requires clean Git.
 Unix database files are created with mode 0600; Windows uses the directory's
 inherited access controls. Existing parent permissions are unchanged.
