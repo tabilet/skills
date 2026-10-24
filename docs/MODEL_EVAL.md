@@ -249,6 +249,10 @@ needs a separate explicit confirmation that names the provider, the model, and t
 2. **Measure the noise floor.** Run the probe and the eval runner with the same ref as baseline and
    candidate. Any task that passes sometimes and fails sometimes is flaky; raise `--repeats` before
    trusting a difference smaller than that noise.
+   Capability tasks allow the runner's default 60 turns: a first noise-floor run at 25 turns ended every
+   capability trial at exit 30, because the template's closing review and retirement steps need about 30.
+   Some models also emit unparseable tool markup on a share of turns; read a trial's replies before
+   blaming a difference on the instructions.
 3. **Catalog probe, then dev tasks.** Probe baseline against the candidate, then run the eval runner on
    the dev tasks inside a disposable sandbox, with reports written outside the checkout.
 4. **Held-out tasks, once.** Run `--held-out` only for a candidate that was not rejected, and never feed

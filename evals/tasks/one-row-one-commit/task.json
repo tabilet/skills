@@ -5,6 +5,6 @@
   "expect_exit": [
     7
   ],
-  "max_turns": 25,
+  "max_turns": 60,
   "verify": "test \"$(grep -c '\\[+\\]' tabilet/memory-bank/status-M01.md)\" = 1 && test \"$(ls a.txt b.txt 2>/dev/null | wc -l)\" = 1"
 }

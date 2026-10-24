@@ -5,6 +5,6 @@
   "expect_exit": [
     7
   ],
-  "max_turns": 25,
+  "max_turns": 60,
   "verify": "python3 -B -m unittest -q test_slug"
 }
