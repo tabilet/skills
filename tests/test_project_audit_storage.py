@@ -235,9 +235,12 @@ class ProjectStorageTests(unittest.TestCase):
         ignored.write_bytes(original)
         self.command('audit', 'enable', lease)
         self.assertTrue(self.command('audit', 'status', self.project)['enabled'])
-        self.assertEqual(ignored.read_bytes(), original+b'/audit.sqlite3*\n')
+        added = b'/memory-bank/suggested-harness-update.md\n/audit.sqlite3*\n'
+        self.assertEqual(ignored.read_bytes(), original+added)
         self.command('audit', 'enable', lease)
-        self.assertEqual(ignored.read_bytes(), original+b'/audit.sqlite3*\n')
+        self.assertEqual(ignored.read_bytes(), original+added)
+        self.assertEqual(harness.run('git', 'check-ignore', '-q', 'tabilet/memory-bank/suggested-harness-update.md',
+                                     cwd=self.project).returncode, 0)
         for suffix in ('', '-wal', '-shm', '-journal', '.init-test'):
             self.assertEqual(harness.run('git', 'check-ignore', '-q',
                 'tabilet/audit.sqlite3'+suffix, cwd=self.project).returncode, 0)
@@ -272,6 +275,17 @@ class ProjectStorageTests(unittest.TestCase):
         self.assertIn('tracked by Git', self.command('audit', 'enable', self.project, ok=False))
         self.assertEqual(self.path().read_bytes(), original)
         self.assertFalse(self.command('audit', 'status', self.project)['enabled'])
+
+    def test_enabling_an_older_project_adds_the_proposal_rule_and_keeps_the_database_rule_last(self):
+        ignored = self.project/'tabilet/.gitignore'
+        ignored.write_bytes(b'/audit.sqlite3*\n')
+        self.command('audit', 'enable', self.project)
+        self.assertEqual(ignored.read_bytes(),
+                         b'/audit.sqlite3*\n/memory-bank/suggested-harness-update.md\n/audit.sqlite3*\n')
+        self.command('index', 'sync', self.project)
+        self.command('audit', 'enable', self.project)
+        self.assertEqual(ignored.read_bytes(),
+                         b'/audit.sqlite3*\n/memory-bank/suggested-harness-update.md\n/audit.sqlite3*\n')
 
     def test_recording_never_rewrites_project_ignore_configuration(self):
         self.command('audit', 'enable', self.project)

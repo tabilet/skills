@@ -221,7 +221,7 @@ def dispatch(args):
                 raise audit.AuditError('audit storage is tracked by Git; remove it from the index before enabling')
         with contextlib.closing(audit.open_database(database, project_roots=[routing_root])) as connection:
             if action == 'enable':
-                audit.ensure_project_ignore(routing_root, database)
+                audit.ensure_project_ignore(routing_root, database, proposal=True)
             audit.set_audit_enabled(connection, routing_root, action == 'enable')
         result = audit.audit_status(routing_root, database)
         if action == 'enable':
@@ -233,7 +233,9 @@ def dispatch(args):
     if args.group == 'reflect':
         from tabilet_reflect import reflect_command
         if args.check:
-            return {'status': 'ok', 'available': True}
+            from tabilet_reflect import available_backends, MIN_MODEL_MILESTONE_SEC
+            return {'status': 'ok', 'available': True, 'backends': available_backends(),
+                    'min_model_milestone_sec': MIN_MODEL_MILESTONE_SEC}
         return reflect_command(selected or '.', milestone_id=args.milestone, dry_run=args.dry_run, output_path=args.output, format_type=args.format, backend=args.backend, print_prompt=args.print_prompt, probe=args.probe, budget_percent=args.budget_percent)
     root=pathlib.Path(selected).expanduser().resolve() if selected else None
     write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish')) or (args.group=='index' and action=='sync')

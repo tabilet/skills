@@ -47,7 +47,7 @@ class AuditPlatformTests(unittest.TestCase):
             for file in (first/'tabilet').glob('audit.sqlite3*'):
                 file.unlink()
             self.assertFalse(command('audit', 'status', first)['enabled'])
-            self.assertEqual((first/'tabilet/.gitignore').read_text(), '/audit.sqlite3*\n')
+            self.assertEqual((first/'tabilet/.gitignore').read_text(), '/memory-bank/suggested-harness-update.md\n/audit.sqlite3*\n')
             self.assertFalse((root/'obsolete.sqlite3').exists())
 
     def test_runner_parsers_import_without_posix_file_locking(self):

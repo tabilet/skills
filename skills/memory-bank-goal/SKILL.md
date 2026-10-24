@@ -80,6 +80,10 @@ When it is not `none`, run these preflight checks before milestone execution:
    `WARNING: OPTIMIZE_POLICY is configured, but offline reflection is not installed (tabilet-audit reflect --check failed). Offline reflection optimization will be bypassed during this run. Install tabilet_reflect.py beside tabilet-audit to enable it.`
    Set an internal bypass flag, and emit at the end:
    `NOTICE: OPTIMIZE_POLICY was skipped because offline reflection was not installed. Install tabilet_reflect.py beside tabilet-audit to enable offline reflection on future runs.`
+   If it passes with an empty `backends` list, no model CLI or API key is available, so each reflection would
+   only be a model-free summary with no edits; emit at start:
+   `WARNING: OPTIMIZE_POLICY is configured, but no reflection model is available (tabilet-audit reflect --check lists no backends). Reflection will only produce a summary with no edits. Install claude, gemini or codex, or set ANTHROPIC_API_KEY or GEMINI_API_KEY.`
+   and continue; milestones shorter than the `min_model_milestone_sec` it reports get no model call either.
 When both pass, run `tabilet-audit reflect . --milestone <ID>` upon milestone closure and read its proposal
 (`proposal_source` of `heuristic` means no model ran; treat it as a summary with no edits). Probe commands
 are not run unless you pass `--probe` with the host-shell acknowledgment. Under `confirm`, pause for human

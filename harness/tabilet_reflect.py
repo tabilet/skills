@@ -32,6 +32,10 @@ SLOW_RUN_SEC = 120
 DEFAULT_BUDGET_PERCENT = 10.0
 MODEL_TIMEOUT_CAP_SEC = 120
 MIN_MODEL_BUDGET_SEC = 15
+# A milestone shorter than this gets no model call at the default budget share.
+MIN_MODEL_MILESTONE_SEC = round(MIN_MODEL_BUDGET_SEC * 100 / DEFAULT_BUDGET_PERCENT)
+CLI_BACKENDS = ("claude", "gemini", "codex")
+REST_KEYS = {"claude": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY"}
 
 
 class BudgetExceeded(audit.AuditError):
@@ -599,6 +603,12 @@ def _is_timeout(exc: BaseException) -> bool:
         isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, TimeoutError))
 
 
+def available_backends() -> list[str]:
+    """Backends reflection could use right now: agent CLIs on PATH, then REST APIs with a key."""
+    found = [f"cli:{name}" for name in CLI_BACKENDS if shutil.which(name)]
+    return found + [f"rest:{name}" for name, key in REST_KEYS.items() if os.environ.get(key)]
+
+
 def _run_cli(cmd: list[str], prompt: str, timeout_sec: float) -> tuple[int, str]:
     """Run one agent CLI on the prompt from an empty temporary directory, never the project.
 
@@ -800,6 +810,15 @@ def _inside(path: pathlib.Path, root: pathlib.Path) -> bool:
     return path == root or root in path.parents
 
 
+def _in_git(project_root: pathlib.Path) -> bool:
+    try:
+        proc = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=project_root,
+                              capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return proc.returncode == 0 and proc.stdout.strip() == "true"
+
+
 def _git_ignored(path: pathlib.Path, project_root: pathlib.Path) -> bool:
     try:
         proc = subprocess.run(["git", "check-ignore", "-q", "--", str(path)], cwd=project_root,
@@ -841,6 +860,10 @@ def reflect_command(project_path: str = ".", milestone_id: str | None = None,
     out_file = (project_root / (output_path or DEFAULT_PROPOSAL_PATH)).resolve()
     if not _inside(out_file, project_root):
         raise audit.AuditError("--output must stay inside the project")
+    if (not output_path and not dry_run and not print_prompt and _in_git(project_root)
+            and not _git_ignored(out_file, project_root)):
+        raise audit.AuditError(f"{DEFAULT_PROPOSAL_PATH} is not Git-ignored, so the proposal would dirty the "
+                               "worktree; re-run 'tabilet-audit audit enable .' to add the ignore rule")
 
     telemetry = extract_telemetry(project_root, milestone_id=milestone_id)
 

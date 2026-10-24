@@ -64,7 +64,29 @@ class ReflectTests(unittest.TestCase):
             self.assertTrue(self.command(*arguments)['dry_run'])
 
     def test_check_needs_no_project_data(self):
-        self.assertEqual(self.command('reflect', '--check')['available'], True)
+        result = self.command('reflect', '--check')
+        self.assertEqual(result['available'], True)
+        self.assertIsInstance(result['backends'], list)
+        self.assertEqual(result['min_model_milestone_sec'], 150)
+
+    def test_check_lists_the_backends_reflection_could_use(self):
+        with mock.patch.dict(os.environ, {'PATH': '', 'GEMINI_API_KEY': 'k'}, clear=True):
+            self.assertEqual(reflect.available_backends(), ['rest:gemini'])
+        only = {'PATH': str(self.base / 'bin')}
+        self.fake_cli('true\n')
+        with mock.patch.dict(os.environ, only, clear=True):
+            self.assertEqual(reflect.available_backends(), ['cli:claude'])
+
+    def test_default_proposal_must_be_git_ignored(self):
+        self.record_completed_task()
+        ignore = self.repo / 'tabilet/.gitignore'
+        ignore.write_text('/audit.sqlite3*\n')
+        with self.assertRaisesRegex(audit.AuditError, 'not Git-ignored'):
+            reflect.reflect_command(str(self.repo), milestone_id='M01')
+        self.command('audit', 'enable', self.repo)
+        result = reflect.reflect_command(str(self.repo), milestone_id='M01')
+        self.assertTrue(Path(result['output_file']).is_file())
+        self.assertEqual(h.run('git', 'status', '--porcelain', '--', 'tabilet/memory-bank', cwd=self.repo).stdout, '')
 
     def test_fast_baseline_matches_completed_tasks(self):
         self.record_completed_task()

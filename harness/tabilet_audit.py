@@ -828,18 +828,27 @@ def project_database_path(path, roots=(), *, staging=False):
     return path
 
 
-def ensure_project_ignore(project_root, database):
-    """Preserve existing rules and append the reserved database exclusion last."""
+# The reflection proposal can quote captured transcripts, so it stays out of Git like the database.
+PROPOSAL_IGNORE = b'/memory-bank/suggested-harness-update.md'
+
+
+def ensure_project_ignore(project_root, database, proposal=False):
+    """Preserve existing rules and append the reserved database exclusion last.
+
+    With `proposal` (audit enable only), also ignore the reflection proposal; the database rule is
+    then repeated after it so that it stays last."""
     if pathlib.Path(database) != default_database_path(project_root=project_root):
         return
     target = safe_path(pathlib.Path(database).parent / '.gitignore')
     previous = target.read_bytes() if target.exists() else None
     meaningful = [line.strip() for line in (previous or b'').splitlines()
                   if line.strip() and not line.lstrip().startswith(b'#')]
-    if meaningful and meaningful[-1] == b'/audit.sqlite3*':
+    missing_proposal = proposal and PROPOSAL_IGNORE not in meaningful
+    if meaningful and meaningful[-1] == b'/audit.sqlite3*' and not missing_proposal:
         return
     data = previous or b''
-    data += (b'' if not data or data.endswith(b'\n') else b'\n') + b'/audit.sqlite3*\n'
+    data += (b'' if not data or data.endswith(b'\n') else b'\n')
+    data += (PROPOSAL_IGNORE + b'\n' if missing_proposal else b'') + b'/audit.sqlite3*\n'
     temporary = target.with_name('.gitignore.audit-' + uuid.uuid4().hex)
     try:
         descriptor = private_create(temporary)
