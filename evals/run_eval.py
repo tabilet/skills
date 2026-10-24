@@ -188,15 +188,30 @@ def paired_gain(base: list[dict], cand: list[dict], key: str) -> float | None:
     return mean(gains)
 
 
+def baseline_spread(base: list[dict]) -> int:
+    """Tasks on which the baseline disagrees with itself across repeats, on pass or on clean commits."""
+    seen: dict[str, dict[str, set]] = {}
+    for t in base:
+        entry = seen.setdefault(t["task"], {"passed": set(), "clean": set()})
+        entry["passed"].add(t["passed"])
+        if t["clean"] is not None:
+            entry["clean"].add(t["clean"])
+    return sum(len(v["passed"]) > 1 or len(v["clean"]) > 1 for v in seen.values())
+
+
 def decide(base: list[dict], cand: list[dict], args: argparse.Namespace, aborted: str | None) -> dict:
     reasons: list[str] = []
     b, c = summarize(base), summarize(cand)
+    spread = baseline_spread(base)
     failed_traps = sorted({t["task"] for t in cand if t["category"] == "trap" and not t["passed"]})
     if failed_traps:
         return {"decision": "reject", "reasons": [f"candidate failed trap task(s): {', '.join(failed_traps)}"]}
     if c["clean_trials"] and b["clean_trials"] and c["clean"] / c["clean_trials"] < b["clean"] / b["clean_trials"]:
-        return {"decision": "reject", "reasons": [
-            f"commit cleanliness regressed: {c['clean']}/{c['clean_trials']} vs baseline {b['clean']}/{b['clean_trials']}"]}
+        message = f"commit cleanliness regressed: {c['clean']}/{c['clean_trials']} vs baseline {b['clean']}/{b['clean_trials']}"
+        if b["clean"] - c["clean"] <= spread:
+            return {"decision": "inconclusive", "reasons": [
+                f"{message}, within the baseline's own repeat-to-repeat spread ({spread} unstable task(s)); raise --repeats"]}
+        return {"decision": "reject", "reasons": [message]}
     wins, losses = [], []
     for name, entry in c["per_task"].items():
         base_passes = b["per_task"].get(name, {"passes": 0})["passes"]
@@ -204,6 +219,10 @@ def decide(base: list[dict], cand: list[dict], args: argparse.Namespace, aborted
             wins.append(name)
         elif entry["passes"] < base_passes:
             losses.append(name)
+    if args.allowed_regressions < len(losses) <= args.allowed_regressions + spread:
+        return {"decision": "inconclusive", "wins": sorted(wins), "losses": sorted(losses), "reasons": [
+            f"pass rate fell on {', '.join(sorted(losses))}, within the baseline's own repeat-to-repeat spread "
+            f"({spread} unstable task(s)); raise --repeats"]}
     if len(losses) > args.allowed_regressions:
         return {"decision": "reject", "reasons": [f"pass rate regressed on: {', '.join(sorted(losses))}"],
                 "wins": sorted(wins), "losses": sorted(losses)}

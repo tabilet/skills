@@ -253,6 +253,10 @@ needs a separate explicit confirmation that names the provider, the model, and t
    capability trial at exit 30, because the template's closing review and retirement steps need about 30.
    Some models also emit unparseable tool markup on a share of turns; read a trial's replies before
    blaming a difference on the instructions.
+   A second run with the same ref on both sides still reported `reject` (clean commits 1/6 against
+   3/6), from three unstable tasks and from `__pycache__` files left untracked by the model's own test
+   runs. Task projects now ignore bytecode, and a clean-commit or pass-rate drop no larger than the
+   baseline's own repeat-to-repeat spread is `inconclusive`, not `reject`.
 3. **Catalog probe, then dev tasks.** Probe baseline against the candidate, then run the eval runner on
    the dev tasks inside a disposable sandbox, with reports written outside the checkout.
 4. **Held-out tasks, once.** Run `--held-out` only for a candidate that was not rejected, and never feed

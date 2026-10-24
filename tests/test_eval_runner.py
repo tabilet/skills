@@ -125,6 +125,18 @@ class EvalRunnerTests(unittest.TestCase):
         self.assertIn("pass rate regressed", report["decision"]["reasons"][0])
         self.assertEqual(report["decision"]["losses"], ["fix-add-bug"])
 
+    def test_regression_within_the_baselines_own_spread_is_inconclusive(self):
+        def trial(role, repeat, passed, clean):
+            return {"task": "t", "category": "capability", "role": role, "repeat": repeat, "passed": passed,
+                    "clean": clean, "turns": 10, "tokens": 100, "tokens_known": True}
+        args = run_eval.parse_args(["--baseline", "a", "--candidate", "b", "--report-dir", "x",
+                                    "--max-calls", "1", "--max-tokens", "1"])
+        flaky_base = [trial("baseline", 1, True, True), trial("baseline", 2, False, False)]
+        worse = [trial("candidate", 1, False, False), trial("candidate", 2, False, False)]
+        self.assertEqual(run_eval.decide(flaky_base, worse, args, None)["decision"], "inconclusive")
+        steady_base = [trial("baseline", 1, True, True), trial("baseline", 2, True, True)]
+        self.assertEqual(run_eval.decide(steady_base, worse, args, None)["decision"], "reject")
+
     def test_improvement_needs_enough_repeats_to_be_claimed(self):
         behavior = {("baseline", "fix-add-bug"): "bad"}
         code, report = self.evaluate(behavior, tasks=("fix-add-bug",))
