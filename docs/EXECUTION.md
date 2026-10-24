@@ -299,8 +299,9 @@ launcher exits and does not coordinate interactive coding-agent sessions. Codes
 
 Set `RUN_REPORT` to an absolute file path and the runner appends one JSON line
 when it exits, whatever the exit code, so evals can score failed runs too. It is
-off by default and best effort: a relative path or a write failure prints a
-warning and never changes the exit code. One line describes one runner
+off by default and best effort: a relative path, a path inside the repository
+(its untracked file would stop the next run at the dirty-worktree gate), or a
+write failure prints a warning and never changes the exit code. One line describes one runner
 invocation:
 
 ```json
@@ -313,7 +314,8 @@ invocation:
 
 A usage field the provider did not report stays `null`, never `0`. `commits` counts commits
 since the first run's starting `HEAD`, and `worktree_clean` is read at exit; both are `null`
-when the run stopped before a starting `HEAD` was read. The controller does not write reports.
+when the run stopped before a starting `HEAD` was read, and `worktree_clean` is also `null` when
+`git status` itself fails. The controller does not write reports.
 
 ### Tabilet Controller Exit Codes
 

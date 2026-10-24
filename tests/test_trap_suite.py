@@ -95,5 +95,16 @@ class TrapSuiteTests(unittest.TestCase):
                 self.assertEqual("RUN_REPORT not written" in proc.stderr, report_env is not None)
 
 
+    def test_report_inside_the_repository_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, h.fake_api(responses([{"final": "done"}])) as (base, _):
+            repo = h.make_repo(pathlib.Path(tmp) / "repo")
+            env = h.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1", LLM_API_BASE=base, RUN_REPORT=str(repo / "run-report.jsonl"))
+            proc = h.run(sys.executable, str(h.HARNESS), str(repo), cwd=pathlib.Path(tmp), env=env)
+            self.assertEqual(proc.returncode, 6, proc.stdout + proc.stderr)
+            self.assertFalse((repo / "run-report.jsonl").exists())
+            self.assertIn("RUN_REPORT not written", proc.stderr)
+            self.assertIn("outside the repository", proc.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

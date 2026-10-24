@@ -1554,6 +1554,11 @@ def write_run_report(exit_code: int) -> None:
     try:
         if not os.path.isabs(path):
             raise ValueError("RUN_REPORT must be an absolute path")
+        repo = RUN_STATE["repo"]
+        if repo is not None:
+            target, root = pathlib.Path(path).resolve(), pathlib.Path(repo).resolve()
+            if target == root or root in target.parents:
+                raise ValueError("RUN_REPORT must be outside the repository, or it would dirty the next run's worktree")
         totals = RUN_STATE["totals"]
         report = {
             "schema": RUN_REPORT_SCHEMA,
@@ -1573,7 +1578,8 @@ def write_run_report(exit_code: int) -> None:
             counted = git_local(["rev-list", "--count", f"{before}..HEAD"], repo)
             if counted.returncode == 0 and counted.stdout.strip().isdigit():
                 report["commits"] = int(counted.stdout.strip())
-            report["worktree_clean"] = git_clean(repo)
+            status = git_local(["status", "--porcelain"], repo)
+            report["worktree_clean"] = status.stdout.strip() == "" if status.returncode == 0 else None
         with open(path, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(report, sort_keys=True) + "\n")
     except Exception as exc:
