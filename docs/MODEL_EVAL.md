@@ -260,6 +260,12 @@ needs a separate explicit confirmation that names the provider, the model, and t
    A third run, with 3 repeats and the same ref on both sides, still reported `promote` (3 of 9 capability
    passes against 6 of 9). A gain is now claimed only when it covers more tasks than the number that
    disagree with themselves across repeats on either side, and an efficiency-only gain only when none do.
+   Model choice matters more than any rule. The same eval at 3 repeats on `claude-haiku-5-5`, with the
+   same ref on both sides, passed 18 of 18 capability trials and 6 of 6 trap trials, used 7 to 13 turns,
+   and correctly reported `no_difference`. Its paired same-ref gain averaged 1% in turns and 6% in tokens,
+   so `--min-gain-percent` now defaults to 15. `gemini-3.8-flash` passed capability trials but used two to
+   four times the turns and once failed a trap by wandering to the turn cap; `deepseek-flash` was the
+   least stable. Measure a model's own floor before judging a candidate with it.
 3. **Catalog probe, then dev tasks.** Probe baseline against the candidate, then run the eval runner on
    the dev tasks inside a disposable sandbox, with reports written outside the checkout.
 4. **Held-out tasks, once.** Run `--held-out` only for a candidate that was not rejected, and never feed

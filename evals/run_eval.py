@@ -293,7 +293,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--min-repeats", type=int, default=3, help="repeats needed before an improvement is claimed")
     p.add_argument("--allowed-regressions", type=int, default=0, help="tasks the candidate may pass less often")
-    p.add_argument("--min-gain-percent", type=float, default=5.0)
+    p.add_argument("--min-gain-percent", type=float, default=15.0)
     p.add_argument("--held-out", action="store_true", help="run the held-out tasks instead of the dev tasks")
     p.add_argument("--task", action="append", help="limit to this task (repeatable)")
     p.add_argument("--tasks-dir", type=pathlib.Path, default=TASKS_DIR)
