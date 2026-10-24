@@ -14,6 +14,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -598,6 +599,29 @@ def _is_timeout(exc: BaseException) -> bool:
         isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, TimeoutError))
 
 
+def _run_cli(cmd: list[str], prompt: str, timeout_sec: float) -> tuple[int, str]:
+    """Run one agent CLI on the prompt from an empty temporary directory, never the project.
+
+    The prompt carries captured transcript text, so the CLI gets no project working directory to act
+    on. It runs in its own session and the whole group is killed on timeout, so a helper process that
+    holds the pipes open cannot stretch the reflection budget.
+    """
+    with tempfile.TemporaryDirectory(prefix="tabilet-reflect-") as scratch:
+        proc = subprocess.Popen(cmd, cwd=scratch, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, text=True, start_new_session=True)
+        try:
+            stdout, _ = proc.communicate(prompt, timeout=timeout_sec)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                if hasattr(os, "killpg"):
+                    os.killpg(proc.pid, signal.SIGKILL)
+                else:
+                    proc.kill()
+            proc.communicate()
+            raise
+        return proc.returncode, stdout
+
+
 def invoke_improver_llm(
     telemetry: dict[str, Any],
     project_root: pathlib.Path,
@@ -635,24 +659,21 @@ def invoke_improver_llm(
         if shutil.which(cmd[0]) is None:
             continue
         try:
-            proc = subprocess.run(
-                cmd,
-                input=prompt,
-                cwd=project_root,
-                capture_output=True,
-                text=True,
-                timeout=remaining(),
-            )
+            returncode, stdout = _run_cli(cmd, prompt, remaining())
         except (subprocess.TimeoutExpired, OSError) as exc:
             timeouts += _is_timeout(exc)
             failures.append(f"{name} CLI: {type(exc).__name__}")
             continue
-        if proc.returncode == 0 and proc.stdout.strip():
-            return proc.stdout.strip(), f"cli:{name}"
-        failures.append(f"{name} CLI: exit {proc.returncode}" if proc.returncode else f"{name} CLI: empty output")
+        if returncode == 0 and stdout.strip():
+            return stdout.strip(), f"cli:{name}"
+        failures.append(f"{name} CLI: exit {returncode}" if returncode else f"{name} CLI: empty output")
 
     try:
         return _call_rest_fallback(prompt, backend=backend, timeout_sec=int(remaining()) or 1), f"rest:{backend}"
+    except BudgetExceeded:
+        # A CLI used the whole budget, so the REST fallback never started: that is a timeout too.
+        timeouts += 1
+        failures.append("REST API: no time left")
     except LookupError:
         if not failures:
             return generate_heuristic_proposal(telemetry), "heuristic"
@@ -667,11 +688,13 @@ def invoke_improver_llm(
     raise audit.AuditError(f"reflection backend failed ({detail}); no proposal was written")
 
 
-# Executables a model-proposed probe must never start, even with the host-shell acknowledgment.
-PROBE_DENIED = frozenset({
-    "sudo", "su", "rm", "rmdir", "mv", "dd", "mkfs", "chmod", "chown", "curl", "wget", "ssh", "scp",
-    "nc", "ncat", "git", "docker", "kill", "pkill", "shutdown", "reboot",
-})
+# The only commands a model-proposed probe may start, even with the host-shell acknowledgment:
+# a probe checks a verification idea, so it is a project test runner, never a general command.
+PROBE_ALLOWED = (
+    ("python3", "-m", "unittest"), ("python3", "-m", "pytest"), ("python", "-m", "unittest"),
+    ("python", "-m", "pytest"), ("pytest",), ("npm", "test"), ("go", "test"), ("cargo", "test"),
+    ("make", "test"),
+)
 PROBE_METACHARACTERS = re.compile(r"[;&|<>`$()\\\n]")
 
 
@@ -685,7 +708,7 @@ def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, 
     Probe step: dry-run commands from ```probe-commands``` blocks. The block is model
     output built from untrusted transcript text, so it is inert unless the caller opts in with
     --probe AND ALLOW_UNSANDBOXED_SHELL=1. Even then each line runs without a shell, rejects shell
-    metacharacters and denied executables, and runs in its own session that is killed on timeout.
+    metacharacters and anything but an allowed test runner, and runs in its own session that is killed on timeout.
     """
     pattern = re.compile(r"```probe-commands\s+(.*?)```", re.DOTALL)
     commands = [
@@ -711,8 +734,9 @@ def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, 
         if not argv or PROBE_METACHARACTERS.search(cmd):
             results.append(_probe_skip(cmd, "Not run: shell metacharacters are not allowed in probes."))
             continue
-        if pathlib.PurePath(argv[0]).name in PROBE_DENIED:
-            results.append(_probe_skip(cmd, f"Not run: `{pathlib.PurePath(argv[0]).name}` is not allowed in probes."))
+        if not any(tuple(argv[:len(prefix)]) == prefix for prefix in PROBE_ALLOWED):
+            results.append(_probe_skip(cmd, "Not run: probes may only start a project test runner "
+                                            "(python3 -m unittest or pytest, pytest, npm test, go test, cargo test, make test)."))
             continue
         try:
             proc = subprocess.Popen(

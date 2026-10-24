@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import urllib.error
 from unittest import mock
@@ -208,19 +209,38 @@ class ReflectTests(unittest.TestCase):
         self.assertEqual(result['proposal_source'], 'heuristic')
         self.assertIn('slow', result['budget_note'])
 
+    def fake_cli(self, body):
+        bin_dir = self.base / 'bin'
+        bin_dir.mkdir(exist_ok=True)
+        script = bin_dir / 'claude'
+        script.write_text('#!/bin/sh\n' + body)
+        script.chmod(0o755)
+        return {'PATH': f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
+
     def test_backend_timeouts_count_as_budget_not_failure(self):
         self.record_completed_task()
         telemetry = reflect.extract_telemetry(self.repo)
-        timeout = subprocess.TimeoutExpired('claude', 1)
-        with mock.patch.dict(os.environ, {}, clear=True), \
-                mock.patch('shutil.which', side_effect=lambda name: '/bin/x' if name == 'claude' else None), \
-                mock.patch('subprocess.run', side_effect=timeout):
+        # The CLI leaves a helper holding the output pipe open; the whole group must die on time.
+        env = self.fake_cli('sleep 30 &\nsleep 30\n')
+        started = time.monotonic()
+        with mock.patch.dict(os.environ, env, clear=True):
             with self.assertRaises(reflect.BudgetExceeded):
-                reflect.invoke_improver_llm(telemetry, self.repo, timeout_sec=5)
+                reflect.invoke_improver_llm(telemetry, self.repo, backend='claude', timeout_sec=1)
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_cli_backend_runs_outside_the_project(self):
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo)
+        with mock.patch.dict(os.environ, self.fake_cli('cat >/dev/null\npwd\n'), clear=True):
+            text, source = reflect.invoke_improver_llm(telemetry, self.repo, backend='claude', timeout_sec=10)
+        self.assertEqual(source, 'cli:claude')
+        self.assertNotEqual(Path(text).resolve(), self.repo.resolve())
+        self.assertFalse(Path(text).exists(), 'the scratch directory is removed afterwards')
 
     def test_probes_are_opt_in_and_never_use_a_shell(self):
         marker = self.repo / 'pwned'
-        proposal = f"```probe-commands\npython3 --version\ntouch {marker}; echo hi\nrm -rf x\n```\n"
+        proposal = (f"```probe-commands\npython3 -m unittest --help\ntouch {marker}; echo hi\nrm -rf x\n"
+                    f"sh -c 'touch {marker}'\nenv touch {marker}\nfind . -name x -delete\n```\n")
         off = reflect.probe_proposed_commands(proposal, self.repo)
         self.assertEqual({r['status'] for r in off}, {'SKIPPED'})
         with mock.patch.dict(os.environ, {}, clear=True):
@@ -228,11 +248,13 @@ class ReflectTests(unittest.TestCase):
                              {'SKIPPED'})
         with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
             on = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
-        self.assertEqual([r['status'] for r in on], ['PASSED', 'SKIPPED', 'SKIPPED'])
+        self.assertEqual([r['status'] for r in on], ['PASSED', 'SKIPPED', 'SKIPPED', 'SKIPPED', 'SKIPPED', 'SKIPPED'])
         self.assertFalse(marker.exists())
 
     def test_probe_timeout_kills_the_process_group(self):
-        proposal = "```probe-commands\nsleep 30\n```\n"
+        (self.repo / 'test_slow.py').write_text('import time\nimport unittest\n\n\nclass Slow(unittest.TestCase):\n'
+                                                '    def test_sleep(self):\n        time.sleep(30)\n')
+        proposal = "```probe-commands\npython3 -m unittest test_slow\n```\n"
         with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
             result = reflect.probe_proposed_commands(proposal, self.repo, timeout_sec=1, enabled=True)
         self.assertEqual(result[0]['status'], 'TIMEOUT')
