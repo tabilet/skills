@@ -254,6 +254,11 @@ def _real_directory(root: pathlib.Path, *parts: str) -> pathlib.Path | None:
     return current
 
 
+def _milestone_parser():
+    import tabilet_index
+    return tabilet_index.parser()
+
+
 def preflight_project(operation: str, project: pathlib.Path) -> dict | None:
     """Stop legacy, mixed, or invalid workflow operations before model dispatch."""
 
@@ -278,7 +283,8 @@ def preflight_project(operation: str, project: pathlib.Path) -> dict | None:
     milestone = memory_bank / "milestone.md" if memory_bank is not None else None
     statuses = (
         [path for prefix in ("status", "amend", "option")
-         for path in memory_bank.glob(prefix+"-*.md") if _regular_file(path)]
+         for path in memory_bank.glob(prefix+"-*.md")
+         if _regular_file(path) and _milestone_parser().STATUS_NAME.fullmatch(path.name)]
         if memory_bank is not None else []
     )
     history = _real_directory(repo, "tabilet", "docs", "history")

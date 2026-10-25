@@ -24,7 +24,6 @@ import tabilet_audit as audit
 
 TOOLKIT_INTERFACE = 4
 DEFAULT_PROPOSAL_PATH = "tabilet/memory-bank/suggested-harness-update.md"
-STATUS_ID_RE = re.compile(r"\b[A-Z][0-9]{2}(?:-[0-9]{2})?\b")
 MAX_DOWNSTREAM = 3
 SLOW_RUN_SEC = 120
 # Reflection may spend at most this share of the milestone's recorded wall time; below the
@@ -140,6 +139,8 @@ def suggested_downstream(project_root: pathlib.Path, finished: str | None) -> li
     path = project_root / "tabilet" / "memory-bank" / "suggested.txt"
     if not finished or not path.is_file():
         return []
+    from tabilet_index import parser
+    status_id_re = re.compile(r"\b" + parser().MILESTONE_ID + r"\b")
     text = path.read_text(encoding="utf-8", errors="replace")
     found: list[str] = []
     block = re.search(r"^DOWNSTREAM_IMPACTS:[ \t]*(.*)\n?((?:[ \t]*\S.*\n?)*)", text, re.M)
@@ -148,10 +149,10 @@ def suggested_downstream(project_root: pathlib.Path, finished: str | None) -> li
     for line in ([block.group(1), *block.group(2).splitlines()] if block else []):
         source, arrow, targets = line.partition("->")
         if arrow and source.strip() == finished:
-            found += STATUS_ID_RE.findall(targets)
+            found += status_id_re.findall(targets)
     if not found:
         order = re.search(r"^STATUS_ORDER:[ \t]*(\S.*|\n[ \t]*\S.*)$", text, re.M)
-        ids = STATUS_ID_RE.findall(order.group(1)) if order else []
+        ids = status_id_re.findall(order.group(1)) if order else []
         if finished in ids:
             found = ids[ids.index(finished) + 1:]
     return list(dict.fromkeys(found))[:MAX_DOWNSTREAM]

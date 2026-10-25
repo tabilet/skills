@@ -19,7 +19,6 @@ import tabilet_audit as audit_storage
 from tabilet_audit import AuditError, atomic, canonical_json, ensure_workspace, records, strict_json_loads, utc_now, pagination
 
 MAX_BYTES = 4 * 1024 * 1024
-STATUS = re.compile(r"(?:(?=status-[A-Z][0-9]{2}\.md$)|(?=(?:amend|option)-[A-Z][0-9]{2}-[0-9]{2}\.md$))(?:status|amend|option)-([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)\.md$")
 ARCHIVE = re.compile(r'archive-([A-Z](?:0[1-9]|[1-9][0-9]))\.md$')
 EVOLUTION = re.compile(r'(prompt|result)-v([1-9][0-9]*)\.md$')
 TABLES = ('index_documents','index_sections','index_milestones','index_tasks','index_relationships','index_search')
@@ -39,6 +38,10 @@ def parser():
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
     return module
+
+
+# Reuse the standalone parser's canonical record grammar.
+STATUS = parser().STATUS_NAME
 
 
 def layout_check(root):
@@ -329,7 +332,7 @@ def parse_document(path,kind,text,digest):
             specification = status
         problems=p.status_marker_problems(status)
         rows=p.status_rows(status)
-        if problems or (not rows and not (kind=='active_status' and pathlib.Path(path).name.startswith('option-'))):raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
+        if problems or (not rows and not pathlib.Path(path).name.startswith('option-')):raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
         parsed['index_milestones'].append(dict(milestone_id=identity,lifecycle='retired' if meta else 'active',
             line=1,specification=specification,outcome=meta.get('Outcome'),review=meta.get('Review')))
         parsed['index_milestone_projection'].append(dict(
@@ -762,6 +765,8 @@ def _readiness(connection, workspace, project_root=None):
     # searchable but never infer readiness from their pending row markers.
     active={key for key,value in milestones.items() if value['lifecycle']=='active'
             and not pathlib.Path(value['path']).name.startswith('option-')}
+    claimed_options = [row for row in tasks if row['state']=='in_progress'
+                       and any(value['milestone_id']==row['milestone_id'] for value in result['deferred_options'])]
     tasks=[row for row in tasks if row['milestone_id'] in active]
     projection_exists = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='index_milestone_projection'").fetchone()
     projection_order = {row['milestone_id']: (row['display_order'] if row['display_order'] is not None else 2147483647)
@@ -871,7 +876,10 @@ def _readiness(connection, workspace, project_root=None):
             'cycles':cycle_values,
             'milestone_ids':sorted({item for cycle in milestone_cycles for item in cycle}),
         })
-    in_progress=[row for row in tasks if row['state']=='in_progress']
+    for row in claimed_options:
+        row['task_key']=row.get('explicit_id') or f"{row['path']}#{row['line']}"
+        row['source']={'path':row['path'],'line':row['line'],'sha256':row['sha256']}
+    in_progress=[row for row in tasks if row['state']=='in_progress'] + claimed_options
     if len(in_progress)>1:
         result['needs_review'].append({'reason':'multiple in-progress tasks own the ledger',
                                        'tasks':[row['task_key'] for row in in_progress],

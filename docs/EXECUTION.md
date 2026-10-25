@@ -464,10 +464,11 @@ prompts and execution for the whole goal; finishing the goal does not activate
 them. Selected options need an approved horizon and do not reopen their parent.
 These settings grant no additional action authority or budgets.
 
-Strict orders place required children immediately after their parent as a family;
-the parent closes after its amendments, before downstream work. Priority order
-uses the same readiness conditions without introducing ordering edges. Existing
-root-only plans retain their behavior. Retire child records with their original
+The selected goal protocol owns family sequencing and strict-order validation;
+see the [stock protocol](https://github.com/tabilet/skills/blob/main/GOAL.md#milestone-families).
+Priority dispatch preserves family priority without adding dependency edges;
+independent ready work can proceed when the family is blocked. Existing root-only
+plans retain their behavior. Retire child records with their original
 filenames and parent links; deferred options can outlive a retired parent.
 
 The optional API controller binds a child through its actual `amend-` or

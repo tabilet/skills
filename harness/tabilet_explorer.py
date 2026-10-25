@@ -567,7 +567,7 @@ class ExplorerApp:
                 for observation in observations:
                     identifier = observation['identifier']; label = observation.get('label') or identifier
                     milestone_id = observation.get('milestone_id')
-                    scoped = re.fullmatch(r'([A-Z][0-9]{2}(?:-[0-9]{2})?)/(.+)', identifier)
+                    scoped = re.fullmatch('('+index.parser().MILESTONE_ID+r')/(.+)', identifier)
                     if scoped:
                         milestone_id, identifier = scoped.groups()
                     key = ('task', observation['identity_kind'], milestone_id,

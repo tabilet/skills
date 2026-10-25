@@ -799,13 +799,65 @@ def family_metadata(documents: dict) -> tuple[dict, list[str]]:
         families[identity] = {"kind": kind, "parent": parent, "file": name}
         if parent:
             declared = [m[1] for _, line in unfenced_lines(document)
-                        if (m := re.fullmatch(r"Parent: (\S+)", line))]
+                        if (m := re.fullmatch(r"(?:Parent:|\*\*Parent:\*\*)\s+(\S+)\s*", line))]
             if declared != [parent]:
                 problems.append("child must declare exactly Parent: " + parent + " in " + name)
     for identity, family in families.items():
         if family["parent"] and family["parent"] not in families:
             problems.append("orphan child milestone: " + identity)
     return families, problems
+
+
+def milestone_reference_ids(text: str) -> set[str]:
+    """Resolve bare IDs and IDs inside local record filenames/Markdown links."""
+    return set(re.findall(r"(?<![A-Za-z0-9_])" + MILESTONE_ID + r"(?![A-Za-z0-9_-])", text))
+
+
+def amendment_owners(identity: str, families: dict, records: dict, seen=frozenset()) -> set[str]:
+    """Resolve required ownership, keeping disposition separate from delivery."""
+    if identity in seen:
+        raise ValueError('cyclic amendment supersession: ' + identity)
+    family = families.get(identity)
+    if not family:
+        raise ValueError('missing amendment successor: ' + identity)
+    record = records.get(family['file'])
+    if not record or record['metadata']['Outcome'] == 'completed':
+        return {identity}
+    metadata = record['metadata']
+    if metadata['Outcome'] == 'cancelled':
+        return set() if family['kind'] == 'amend' else {identity}
+    targets = milestone_reference_ids(metadata['Successor'])
+    if len(targets) != 1:
+        raise ValueError('ambiguous amendment successor: ' + identity)
+    successor = next(iter(targets))
+    target = families.get(successor)
+    if not target:
+        raise ValueError('missing amendment successor: ' + identity)
+    if target['kind'] == 'option':
+        return set()  # Explicit owner reclassification; parent acceptance remains.
+    return amendment_owners(successor, families, records, seen | {identity})
+
+
+def review_passed(document: str) -> bool:
+    values = [m[1] for _, line in unfenced_lines(document)
+              if (m := re.fullmatch(r"\*\*Review gate\.\*\* (.+)", line.strip()))]
+    return values == ['passed']
+
+
+def retained_source(original: str, retained: str, selected: tuple | None = None) -> bool:
+    """Preserve source lines in order, allowing only the selected task row to change."""
+    skipped = None
+    if selected:
+        occurrence = 0
+        for row in status_rows(original):
+            if row['item'] == selected[1]:
+                occurrence += 1
+                if occurrence == selected[2]:
+                    skipped = row['line']
+                    break
+    remaining = iter(retained.splitlines())
+    return all(number == skipped or any(value == line for value in remaining)
+               for number, line in enumerate(original.splitlines(), 1))
 
 
 def status_files(repo: pathlib.Path) -> list[pathlib.Path]:
@@ -991,7 +1043,13 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
         raise ValueError("invalid worktree provenance")
     if (metadata["Evidence"] == "unversioned") != (metadata["Worktree"] == "unversioned"):
         raise ValueError("inconsistent unversioned provenance")
-    if metadata["Review"] == "legacy":
+    specification = fenced_document("".join(lines[headings[0][0]:headings[1][0] - 1]))
+    status = fenced_document("".join(lines[headings[1][0]:]))
+    rowless_disposition = (name.startswith('option-') and metadata['Outcome'] in {'cancelled','superseded'}
+                           and not status_rows(status))
+    if rowless_disposition and metadata['Review'] == 'not applicable' and metadata['Review iterations'] == '0':
+        pass
+    elif metadata["Review"] == "legacy":
         # A milestone closed before the persisted review gate records no count;
         # it must say so rather than invent one, and only completed work qualifies.
         if (metadata["Review iterations"] != "not recorded" or not metadata.get("Legacy closure")
@@ -1004,12 +1062,10 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
         raise ValueError("cancellation or supersession needs its authorized disposition")
     if metadata["Outcome"] == "superseded" and not metadata.get("Successor"):
         raise ValueError("supersession needs its accepted successor")
-    specification = fenced_document("".join(lines[headings[0][0]:headings[1][0] - 1]))
-    status = fenced_document("".join(lines[headings[1][0]:]))
     if not specification.strip() or not status.strip():
         raise ValueError("retired source documents are empty")
     spec_headings = [line for _, line in unfenced_lines(specification) if line.startswith("## ")]
-    if len(spec_headings) != 1 or not re.match(
+    if (not spec_headings or (name.startswith("status-") and len(spec_headings) != 1)) or not re.match(
         r"## " + re.escape(milestone_id) + r"(?:\s|$)", spec_headings[0]
     ):
         raise ValueError("retired specification does not match its milestone ID")
@@ -1018,7 +1074,7 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
         raise ValueError("retired task has an " + "; ".join(problems))
     # Lookup may preserve inconsistent frozen evidence, with diagnostics. Every
     # execution/retirement gate uses the strict default and rejects it.
-    if not rows or (not allow_unfinished and any(
+    if (not rows and not rowless_disposition) or (not allow_unfinished and any(
             row["state"] in {"pending", "in_progress", "blocked"} for row in rows)):
         raise ValueError("retired status must contain only closed task rows")
     for row in rows:
@@ -1049,7 +1105,8 @@ def history_snapshot(repo: pathlib.Path) -> dict:
         cells = row["cells"]
         if not re.fullmatch(MILESTONE_ID, cells[0]):
             continue
-        name = next((n for n in records if status_identity(n) == cells[0]), f"status-{cells[0]}.md")
+        name = next((p.name for p in paths if STATUS_NAME.fullmatch(p.name)
+                     and status_identity(p.name) == cells[0]), f"status-{cells[0]}.md")
         if name in entries:
             problems.append(f"duplicate history index ID: {cells[0]}")
         entries[name] = cells
@@ -1100,9 +1157,7 @@ def history_snapshot(repo: pathlib.Path) -> dict:
     }
 
 
-def milestone_specifications(repo: pathlib.Path) -> dict[str, str | None]:
-    path = repo / "tabilet" / "memory-bank" / "milestone.md"
-    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+def root_specifications(text: str) -> dict[str, str | None]:
     lines = text.splitlines(keepends=True)
     headings = [(n, line) for n, line in unfenced_lines(text) if line.startswith("## ")]
     specifications = {}
@@ -1113,6 +1168,13 @@ def milestone_specifications(repo: pathlib.Path) -> dict[str, str | None]:
             name = f"status-{match.group(1)}.md"
             # A duplicate is ambiguous, not permission to silently choose one.
             specifications[name] = None if name in specifications else "".join(lines[start - 1:end])
+    return specifications
+
+
+def milestone_specifications(repo: pathlib.Path) -> dict[str, str | None]:
+    path = repo / "tabilet" / "memory-bank" / "milestone.md"
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    specifications = root_specifications(text)
     for child in status_files(repo):
         if not child.name.startswith("status-"):
             specifications[child.name] = child.read_text(encoding="utf-8")
@@ -1138,12 +1200,24 @@ def row_snapshot(repo: pathlib.Path) -> dict:
     families, problems = family_metadata(documents)
     history["problems"].extend(problems)
     for identity, family in families.items():
-        if family['kind'] == 'amend':
-            parent = families.get(family['parent'], {})
-            if (parent.get('file') in history['records'] and family['file'] in active
-                    and any(row['state'] in {'pending','in_progress','blocked'}
-                            for row in status_rows(documents[family['file']]))):
-                history['problems'].append('retired parent has an active required amendment: ' + identity)
+        if family['kind'] != 'amend':
+            continue
+        parent = families.get(family['parent'], {})
+        if parent.get('file') not in history['records']:
+            continue
+        try:
+            owners = amendment_owners(identity, families, history['records'])
+        except ValueError as error:
+            history['problems'].append(str(error))
+            continue
+        for owner in owners:
+            name = families[owner]['file']
+            record = history['records'].get(name)
+            if record and record['metadata']['Outcome'] == 'completed':
+                continue
+            if (name not in active or not review_passed(documents[name])
+                    or any(row['state'] in {'pending','in_progress','blocked'} for row in status_rows(documents[name]))):
+                history['problems'].append('retired parent has an unaccepted required amendment owner: ' + owner)
     for name, document in documents.items():
         if name in active:
             if not status_rows(document) and not name.startswith("option-"):
@@ -1166,8 +1240,6 @@ def row_snapshot(repo: pathlib.Path) -> dict:
 def rows_in_state(repo: pathlib.Path, state: str) -> list[dict]:
     matches = []
     for path in status_files(repo):
-        if path.name.startswith("option-"):
-            continue
         occurrences: dict[str, int] = {}
         for row in status_rows(path.read_text(encoding="utf-8")):
             item = row["item"]
@@ -1202,11 +1274,19 @@ def validate_row_transition(
     for name in retired - before["files"]:
         problems.append(f"new retired record has no pre-existing active owner: {name}")
     appended_knowledge = new_history.get("journal", b"")[len(old_history.get("journal", b"")):]
+    changed_keys = [key for key, state in before['states'].items()
+                    if key in after['states'] and after['states'][key] != state]
+    selected = changed_keys[0] if len(changed_keys) == 1 else None
     for name in retired & before["files"]:
         original_spec = before.get("specifications", {}).get(name)
         retained_spec = new_history["records"][name]["specification"]
         if not original_spec:
             problems.append(f"retirement lacks an unambiguous original specification: {name}")
+        elif not name.startswith('status-'):
+            child_selected = selected if selected and selected[0] == name else None
+            if (not retained_source(original_spec, retained_spec, child_selected)
+                    or retained_spec.strip() != new_history['records'][name]['status'].strip()):
+                problems.append(f"retirement discarded original milestone specification: {name}")
         elif original_spec.strip() not in retained_spec and original_spec.strip().encode() not in appended_knowledge:
             problems.append(f"retirement discarded original milestone specification: {name}")
     missing_files = before["files"] - after["files"]
@@ -1230,6 +1310,14 @@ def validate_row_transition(
                 f"new status row is not pending: {key[0]} / {key[1]!r} is {state}"
             )
 
+    disposition_only = (not transitions and retired and required_key is None
+                        and not any(state == 'in_progress' for state in before['states'].values()) and all(
+        name.startswith('option-') and not status_rows(before['documents'][name])
+        and new_history['records'][name]['metadata']['Outcome'] in {'cancelled','superseded'}
+        and retained_source(before['documents'][name], new_history['records'][name]['status'])
+        for name in retired))
+    if disposition_only:
+        return problems
     if len(transitions) != 1:
         problems.append(f"expected exactly one existing row state transition, found {len(transitions)}")
     else:
@@ -2485,6 +2573,8 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
                 15,
             )
         in_progress = in_progress_rows[0] if in_progress_rows else None
+        if in_progress and in_progress['file'].startswith('option-'):
+            fail("An option task already owns the ledger; resume its explicitly approved controller or Goal request.", 15)
         actionable = sum(lane["actionable"] for lane in summary)
         blocked = sum(lane["blocked"] for lane in summary)
         blocked_lanes = [lane for lane in summary if lane["blocked"]]

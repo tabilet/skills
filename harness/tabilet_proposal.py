@@ -32,9 +32,6 @@ MAX_SNAPSHOT_FILE_BYTES = 8 * 1024 * 1024
 MAX_SNAPSHOT_TOTAL_BYTES = 64 * 1024 * 1024
 MAX_SNAPSHOT_FILES = 5000
 MAX_FILE_ACTIONS = 500
-_STATUS_ID = r"[A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?"
-_PERMANENT_ID = re.compile(rb"\b(" + _STATUS_ID.encode() + rb")\b")
-_STATUS_FILE = re.compile(r"(?:^|/)(?:status|amend|option)-(" + _STATUS_ID + r")\.md$")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
 RECEIPT_STATES = {"approved", "running", "paused", "needs_review", "completed"}
 
@@ -116,6 +113,8 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
         raise ProposalError("horizon must contain at least one milestone")
     if len(value) > 99:
         raise ProposalError("horizon may contain at most 99 milestones")
+    from tabilet_index import parser
+    status_id = parser().MILESTONE_ID
     ids = set()
     task_ids = set()
     total_rows = 0
@@ -128,8 +127,8 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
         dependencies = milestone.get("dependencies")
         acceptance = milestone.get("acceptance")
         tasks = milestone.get("tasks")
-        if not isinstance(identifier, str) or not re.fullmatch(_STATUS_ID, identifier):
-            # Match the exact status-file ID shape (_STATUS_FILE) rather than a
+        if not isinstance(identifier, str) or not re.fullmatch(status_id, identifier):
+            # Match the canonical record identity shape rather than a
             # looser pattern: a permitted ID that this module's own parser
             # cannot recognize back out of "status-<id>.md" would pass
             # approval and be committed, then never resolve to a live or
@@ -159,7 +158,6 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
         closure_paths = [_project_path(path) for path in closure_paths]
         if len(closure_paths) != len(set(closure_paths)):
             raise ProposalError(f"closure_paths for {identifier} must be unique")
-        from tabilet_index import parser
         try:
             status_path = parser().approved_status_path(milestone)
         except ValueError as exc:
@@ -527,10 +525,10 @@ def _workflow_snapshot(core, repo: pathlib.Path) -> tuple[dict, list[str]]:
             raise ProposalError("workflow source snapshot exceeds its total size limit")
         data = _regular_bytes(path, MAX_SNAPSHOT_FILE_BYTES)
         hashes[relative] = hashlib.sha256(data).hexdigest()
-        match = _STATUS_FILE.search(relative)
+        match = core.STATUS_NAME.fullmatch(pathlib.PurePosixPath(relative).name)
         if match:
             permanent_ids.add(match.group(1))
-        permanent_ids.update(match.group(1).decode("ascii") for match in _PERMANENT_ID.finditer(data))
+        permanent_ids.update(match.group(1).decode("ascii") for match in re.finditer(rb"\b(" + core.MILESTONE_ID.encode() + rb")\b", data))
     return dict(sorted(hashes.items())), sorted(permanent_ids)
 
 

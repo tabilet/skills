@@ -1104,6 +1104,13 @@ def milestone_families():
         path = ROOT / f"skills/memory-bank-{name}/references/milestone-families.md"
         if not path.is_file() or path.read_text() != canonical:
             problems.append(f"family contract differs: {path.relative_to(ROOT)}")
+    for name in ('propose','reconcile'):
+        refresh = (ROOT / f'skills/memory-bank-{name}/references/plan-update.md').read_text()
+        if 'OPTION_POLICY: confirm | ignore' not in refresh:
+            problems.append(f'{name} launch refresh lacks its option-policy field')
+    init = (ROOT / 'skills/memory-bank-init/references/write-contract.md').read_text()
+    if 'OPTION_POLICY: confirm' not in init:
+        problems.append('init launch template lacks its option-policy field')
     return problems
 
 

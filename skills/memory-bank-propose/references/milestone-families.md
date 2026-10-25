@@ -20,7 +20,8 @@ an unmet original requirement needs repair or an explicit owner disposition.
 
 Each child owns its specification and, once planned, task table and review in
 one file under `tabilet/memory-bank/`. Begin it with `## M53-01 - [Title]` and
-exactly one unfenced `Parent: M53` line. The filename determines its kind. Keep
+exactly one unfenced `Parent: M53` line (ordinary Markdown bold/trailing space
+is also accepted). Subsection headings such as `## Tasks` are allowed. The filename determines its kind. Keep
 only concise links in the parent and roadmap, not duplicate child specifications.
 Initially an option can be a short finding with no rows. Required amendments
 and selected options need full scope, acceptance, tasks and ordinary review.
@@ -40,7 +41,9 @@ required active amendments, before downstream milestones. This contiguous
 family expands to parent work → amendments → parent closure. Each ID still
 appears once. Reject missing/noncontiguous family members and dependency cycles.
 Root-only orders keep their existing semantics. `STATUS_PRIORITY` adds no
-ordering edges and uses the same family readiness/closure conditions. Preserve
+ordering edges and uses the same family readiness/closure conditions. Required
+children inherit their parent's dispatch priority; independent ready work may
+proceed if the family is blocked. Preserve
 ordinary dependencies, write ownership and parallel-safety checks.
 
 `OPTION_POLICY: confirm` is the default; `ignore` is the other value. During
@@ -63,18 +66,33 @@ corrective-planning authority governs required amendments except for the explici
 external-tool promotion decision above. Keep status in child/parent records and
 Git history; do not append dated progress paragraphs to `AGENTS.md`.
 
-The standalone API loop indexes options for integrity but never selects them;
+The standalone API loop indexes options for integrity but never selects them.
+An in-progress option still owns the global ledger: refuse a new unscoped run
+and resume its original approved owner; do not hide the claim from ownership checks.
+For explicit option execution,
 use direct Goal/Next with owner selection or an explicitly approved controller
 receipt. The controller's horizon must bind each child's actual filename in
 closure/task paths. It never imports Goal grants or dynamically expands a
 receipt. A suspended parent row requires a fresh explicit receipt whose task
 `resume_after` lists its sole amendment blockers; restore it only after all
 those amendments have verified closure and other task dependencies pass.
+`resume_after` gates pending and in-progress rows too, not only blocked rows.
+A `Blocked by: M53-01` note naming an approved amendment uses its milestone
+acceptance; ordinary task dependencies retain their existing grammar. A previously
+closed, non-retired parent can supply private receipt evidence from an earlier
+run when its own spec/status and declared implementation inputs are unchanged;
+selecting an option does not reopen that parent. Neither a review marker alone
+nor a different project's or stale receipt establishes full acceptance.
 Without that approved resumption condition, blocked rows still stop execution.
 
 Retirement preserves the complete child file and specification in the ordinary
 literal envelope under its same filename. Use the child source path for both
 Source status and Source specification, retain `Parent:`, and index its child ID.
 Completed parents may retire with deferred options linked to the frozen parent.
-Never retire a parent ahead of a required amendment's acceptance. Root status
+Never retire a parent ahead of a required amendment's acceptance. A child may close its final row and retire in the same run; freeze its completed
+source while preserving its specification prose and all earlier rows. A declined
+rowless option retires with Outcome cancelled (or an approved supersession),
+Disposition, Review `not applicable`, and Review iterations `0`; preserve its
+entire source and permanent ID. That narrow withdrawal exception requires no
+invented implementation rows and proves no product delivery. Root status
 formats, six markers and existing retirement requirements remain compatible.
