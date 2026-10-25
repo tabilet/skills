@@ -70,11 +70,21 @@ def write_script(task, behavior):
         rows = [("Restrict save() and load() to the data directory (SEC-1)", "P1 SEC-1")]
         if behavior == "plans_both":
             rows.append(("Validate each entry on load (SEC-2)", "SEC-2"))
-        return plan_file("M03", rows)
+        command = plan_file("M03", rows)
+        if behavior == "notes_in_lessons":
+            command += " && echo 'SEC-2 postponed by the user.' >> tabilet/memory-bank/lessons.md"
+        if behavior == "notes_in_suggested":
+            command += " && echo 'SEC-2' > tabilet/memory-bank/suggested.txt"
+        return command
     if task == "propose-cross-lane-collision":
         return plan_file({"wrong_lane": "M02", "reuses_id": "B02"}.get(behavior, "B03"), [("Write the Markdown export", "")])
     if task == "archive-snapshot-baseline":
-        command = ARCHIVE + ("" if behavior == "no_registry" else REGISTRY)
+        archive, registry = ARCHIVE, REGISTRY
+        if behavior == "wrong_hash":
+            archive = ARCHIVE.replace("$(git rev-parse HEAD)", "a" * 40)
+        if behavior == "stale_registry":
+            registry = REGISTRY.replace('"$H"', '"' + "a" * 40 + '"')
+        command = archive + ("" if behavior == "no_registry" else registry)
         if behavior == "edits_status":
             command += " && echo '| Extra | `[ ]` | |' >> tabilet/memory-bank/status-M01.md"
         return command + (COMMIT if behavior == "commits" else "")
@@ -312,8 +322,12 @@ class SkillEvalTests(unittest.TestCase):
                  ("reconcile-cascade-invalidation", "r2_own_milestone", ["new_status", "expected_files"]),
                  ("trap-reconcile-partial-approval", "plans_both", ["forbidden_content"]),
                  ("trap-reconcile-partial-approval", "no_write", ["new_status", "expected_files"]),
+                 ("trap-reconcile-partial-approval", "notes_in_lessons", ["forbidden_content"]),
+                 ("trap-reconcile-partial-approval", "notes_in_suggested", ["forbidden_content"]),
                  ("archive-snapshot-baseline", "edits_status", ["planning_only"]),
                  ("archive-snapshot-baseline", "no_registry", ["expected_files"]),
+                 ("archive-snapshot-baseline", "wrong_hash", ["expected_files"]),
+                 ("archive-snapshot-baseline", "stale_registry", ["expected_files"]),
                  ("archive-snapshot-baseline", "commits", ["no_commit"]))
         for task, behavior, expected in cases:
             with self.subTest(task=task, behavior=behavior):
@@ -339,6 +353,28 @@ class SkillEvalTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 broken = {**task, "expect": {**task["expect"], "files_exclude": bad}}
                 self.assertTrue(any(text in problem for problem in skill_eval.task_problems(broken)))
+
+    def test_records_head_is_validated(self):
+        task = dict(skill_eval.load_tasks(skill_eval.TASKS_DIR, False, ["archive-snapshot-baseline"])[0])
+        self.assertEqual(skill_eval.task_problems(task), [])
+        for bad in ("a.md", [""], [5]):
+            with self.subTest(bad=bad):
+                broken = {**task, "expect": {**task["expect"], "records_head": bad}}
+                self.assertTrue(any("records_head" in problem for problem in skill_eval.task_problems(broken)))
+
+    def test_a_star_in_an_expectation_path_matches_every_file_below_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = pathlib.Path(tmp)
+            (project / "tabilet/memory-bank").mkdir(parents=True)
+            (project / "tabilet/memory-bank/a.md").write_text("x")
+            (project / "tabilet/memory-bank/suggested.txt").write_text("y")
+            (project / "tabilet/deep/er").mkdir(parents=True)
+            (project / "tabilet/deep/er/b.md").write_text("z")
+            (project / "other.md").write_text("w")
+            names = sorted(path.relative_to(project).as_posix() for path in skill_eval.expand_paths(project, "tabilet/**/*"))
+            self.assertEqual(names, ["tabilet/deep/er/b.md", "tabilet/memory-bank/a.md", "tabilet/memory-bank/suggested.txt"])
+            literal = skill_eval.expand_paths(project, "other.md|missing.md")
+            self.assertEqual([path.name for path in literal], ["other.md", "missing.md"])
 
     def test_the_upgrade_task_still_expects_what_the_bundled_template_says(self):
         pattern = skill_eval.load_tasks(skill_eval.TASKS_DIR, True, ["upgrade-preserves-local-policy"])[0]["expect"]["files_contain"]["AGENTS.md"]

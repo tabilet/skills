@@ -15,7 +15,7 @@
       "tabilet/memory-bank/status-M03.md": "SEC-1"
     },
     "files_exclude": {
-      "tabilet/memory-bank/milestone.md|tabilet/memory-bank/status-M01.md|tabilet/memory-bank/status-M02.md|tabilet/memory-bank/status-M03.md": "SEC-2"
+      "tabilet/**/*": "SEC-2"
     }
   }
 }

@@ -271,11 +271,13 @@ Grading is deterministic and uses no model. A trial passes only when every hard 
 - `expected_files`: each file named in `expect.files_contain` exists and matches its pattern, for example
   `tabilet/stages.md` containing a stable `STG-` ID. A key may list alternative files
   joined with `|`; the pattern then has to match in any one of them, as when a skill may record a severity in
-  either the milestone specification or the status notes.
+  either the milestone specification or the status notes. `expect.records_head` lists files that must contain
+  the full commit the project started at, so an archive that writes some other 40-digit hash fails.
 - `final_mentions`: the last message to the user contains every string in `expect.final_mentions`, for
   example the colliding ID when a plan must stop for a revised approval.
 - `forbidden_content`: none of the patterns in `expect.files_exclude` match any of the checked files,
-  guaranteeing that unapproved or postponed findings are absent from plan files.
+  guaranteeing that unapproved or postponed findings are absent from plan files. A path with `*` is a glob
+  from the project root, so `tabilet/**/*` covers every file under `tabilet/`, including ones the model creates.
 
 A task may also script an outside change with `between`: one shell command per reply, run in the project
 after the model's message and before the reply, to play another writer. The model is then judged against the

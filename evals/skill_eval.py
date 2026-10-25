@@ -95,6 +95,9 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
                     re.compile(pattern)
                 except re.error:
                     problems.append(f"expect.{key} has an invalid pattern {pattern!r}")
+    heads = (expect or {}).get("records_head", []) if isinstance(expect, dict) else []
+    if not isinstance(heads, list) or not all(isinstance(h, str) and h for h in heads):
+        problems.append("expect.records_head must be a list of paths (alternatives joined with |) that record the starting HEAD")
     mentions = (expect or {}).get("final_mentions", []) if isinstance(expect, dict) else []
     if not isinstance(mentions, list) or not all(isinstance(m, str) and m for m in mentions):
         problems.append("expect.final_mentions must be a list of non-empty strings")
@@ -148,6 +151,23 @@ def active_status_files(files: dict) -> dict[str, str]:
             if name.startswith("tabilet/memory-bank/") and STATUS_NAME.search(name)}
 
 
+def expand_paths(project: pathlib.Path, spec: str) -> list[pathlib.Path]:
+    """The files a task expectation names: alternatives joined with `|`. An alternative containing `*` is a
+    glob from the project root (`tabilet/**/*` is every file under tabilet/), so an exclusion can cover
+    files a model might create as well as the ones it was told about."""
+    paths: list[pathlib.Path] = []
+    for relative in spec.split("|"):
+        if "*" in relative:
+            paths += [path for path in sorted(project.glob(relative)) if path.is_file()]
+        else:
+            paths.append(project / relative)
+    return paths
+
+
+def read_text(path: pathlib.Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
 def read_rows(runner, project: pathlib.Path, files: dict) -> dict[tuple[str, str], str]:
     rows = {}
     for name in active_status_files(files):
@@ -195,14 +215,18 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         failed.append("new_status")
     if any(text not in (finals or [""])[-1] for text in task["expect"].get("final_mentions", [])):
         failed.append("final_mentions")
-    for relatives, pattern in task["expect"].get("files_contain", {}).items():
-        paths = [project / relative for relative in relatives.split("|")]
-        if not any(path.is_file() and re.search(pattern, path.read_text(encoding="utf-8")) for path in paths):
+    expect = task["expect"]
+    for relatives, pattern in expect.get("files_contain", {}).items():
+        if not any(path.is_file() and re.search(pattern, read_text(path)) for path in expand_paths(project, relatives)):
             failed.append("expected_files")
             break
-    for relatives, pattern in task["expect"].get("files_exclude", {}).items():
-        paths = [project / relative for relative in relatives.split("|")]
-        if any(path.is_file() and re.search(pattern, path.read_text(encoding="utf-8")) for path in paths):
+    # The commit a snapshot or registry records must be the one the model inspected, not any 40 hex digits.
+    if any(not any(path.is_file() and base["head"] in read_text(path) for path in expand_paths(project, relatives))
+           for relatives in expect.get("records_head", [])):
+        if "expected_files" not in failed:
+            failed.append("expected_files")
+    for relatives, pattern in expect.get("files_exclude", {}).items():
+        if any(path.is_file() and re.search(pattern, read_text(path)) for path in expand_paths(project, relatives)):
             failed.append("forbidden_content")
             break
     return failed, {"new_ids": new_ids, "changed": changes}
