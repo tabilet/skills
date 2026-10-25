@@ -1,3 +1,35 @@
+# memory-bank v2.15.0
+
+Adds required amendment milestones and deferred options so implementation discoveries
+can have their own owners without continually expanding the original milestone.
+
+- Required repairs use `amend-M53-01.md`; optional work uses `option-M53-02.md`.
+  Both share a permanent child-number sequence and declare their parent. Required
+  amendments retain the parent's original acceptance and review gate. Options do
+  not block parent closure. External testing-tool repair is optional unless the
+  owner explicitly promotes it.
+- `OPTION_POLICY: confirm` consolidates options after parent closure and waits for
+  an actual owner answer. `ignore` leaves them deferred throughout the goal.
+  Planning refreshes preserve the resolved policy and existing authorization.
+- The API controller binds child filenames in approved receipts, enforces amendment
+  prerequisites for pending and resumed rows, and inherits family priority without
+  adding dependency edges. A prior parent's acceptance can be reused from private
+  receipts only while its specification, status, required amendments and declared
+  implementation inputs remain current.
+- Child retirement supports closing-row changes and subsection headings while
+  preserving source and earlier evidence. Required successor owners and review
+  gates still block premature parent retirement. Explicitly declined rowless
+  options can retire without invented implementation tasks.
+- Crash recovery verifies a resumed blocked row against its original claim,
+  approved prerequisites and exact commit evidence. Option claims remain visible
+  to the global ledger ownership gate. Root specifications and initialization
+  checks retain their guards; record ID validation is shared across components.
+
+The stock goal protocol has changed. Adopting its new fingerprint in an existing
+paused goal requires the existing identity-transition approval; installation does
+not approve that transition, migrate project rules or reset grants, attempts and
+review counters. Protocol registries are regenerated from published release tags.
+
 # memory-bank v2.14.0
 
 Adds offline milestone reflection and run reporting, and tightens the API runner's
