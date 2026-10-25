@@ -71,7 +71,7 @@ Current `lessons.md`:
 YOUR TASK:
 1. CONTRAST: Compare the verification commands and turn patterns of the Fast Baseline Runs (1A) against the Friction/Multi-Attempt Runs (1B/1C). Identify why slow/failed tasks diverged.
 2. PROPOSE: Formulate concise, additive updates to `tabilet/memory-bank/tech-stack.md` and `tabilet/memory-bank/lessons.md`.
-3. PROBE COMMAND EXTRACTION: If you propose a faster test profile for `tech-stack.md`, list up to 3 candidate runnable test commands inside a fenced ```probe-commands``` block (one command per line). Include both the existing baseline test command and your proposed faster alternative(s). The harness will dry-run each candidate, verify non-zero test coverage, measure average execution time across repeated runs, and compare them before composing the final proposal.
+3. PROBE COMMAND EXTRACTION: If you propose a faster test profile for `tech-stack.md`, list up to 3 candidate runnable test commands inside a fenced ```probe-commands``` block (one command per line). List the existing baseline test command FIRST, then your proposed faster alternative(s). The harness dry-runs at most 3 commands, each repeated, and counts the tests each one runs. It recommends a replacement only when it runs at least as many tests as the baseline; a smaller subset is reported as a fast tier that does not replace the baseline.
 4. DOWNSTREAM: Only when the gate in 1E is open, and only for a milestone listed there, propose a
    concrete amendment (a narrower verification command, a split row, a missing prerequisite, a
    redundant step). Skip any finding already covered by the milestone's own text or by `lessons.md`.
@@ -82,7 +82,7 @@ YOUR TASK:
 OUTPUT FORMAT:
 Return ONLY a Markdown document containing:
 - ## Contrastive Diagnosis (3-4 bullet points comparing fast baselines vs. friction runs)
-- ## Probe Commands (fenced `probe-commands` block with up to 3 candidate test commands to dry-run and compare, or empty if none)
+- ## Probe Commands (fenced `probe-commands` block with the baseline test command first and up to 2 alternatives, or empty if none)
 - ## Proposed Edits to tech-stack.md (Unified Diff)
 - ## Proposed Entry for lessons.md (Standard Tabilet Lesson Schema)
 - ## Proposed Downstream Amendments (per-milestone items with evidence, or `No downstream changes.`)
@@ -708,6 +708,9 @@ PROBE_ALLOWED = (
 PROBE_METACHARACTERS = re.compile(r"[;&|<>`$()\\\n]")
 
 
+PROBE_MAX_COMMANDS = 3
+
+
 def _probe_skip(command: str, reason: str) -> dict[str, Any]:
     return {
         "command": command,
@@ -719,74 +722,85 @@ def _probe_skip(command: str, reason: str) -> dict[str, Any]:
     }
 
 
+def _coverage(tests_run: int | None, summary: str) -> dict[str, Any]:
+    return {"tests_run": tests_run, "has_coverage": None if tests_run is None else tests_run > 0, "summary": summary}
+
+
 def extract_coverage_evidence(output: str) -> dict[str, Any]:
-    """Parse standard test runner output to extract test counts and determine coverage evidence."""
-    # 1. Unittest: "Ran 5 tests in 0.002s"
-    m_unittest = re.search(r"\bRan\s+(\d+)\s+tests?\b", output)
-    if m_unittest:
-        tests_run = int(m_unittest.group(1))
-        return {
-            "tests_run": tests_run,
-            "has_coverage": tests_run > 0,
-            "summary": f"Ran {tests_run} test{'s' if tests_run != 1 else ''}",
-        }
+    """Parse test runner output into a test count (`tests_run`, None when the runner prints none).
 
-    # 2. Pytest: "collected 0 items" or "no tests ran"
-    if re.search(r"\b(?:collected 0 items|no tests ran)\b", output, re.I):
-        return {"tests_run": 0, "has_coverage": False, "summary": "0 tests collected/run"}
+    Counts come from the runner's own totals: Cargo prints one total per test binary, so they are summed,
+    and a wrapper line such as Jest's `Test Suites:` or Go's per-package `ok` is never read as a test count."""
+    # 1. unittest: "Ran 5 tests in 0.002s"
+    ran = re.findall(r"\bRan\s+(\d+)\s+tests?\b", output)
+    if ran:
+        n = sum(int(r) for r in ran)
+        return _coverage(n, f"Ran {n} test{'s' if n != 1 else ''}")
 
-    m_pytest = re.search(r"\b(\d+)\s+passed\b", output)
-    if m_pytest:
-        tests_passed = int(m_pytest.group(1))
-        m_failed = re.search(r"\b(\d+)\s+failed\b", output)
-        tests_failed = int(m_failed.group(1)) if m_failed else 0
-        tests_run = tests_passed + tests_failed
-        return {
-            "tests_run": tests_run,
-            "has_coverage": tests_run > 0,
-            "summary": f"{tests_passed} passed" + (f", {tests_failed} failed" if tests_failed else ""),
-        }
+    # 2. Jest ("Tests: 1 failed, 7 passed, 8 total") and Vitest ("Tests  1 failed | 7 passed (8)")
+    jest = re.search(r"^\s*Tests:([^\n]*)$", output, re.M)
+    if jest and (total := re.search(r"(\d+)\s+total\b", jest.group(1))):
+        n = int(total.group(1))
+        passed = re.search(r"(\d+)\s+passed\b", jest.group(1))
+        return _coverage(n, f"{int(passed.group(1)) if passed else n}/{n} tests passed")
+    vitest = re.search(r"^\s*Tests\s+(?:\d+\s+failed\s*\|\s*)?(\d+)\s+passed\s*\((\d+)\)", output, re.M)
+    if vitest:
+        n = int(vitest.group(2))
+        return _coverage(n, f"{vitest.group(1)}/{n} tests passed")
 
-    # 3. Jest / Vitest: "Tests:\s*(\d+)\s*passed,?\s*(\d+)\s*total"
-    m_jest = re.search(r"Tests:\s*(?:(\d+)\s*passed,?\s*)?(\d+)\s*total", output)
-    if m_jest:
-        tests_run = int(m_jest.group(2))
-        tests_passed = int(m_jest.group(1)) if m_jest.group(1) else tests_run
-        return {
-            "tests_run": tests_run,
-            "has_coverage": tests_run > 0,
-            "summary": f"{tests_passed}/{tests_run} tests passed",
-        }
+    # 3. Cargo: one "test result: ok. N passed; M failed" line per test binary (unit, integration, doc)
+    cargo = re.findall(r"test result:\s*\w+\.\s*(\d+)\s*passed;\s*(\d+)\s*failed", output)
+    if cargo:
+        passed, failed = sum(int(a) for a, _ in cargo), sum(int(b) for _, b in cargo)
+        return _coverage(passed + failed, f"{passed} passed, {failed} failed")
 
-    # 4. Mocha: "(\d+)\s*passing"
-    m_mocha = re.search(r"\b(\d+)\s*passing\b", output)
-    if m_mocha:
-        tests_run = int(m_mocha.group(1))
-        return {
-            "tests_run": tests_run,
-            "has_coverage": tests_run > 0,
-            "summary": f"{tests_run} passing",
-        }
-
-    # 5. Cargo test: "test result: ok. (\d+) passed; (\d+) failed"
-    m_cargo = re.search(r"test result:\s*\w+\.\s*(\d+)\s*passed;\s*(\d+)\s*failed", output)
-    if m_cargo:
-        tests_passed = int(m_cargo.group(1))
-        tests_failed = int(m_cargo.group(2))
-        tests_run = tests_passed + tests_failed
-        return {
-            "tests_run": tests_run,
-            "has_coverage": tests_run > 0,
-            "summary": f"{tests_passed} passed, {tests_failed} failed",
-        }
-
-    # 6. Go test:
+    # 4. Go prints no count: a package line "ok  pkg" ran tests unless it says "[no tests to run]", and
+    # "[no test files]" marks a package without any. One package without tests does not empty the run.
+    go_ok = [l for l in output.splitlines() if re.match(r"ok\s+\S+", l) and "[no tests to run]" not in l]
+    if go_ok:
+        return {"tests_run": None, "has_coverage": True, "summary": f"go test: {len(go_ok)} package(s) ok"}
     if re.search(r"\[no test files\]|\[no tests to run\]", output):
-        return {"tests_run": 0, "has_coverage": False, "summary": "no test files"}
-    if re.search(r"\bPASS\b", output) and re.search(r"\bok\s+\S+", output):
-        return {"tests_run": None, "has_coverage": True, "summary": "go test PASS"}
+        return _coverage(0, "no test files")
+
+    # 5. Mocha: "22 passing", "1 failing"
+    passing = re.search(r"^\s*(\d+)\s+passing\b", output, re.M)
+    if passing:
+        failing = re.search(r"^\s*(\d+)\s+failing\b", output, re.M)
+        n = int(passing.group(1)) + (int(failing.group(1)) if failing else 0)
+        return _coverage(n, f"{passing.group(1)} passing" + (f", {failing.group(1)} failing" if failing else ""))
+
+    # 6. pytest: "collected 0 items" / "no tests ran", else the summary line "12 passed, 2 failed in 0.35s"
+    if re.search(r"\b(?:collected 0 items|no tests ran)\b", output, re.I):
+        return _coverage(0, "0 tests collected/run")
+    for line in output.splitlines():
+        if re.search(r"\bin\s+\d+(?:\.\d+)?s\b", line):
+            counts = {kind: int(n) for n, kind in re.findall(r"(\d+)\s+(passed|failed)\b", line)}
+            if counts:
+                passed, failed = counts.get("passed", 0), counts.get("failed", 0)
+                return _coverage(passed + failed, f"{passed} passed" + (f", {failed} failed" if failed else ""))
 
     return {"tests_run": None, "has_coverage": None, "summary": "unparsed runner output"}
+
+
+def _run_probe(argv: list[str], cwd: pathlib.Path, timeout_sec: int) -> dict[str, Any]:
+    """One probe run in its own session. A timeout kills the whole process group and reaps it."""
+    t0 = time.time()
+    try:
+        proc = subprocess.Popen(argv, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, start_new_session=True)
+    except OSError as exc:
+        return {"error": type(exc).__name__}
+    try:
+        out, err = proc.communicate(timeout=timeout_sec)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            if hasattr(os, "killpg"):
+                os.killpg(proc.pid, signal.SIGKILL)
+            else:
+                proc.kill()
+        proc.communicate()
+        return {"timeout": True}
+    return {"exit_code": proc.returncode, "output": out + "\n" + err, "duration": time.time() - t0}
 
 
 def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, timeout_sec: int = 15,
@@ -796,16 +810,18 @@ def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, 
     output built from untrusted transcript text, so it is inert unless the caller opts in with
     --probe AND ALLOW_UNSANDBOXED_SHELL=1. Even then each line runs without a shell, rejects shell
     metacharacters and anything but an allowed test runner, and runs in its own session that is killed on timeout.
-    When a command passes, it is repeated up to `repeats` times to measure stable average duration,
-    and output is inspected for non-zero test coverage evidence.
+    At most PROBE_MAX_COMMANDS distinct commands run, so a probe takes at most
+    PROBE_MAX_COMMANDS x repeats x timeout_sec. A command that passes is repeated up to `repeats` runs in all
+    to average its duration; a repeat that fails or times out makes it UNSTABLE, not PASSED. Output is
+    inspected for a test count.
     """
     pattern = re.compile(r"```probe-commands\s+(.*?)```", re.DOTALL)
-    commands = [
+    commands = list(dict.fromkeys(
         line.strip()
         for block in pattern.findall(markdown_proposal)
         for line in block.splitlines()
         if line.strip() and not line.strip().startswith("#")
-    ]
+    ))
     if not commands:
         return []
     if not enabled:
@@ -814,6 +830,7 @@ def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, 
         return [_probe_skip(c, "Not run: probing executes on the host and needs ALLOW_UNSANDBOXED_SHELL=1.") for c in commands]
 
     results = []
+    started = 0
     for cmd in commands:
         try:
             argv = shlex.split(cmd)
@@ -827,88 +844,99 @@ def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, 
             results.append(_probe_skip(cmd, "Not run: probes may only start a project test runner "
                                             "(python3 -m unittest or pytest, pytest, npm test, go test, cargo test, make test)."))
             continue
-        t0 = time.time()
-        try:
-            proc = subprocess.Popen(
-                argv, cwd=project_root, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, text=True, start_new_session=True,
-            )
-        except OSError as exc:
-            results.append({
-                "command": cmd, "status": "FAILED", "exit_code": -1,
-                "duration_sec": None, "coverage": {"tests_run": None, "has_coverage": None, "summary": None},
-                "output_snippet": type(exc).__name__,
-            })
+        if started >= PROBE_MAX_COMMANDS:
+            results.append(_probe_skip(cmd, f"Not run: at most {PROBE_MAX_COMMANDS} probe commands run."))
             continue
-        try:
-            out, err = proc.communicate(timeout=timeout_sec)
-            d1 = time.time() - t0
-        except subprocess.TimeoutExpired:
-            with contextlib.suppress(ProcessLookupError, PermissionError):
-                if hasattr(os, "killpg"):
-                    os.killpg(proc.pid, signal.SIGKILL)
-                else:
-                    proc.kill()
-            proc.communicate()
-            results.append({
-                "command": cmd,
-                "status": "TIMEOUT",
-                "exit_code": -1,
-                "duration_sec": float(timeout_sec),
-                "coverage": {"tests_run": None, "has_coverage": None, "summary": None},
-                "output_snippet": f"Command exceeded probe timeout of {timeout_sec}s.",
-            })
+        started += 1
+        no_coverage = {"tests_run": None, "has_coverage": None, "summary": None}
+        first = _run_probe(argv, project_root, timeout_sec)
+        if "error" in first:
+            results.append({"command": cmd, "status": "FAILED", "exit_code": -1, "duration_sec": None,
+                            "coverage": no_coverage, "output_snippet": first["error"]})
+            continue
+        if first.get("timeout"):
+            results.append({"command": cmd, "status": "TIMEOUT", "exit_code": -1, "duration_sec": float(timeout_sec),
+                            "coverage": no_coverage, "output_snippet": f"Command exceeded probe timeout of {timeout_sec}s."})
             continue
 
-        coverage = extract_coverage_evidence(out + "\n" + err)
+        coverage = extract_coverage_evidence(first["output"])
+        snippet = truncate_middle(first["output"], 200, 400).strip()
+        entry = {"command": cmd, "exit_code": first["exit_code"], "duration_sec": round(first["duration"], 3),
+                 "coverage": coverage, "output_snippet": snippet}
         if coverage.get("has_coverage") is False:
-            results.append({
-                "command": cmd,
-                "status": "ZERO_COVERAGE",
-                "exit_code": proc.returncode,
-                "duration_sec": round(d1, 3),
-                "coverage": coverage,
-                "output_snippet": truncate_middle(out + "\n" + err, 200, 400).strip(),
-            })
+            results.append({**entry, "status": "ZERO_COVERAGE"})
+            continue
+        if first["exit_code"] != 0:
+            results.append({**entry, "status": "FAILED"})
             continue
 
-        if proc.returncode != 0:
-            results.append({
-                "command": cmd,
-                "status": "FAILED",
-                "exit_code": proc.returncode,
-                "duration_sec": round(d1, 3),
-                "coverage": coverage,
-                "output_snippet": truncate_middle(out + "\n" + err, 200, 400).strip(),
-            })
+        # Passed once. Every repeat must pass too: a flaky command is not a stable profile.
+        durations = [first["duration"]]
+        unstable = None
+        for _ in range(max(0, repeats - 1)):
+            again = _run_probe(argv, project_root, timeout_sec)
+            if "error" in again:
+                unstable = f"could not start on the repeat run ({again['error']})"
+            elif again.get("timeout"):
+                unstable = f"timed out after {timeout_sec}s on the repeat run"
+            elif again["exit_code"] != 0:
+                unstable = f"failed with exit {again['exit_code']} on the repeat run"
+            else:
+                durations.append(again["duration"])
+                continue
+            break
+        if unstable:
+            results.append({**entry, "status": "UNSTABLE", "output_snippet": f"Passed once, then {unstable}."})
             continue
-
-        # Command passed with exit code 0. Repeat to get a stable timing.
-        durations = [d1]
-        if repeats >= 2:
-            t_repeat = time.time()
-            try:
-                proc2 = subprocess.Popen(
-                    argv, cwd=project_root, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, text=True, start_new_session=True,
-                )
-                proc2.communicate(timeout=timeout_sec)
-                if proc2.returncode == 0:
-                    durations.append(time.time() - t_repeat)
-            except (OSError, subprocess.TimeoutExpired):
-                pass
-
-        avg_duration = round(sum(durations) / len(durations), 3)
-
-        results.append({
-            "command": cmd,
-            "status": "PASSED",
-            "exit_code": 0,
-            "duration_sec": avg_duration,
-            "coverage": coverage,
-            "output_snippet": truncate_middle(out + "\n" + err, 200, 400).strip(),
-        })
+        results.append({**entry, "status": "PASSED", "exit_code": 0,
+                        "duration_sec": round(sum(durations) / len(durations), 3)})
     return results
+
+
+def _counted(probe: dict[str, Any]) -> bool:
+    """A passing probe whose output reported a positive test count: the only kind that can be compared."""
+    coverage = probe.get("coverage") or {}
+    return (probe["status"] == "PASSED" and isinstance(coverage.get("tests_run"), int)
+            and coverage.get("has_coverage") is True and probe.get("duration_sec") is not None)
+
+
+def _compare_to_baseline(probe_results: list[dict[str, Any]]) -> list[str]:
+    """Notes comparing each candidate with the first command, which the prompt asks to be the baseline.
+
+    A replacement is recommended only when it runs at least as many tests as the baseline and is faster.
+    A smaller subset is a fast tier. Nothing is compared with a baseline that was not measured."""
+    if len(probe_results) < 2:
+        return []
+    baseline, others = probe_results[0], probe_results[1:]
+    notes = []
+    if not _counted(baseline):
+        reason = {"TIMEOUT": "it timed out at the probe limit, so its duration and test count are unknown",
+                  "SKIPPED": "it was not run", "FAILED": "it failed", "UNSTABLE": "it was unstable",
+                  "ZERO_COVERAGE": "it ran no tests"}.get(baseline["status"], "its output reported no test count")
+        return [f"> **NOTE:** The first command, `{baseline['command']}`, is taken as the baseline and was not measured: {reason}. "
+                "No candidate is compared with it and none is recommended; a short probe cannot time a long suite. "
+                "Compare test counts and durations yourself before changing `tech-stack.md`."]
+    base_n, base_t = baseline["coverage"]["tests_run"], baseline["duration_sec"]
+    faster = [p for p in others if _counted(p) and p["duration_sec"] < base_t]
+    full = [p for p in faster if p["coverage"]["tests_run"] >= base_n]
+    subset = [p for p in faster if p["coverage"]["tests_run"] < base_n]
+    if full:
+        best = min(full, key=lambda p: p["duration_sec"])
+        notes.append(f"> **Recommended Test Profile:** `{best['command']}` runs {best['coverage']['tests_run']} tests, "
+                     f"as many as the baseline's {base_n} or more, in {best['duration_sec']:.2f}s against {base_t:.2f}s.")
+    if subset:
+        best = min(subset, key=lambda p: p["duration_sec"])
+        n = best["coverage"]["tests_run"]
+        notes.append(f"> **Fast tier only:** `{best['command']}` runs {n} of the baseline's {base_n} tests "
+                     f"({round(100 * n / base_n)}%) in {best['duration_sec']:.2f}s against {base_t:.2f}s. It covers a subset, so it does "
+                     "not replace the baseline: keep the baseline as the full-regression gate, and the `Replacement coverage` rule applies.")
+    if not faster and any(_counted(p) for p in others):
+        notes.append("> **NOTE:** No verified candidate is faster than the baseline.")
+    for p in others:
+        if p["status"] == "PASSED" and not _counted(p):
+            notes.append(f"> **NOTE:** `{p['command']}` passed, but its output reported no test count, so its coverage is "
+                         "unverified and it was not compared.")
+    return notes
 
 
 def format_compose_report(proposal_md: str, probe_results: list[dict[str, Any]]) -> str:
@@ -925,24 +953,8 @@ def format_compose_report(proposal_md: str, probe_results: list[dict[str, Any]])
         cov_summary = (pr.get("coverage") or {}).get("summary") or "n/a"
         probe_lines.append(f"| `{pr['command']}` | **{pr['status']}** | {dur_str} | {cov_summary} | {snippet_clean} |")
 
-    passing_with_coverage = [
-        p for p in probe_results
-        if p["status"] == "PASSED" and (p.get("coverage") or {}).get("has_coverage") is not False
-    ]
-    if len(passing_with_coverage) >= 2:
-        fastest = min(passing_with_coverage, key=lambda p: p.get("duration_sec") or 9999.0)
-        dur = f"{fastest['duration_sec']:.2f}s" if fastest.get("duration_sec") is not None else "fast"
-        cov = (fastest.get("coverage") or {}).get("summary") or "verified coverage"
-        probe_lines.append(
-            f"\n> **Recommended Test Profile:** `{fastest['command']}` is the fastest verified candidate "
-            f"({dur} avg, {cov})."
-        )
-    elif len(passing_with_coverage) == 1 and len(probe_results) > 1:
-        winner = passing_with_coverage[0]
-        probe_lines.append(
-            f"\n> **Recommended Test Profile:** `{winner['command']}` is the only candidate that passed "
-            f"with verified test coverage."
-        )
+    for note in _compare_to_baseline(probe_results):
+        probe_lines.append("\n" + note)
 
     if any(p["status"] == "ZERO_COVERAGE" for p in probe_results):
         probe_lines.append(
@@ -954,9 +966,9 @@ def format_compose_report(proposal_md: str, probe_results: list[dict[str, Any]])
             "\n> **NOTE:** Some proposed commands were not run. Verify them yourself before promoting "
             "them into `tech-stack.md`."
         )
-    if any(p["status"] in ("FAILED", "TIMEOUT") for p in probe_results):
+    if any(p["status"] in ("FAILED", "TIMEOUT", "UNSTABLE") for p in probe_results):
         probe_lines.append(
-            "\n> **WARNING:** One or more proposed commands failed the local subprocess probe. "
+            "\n> **WARNING:** One or more proposed commands failed, timed out or were unstable in the local subprocess probe. "
             "Do NOT promote those commands into `tech-stack.md` without fixing the flags."
         )
     return proposal_md.rstrip() + "\n" + "\n".join(probe_lines) + "\n"

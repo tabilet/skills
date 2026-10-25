@@ -360,48 +360,116 @@ class ReflectTests(unittest.TestCase):
         self.assertFalse(results[1]['coverage']['has_coverage'])
         self.assertEqual(results[1]['coverage']['tests_run'], 0)
 
-    def test_format_compose_report_recommends_fastest_and_warns_zero_coverage(self):
-        proposal_md = "## Proposed Edits to tech-stack.md\n\n```diff\n+ fast test\n```\n"
-        probe_results = [
-            {
-                "command": "python3 -m unittest discover tests",
-                "status": "PASSED",
-                "exit_code": 0,
-                "duration_sec": 1.25,
-                "coverage": {"tests_run": 50, "has_coverage": True, "summary": "Ran 50 tests"},
-                "output_snippet": "Ran 50 tests in 1.2s OK",
-            },
-            {
-                "command": "python3 -m unittest tests/test_fast.py",
-                "status": "PASSED",
-                "exit_code": 0,
-                "duration_sec": 0.35,
-                "coverage": {"tests_run": 10, "has_coverage": True, "summary": "Ran 10 tests"},
-                "output_snippet": "Ran 10 tests in 0.3s OK",
-            },
-            {
-                "command": "python3 -m unittest -k nonexistent",
-                "status": "ZERO_COVERAGE",
-                "exit_code": 0,
-                "duration_sec": 0.05,
-                "coverage": {"tests_run": 0, "has_coverage": False, "summary": "Ran 0 tests"},
-                "output_snippet": "Ran 0 tests in 0.0s OK",
-            },
-        ]
-        report = reflect.format_compose_report(proposal_md, probe_results)
+    @staticmethod
+    def probe(command, tests=None, seconds=1.0, status='PASSED', has_coverage=True):
+        coverage = {'tests_run': tests, 'has_coverage': has_coverage if tests != 0 else False,
+                    'summary': None if tests is None else f'Ran {tests} tests'}
+        return {'command': command, 'status': status, 'exit_code': 0, 'duration_sec': seconds,
+                'coverage': coverage, 'output_snippet': ''}
 
-        # Contains table with duration and coverage columns
-        self.assertIn("| Proposed Command | Probe Status | Avg Duration | Coverage Evidence | Output Snippet |", report)
-        self.assertIn("1.25s", report)
-        self.assertIn("0.35s", report)
-        self.assertIn("Ran 50 tests", report)
+    def test_a_subset_is_a_fast_tier_never_the_recommended_profile(self):
+        report = reflect.format_compose_report('## Proposed\n', [
+            self.probe('python3 -m unittest discover tests', 50, 1.25),
+            self.probe('python3 -m unittest tests/test_fast.py', 10, 0.35),
+            self.probe('python3 -m unittest -k nonexistent', 0, 0.05, status='ZERO_COVERAGE'),
+        ])
+        self.assertIn('| Proposed Command | Probe Status | Avg Duration | Coverage Evidence | Output Snippet |', report)
+        self.assertNotIn('Recommended Test Profile:', report)
+        self.assertIn('**Fast tier only:** `python3 -m unittest tests/test_fast.py` runs 10 of the baseline\'s 50 tests (20%)', report)
+        self.assertIn('does not replace the baseline', report)
+        self.assertIn('WARNING:** One or more proposed commands executed 0 tests', report)
 
-        # Recommends the fastest candidate with non-zero coverage
-        self.assertIn("Recommended Test Profile:", report)
-        self.assertIn("`python3 -m unittest tests/test_fast.py` is the fastest verified candidate (0.35s avg, Ran 10 tests)", report)
+    def test_a_faster_candidate_with_at_least_the_baseline_tests_is_recommended(self):
+        report = reflect.format_compose_report('## Proposed\n', [
+            self.probe('make test', 50, 4.0), self.probe('pytest -n 4', 52, 1.5), self.probe('pytest tests/unit', 12, 0.4)])
+        self.assertIn('**Recommended Test Profile:** `pytest -n 4` runs 52 tests', report)
+        self.assertIn('**Fast tier only:** `pytest tests/unit` runs 12 of the baseline\'s 50 tests', report)
 
-        # Emits zero coverage warning
-        self.assertIn("WARNING:** One or more proposed commands executed 0 tests", report)
+    def test_a_slower_candidate_is_not_recommended(self):
+        report = reflect.format_compose_report('## Proposed\n', [self.probe('make test', 50, 1.0), self.probe('pytest', 50, 3.0)])
+        self.assertNotIn('Recommended Test Profile:', report)
+        self.assertIn('No verified candidate is faster than the baseline', report)
+
+    def test_output_without_a_test_count_is_never_recommended(self):
+        report = reflect.format_compose_report('## Proposed\n', [
+            self.probe('pytest', 50, 3.0), self.probe('make test', None, 0.01, has_coverage=None)])
+        self.assertNotIn('Recommended Test Profile:', report)
+        self.assertIn('`make test` passed, but its output reported no test count', report)
+
+    def test_a_baseline_that_was_not_measured_blocks_every_recommendation(self):
+        timeout = {**self.probe('make test', None, 15.0, status='TIMEOUT', has_coverage=None)}
+        report = reflect.format_compose_report('## Proposed\n', [timeout, self.probe('pytest tests/unit', 10, 0.4)])
+        self.assertNotIn('Recommended Test Profile:', report)
+        self.assertNotIn('Fast tier only', report)
+        self.assertIn('was not measured: it timed out at the probe limit', report)
+        self.assertIn('WARNING:** One or more proposed commands failed, timed out or were unstable', report)
+
+    def test_a_command_that_fails_its_repeat_run_is_unstable_not_passed(self):
+        (self.repo / 'test_flaky.py').write_text(
+            'import os\nimport unittest\n\n\nclass Flaky(unittest.TestCase):\n    def test_once(self):\n'
+            '        if os.path.exists("seen"):\n            self.fail("second run")\n        open("seen", "w").close()\n')
+        proposal = '```probe-commands\npython3 -m unittest test_flaky\n```\n'
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            [result] = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
+        self.assertEqual(result['status'], 'UNSTABLE')
+        self.assertIn('failed with exit', result['output_snippet'])
+        self.assertIn('**UNSTABLE**', reflect.format_compose_report('## P\n', [result]))
+        # With no repeat requested the same command passes: the flakiness is only visible on the repeat.
+        (self.repo / 'seen').unlink()
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            [single] = reflect.probe_proposed_commands(proposal, self.repo, enabled=True, repeats=1)
+        self.assertEqual(single['status'], 'PASSED')
+
+    def test_a_repeat_run_that_times_out_is_killed_and_reported(self):
+        (self.repo / 'test_hang.py').write_text(
+            'import os\nimport time\nimport unittest\n\n\nclass Hang(unittest.TestCase):\n    def test_hang(self):\n'
+            '        if os.path.exists("seen"):\n            open("pid", "w").write(str(os.getpid()))\n            time.sleep(60)\n'
+            '        open("seen", "w").close()\n')
+        proposal = '```probe-commands\npython3 -m unittest test_hang\n```\n'
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            [result] = reflect.probe_proposed_commands(proposal, self.repo, timeout_sec=3, enabled=True)
+        self.assertEqual(result['status'], 'UNSTABLE')
+        self.assertIn('timed out after 3s on the repeat run', result['output_snippet'])
+        pid = int((self.repo / 'pid').read_text())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+
+    def test_only_three_distinct_commands_run(self):
+        flags = ['--help', '-h', '-v --help', '-b --help', '-f --help']
+        proposal = '```probe-commands\n' + '\n'.join(f'python3 -m unittest {f}' for f in flags) + '\npython3 -m unittest --help\n```\n'
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            results = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
+        self.assertEqual([r['status'] for r in results], ['PASSED'] * 3 + ['SKIPPED'] * 2)
+        self.assertIn('at most 3 probe commands run', results[3]['output_snippet'])
+
+    def test_counts_come_from_the_runner_totals(self):
+        counts = reflect.extract_coverage_evidence
+        # Cargo: a crate whose tests are all in tests/ prints "0 passed" for the lib first
+        cargo = ('test result: ok. 0 passed; 0 failed; 0 ignored; finished in 0.00s\n'
+                 'test result: ok. 5 passed; 1 failed; 0 ignored; finished in 0.40s\n'
+                 'test result: ok. 0 passed; 0 failed; 0 ignored; finished in 0.00s\n')
+        self.assertEqual((counts(cargo)['tests_run'], counts(cargo)['has_coverage']), (6, True))
+        # Jest: the suite count must not be read as the test count
+        jest = 'Test Suites: 2 passed, 2 total\nTests:       1 failed, 38 passed, 39 total\nTime: 4.1s'
+        self.assertEqual(counts(jest)['tests_run'], 39)
+        self.assertEqual(counts(jest)['summary'], '38/39 tests passed')
+        self.assertEqual(counts('Test Files  1 passed (1)\n     Tests  2 failed | 6 passed (8)\n')['tests_run'], 8)
+        # pytest: only the summary line counts, and a Cargo "finished in" line is not one
+        self.assertEqual(counts('collected 3 items\n=== 3 passed in 0.02s ===')['tests_run'], 3)
+        self.assertEqual(counts('1 passed, 2 warnings in 0.10s')['tests_run'], 1)
+        self.assertEqual(counts('  3 passing (12ms)\n  1 failing')['tests_run'], 4)
+
+    def test_go_packages_without_tests_do_not_empty_the_run(self):
+        counts = reflect.extract_coverage_evidence
+        mixed = '?   \texample.com/cmd\t[no test files]\nok  \texample.com/pkg\t0.300s\n'
+        self.assertTrue(counts(mixed)['has_coverage'])
+        self.assertIsNone(counts(mixed)['tests_run'])
+        self.assertFalse(counts('?   \texample.com/cmd\t[no test files]\n')['has_coverage'])
+        self.assertFalse(counts('ok  \texample.com/pkg\t0.010s [no tests to run]\n')['has_coverage'])
+        # A Go run has no test count, so it can be listed but never compared or recommended.
+        report = reflect.format_compose_report('## P\n', [
+            self.probe('pytest', 50, 3.0), {**self.probe('go test ./...', None, 0.5, has_coverage=True)}])
+        self.assertNotIn('Recommended Test Profile:', report)
 
 
 if __name__ == '__main__':
