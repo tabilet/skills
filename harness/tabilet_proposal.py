@@ -32,9 +32,9 @@ MAX_SNAPSHOT_FILE_BYTES = 8 * 1024 * 1024
 MAX_SNAPSHOT_TOTAL_BYTES = 64 * 1024 * 1024
 MAX_SNAPSHOT_FILES = 5000
 MAX_FILE_ACTIONS = 500
-_STATUS_ID = r"[A-Z][0-9]{2}"
+_STATUS_ID = r"[A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?"
 _PERMANENT_ID = re.compile(rb"\b(" + _STATUS_ID.encode() + rb")\b")
-_STATUS_FILE = re.compile(r"(?:^|/)status-(" + _STATUS_ID + r")\.md$")
+_STATUS_FILE = re.compile(r"(?:^|/)(?:status|amend|option)-(" + _STATUS_ID + r")\.md$")
 _HEX = re.compile(r"[0-9a-f]{64}\Z")
 RECEIPT_STATES = {"approved", "running", "paused", "needs_review", "completed"}
 
@@ -159,7 +159,12 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
         closure_paths = [_project_path(path) for path in closure_paths]
         if len(closure_paths) != len(set(closure_paths)):
             raise ProposalError(f"closure_paths for {identifier} must be unique")
-        if f"tabilet/memory-bank/status-{identifier}.md" not in closure_paths:
+        from tabilet_index import parser
+        try:
+            status_path = parser().approved_status_path(milestone)
+        except ValueError as exc:
+            raise ProposalError(str(exc)) from exc
+        if status_path not in closure_paths:
             raise ProposalError(f"closure_paths for {identifier} must include its active status file")
         milestone["closure_paths"] = closure_paths
         total_rows += len(tasks)
@@ -192,11 +197,17 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
             task_paths = [_project_path(path) for path in approved_paths]
             if len(task_paths) != len(set(task_paths)):
                 raise ProposalError(f"approved_paths for task {task['id']} must be unique")
-            if f"tabilet/memory-bank/status-{identifier}.md" not in task_paths:
+            if status_path not in task_paths:
                 raise ProposalError(
                     f"approved_paths for task {task['id']} must include its status file"
                 )
             task["approved_paths"] = task_paths
+            resume_after = task.get("resume_after", [])
+            if (not isinstance(resume_after, list) or any(not isinstance(child, str) for child in resume_after)
+                    or len(set(resume_after)) != len(resume_after)
+                    or any(not isinstance(child, str) or not re.fullmatch(re.escape(identifier)+r"-[0-9]{2}", child)
+                           for child in resume_after)):
+                raise ProposalError("resume_after must name this parent's amendment IDs")
         milestone.setdefault("manual_evidence", [])
         if not isinstance(milestone["manual_evidence"], list) or any(
             not isinstance(item, str) or not item.strip() or len(item) > 8000

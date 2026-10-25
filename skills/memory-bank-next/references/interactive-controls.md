@@ -97,3 +97,12 @@ After repair acceptance, review the originating milestone again with its
 existing iteration counter. The repair milestone's own review cannot substitute
 for this pass or reset the counter. At iteration 10, unresolved findings stop
 further automatic repairs and require explicit human direction.
+
+## Optional discoveries
+
+Resolve `OPTION_POLICY: confirm | ignore` from the current request or governing
+goal, defaulting to `confirm`. Preserve it across resume and launch refreshes.
+Follow [milestone families](milestone-families.md); a single Next invocation
+does not implement optional work beyond its selected task merely because the
+parent closes. Under `confirm`, propose one batch after parent closure and wait
+for the owner's actual answer. Under `ignore`, leave the backlog alone.

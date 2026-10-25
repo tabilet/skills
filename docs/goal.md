@@ -463,3 +463,26 @@ continuity; they never establish acceptance.
 Acceptance comes from the project's requirements, actual verification, and
 review evidence. A successful process exit can still leave an unfinished
 milestone.
+
+## Amendments and deferred options
+
+Keep the original delivery outcome stable. Put substantial required repairs in
+`amend-M53-01.md` and optional work in `option-M53-02.md`, sharing one permanent
+sequence. Each child declares `Parent: M53` and owns its specification and tasks.
+The parent finishes independent work, waits for required amendments, then resumes
+its deferred checks and final review. Mocks cannot pass missing real acceptance.
+External testing-tool repair is optional by default; only an explicit owner
+decision can make it a blocking amendment, even under automatic corrective planning.
+
+`OPTION_POLICY: confirm` is the default: leave options alone during parent work,
+then consolidate them and ask once after parent closure. Recommend yes, but wait
+for an actual answer. `OPTION_POLICY: ignore` suppresses option refinement,
+prompts and execution for the whole goal; finishing the goal does not activate
+them. Selected options need an approved horizon and do not reopen their parent.
+These settings grant no additional action authority or budgets.
+
+Strict orders place required children immediately after their parent as a family;
+the parent closes after its amendments, before downstream work. Priority order
+uses the same readiness conditions without introducing ordering edges. Existing
+root-only plans retain their behavior. Retire child records with their original
+filenames and parent links; deferred options can outlive a retired parent.

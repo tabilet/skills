@@ -66,7 +66,7 @@ def _live_projection(core, project: pathlib.Path) -> dict:
         if kind not in {"active_status", "history_status"}:
             continue
         path = pathlib.PurePosixPath(relative)
-        milestone_id = path.stem.removeprefix("status-")
+        milestone_id = core.status_identity(path.name)
         counts = {}
         for task in document["index_tasks"]:
             label = task["label"]
@@ -108,25 +108,44 @@ def _live_projection(core, project: pathlib.Path) -> dict:
     for milestone in milestone_doc["index_milestone_projection"]:
         active_order[milestone["milestone_id"]] = milestone["display_order"]
     milestone_edges = {}
-    for edge in milestone_doc["index_relationships"]:
-        if edge["relation"] != "depends_on" or not edge["source"].startswith("milestone:"):
-            continue
-        source = edge["source"].removeprefix("milestone:")
-        target = edge["target"].removeprefix("milestone:")
-        milestone_edges.setdefault(source, []).append({"target": target, "line": edge["line"]})
-
-    history = snapshot["history"]["records"]
+    for document in parsed.values():
+        for edge in document['index_relationships']:
+            if edge['relation'] == 'depends_on' and edge['source'].startswith('milestone:'):
+                source = edge['source'].removeprefix('milestone:')
+                target = edge['target'].removeprefix('milestone:')
+                milestone_edges.setdefault(source, []).append({'target': target, 'line': edge['line']})
+    history = snapshot['history']['records']
     milestone_state = {}
-    for milestone_id in set(active_order) | {
-        name.removeprefix("status-").removesuffix(".md") for name in history
-    }:
-        active = f"status-{milestone_id}.md" in snapshot["active"]
-        retired = history.get(f"status-{milestone_id}.md")
-        milestone_state[milestone_id] = {
-            "lifecycle": "active" if active else "retired" if retired else "missing",
-            "outcome": retired["metadata"]["Outcome"] if retired else None,
-            "specification": snapshot["specifications"].get(f"status-{milestone_id}.md"),
+    for identity, family in snapshot['families'].items():
+        name = family['file']
+        retired = history.get(name)
+        milestone_state[identity] = {
+            **family,
+            'lifecycle': 'active' if name in snapshot['active'] else 'retired',
+            'outcome': retired['metadata']['Outcome'] if retired else None,
+            'specification': snapshot['specifications'].get(name),
         }
+    # Child relationships are not completion dependencies. Explicit dependencies
+    # still must be acyclic, including a mistaken child -> parent completion edge.
+    graph = {key: {edge['target'] for edge in edges}
+             for key, edges in milestone_edges.items()
+             if milestone_state.get(key, {}).get('lifecycle') == 'active'}
+    for identity, family in snapshot['families'].items():
+        if family['kind'] == 'amend' and family['file'] in snapshot['active']:
+            graph.setdefault(family['parent'], set()).add(identity)
+    visiting, visited = set(), set()
+    def visit(identity):
+        if identity in visiting:
+            raise _UnresolvedDependency('cyclic milestone dependencies: ' + identity)
+        if identity in visited:
+            return
+        visiting.add(identity)
+        for target in graph.get(identity, ()):
+            visit(target)
+        visiting.remove(identity)
+        visited.add(identity)
+    for identity in graph:
+        visit(identity)
     return {
         "snapshot": snapshot,
         "rows": rows,
@@ -227,7 +246,11 @@ def _validate_horizon(receipt: dict) -> tuple[list[dict], set[str]]:
             raise _UnresolvedDependency(f"receipt milestone {identity} lacks acceptance criteria")
         if not isinstance(milestone.get("closure_paths"), list):
             raise _UnresolvedDependency(f"receipt lacks closure paths for {identity}")
-        if f"tabilet/memory-bank/status-{identity}.md" not in milestone["closure_paths"]:
+        try:
+            status_path = _load_index_module().parser().approved_status_path(milestone)
+        except ValueError as exc:
+            raise _UnresolvedDependency(str(exc)) from exc
+        if status_path not in milestone["closure_paths"]:
             raise _UnresolvedDependency(f"receipt closure scope for {identity} omits its status file")
         for path in milestone["closure_paths"]:
             _validate_scope_path(path)
@@ -244,7 +267,7 @@ def _validate_horizon(receipt: dict) -> tuple[list[dict], set[str]]:
             task_ids.add(task_key)
             if not isinstance(task.get("approved_paths"), list) or not isinstance(task.get("verification"), list):
                 raise _UnresolvedDependency(f"approved task {task['id']} lacks paths or required checks")
-            if f"tabilet/memory-bank/status-{identity}.md" not in task["approved_paths"]:
+            if status_path not in task["approved_paths"]:
                 raise _UnresolvedDependency(f"approved task {task['id']} omits its status file")
             for path in task["approved_paths"]:
                 _validate_scope_path(path)
@@ -389,6 +412,53 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
                 f"in-progress row {in_progress_id} has no receipt provenance; manual review is required"
             )
         ordered = [milestone for milestone in ordered if milestone["id"] == resume_milestone]
+    def accepted(identity):
+        record = live['milestones'].get(identity, {})
+        return ((record.get('lifecycle') == 'retired' and record.get('outcome') == 'completed')
+                or closure_milestones.get(identity, {}).get('closure_state') == 'verified')
+
+    def disposed_amendment(identity, seen=frozenset()):
+        # Authorized withdrawal/supersession is not evidence of delivery. It
+        # removes the old owner; the new required owner and parent acceptance
+        # remain independently gated. Retirement validation requires disposition.
+        if identity in seen:
+            raise _UnresolvedDependency('cyclic amendment supersession: ' + identity)
+        family = live['milestones'][identity]
+        record = live['snapshot']['history']['records'].get(family['file'])
+        if not record or record['metadata']['Outcome'] == 'completed':
+            return False
+        metadata = record['metadata']
+        if metadata['Outcome'] == 'cancelled':
+            return True
+        targets = re.findall(r"(?<![\w-])" + core.MILESTONE_ID + r"(?![\w-])", metadata['Successor'])
+        if len(set(targets)) != 1:
+            raise _UnresolvedDependency('ambiguous amendment successor: ' + identity)
+        successor = targets[0]
+        target = live['milestones'].get(successor)
+        if not target or target['parent'] != family['parent']:
+            raise _UnresolvedDependency('missing or unrelated amendment successor: ' + identity)
+        if target.get('outcome') == 'superseded':
+            disposed_amendment(successor, seen | {identity})
+        elif successor == identity:
+            raise _UnresolvedDependency('cyclic amendment supersession: ' + identity)
+        return True
+
+    for milestone in horizon:
+        identity = milestone['id']
+        family = live['milestones'].get(identity)
+        if family and pathlib.PurePosixPath(core.approved_status_path(milestone)).name != family['file']:
+            raise _UnresolvedDependency('approved milestone file kind changed: ' + identity)
+        for task in milestone['tasks']:
+            children = task.get('resume_after', [])
+            if (not isinstance(children, list) or any(not isinstance(child, str) for child in children)
+                    or len(set(children)) != len(children)):
+                raise _UnresolvedDependency('malformed approved resume_after')
+            for child in children:
+                related = live['milestones'].get(child, {})
+                if related.get('kind') != 'amend' or related.get('parent') != identity:
+                    raise _UnresolvedDependency('resume_after is not an owned amendment: ' + child)
+                if child not in horizon_ids and not accepted(child):
+                    raise _UnresolvedDependency('resume prerequisite outside approved horizon: ' + child)
     waiting_reasons = []
     for milestone in ordered:
         identity = milestone["id"]
@@ -403,6 +473,9 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
                 "evidence": [{"phase": "retired_record", "source": "history", "outcome": "completed"}],
                 "manual_evidence": [],
             })
+            continue
+        if live_milestone['kind'] == 'option' and not accepted(live_milestone['parent']):
+            waiting_reasons.append('option waits for parent closure: ' + identity)
             continue
         approved_task_records = milestone["tasks"]
         milestone_rows = [row for row in live["rows"] if row["milestone_id"] == identity and row["lifecycle"] == "active"]
@@ -462,7 +535,8 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
             if successor["state"] not in {"completed", "in_progress"} and not ready:
                 waiting_reasons.append(reason or f"accepted successor {successor['task_id']} is not ready")
 
-        if any(row["state"] == "blocked" for row in in_scope):
+        blocked = [row for row in in_scope if row['state'] == 'blocked']
+        if any(not tasks_by_row[row['key']].get('resume_after') for row in blocked):
             raise _UnresolvedDependency(f"approved milestone {identity} contains a blocked row")
         if in_progress:
             row = in_progress[0]
@@ -472,7 +546,11 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
             task = tasks_by_row[row["key"]]
             return {"status": "row", "row": row, "task": task, "milestone": milestone, "live": live, "resumed": True}
 
-        pending = [row for row in in_scope if row["state"] == "pending"]
+        pending = [row for row in in_scope if row['state'] == 'pending' or (
+            row['state'] == 'blocked' and all(accepted(child) for child in tasks_by_row[row['key']]['resume_after']))]
+        for row in pending:
+            if row['state'] == 'blocked':
+                row['resume_authorized'] = True
         for row in pending:
             ready, reason = _row_ready(index, row, live, horizon_ids, approved_task_ids)
             if ready:
@@ -484,6 +562,15 @@ def select_next_row(core, project: pathlib.Path, receipt: dict) -> dict:
         nonterminal = [row for row in in_scope if row["state"] in {"pending", "in_progress", "blocked"}]
         if nonterminal:
             waiting_reasons.append(f"no dependency-ready task row in {identity}")
+            continue
+        required_children = [child for child, family in live['milestones'].items()
+                             if family['parent'] == identity and family['kind'] == 'amend'
+                             and not disposed_amendment(child)]
+        for child in required_children:
+            if child not in horizon_ids and not accepted(child):
+                raise _UnresolvedDependency('required amendment outside approved horizon: ' + child)
+        if any(not accepted(child) for child in required_children):
+            waiting_reasons.append('parent awaits amendment acceptance: ' + identity)
             continue
         closure_record = closure_milestones.get(identity, {})
         if closure_record.get("closure_state") != "verified":
@@ -732,7 +819,7 @@ def _mark_in_progress(core, repo: pathlib.Path, row: dict) -> None:
     current = line[start:end].strip()
     if current == "`[~]`":
         return
-    if current != "`[ ]`":
+    if current != "`[ ]`" and not (current == "`[!]`" and row.get("resume_authorized")):
         raise HorizonError("selected task row no longer has its approved pending state")
     lines[row["line"] - 1] = line[:start] + " `[~]` " + line[end:]
     path.write_text("".join(lines), encoding="utf-8")
@@ -758,7 +845,8 @@ def _release_in_progress_marker(core, repo: pathlib.Path, row: dict) -> bool:
         return False
     if line[start:end].strip() != "`[~]`":
         return False
-    lines[row["line"] - 1] = line[:start] + " `[ ]` " + line[end:]
+    marker = "`[!]`" if row.get("resume_authorized") else "`[ ]`"
+    lines[row["line"] - 1] = line[:start] + " " + marker + " " + line[end:]
     path.write_text("".join(lines), encoding="utf-8")
     return _is_clean_checkpoint(core, repo)
 
@@ -1179,7 +1267,7 @@ _REVIEW_FINDINGS_LINE = re.compile(r"^\*\*Review findings\.\*\* (.+)$")
 def _review_checkpoint(repo: pathlib.Path, milestone_id: str) -> dict | None:
     """Read the portable active review-gate checkpoint from its status file."""
 
-    path = repo / "tabilet" / "memory-bank" / f"status-{milestone_id}.md"
+    path = _load_index_module().parser().milestone_path(repo, milestone_id)
     text = path.read_text(encoding="utf-8")
     fields = {"gate": [], "iterations": [], "findings": []}
     fenced = False
@@ -1288,7 +1376,7 @@ def _write_review_checkpoint(repo: pathlib.Path, milestone_id: str, gate: str, i
 
     if gate not in {"active", "passed"} or not 1 <= iterations <= 10:
         raise HorizonError("invalid review checkpoint state")
-    path = repo / "tabilet" / "memory-bank" / f"status-{milestone_id}.md"
+    path = _load_index_module().parser().milestone_path(repo, milestone_id)
     lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
     replacements = {
         "gate": f"**Review gate.** {gate}",
@@ -1348,7 +1436,7 @@ def _closure_integrity_problems(
         if newly_retired:
             problems.append("milestone retirement is only allowed in its adopted retirement phase")
     else:
-        expected_name = f"status-{retirement_id}.md"
+        expected_name = before.get("families", {}).get(retirement_id, {}).get("file", f"status-{retirement_id}.md")
         if newly_retired != {expected_name}:
             problems.append(
                 f"retirement phase must create exactly {expected_name}; found {sorted(newly_retired)}"

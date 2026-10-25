@@ -446,3 +446,36 @@ Resolve discoverable inputs through safe inspection; stop the dependent step
 when a required capability or decision remains unavailable. Headless completion
 never supplies an answer or approval. Optional native-goal help lives in the
 complete goal bundle and is read only when needed.
+
+## Amendments and deferred options
+
+Keep the original delivery outcome stable. Put substantial required repairs in
+`amend-M53-01.md` and optional work in `option-M53-02.md`, sharing one permanent
+sequence. Each child declares `Parent: M53` and owns its specification and tasks.
+The parent finishes independent work, waits for required amendments, then resumes
+its deferred checks and final review. Mocks cannot pass missing real acceptance.
+External testing-tool repair is optional by default; only an explicit owner
+decision can make it a blocking amendment, even under automatic corrective planning.
+
+`OPTION_POLICY: confirm` is the default: leave options alone during parent work,
+then consolidate them and ask once after parent closure. Recommend yes, but wait
+for an actual answer. `OPTION_POLICY: ignore` suppresses option refinement,
+prompts and execution for the whole goal; finishing the goal does not activate
+them. Selected options need an approved horizon and do not reopen their parent.
+These settings grant no additional action authority or budgets.
+
+Strict orders place required children immediately after their parent as a family;
+the parent closes after its amendments, before downstream work. Priority order
+uses the same readiness conditions without introducing ordering edges. Existing
+root-only plans retain their behavior. Retire child records with their original
+filenames and parent links; deferred options can outlive a retired parent.
+
+The optional API controller binds a child through its actual `amend-` or
+`option-` file in the approved task and closure paths. An option is actionable
+only when explicitly included in the approved receipt and its parent has closed.
+It does not consume `OPTION_POLICY` from untrusted project text or automatically
+expand an approved horizon. To authorize a suspended parent row, its approved
+task may include `"resume_after": ["M53-01"]`, declaring those amendments as its
+sole blockers. The controller requires their verified closure and all ordinary
+dependencies before restoring the row. Without this explicit receipt condition,
+a blocked row still stops. An existing Goal approval does not supply this receipt.

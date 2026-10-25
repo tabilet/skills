@@ -1094,6 +1094,19 @@ def review_fix_gate():
 # --------------------------------------------------------------------------
 # 3. The task instruction lives in the script and in a human-readable copy.
 # --------------------------------------------------------------------------
+@check("milestone-family contract is bundled consistently")
+def milestone_families():
+    text = (ROOT / "GOAL.md").read_text()
+    canonical = text.split("## Milestone families\n", 1)[1].split("## Standing Corrective Planning\n", 1)[0]
+    canonical = ("## Milestone families\n" + canonical).rstrip() + "\n"
+    problems = []
+    for name in ("goal", "next", "init", "propose", "reconcile", "upgrade"):
+        path = ROOT / f"skills/memory-bank-{name}/references/milestone-families.md"
+        if not path.is_file() or path.read_text() != canonical:
+            problems.append(f"family contract differs: {path.relative_to(ROOT)}")
+    return problems
+
+
 @check("EMBEDDED_TASK matches harness/prompts/ copy")
 def embedded_task():
     if not HARNESS.exists() or not PROMPT_COPY.exists():

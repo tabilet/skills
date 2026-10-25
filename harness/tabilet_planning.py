@@ -277,7 +277,8 @@ def preflight_project(operation: str, project: pathlib.Path) -> dict | None:
     memory_bank = _real_directory(repo, "tabilet", "memory-bank")
     milestone = memory_bank / "milestone.md" if memory_bank is not None else None
     statuses = (
-        [path for path in memory_bank.glob("status-[A-Z][0-9][0-9].md") if _regular_file(path)]
+        [path for prefix in ("status", "amend", "option")
+         for path in memory_bank.glob(prefix+"-*.md") if _regular_file(path)]
         if memory_bank is not None else []
     )
     history = _real_directory(repo, "tabilet", "docs", "history")

@@ -196,3 +196,5 @@ Native todos, session completion, and native goal state do not replace milestone
 acceptance or authorize concurrent ledger writers.
 
 Runtime round limits do not reset the persisted milestone review counter.
+
+For substantial discoveries, follow [milestone families](tabilet/memory-bank/milestone.md#milestone-families): required amendments preserve original acceptance; options wait until parent closure or remain deferred under `OPTION_POLICY: ignore`.

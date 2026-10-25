@@ -19,14 +19,14 @@ import tabilet_audit as audit_storage
 from tabilet_audit import AuditError, atomic, canonical_json, ensure_workspace, records, strict_json_loads, utc_now, pagination
 
 MAX_BYTES = 4 * 1024 * 1024
-STATUS = re.compile(r'status-([A-Z](?:0[1-9]|[1-9][0-9]))\.md$')
+STATUS = re.compile(r"(?:(?=status-[A-Z][0-9]{2}\.md$)|(?=(?:amend|option)-[A-Z][0-9]{2}-[0-9]{2}\.md$))(?:status|amend|option)-([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)\.md$")
 ARCHIVE = re.compile(r'archive-([A-Z](?:0[1-9]|[1-9][0-9]))\.md$')
 EVOLUTION = re.compile(r'(prompt|result)-v([1-9][0-9]*)\.md$')
 TABLES = ('index_documents','index_sections','index_milestones','index_tasks','index_relationships','index_search')
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 4
-INDEX_PROJECTION = 'v6'
+INDEX_PROJECTION = 'v7'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -74,6 +74,9 @@ def inventory(root):
     for directory,pattern,validator,kind in (
         ('tabilet/memory-bank','status-*.md',STATUS,'active_status'),
         ('tabilet/docs/history','status-*.md',STATUS,'history_status'),
+        *[(directory, prefix+'-*.md', STATUS, kind)
+          for directory, kind in (('tabilet/memory-bank','active_status'), ('tabilet/docs/history','history_status'))
+          for prefix in ('amend','option')],
         ('tabilet/docs','archive-*.md',ARCHIVE,'context_archive'),
         ('tabilet/evolution','*.md',EVOLUTION,'evolution'),
     ):
@@ -173,9 +176,10 @@ def external_dependencies(value):
         path=reference['source_path'];digest=reference['source_sha256']
         target=reference['dependency_id'];package=reference['package']
         if (not isinstance(path,str)
-                or not re.fullmatch(r'tabilet/docs/history/status-[A-Z](?:0[1-9]|[1-9][0-9])\.md',path)
+                or pathlib.PurePosixPath(path).parent != pathlib.PurePosixPath('tabilet/docs/history')
+                or not STATUS.fullmatch(pathlib.PurePosixPath(path).name)
                 or not isinstance(digest,str) or not re.fullmatch(r'[0-9a-f]{64}',digest)
-                or not isinstance(target,str) or not STATUS.fullmatch(f'status-{target}.md')
+                or not isinstance(target,str) or not re.fullmatch(parser().MILESTONE_ID, target)
                 or not isinstance(package,str) or len(package)>128
                 or not re.fullmatch(r'[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*',package)):
             raise AuditError('invalid external dependency path, hash, milestone ID or package')
@@ -298,7 +302,7 @@ def parse_document(path,kind,text,digest):
     parsed['index_sections']=list(headings(text))
     parsed['index_search'].append(dict(line=1,kind=kind,milestone_id=None,state=None,text=text))
     for section in parsed['index_sections']:
-        match = re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)', section['heading'])
+        match = re.match(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)', section['heading'])
         parsed['index_search'].append(dict(line=section['line'],kind='section',milestone_id=match[1] if match else None,state=None,text=section['text']))
     if kind == 'stages':
         # Stages describe future intent. Their prose cannot create executable
@@ -321,9 +325,11 @@ def parse_document(path,kind,text,digest):
             offset = offsets['## Status record']
             specification_offset = offsets['## Milestone specification']
             legacy_completion_lines = set(record['legacy_completion_lines'])
+        if kind == 'active_status' and not pathlib.Path(path).name.startswith('status-'):
+            specification = status
         problems=p.status_marker_problems(status)
         rows=p.status_rows(status)
-        if problems or not rows:raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
+        if problems or (not rows and not (kind=='active_status' and pathlib.Path(path).name.startswith('option-'))):raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
         parsed['index_milestones'].append(dict(milestone_id=identity,lifecycle='retired' if meta else 'active',
             line=1,specification=specification,outcome=meta.get('Outcome'),review=meta.get('Review')))
         parsed['index_milestone_projection'].append(dict(
@@ -331,6 +337,10 @@ def parse_document(path,kind,text,digest):
             acceptance_text=specification, review_evidence=meta.get('Review'),
             closure_state=meta.get('Outcome'), source_line=1, source_sha256=digest,
         ))
+        if not pathlib.Path(path).name.startswith('status-'):
+            parent = identity.split('-')[0]
+            parsed['index_relationships'].append(dict(line=1, source='milestone:'+identity,
+                relation='parent', target='milestone:'+parent))
         all_rows=p.table_rows(status)
         for row in rows:
             headers=[]
@@ -378,7 +388,7 @@ def parse_document(path,kind,text,digest):
         for section in parsed['index_sections']:
             if not text.splitlines()[section['line']-1].startswith('## '):
                 continue
-            match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)',section['heading'])
+            match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)',section['heading'])
             if not match:continue
             order += 1
             body=section['text'].splitlines()[1:]
@@ -397,7 +407,7 @@ def parse_document(path,kind,text,digest):
     current_identity=identity
     seen_relations=set()
     for line,value in relation_lines:
-        section_id=re.match(r'## ([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)',value)
+        section_id=re.match(r'## ([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)',value)
         if kind=='milestone' and section_id:current_identity=section_id[1]
         # Task-table notes have their own dependency grammar and scope. They
         # cannot create a milestone edge merely by naming an ID in prose.
@@ -409,7 +419,7 @@ def parse_document(path,kind,text,digest):
             source=('milestone:'+current_identity) if current_identity else path
             if kind=='context_archive':source='archive:'+ARCHIVE.fullmatch(pathlib.Path(path).name)[1]
             line_targets=set()
-            for target_match in re.finditer(r'\b[A-Z](?:0[1-9]|[1-9][0-9])\b',dependency[2]):
+            for target_match in re.finditer(r'\b[A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?\b',dependency[2]):
                 target=target_match[0]
                 if target in line_targets:
                     continue
@@ -438,7 +448,7 @@ def parse_document(path,kind,text,digest):
 def dependency_target(value):
     """Return an explicit target ID without treating ordinary prose as a relation."""
     value=value.strip().strip('`[]()')
-    match=re.fullmatch(r'([A-Z](?:0[1-9]|[1-9][0-9]))/([A-Za-z0-9][A-Za-z0-9_.:-]*)',value)
+    match=re.fullmatch(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)/([A-Za-z0-9][A-Za-z0-9_.:-]*)',value)
     if match:return match[1],match[2]
     return None,value
 
@@ -462,14 +472,14 @@ def task_dependencies(notes):
 def validate_projection(documents, parsed):
     """Cross-file identity/retirement checks; terminal states are never acceptance."""
     milestones={};diagnostics=[]
-    specs={}
+    specs={}; milestone_paths={}; family_documents={}
     p=parser()
     for path,doc in documents.items():
         if doc['kind']=='milestone':
             for section in parsed[path]['index_sections']:
                 if not doc['text'].splitlines()[section['line']-1].startswith('## '):
                     continue
-                match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9]))(?:\s|$)',section['heading'])
+                match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)',section['heading'])
                 if match:
                     if match[1] in specs:raise AuditError(f'duplicate milestone specification: {match[1]}')
                     specs[match[1]]=section['text']
@@ -477,11 +487,20 @@ def validate_projection(documents, parsed):
             identity=milestone['milestone_id']
             if identity in milestones:raise AuditError(f'duplicate active/retired milestone: {identity}')
             milestones[identity]=milestone
+            milestone_paths[identity]=path
+            name=pathlib.Path(path).name
+            family_documents[name]=(retired_record_for_index(doc['text'], name)[0]['status']
+                                    if doc['kind']=='history_status' else doc['text'])
+            if doc['kind']=='active_status' and not name.startswith('status-'):
+                if identity in specs:raise AuditError(f'duplicate child specification: {identity}')
+                specs[identity]=doc['text']
+    _, family_problems=p.family_metadata(family_documents)
+    if family_problems:raise AuditError('; '.join(family_problems))
     history=documents.get('tabilet/docs/history/index.md',{}).get('text','')
     history_rows={}
     for row in p.table_rows(history):
         identity=row['cells'][0]
-        if re.fullmatch(r'[A-Z][0-9]{2}',identity):
+        if re.fullmatch(p.MILESTONE_ID,identity):
             if identity in history_rows:raise AuditError(f'duplicate history index ID: {identity}')
             history_rows[identity]=row['cells']
     for identity,milestone in milestones.items():
@@ -491,10 +510,10 @@ def validate_projection(documents, parsed):
         else:
             if identity in specs:raise AuditError(f'retired specification remains active: {identity}')
             cells=history_rows.get(identity,[])
-            path=f'tabilet/docs/history/status-{identity}.md'
+            path=milestone_paths[identity]
             record, offsets = retired_record_for_index(documents[path]['text'], pathlib.Path(path).name)
             meta = record['metadata']
-            if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\(status-'+identity+r'\.md\)',cells[3]):
+            if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\('+re.escape(pathlib.Path(path).name)+r'\)',cells[3]):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
             for legacy_line in record['legacy_completion_lines']:
                 line = legacy_line + offsets['## Status record']
@@ -517,7 +536,8 @@ def validate_projection(documents, parsed):
         if path.endswith('/milestone.md'):
             continue
         parts['index_milestone_projection']=[
-            row for row in parts['index_milestone_projection'] if row['milestone_id'] not in specs
+            row for row in parts['index_milestone_projection']
+            if row['milestone_id'] not in specs or not pathlib.Path(path).name.startswith('status-')
         ]
     for path,parts in parsed.items():
         if path.endswith('/milestone.md'):
@@ -718,7 +738,7 @@ def _readiness(connection, workspace, project_root=None):
     result={
         'workspace_id':workspace, 'index':info,
         'source_freshness':'not_checked', 'freshness_diagnostics':[],
-        'resume':[], 'ready':[], 'waiting':[], 'blocked':[], 'needs_review':[],
+        'resume':[], 'ready':[], 'waiting':[], 'blocked':[], 'needs_review':[], 'deferred_options':[],
     }
     if not info.get('generation'):
         result['needs_review'].append({'reason':info.get('diagnostic','index has no published generation')})
@@ -736,7 +756,12 @@ def _readiness(connection, workspace, project_root=None):
         connection,"""SELECT milestone_id,lifecycle,path,line,outcome,review
                        FROM index_milestones WHERE workspace_id=?""",(workspace,))}
     tasks=records(connection,'SELECT * FROM index_tasks WHERE workspace_id=? ORDER BY path,line',(workspace,))
-    active={key for key,value in milestones.items() if value['lifecycle']=='active'}
+    result['deferred_options'] = [value for value in milestones.values()
+        if value['lifecycle']=='active' and pathlib.Path(value['path']).name.startswith('option-')]
+    # A read-only index has no execution-approval receipt. Keep optional records
+    # searchable but never infer readiness from their pending row markers.
+    active={key for key,value in milestones.items() if value['lifecycle']=='active'
+            and not pathlib.Path(value['path']).name.startswith('option-')}
     tasks=[row for row in tasks if row['milestone_id'] in active]
     projection_exists = connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='index_milestone_projection'").fetchone()
     projection_order = {row['milestone_id']: (row['display_order'] if row['display_order'] is not None else 2147483647)

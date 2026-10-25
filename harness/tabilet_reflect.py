@@ -24,7 +24,7 @@ import tabilet_audit as audit
 
 TOOLKIT_INTERFACE = 4
 DEFAULT_PROPOSAL_PATH = "tabilet/memory-bank/suggested-harness-update.md"
-STATUS_ID_RE = re.compile(r"\b[A-Z][0-9]{2}\b")
+STATUS_ID_RE = re.compile(r"\b[A-Z][0-9]{2}(?:-[0-9]{2})?\b")
 MAX_DOWNSTREAM = 3
 SLOW_RUN_SEC = 120
 # Reflection may spend at most this share of the milestone's recorded wall time; below the
@@ -159,6 +159,8 @@ def suggested_downstream(project_root: pathlib.Path, finished: str | None) -> li
 
 def milestone_spec(project_root: pathlib.Path, ident: str) -> str:
     path = project_root / "tabilet" / "memory-bank" / "milestone.md"
+    if '-' in ident:
+        path = path.parent / f'amend-{ident}.md'
     if not path.is_file():
         return ""
     match = re.search(rf"^##[ \t]+{re.escape(ident)}\b.*?(?=^##[ \t]|\Z)", path.read_text(encoding="utf-8", errors="replace"), re.M | re.S)
@@ -171,7 +173,10 @@ def downstream_context(project_root: pathlib.Path, finished: str | None) -> tupl
     skipped: list[dict[str, str]] = []
     runner = None
     for ident in suggested_downstream(project_root, finished):
-        status_file = project_root / "tabilet" / "memory-bank" / f"status-{ident}.md"
+        # Options remain outside routine reflection; parent-close selection is
+        # the interactive owner's separate decision.
+        filename = f'amend-{ident}.md' if '-' in ident else f'status-{ident}.md'
+        status_file = project_root / "tabilet" / "memory-bank" / filename
         if not status_file.is_file():
             skipped.append({"id": ident, "reason": "no active status file (missing or retired)"})
             continue

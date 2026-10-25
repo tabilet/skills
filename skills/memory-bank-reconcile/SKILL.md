@@ -79,6 +79,10 @@ Keep one execution owner for the active ledger across sessions and launchers.
 Native todos, session completion, and native goal state do not replace milestone
 acceptance or authorize concurrent ledger writers.
 
+For required amendments, optional discoveries or parent closure, read
+[the milestone-family contract](references/milestone-families.md). Apply its
+classification, deferred-option policy and original-acceptance safeguards.
+
 ## Phase 1 - Assess
 
 Require an initialized project with `tabilet/memory-bank/milestone.md` and at least one

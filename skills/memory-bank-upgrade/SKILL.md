@@ -40,6 +40,10 @@ acceptance or authorize concurrent ledger writers. Stop execution on that ledger
 before applying an upgrade; a second session cannot safely merge its rules while
 another writer advances tasks.
 
+For required amendments, optional discoveries or parent closure, read
+[the milestone-family contract](references/milestone-families.md). Apply its
+classification, deferred-option policy and original-acceptance safeguards.
+
 ## Inspect and compare
 
 Read the project's applicable instructions and memory bank. Require an existing

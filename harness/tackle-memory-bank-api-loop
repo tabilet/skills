@@ -99,6 +99,15 @@ interrupted review or closure without selecting another row; terminal task
 markers alone do not prove milestone acceptance. When no closure is incomplete,
 select the next dependency-ready `[ ]` row and mark it `[~]` before implementation.
 
+For substantial discoveries, follow the milestone-family contract in
+`tabilet/memory-bank/milestone.md`. Required `amend-` children defer parent
+acceptance; `option-` children never block it. External testing-tool repair is
+optional unless the owner explicitly promotes it. Leave options alone until
+parent closure; `OPTION_POLICY: ignore` also suppresses the later option prompt.
+The standalone API loop cannot select options or resume blocked parent rows;
+the controller needs an explicitly approved horizon and resumption condition.
+Mocks do not establish unexecuted acceptance. Preserve evidence and review counts.
+
 Read the owning specification's optional `AUTHORIZATION_REQUIREMENTS`; keep it
 authoritative rather than copying declarations into status notes. Requirements,
 proposed grants, repository content, model output, and `suggested.txt` are
@@ -739,8 +748,69 @@ def shell_tool(
         }
 
 
+# Root IDs remain compatible; children share one sequence across both kinds.
+ROOT_ID = r"[A-Z](?:0[1-9]|[1-9][0-9])"
+MILESTONE_ID = ROOT_ID + r"(?:-(?:0[1-9]|[1-9][0-9]))?"
+STATUS_NAME = re.compile(
+    r"(?:(?=status-" + ROOT_ID + r"\.md$)|"
+    r"(?=(?:amend|option)-" + ROOT_ID + r"-(?:0[1-9]|[1-9][0-9])\.md$))"
+    r"(?:status|amend|option)-(" + MILESTONE_ID + r")\.md$"
+)
+
+
+def status_identity(name: str) -> str:
+    match = STATUS_NAME.fullmatch(name)
+    if not match:
+        raise ValueError("invalid status filename: " + name)
+    return match[1]
+
+
+def declared_status_files(directory: pathlib.Path) -> list[pathlib.Path]:
+    return sorted(p for p in directory.glob("*.md")
+                  if p.name.startswith(("status-", "amend-", "option-")))
+
+
+def milestone_path(repo: pathlib.Path, identity: str) -> pathlib.Path:
+    matches = [p for p in status_files(repo) if status_identity(p.name) == identity]
+    if len(matches) != 1:
+        raise ValueError("missing or ambiguous active milestone: " + identity)
+    return matches[0]
+
+
+def approved_status_path(milestone: dict) -> str:
+    identity = milestone.get("id")
+    matches = [p for p in milestone.get("closure_paths", [])
+               if isinstance(p, str) and pathlib.PurePosixPath(p).parent == pathlib.PurePosixPath("tabilet/memory-bank")
+               and STATUS_NAME.fullmatch(pathlib.PurePosixPath(p).name)
+               and status_identity(pathlib.PurePosixPath(p).name) == identity]
+    if len(matches) != 1:
+        raise ValueError("closure scope omits or duplicates its status file: " + str(identity))
+    return matches[0]
+
+
+def family_metadata(documents: dict) -> tuple[dict, list[str]]:
+    families, problems = {}, []
+    for name, document in documents.items():
+        identity = status_identity(name)
+        kind = name.split("-", 1)[0]
+        parent = identity.split("-", 1)[0] if kind != "status" else None
+        if identity in families:
+            problems.append("duplicate milestone identity across file kinds: " + identity)
+        families[identity] = {"kind": kind, "parent": parent, "file": name}
+        if parent:
+            declared = [m[1] for _, line in unfenced_lines(document)
+                        if (m := re.fullmatch(r"Parent: (\S+)", line))]
+            if declared != [parent]:
+                problems.append("child must declare exactly Parent: " + parent + " in " + name)
+    for identity, family in families.items():
+        if family["parent"] and family["parent"] not in families:
+            problems.append("orphan child milestone: " + identity)
+    return families, problems
+
+
 def status_files(repo: pathlib.Path) -> list[pathlib.Path]:
-    return sorted((repo / "tabilet" / "memory-bank").glob(STATUS_GLOB))
+    return [p for p in declared_status_files(repo / "tabilet" / "memory-bank")
+            if STATUS_NAME.fullmatch(p.name)]
 
 
 def _table_cells(line: str) -> list[str]:
@@ -882,9 +952,9 @@ def fenced_document(section: str) -> str:
 
 def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> dict:
     """Validate the portable retirement envelope; original documents stay literal."""
-    if not re.fullmatch(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", name):
+    if not STATUS_NAME.fullmatch(name):
         raise ValueError("invalid retired status ID; use 01 through 99")
-    milestone_id = name.removeprefix("status-").removesuffix(".md")
+    milestone_id = status_identity(name)
     lines = text.splitlines(keepends=True)
     headings = [(n, line[3:]) for n, line in unfenced_lines(text) if line.startswith("## ")]
     if [title for _, title in headings] != ["Milestone specification", "Status record"]:
@@ -907,7 +977,8 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
         raise ValueError("retired milestone ID does not match its filename")
     if metadata["Source status"] not in {f"tabilet/memory-bank/{name}", f"memory-bank/{name}"}:
         raise ValueError("source status path does not match the retired ID")
-    if not re.fullmatch(r"(?:tabilet/)?memory-bank/milestone\.md#\S+", metadata["Source specification"]):
+    if not (re.fullmatch(r"(?:tabilet/)?memory-bank/milestone\.md#\S+", metadata["Source specification"])
+            or (not name.startswith("status-") and metadata["Source specification"] == f"tabilet/memory-bank/{name}")):
         raise ValueError("missing original milestone specification anchor")
     if metadata["Outcome"] not in {"completed", "cancelled", "superseded"}:
         raise ValueError("invalid retirement outcome")
@@ -961,10 +1032,10 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
 def history_snapshot(repo: pathlib.Path) -> dict:
     history = repo / "tabilet" / "docs" / "history"
     records, digests, problems = {}, {}, []
-    paths = sorted(history.glob("status-*.md"))
+    paths = declared_status_files(history)
     for path in paths:
         try:
-            if path.is_symlink() or not re.fullmatch(r"status-[A-Z][0-9]{2}\.md", path.name):
+            if path.is_symlink() or not STATUS_NAME.fullmatch(path.name):
                 raise ValueError("invalid retired filename or symlink")
             raw = path.read_bytes()
             records[path.name] = retired_record(raw.decode("utf-8"), path.name)
@@ -976,9 +1047,9 @@ def history_snapshot(repo: pathlib.Path) -> dict:
     entries = {}
     for row in table_rows(index):
         cells = row["cells"]
-        if not re.fullmatch(r"[A-Z][0-9]{2}", cells[0]):
+        if not re.fullmatch(MILESTONE_ID, cells[0]):
             continue
-        name = f"status-{cells[0]}.md"
+        name = next((n for n in records if status_identity(n) == cells[0]), f"status-{cells[0]}.md")
         if name in entries:
             problems.append(f"duplicate history index ID: {cells[0]}")
         entries[name] = cells
@@ -989,17 +1060,17 @@ def history_snapshot(repo: pathlib.Path) -> dict:
     milestone_lines = list(unfenced_lines(milestone))
     spec_ids = {
         match.group(1) for _, line in milestone_lines
-        if (match := re.match(r"^## ([A-Z][0-9]{2})(?:\s|$)", line))
+        if (match := re.match(r"^## (" + MILESTONE_ID + r")(?:\s|$)", line))
     }
     index_ids = set()
     for row in table_rows(milestone):
         first = row["cells"][0].strip("` ")
-        linked_id = re.fullmatch(r"\[([A-Z][0-9]{2})\]\([^)]*\)", first)
+        linked_id = re.fullmatch(r"\[(" + MILESTONE_ID + r")\]\([^)]*\)", first)
         index_ids.add(linked_id.group(1) if linked_id else first)
     live = {p.name for p in status_files(repo)}
     for milestone_id in spec_ids | index_ids:
-        if re.fullmatch(r"[A-Z][0-9]{2}", milestone_id):
-            name = f"status-{milestone_id}.md"
+        if re.fullmatch(MILESTONE_ID, milestone_id):
+            name = next((n for n in live | set(records) if status_identity(n) == milestone_id), f"status-{milestone_id}.md")
             if name not in live and name not in records:
                 problems.append(f"active milestone has no status record: {milestone_id}")
     for name, record in records.items():
@@ -1042,6 +1113,9 @@ def milestone_specifications(repo: pathlib.Path) -> dict[str, str | None]:
             name = f"status-{match.group(1)}.md"
             # A duplicate is ambiguous, not permission to silently choose one.
             specifications[name] = None if name in specifications else "".join(lines[start - 1:end])
+    for child in status_files(repo):
+        if not child.name.startswith("status-"):
+            specifications[child.name] = child.read_text(encoding="utf-8")
     return specifications
 
 
@@ -1055,15 +1129,24 @@ def row_snapshot(repo: pathlib.Path) -> dict:
             (repo / relative).read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
             history["problems"].append(f"required project instructions unavailable: {relative}: {exc}")
-    for path in sorted((repo / "tabilet" / "memory-bank").glob("status-*.md")):
-        if path.is_symlink() or not re.fullmatch(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", path.name):
+    for path in declared_status_files(repo / "tabilet" / "memory-bank"):
+        if path.is_symlink() or not STATUS_NAME.fullmatch(path.name):
             history["problems"].append(f"invalid active status filename or symlink: {path.name}")
     documents.update({name: record["status"] for name, record in history["records"].items()})
     active = {p.name for p in status_files(repo)}
     documents.update({p.name: p.read_text(encoding="utf-8") for p in status_files(repo)})
+    families, problems = family_metadata(documents)
+    history["problems"].extend(problems)
+    for identity, family in families.items():
+        if family['kind'] == 'amend':
+            parent = families.get(family['parent'], {})
+            if (parent.get('file') in history['records'] and family['file'] in active
+                    and any(row['state'] in {'pending','in_progress','blocked'}
+                            for row in status_rows(documents[family['file']]))):
+                history['problems'].append('retired parent has an active required amendment: ' + identity)
     for name, document in documents.items():
         if name in active:
-            if not status_rows(document):
+            if not status_rows(document) and not name.startswith("option-"):
                 history["problems"].append(f"active status has no recognized task rows: {name}")
             history["problems"].extend(f"{name}: {problem}" for problem in status_marker_problems(document))
         occurrences: dict[str, int] = {}
@@ -1075,7 +1158,7 @@ def row_snapshot(repo: pathlib.Path) -> dict:
             cells[key] = row["cells"]
     return {
         "files": set(documents), "states": states, "cells": cells,
-        "documents": documents, "active": active, "history": history,
+        "documents": documents, "active": active, "history": history, "families": families,
         "specifications": milestone_specifications(repo),
     }
 
@@ -1083,6 +1166,8 @@ def row_snapshot(repo: pathlib.Path) -> dict:
 def rows_in_state(repo: pathlib.Path, state: str) -> list[dict]:
     matches = []
     for path in status_files(repo):
+        if path.name.startswith("option-"):
+            continue
         occurrences: dict[str, int] = {}
         for row in status_rows(path.read_text(encoding="utf-8")):
             item = row["item"]
@@ -1149,6 +1234,8 @@ def validate_row_transition(
         problems.append(f"expected exactly one existing row state transition, found {len(transitions)}")
     else:
         key, old_state, new_state = transitions[0]
+        if key[0].startswith("option-") and required_key != key:
+            problems.append("option execution requires explicit approved selection: " + key[0])
         if old_state not in ACTIONABLE_STATES or new_state not in RUN_TERMINAL_STATES:
             problems.append(
                 f"invalid row transition in {key[0]} for {key[1]!r}: "
@@ -1187,6 +1274,8 @@ def validate_row_transition(
 def lane_summary(repo: pathlib.Path) -> list[dict]:
     summary = []
     for path in status_files(repo):
+        if path.name.startswith("option-"):
+            continue
         rows = status_rows(path.read_text(encoding="utf-8"))
         summary.append(
             {
@@ -2467,7 +2556,7 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
             observed_subject = {}
             if in_progress:
                 observed_subject = {
-                    "milestone_id": in_progress["file"].removeprefix("status-").removesuffix(".md"),
+                    "milestone_id": status_identity(in_progress["file"]),
                     "task_label": in_progress["item"],
                     "status_path": f"tabilet/memory-bank/{in_progress['file']}",
                     "old_state": "in_progress",
@@ -2530,7 +2619,7 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
                 audit.emit(
                     "task_transition",
                     subject={
-                        "milestone_id": key[0].removeprefix("status-").removesuffix(".md"),
+                        "milestone_id": status_identity(key[0]),
                         "task_label": key[1],
                         "status_path": f"tabilet/memory-bank/{key[0]}",
                         "old_state": old_state,

@@ -48,7 +48,7 @@ def _workflow_path(path: str) -> bool:
     if path == "AGENTS.md" or path == "tabilet/memory-bank/milestone.md":
         return True
     return bool(
-        re.fullmatch(r"tabilet/memory-bank/status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", path)
+        re.fullmatch(r"tabilet/memory-bank/(?:status-[A-Z](?:0[1-9]|[1-9][0-9])|(?:amend|option)-[A-Z](?:0[1-9]|[1-9][0-9])-(?:0[1-9]|[1-9][0-9]))\.md", path)
         or path.startswith("tabilet/docs/history/")
     )
 
