@@ -2,33 +2,14 @@
 
 Coding agents work better when a project can explain itself: what it is, what is
 done, and what comes next. The **Tabilet Harness** gives you a small set of plain-text
-files—a **Tabilet memory bank**—that does exactly that. You copy them into your project and
-own them from that moment on.
-
-Everything here is plain text, so `git` is the only tool you need. You can read
-the files, edit them by hand, rename them, or delete them, and any agent that
-reads markdown can work with them. Optional skills will generate the files for
-you. An optional API runner or Docker-backed Tabilet controller can work through
-them; both stay outside your project.
-
-`template/` goes into your project. Install the API runner or controller from
-`harness/` if you want API-driven execution. Once the files are in place they
-belong to your project, and your project stays independent of this repository.
-Six months from now, the only files you are maintaining are still your own.
-
-Seven optional skills can do the mapping, copying, and filling for you; see
-[Install The Seven Skills](#install-the-seven-skills). The files they write are
-yours from the moment they appear. You and your agent maintain them during
-authorized work; installing or updating the Tabilet plugin does not migrate them.
+files—a **Tabilet memory bank**—that does exactly that. You install / copy them into your project and
+own them from that moment on. Everything here is plain text, so `git` is the only tool you need. 
 
 For a project with uncertain later delivery, the optional
 [`tabilet/stages.md`](#stage-planning) records broad stages. Init plans milestones
 for the current stage and can leave later stages as brief ideas. Without that
 file, the project has one implicit stage.
 
-[Release notes](docs/RELEASE_NOTES.md) include the v2 project layout and
-the explicit v1.5.0 migration.
-The [Tabilet Memory Bank website](https://tabilet.github.io/skills/) has the published guides, with a [Simplified Chinese mirror](https://tabilet.github.io/skills/zh/).
 
 ## Contents
 
