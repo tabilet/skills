@@ -328,6 +328,7 @@ M01 -> M02
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+OPTION_POLICY: confirm
 OPTIMIZE_POLICY: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
@@ -340,6 +341,10 @@ Completion condition: every required status is complete, every triggered
 conditional status is complete, and every milestone's documented verification
 passes.
 ```
+
+Resolve `OPTION_POLICY` from explicit owner instructions, defaulting to `confirm`;
+use that resolved value in the launch example above. Later refreshes must preserve
+it, including an existing `ignore`.
 
 Use CRLF-to-LF normalized protocol/addendum fingerprints from the governing
 protocol; version labels are diagnostic metadata. Keep launch approval checksums

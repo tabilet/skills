@@ -30,6 +30,48 @@ milestone is parallel-safe only when unordered against other active work, its
 write set is disjoint, and its inputs are frozen. Parallel safety never prunes
 downstream impact reconciliation.
 
+## Milestone families
+
+Keep the original delivery outcome stable. Small directly related fixes stay in
+the current task. Substantial required repairs belong in amendment records;
+optional features, broader coverage and environment conveniences belong in
+option records. An amendment must identify the original unmet requirement,
+evidence and why a simpler implementation or verification route cannot meet it.
+External testing-tool repair is optional unless the owner explicitly promotes
+it, even under `CORRECTIVE_PLANNING: auto`. Mocks cannot prove unexecuted real
+acceptance. Missing original requirements need repair or an owner disposition.
+
+Each child owns its specification, task table and review in one file. Begin it
+with `## M53-01 - [Title]` and one `Parent: M53` declaration; ordinary bold and
+trailing whitespace are accepted. Subsections such as `## Tasks` are allowed.
+Keep concise parent/roadmap links instead of duplicate specifications. Child
+format and numbering are defined in [Status ID Pattern](#status-id-pattern).
+An initial option may be a short finding without task rows.
+
+Required amendments block the parent's acceptance; options do not. Preserve
+completed work and review counters. Record deferred acceptance as `[!]` with
+its amendment and resumption condition. `Parent:` does not mean a dependency
+on the completed parent. A child's review never replaces the parent's review.
+Keep detailed state in the owning file and Git history, not dated AGENTS prose.
+
+For multi-milestone sequencing, family ordering and `OPTION_POLICY`, follow the
+selected goal protocol (the stock `GOAL.md` is bundled with the skills). Explicit
+owner selection is required for options; `ignore` leaves them deferred throughout
+the goal. These policies supply no extra action authority or budget. Next stays
+within its selected task. A claimed option still counts toward the one-row
+ownership rule even when the unscoped runner cannot execute it.
+
+Retire child records under their original filename, preserving complete source,
+Parent and permanent identity. Source status and Source specification both name
+the original child file. The selected closing row may change to completed;
+earlier rows and specification prose must survive. Required amendment reviews
+and acceptance must pass before parent retirement. A declined rowless option
+can retire as cancelled or explicitly superseded with its owner Disposition,
+Review `not applicable` and Review iterations `0`; no implementation row is
+needed to withdraw a proposal. Supersession names a bare ID, record filename or
+Markdown link to the successor, which must satisfy retained obligations.
+Reclassification requires an explicit owner decision and a fresh identity.
+
 ## Authorization requirements
 
 Each milestone specification may contain `AUTHORIZATION_REQUIREMENTS`. It
@@ -138,6 +180,13 @@ project restrictions still govern, children report needs to the owner, and a
 marker never grants planning or action authority.
 
 ## Status ID Pattern
+
+Root records use `status-<LANE><NN>.md`. Children use
+`amend-<parent>-<NN>.md` or `option-<parent>-<NN>.md`, for example
+`amend-M53-01.md` and `option-M53-02.md`. Both kinds share one permanent
+01–99 child sequence per root parent; reserve it across active/history records.
+No recursive child families and no silent renaming. A root lane and archive
+namespace keep their existing independent numbering.
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single
 uppercase letter that classifies the work, and `<NN>` is a zero-padded number

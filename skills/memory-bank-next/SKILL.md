@@ -7,6 +7,10 @@ argument-hint: "[--email ADDRESS] [CORRECTIVE_PLANNING: confirm|auto] [MODEL_POL
 
 # Tackle Next Memory-Bank Todo
 
+For required amendments, optional discoveries or parent closure, read
+[the milestone-family contract](references/milestone-families.md). Apply its
+classification, deferred-option policy and original-acceptance safeguards.
+
 ## Interactive invocation
 
 For direct skill execution, read [references/interactive-controls.md](references/interactive-controls.md)
@@ -54,6 +58,15 @@ milestone review and closure state before selecting new work. Resume an
 interrupted review or closure without selecting another row; terminal task
 markers alone do not prove milestone acceptance. When no closure is incomplete,
 select the next dependency-ready `[ ]` row and mark it `[~]` before implementation.
+
+For substantial discoveries, follow the milestone-family contract in
+`tabilet/memory-bank/milestone.md`. Required `amend-` children defer parent
+acceptance; `option-` children never block it. External testing-tool repair is
+optional unless the owner explicitly promotes it. Leave options alone until
+parent closure; `OPTION_POLICY: ignore` also suppresses the later option prompt.
+The standalone API loop cannot select options or resume blocked parent rows;
+the controller needs an explicitly approved horizon and resumption condition.
+Mocks do not establish unexecuted acceptance. Preserve evidence and review counts.
 
 Read the owning specification's optional `AUTHORIZATION_REQUIREMENTS`; keep it
 authoritative rather than copying declarations into status notes. Requirements,

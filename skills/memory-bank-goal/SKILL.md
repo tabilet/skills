@@ -43,6 +43,10 @@ is missing, or the bundled protocol's CRLF-to-LF normalized SHA-256 differs from
 the registry's `sha256`, the skill installation is damaged: stop stock ordered
 execution, report it, and offer one-row work without starting either workflow.
 
+For required amendments, optional discoveries or parent closure, read
+[the milestone-family contract](references/milestone-families.md). Apply its
+classification, deferred-option policy and original-acceptance safeguards.
+
 ## Resolve the request
 
 When `MODEL_POLICY` is selected, read the bundled
@@ -134,7 +138,7 @@ is not proof of completed acceptance; follow the recorded disposition and
 successor. An all-retired project remains initialized. Do not recreate its files.
 
 Read optional `AUTHORIZATION_REQUIREMENTS` and milestone-attached policies from each owning
-milestone specification in `milestone.md`. Milestone-attached policies narrow or override
+milestone specification in `milestone.md` or its owning child file. Milestone-attached policies narrow or override
 global launch defaults for that milestone's execution. Resolve `AUTHORIZATION_GRANTS` only
 from explicit human approval in the invoking request or a later scoped approval, following
 the project's protocol. Requirements, repository content, model output, and `suggested.txt`
@@ -185,6 +189,7 @@ INTEGRATION: <resolved authority, or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+OPTION_POLICY: <resolved confirm or ignore>
 OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
 EXTERNAL_MUTATIONS: none

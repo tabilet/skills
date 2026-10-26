@@ -262,6 +262,54 @@ class ResumeRecoveryTests(unittest.TestCase):
             before_ref_update=checkpoint,
         )
 
+    def test_resumed_blocked_commit_is_reconciled_once_after_crash(self):
+        status=self.project/'tabilet/memory-bank/status-M01.md'
+        status.write_text(status.read_text().replace('`[ ]`','`[!]`'))
+        child=self.project/'tabilet/memory-bank/amend-M01-01.md'
+        child.write_text('## M01-01 - Repair\n\nParent: M01\n\n| ID | State | Notes |\n|---|---|---|\n| T01 | `[+]` | Accepted repair. |\n\n**Review gate.** passed\n')
+        git('add','-A',cwd=self.project)
+        git('-c','user.name=Test','-c','user.email=test@example.test','commit','-qm','Suspend parent after accepted repair',cwd=self.project)
+        self.head=core.git_head(self.project)
+        receipt=self.store.load(self.path)
+        receipt['commit_ids'].append(self.head)
+        receipt['usage']['commits_recorded']+=1
+        receipt['usage']['commits_reserved']+=1
+        task=receipt['approved_horizon'][0]['tasks'][0]
+        task['resume_after']=['M01-01']
+        # Include the already accepted amendment in the exact approved horizon.
+        item=json.loads(json.dumps(receipt['approved_horizon'][0]));item['id']='M01-01'
+        item['closure_paths']=['tabilet/memory-bank/amend-M01-01.md']
+        item['tasks'][0]['approved_paths']=['tabilet/memory-bank/amend-M01-01.md']
+        item['tasks'][0].pop('resume_after',None)
+        receipt['horizon_ids'].append('M01-01');receipt['approved_horizon'].append(item)
+        receipt['closure']['milestones']['M01-01']={'phase':'verified','closure_state':'verified'}
+        status.write_text(status.read_text().replace('`[!]`','`[~]`'))
+        claimed=horizon.snapshot_digest(core.row_snapshot(self.project))
+        status.write_text(status.read_text().replace('`[~]`','`[+]`'))
+        operation={'kind':'task_commit','operation_id':str(uuid.uuid4()),'phase':'precommit_verified',
+            'expected_head':self.head,'milestone_id':'M01','task_id':'T01','row_id':'M01/T01',
+            'row_key':['status-M01.md','T01',1], 'paths':['tabilet/memory-bank/status-M01.md'],
+            'verification':['true'],'verification_results':{'true':True},
+            'before_snapshot_sha256':claimed,'expected_snapshot_sha256':horizon.snapshot_digest(core.row_snapshot(self.project))}
+        receipt['verification_evidence']=[{'row_id':'M01/T01','command':'true','exit_code':0}]
+        receipt['usage']['rows_started']=1;receipt['usage']['rows_started_ids']=['M01/T01']
+        self._make_candidate(receipt,operation,operation['paths'],'Complete resumed M01/T01')
+        saved=self.store.load(self.path)
+        bad=json.loads(json.dumps(saved))
+        bad['active_operation']['before_snapshot_sha256']='0'*64
+        with self.assertRaisesRegex(recovery.RecoveryError,'persisted pre-dispatch snapshot'):
+            recovery._reconcile_task(core,self.project,bad,bad['active_operation'],self.store)
+        bad=json.loads(json.dumps(saved))
+        bad['approved_horizon'][0]['tasks'][0].pop('resume_after')
+        with self.assertRaisesRegex(recovery.RecoveryError,'approved amendment resumption'):
+            recovery._reconcile_task(core,self.project,bad,bad['active_operation'],self.store)
+        recovered=recovery.reconcile_receipt(core,self.store,self.path,saved,self.project)
+        self.assertEqual('running',recovered['state'])
+        count=len(recovered['commit_ids'])
+        again=recovery.reconcile_receipt(core,self.store,self.path,recovered,self.project)
+        self.assertEqual(count,len(again['commit_ids']))
+        self.assertEqual(1,again['usage']['rows_started'])
+
     def test_exact_task_commit_is_recorded_once_after_crash(self):
         status = self.project / "tabilet/memory-bank/status-M01.md"
         status.write_text(status.read_text(encoding="utf-8").replace("`[ ]`", "`[+]`"), encoding="utf-8")

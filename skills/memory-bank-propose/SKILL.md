@@ -61,6 +61,10 @@ Three phases: **inspect**, **propose**, **write**. Write no file until phase 3. 
 
 Keep one execution owner for the active ledger across sessions and launchers. Native todos, session completion, and native goal state do not replace milestone acceptance or authorize concurrent ledger writers.
 
+For required amendments, optional discoveries or parent closure, read
+[the milestone-family contract](references/milestone-families.md). Apply its
+classification, deferred-option policy and original-acceptance safeguards.
+
 ## Phase 1 - Inspect
 
 Require `tabilet/memory-bank/milestone.md` and active `tabilet/memory-bank/status-<LANE><NN>.md` files or an indexed retired history. An all-retired project remains initialized. If neither active nor retired status state exists, route to `memory-bank-init`; do not create the first harness here. Keep an incoming engineering review with its finding severities, provenance, and remote-fetch rules in `memory-bank-reconcile`.

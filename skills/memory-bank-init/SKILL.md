@@ -38,6 +38,10 @@ acceptance or authorize concurrent ledger writers.
 The output is a memory bank the user owns outright. It has no link back to
 wherever this skill came from, and nothing will update it but them.
 
+For required amendments, optional discoveries or parent closure, read
+[the milestone-family contract](references/milestone-families.md). Apply its
+classification, deferred-option policy and original-acceptance safeguards.
+
 ## Phase 1 - Grill
 
 Map the project as a **design tree**: decisions branch into the decisions that

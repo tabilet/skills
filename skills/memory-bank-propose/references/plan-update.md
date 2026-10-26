@@ -50,7 +50,12 @@ Proposed grants in `suggested.txt` carry decision markers: `[ ]` (need authoriza
 common authorities across milestones. When refreshing `suggested.txt`, strictly preserve
 existing human `[+]`, `[-]`, and `[~]` decisions on existing grants, and propose `[ ]`
 (or `[~]` for safe local commands under goal policy) for new grants. Preserve any
-explicit `SUGGESTED_UPDATE` policy (defaulting to `confirm`).
+explicit `SUGGESTED_UPDATE` policy (defaulting to `confirm`). Preserve the
+resolved `OPTION_POLICY: confirm | ignore` on every launch refresh; omission
+in an update request retains the existing value, never resets `ignore`.
+Fresh launches default to `OPTION_POLICY: confirm`; environment presets do
+not change it. Keep an ordinary-prose option deferral when a retained protocol
+does not support the structured field; do not silently switch protocols.
 
 Under `--environment dangerous`, synthesize hands-free execution defaults from day one:
 `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`,

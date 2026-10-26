@@ -204,8 +204,7 @@ change gets the next unused successor ID rather than rewriting history.
 `tabilet/memory-bank/architecture.md` owns the archive lane registry and archive index.
 `tabilet/memory-bank/product.md` and `tabilet/memory-bank/architecture.md` remain current after
 an archive freezes. Archive IDs never appear in milestone indexes, status files,
-or goal orders, and the API harness ignores them because it globs only
-`tabilet/memory-bank/status-<LANE><NN>.md`.
+or goal orders, and the API harness ignores them because it discovers only root status files and amendment/option child files.
 
 ### Status ID lanes
 
@@ -216,6 +215,14 @@ doesn't classify. A lane holds at most 99 files — when it fills, open a new
 letter rather than a third digit. IDs are never reused or renamed once their
 file exists, and there is no aggregate `status.md`. The pattern, the lane
 meanings, and the index table live in `template/tabilet/memory-bank/milestone.md`.
+
+Required amendments use `amend-M01-01.md`; deferred options use
+`option-M01-02.md`. They share a permanent two-digit child sequence, declare
+`Parent: M01`, and own their full specifications. Root IDs are unchanged.
+External testing-tool repair is optional unless explicitly promoted by the
+owner. `OPTION_POLICY: confirm` asks once after parent closure; `ignore` leaves
+options deferred throughout the goal. Preserve original acceptance and review
+counters. Child parser, horizon and retirement tests enforce these boundaries.
 
 This shape is load-bearing for the harness, not just convention: lane files are
 found by glob and rows are parsed out of markdown tables. Real deployments run
@@ -252,7 +259,7 @@ the repo's "prefer native core libraries" rule. Structure:
 - The task instruction is embedded in the script (`EMBEDDED_TASK`); the
   `harness/prompts/` file is a human-readable duplicate, not a runtime input.
   **Edit both when the instruction changes.**
-- Lane discovery: `status_files()` globs `STATUS_GLOB`, `lane_summary()` counts
+- Lane discovery: `status_files()` validates root and child filenames; `lane_summary()` counts
   actionable, in-progress, blocked, and closed-historical rows per file, and
   `lane_table()` renders that into the prompt. Python owns the deterministic
   gate; the *choice* of row belongs to the model, guided by `milestone.md`

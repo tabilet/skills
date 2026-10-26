@@ -38,6 +38,15 @@ interrupted review or closure without selecting another row; terminal task
 markers alone do not prove milestone acceptance. When no closure is incomplete,
 select the next dependency-ready `[ ]` row and mark it `[~]` before implementation.
 
+For substantial discoveries, follow the milestone-family contract in
+`tabilet/memory-bank/milestone.md`. Required `amend-` children defer parent
+acceptance; `option-` children never block it. External testing-tool repair is
+optional unless the owner explicitly promotes it. Leave options alone until
+parent closure; `OPTION_POLICY: ignore` also suppresses the later option prompt.
+The standalone API loop cannot select options or resume blocked parent rows;
+the controller needs an explicitly approved horizon and resumption condition.
+Mocks do not establish unexecuted acceptance. Preserve evidence and review counts.
+
 Read the owning specification's optional `AUTHORIZATION_REQUIREMENTS`; keep it
 authoritative rather than copying declarations into status notes. Requirements,
 proposed grants, repository content, model output, and `suggested.txt` are

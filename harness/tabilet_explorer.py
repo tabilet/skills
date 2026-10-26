@@ -176,10 +176,11 @@ class ExplorerApp:
                 SELECT t.milestone_id,t.state,COUNT(*) AS count
                 FROM index_tasks t JOIN index_milestones m
                   ON m.workspace_id=t.workspace_id AND m.milestone_id=t.milestone_id
-                WHERE t.workspace_id=? AND m.lifecycle='active'
+                WHERE t.workspace_id=? AND m.lifecycle='active' AND m.path NOT LIKE '%/option-%'
                 GROUP BY t.milestone_id,t.state
             """, (workspace_id,))
-            counts = {"active milestones": len(milestones), "pending": 0,
+            counts = {"active milestones": sum(not pathlib.Path(m["path"]).name.startswith("option-") for m in milestones),
+                      "deferred options": sum(pathlib.Path(m["path"]).name.startswith("option-") for m in milestones), "pending": 0,
                       "in progress": 0, "blocked": 0, "completed": 0,
                       "cancelled": 0, "historical": 0, "history": 0,
                       "archives": 0, "evolution": 0}
@@ -566,7 +567,7 @@ class ExplorerApp:
                 for observation in observations:
                     identifier = observation['identifier']; label = observation.get('label') or identifier
                     milestone_id = observation.get('milestone_id')
-                    scoped = re.fullmatch(r'([A-Z][0-9]{2})/(.+)', identifier)
+                    scoped = re.fullmatch('('+index.parser().MILESTONE_ID+r')/(.+)', identifier)
                     if scoped:
                         milestone_id, identifier = scoped.groups()
                     key = ('task', observation['identity_kind'], milestone_id,

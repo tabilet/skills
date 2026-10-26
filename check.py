@@ -1095,6 +1095,26 @@ def review_fix_gate():
 # --------------------------------------------------------------------------
 # 3. The task instruction lives in the script and in a human-readable copy.
 # --------------------------------------------------------------------------
+@check("milestone-family contract is bundled consistently")
+def milestone_families():
+    text = (ROOT / "GOAL.md").read_text()
+    canonical = text.split("## Milestone families\n", 1)[1].split("## Standing Corrective Planning\n", 1)[0]
+    canonical = ("## Milestone families\n" + canonical).rstrip() + "\n"
+    problems = []
+    for name in ("goal", "next", "init", "propose", "reconcile", "upgrade"):
+        path = ROOT / f"skills/memory-bank-{name}/references/milestone-families.md"
+        if not path.is_file() or path.read_text() != canonical:
+            problems.append(f"family contract differs: {path.relative_to(ROOT)}")
+    for name in ('propose','reconcile'):
+        refresh = (ROOT / f'skills/memory-bank-{name}/references/plan-update.md').read_text()
+        if 'OPTION_POLICY: confirm | ignore' not in refresh:
+            problems.append(f'{name} launch refresh lacks its option-policy field')
+    init = (ROOT / 'skills/memory-bank-init/references/write-contract.md').read_text()
+    if 'OPTION_POLICY: confirm' not in init:
+        problems.append('init launch template lacks its option-policy field')
+    return problems
+
+
 @check("EMBEDDED_TASK matches harness/prompts/ copy")
 def embedded_task():
     if not HARNESS.exists() or not PROMPT_COPY.exists():

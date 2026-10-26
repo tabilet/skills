@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import functools
 import importlib.util
 import pathlib
 import re
@@ -20,6 +21,7 @@ _OID = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 
 
+@functools.lru_cache(maxsize=1)
 def _horizon_module():
     path = pathlib.Path(__file__).resolve().with_name("tabilet_horizon.py")
     spec = importlib.util.spec_from_file_location("_tabilet_recovery_horizon", path)
@@ -44,11 +46,12 @@ def _parents(core, repo: pathlib.Path, commit: str) -> list[str]:
     return fields[1:]
 
 
-def _workflow_path(path: str) -> bool:
+def _workflow_path(path: str, core=None) -> bool:
     if path == "AGENTS.md" or path == "tabilet/memory-bank/milestone.md":
         return True
     return bool(
-        re.fullmatch(r"tabilet/memory-bank/status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", path)
+        (pathlib.PurePosixPath(path).parent == pathlib.PurePosixPath('tabilet/memory-bank')
+         and (core or _horizon_module()._load_index_module().parser()).STATUS_NAME.fullmatch(pathlib.PurePosixPath(path).name))
         or path.startswith("tabilet/docs/history/")
     )
 
@@ -69,7 +72,7 @@ def _snapshot_at(core, repo: pathlib.Path, commit: str) -> dict:
             header, separator, path = entry.partition("\t")
             if not separator:
                 raise RecoveryError("Git returned a malformed parent tree entry")
-            if not _workflow_path(path):
+            if not _workflow_path(path, core):
                 continue
             if any(0xD800 <= ord(char) <= 0xDFFF for char in path):
                 raise RecoveryError("workflow path is not valid UTF-8")
@@ -158,7 +161,7 @@ def _task_definition(receipt: dict, operation: dict) -> dict:
     raise RecoveryError("selected task is not in the approved horizon")
 
 
-def _reconcile_task(core, repo, receipt, operation):
+def _reconcile_task(core, repo, receipt, operation, store=None):
     horizon = _horizon_module()
     _, task = _task_definition(receipt, operation)
     if sorted(operation.get("verification", [])) != sorted(task.get("verification", [])):
@@ -174,6 +177,39 @@ def _reconcile_task(core, repo, receipt, operation):
         raise RecoveryError("task intent lacks the selected live row identity")
     key = (row_key[0], row_key[1], row_key[2])
     candidate, before, after = _validate_candidate(core, repo, operation, receipt.get("branch"))
+    if before['states'].get(key) == 'blocked':
+        children = task.get('resume_after')
+        if not isinstance(children, list) or not children:
+            raise RecoveryError('blocked-row commit lacks its approved amendment resumption')
+        live = horizon._live_projection(core, repo)
+        prior_accepted = horizon._prior_accepted_milestones(core, repo, live, store)
+        for child in children:
+            family = before.get('families', {}).get(child, {})
+            record = before['history']['records'].get(family.get('file'))
+            checkpoint = receipt.get('closure', {}).get('milestones', {}).get(child, {})
+            if (family.get('kind') != 'amend' or family.get('parent') != operation['milestone_id']
+                    or not ((record and record['metadata']['Outcome'] == 'completed')
+                            or (checkpoint.get('closure_state') == 'verified' and checkpoint.get('phase') == 'verified')
+                            or child in prior_accepted)):
+                raise RecoveryError('amendment resumption lacks accepted prerequisite: ' + str(child))
+        # Reconstruct the exact host-written claim from its committed blocked
+        # baseline. It is evidence of an existing claim, never a new dispatch.
+        import copy
+        before = copy.deepcopy(before)
+        source = before['documents'][key[0]]
+        rows = [row for row in core.status_rows(source) if row['item'] == key[1]]
+        if not isinstance(key[2], int) or not 1 <= key[2] <= len(rows):
+            raise RecoveryError('resumed row identity cannot be reconstructed')
+        row = rows[key[2]-1]
+        lines = source.splitlines(keepends=True)
+        lines[row['line']-1] = lines[row['line']-1].replace('`[!]`','`[~]`',1)
+        before['documents'][key[0]] = ''.join(lines)
+        before['states'][key] = 'in_progress'
+        before['cells'][key][1] = '`[~]`'
+        if not key[0].startswith('status-'):
+            before['specifications'][key[0]] = before['documents'][key[0]]
+        if horizon.snapshot_digest(before) != operation.get('before_snapshot_sha256'):
+            raise RecoveryError('resumed-row claim differs from the persisted pre-dispatch snapshot')
     gate = core.post_run_gates(
         repo, operation["expected_head"], receipt.get("branch") or "(detached)",
         before, after, key,
@@ -438,7 +474,7 @@ def reconcile_receipt(core, store, receipt_path: pathlib.Path, receipt: dict, re
         )
     try:
         if operation.get("kind") == "task_commit":
-            commit = _reconcile_task(core, root, receipt, operation)
+            commit = _reconcile_task(core, root, receipt, operation, store)
             if not core.git_is_ancestor(root, expected, commit):
                 raise RecoveryError("recovered task commit does not descend from the receipt checkpoint")
         elif operation.get("kind") == "closure_commit":

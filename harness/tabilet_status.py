@@ -70,9 +70,9 @@ def status_report(core, repo: pathlib.Path, receipt_store=None) -> dict:
     for (filename, _label, _occurrence), state in snapshot.get("states", {}).items():
         counts.setdefault(filename, {})[state] = counts.setdefault(filename, {}).get(state, 0) + 1
     milestone_ids = sorted(
-        name.removeprefix("status-").removesuffix(".md")
+        core.status_identity(name)
         for name in snapshot.get("files", set())
-        if re.fullmatch(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md", name)
+        if core.STATUS_NAME.fullmatch(name)
     )
     in_progress = [
         {"file": name, "task": label, "occurrence": occurrence}
@@ -129,12 +129,17 @@ def status_report(core, repo: pathlib.Path, receipt_store=None) -> dict:
         for identity, iterations in receipt.get("review_iterations", {}).items():
             if isinstance(iterations, int) and not isinstance(iterations, bool):
                 review_count[identity] = max(review_count.get(identity, 0), iterations)
+    selected_options = {identity for receipt in receipt_records
+                        if receipt['state'] in {'approved', 'running', 'paused'}
+                        for identity in receipt['horizon']}
     return {
         "project": str(root),
         "branch": core.git_branch(root),
         "head": core.git_head(root),
         "milestones": [
-            {"id": identity, "rows": counts.get(f"status-{identity}.md", {})}
+            {"id": identity, **snapshot["families"][identity],
+             "rows": counts.get(snapshot["families"][identity]["file"], {}),
+             "deferred_option": snapshot["families"][identity]["kind"] == "option" and identity not in selected_options}
             for identity in milestone_ids
         ],
         "in_progress": in_progress,
