@@ -7,8 +7,7 @@ own them from that moment on. Everything here is plain text, so `git` is the onl
 
 For a project with uncertain later delivery, the optional
 [`tabilet/stages.md`](#stage-planning) records broad stages. Init plans milestones
-for the current stage and can leave later stages as brief ideas. Without that
-file, the project has one implicit stage.
+for the current stage and can leave later stages as brief ideas. 
 
 
 ## Contents
@@ -106,10 +105,6 @@ Python 3.9 or later is used by the optional API harness, the optional SQLite
 audit toolkit, and the one-time v1.5.0 migration command. All of them use only
 the standard library. The audit toolkit also needs Python's `sqlite3` module with
 SQLite 3.24.0 or later; without it, auditing reports a gap and work continues.
-
-Already have v1.5.0 project files at the root? [Preview the explicit v2
-migration](docs/upgrade.md#migrate-a-v150-project-to-v2) before using v2 skills.
-Installing v2 does not move project files.
 
 The existing-project instructions below also use
 [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) for the initial inventory.
