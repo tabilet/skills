@@ -1056,8 +1056,18 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
                 or metadata["Outcome"] != "completed"):
             raise ValueError("legacy retirement requires a completed outcome, "
                              "'not recorded' iterations, and a Legacy closure note")
-    elif metadata["Review"] != "passed" or not re.fullmatch(r"(?:[1-9]|10)", metadata["Review iterations"]):
-        raise ValueError("retirement requires a passed review within 10 iterations")
+    else:
+        # Historical interactive goals may have a human-approved review ceiling.
+        # This is record validation, never authority to extend API execution.
+        review_limit = metadata.get("Review limit", "10")
+        if not re.fullmatch(r"[1-9][0-9]*", review_limit):
+            raise ValueError("retirement review limit must be a positive integer")
+        if int(review_limit) > 10 and not metadata.get("Review limit approval", "").strip():
+            raise ValueError("retirement above the default review limit needs approval provenance")
+        if (metadata["Review"] != "passed"
+                or not re.fullmatch(r"[1-9][0-9]*", metadata["Review iterations"])
+                or int(metadata["Review iterations"]) > int(review_limit)):
+            raise ValueError("retirement requires a passed review within its recorded limit (default 10)")
     if metadata["Outcome"] != "completed" and not metadata.get("Disposition"):
         raise ValueError("cancellation or supersession needs its authorized disposition")
     if metadata["Outcome"] == "superseded" and not metadata.get("Successor"):
@@ -1271,6 +1281,13 @@ def validate_row_transition(
     if not new_history.get("journal", b"").startswith(old_history.get("journal", b"")):
         problems.append("retired knowledge history was rewritten or removed")
     retired = set(new_history.get("records", {})) - set(old_history.get("records", {}))
+    # A current API run cannot manufacture authority by writing approval prose.
+    # Larger interactive ceilings are readable only as pre-existing history.
+    for name in retired:
+        metadata = new_history["records"][name]["metadata"]
+        if any(value.isdecimal() and int(value) > 10 for value in (
+                metadata.get("Review iterations", ""), metadata.get("Review limit", "10"))):
+            problems.append(f"new API retirement exceeds the fixed review limit of 10: {name}")
     for name in retired - before["files"]:
         problems.append(f"new retired record has no pre-existing active owner: {name}")
     appended_knowledge = new_history.get("journal", b"")[len(old_history.get("journal", b"")):]

@@ -34,7 +34,7 @@ will pause for manual human confirmation or halt for instruction:
 flowchart TD
     subgraph Launch["Category 1: Preflight & Launch"]
         A1["Underspecified / Conflicting Order"]
-        A2["SHA256 Mismatch on suggested.txt"]
+        A2["Unexplained SHA256 Mismatch"]
         A3["Legacy v1.5 Layout"]
     end
 
@@ -51,7 +51,7 @@ flowchart TD
     subgraph SafetyGates["Category 4: Safety & Policy Gates"]
         D1["Policy Conflicts (COMMIT_POLICY / EXTERNAL_MUTATIONS)"]
         D2["Child Grant Expansion / Leakage"]
-        D3["10-Iteration Review Ceiling"]
+        D3["Approved Review Ceiling (default 10)"]
     end
 
     Launch --> MilestoneTransition
@@ -72,7 +72,8 @@ flowchart TD
 2. **Initial Checksum Verification (`suggested.txt`)**:
    - When launching or resuming from `tabilet/memory-bank/suggested.txt`, the orchestrator
      calculates the SHA-256 checksum of the file and verifies it against the hash
-     approved by the human. A mismatch halts execution before any task begins.
+     approved by the human or the latest verified authorized refresh. An unexplained
+     mismatch stops affected execution; see the [refresh contract](goal.md#continuing-approved-launch).
 3. **Legacy Repository Layout**:
    - If `memory-bank/`, `evolution/`, or `GOAL.md` exists in a legacy v1.5 layout
      (at the project root instead of under `tabilet/`), the skill stops immediately
@@ -126,10 +127,12 @@ flowchart TD
      they possess no mutation authority.
    - Child workers cannot expand grants or inherit coordinator-only grants
      (e.g., repository push).
-10. **Bounded Review Gate (10-Iteration Ceiling)**:
-    - Each milestone must pass its authoritative code review gate within 10 iterations.
-    - If iteration 10 still contains P1 (blocking) or P2 (material) defects, the gate
-      fails permanently, the status is marked `[!]` (blocked), and execution pauses
+10. **Bounded Review Gate (Default 10-Iteration Ceiling)**:
+    `REVIEW_MAX_ITERATIONS` defaults to 10 independently of commit policy. A higher positive integer requires explicit human approval; resumes and repairs preserve the consumed count.
+
+    - Each milestone must pass its authoritative code review gate within the approved review limit (default 10).
+    - If the final allowed iteration still contains P1 (blocking) or P2 (material) defects, the gate
+      exhausts its approved limit, the status is marked `[!]` (blocked), and execution pauses
       for human intervention rather than continuing to spend model resources.
 
 ---
@@ -140,9 +143,9 @@ Grants declared in `AUTHORIZATION_GRANTS` use four standardized bracketed marker
 
 | Marker | Name | Behavior |
 |---|---|---|
-| `[ ]` | **Need Authorization** | Default proposed state. Execution pauses at runtime to request interactive confirmation before executing the action. |
-| `[+]` | **Approved** | Unconditionally approved by the human. Activated for execution upon matching checksum verification without further prompts. |
-| `[~]` | **Auto / Conditional** | Pre-approved safe or conditional operations. Operates autonomously under governing goal policy (e.g. verification tests, or conditional push when downstream milestones require publishing). |
+| `[ ]` | **Need Authorization** | Default proposed state. Only an action needing missing authority pauses; the proposal itself does not block other authorized work. |
+| `[+]` | **Approved** | Approved by the human within concrete scope and governing policies. Activation requires identifiable human approval of this concrete grant. Refresh verification only preserves existing authority; it cannot activate a newly written grant. Conflicting prohibitions still block it. |
+| `[~]` | **Auto / Conditional** | Pre-approved safe or conditional operations. Operates autonomously under governing goal policy (e.g. declared local verification tests). |
 | `[-]` / `[X]` | **Denied** | Explicitly forbidden. If the task requires this action, it cannot proceed and must report a blocker. |
 
 ---
@@ -170,14 +173,14 @@ flowchart LR
 3. **Ambient Grants (`GLOBAL:`) with `[+]` or `[~]`**: Pre-authorize necessary actions
    globally so child workers inherit authority automatically:
    - `- [~] grant_id: global-local-verify` for local build and test execution.
-   - `- [~] grant_id: global-repo-push` for repositories requiring remote publishing
+   - `- [+] grant_id: global-repo-push` for repositories requiring remote publishing
      only when downstream consumers depend on it.
 4. **Bounded Scope Policy (`SCOPE_POLICY: workspace-contained`)**: Authorizes the
-   orchestrator to automatically bind operations (`git.push` and `cli.local`) to sibling
-   repositories located within the active workspace root directory matching authorized
-   organization remotes, eliminating repeated interactive pauses on repository discovery.
+   orchestrator to bind approved `cli.local` work to sibling repositories within
+   the approved workspace root and organization. Push targets remain exact and
+   require separate concrete grants; workspace containment does not publish work.
 
-### Conditional Push (`[~]`) for Multi-Package Development
+### Explicitly Approved Conditional Push (`[+]`) for Multi-Package Development
 
 In multi-package ecosystems (such as Go modules, npm packages, or Rust crates),
 milestones across multiple packages may have publication dependencies:
@@ -186,12 +189,19 @@ milestones across multiple packages may have publication dependencies:
 - A foundational library package **must** push to the remote repository so that subsequent
   milestones can run `go get <module>@<version>` or `npm install`.
 
-Using `- [~] grant_id: global-repo-push`:
+Using `- [+] grant_id: global-repo-push`:
 1. The default stance is **no remote push** for normal internal milestones.
 2. If a subsequent milestone in the goal order depends on the package being published,
    the orchestrator autonomously executes the push without pausing for human confirmation.
 3. No credentials or secrets are stored in the grant definition; the agent relies on the
    existing host git credentials (`~/.ssh` or credential helper).
+
+New push examples use `[+]` only with explicit human approval of their concrete
+scope. A downstream publication dependency schedules an already approved push;
+it does not create authority. Reference its stable grant ID in `EXTERNAL_MUTATIONS`
+instead of duplicating targets. Legacy explicit target lists remain intersecting
+constraints; differing URLs/transports or refs require resolution. A legacy grant
+without `content` remains pinned to its originally approved command and artifact.
 
 ### Scope Invariant: Changed Scope Still Requires Fresh Approval
 
@@ -205,10 +215,9 @@ How `SCOPE_POLICY` interacts with this rule:
   for every target. A `standing` block never loosens that matching: it only adds bounded retry revisions
   to an unprivileged workspace-local verification grant (see below). Any new sibling repository path,
   unexpected destination ref, or remote URL pauses for human confirmation.
-- **Under `SCOPE_POLICY: workspace-contained`**: The orchestrator auto-authorizes sibling repositories
-  inside the active workspace directory (e.g. `~/Workspace/*`) and matching the authorized remote organization
-  (e.g. `github.com/openudon/*`), without pausing, and enables the standing revision envelope for effective
-  unprivileged local verification grants.
+- **Under `SCOPE_POLICY: workspace-contained`**: Approved local CLI work can bind to
+  sibling repositories inside the approved workspace root and organization. It
+  enables the local verification envelope, but never extends a push grant's target.
 - **Standing revision envelope** (defined only in
   [`GOAL.md`](https://github.com/tabilet/skills/blob/main/GOAL.md#standing-revision-envelope)): an effective
   `[+]` or `[~]` unprivileged workspace-local verification grant (`cli.local`) may repair owned code, fixtures,
@@ -299,7 +308,7 @@ AUTHORIZATION_GRANTS:
     - [~] grant_id: stg12-kinet-m56-bootstrap-sudo
       ... 30 lines ...
   OpenUdon:A32:
-    - [~] grant_id: stg12-openudon-a32-push-main
+    - [+] grant_id: stg12-openudon-a32-push-main
       ... 25 lines ...
   Udon:M54:
     ... 25 lines ...
@@ -368,9 +377,14 @@ AUTHORIZATION_GRANTS:
 - Runs `M01`, commits each task individually under `COMMIT_POLICY: task`.
 - Passes the review-fix gate, reconciles `M02`, and retires `M01` to `docs/history/`.
 - Autonomously refreshes `suggested.txt` under `SUGGESTED_UPDATE: auto` and starts `M02`.
-- Repeats through `M03` and finishes with zero interactive pauses.
+- Repeats through `M03` and continues without routine milestone-boundary prompts while the approved scope and gates hold.
 
 ---
+
+The push examples below are proposals, not executable approvals. Resolve every
+baseline placeholder by inspecting the named repository before computing the
+launch checksum; explicitly approve the successive-push scope. Existing remote
+branches and permitted remote inspection are assumed.
 
 ### Example B: Multi-Package Go Development with Conditional Push
 
@@ -385,7 +399,12 @@ PARALLELISM: 1
 INTEGRATION: none
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: auto
-EXTERNAL_MUTATIONS: none
+EXTERNAL_MUTATIONS:
+  - action: git.push
+    repository: /workspace/core
+    remote: https://github.com/my-org/core.git
+    ref: refs/heads/main
+    mode: fast-forward
 
 AUTHORIZATION_GRANTS:
   GLOBAL:
@@ -394,7 +413,7 @@ AUTHORIZATION_GRANTS:
       executor: assigned-agent
       scope:
         task: declared-implementation-and-verification
-    - [~] grant_id: global-repo-push
+    - [+] grant_id: global-repo-push
       action: git.push
       executor: coordinator
       scope:
@@ -402,6 +421,8 @@ AUTHORIZATION_GRANTS:
         remote: https://github.com/my-org/core.git
         ref: refs/heads/main
         mode: fast-forward
+        content: accepted-goal-commits
+        baseline: <full approved baseline commit for this repository>
 ```
 
 **Outcome**:
@@ -426,7 +447,17 @@ PARALLELISM: 1
 INTEGRATION: none
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: auto
-EXTERNAL_MUTATIONS: none
+EXTERNAL_MUTATIONS:
+  - action: git.push
+    repository: /workspace/kinet
+    remote: https://github.com/openudon/kinet.git
+    ref: refs/heads/main
+    mode: fast-forward
+  - action: git.push
+    repository: /workspace/uws
+    remote: https://github.com/openudon/uws.git
+    ref: refs/heads/main
+    mode: fast-forward
 
 AUTHORIZATION_GRANTS:
   GLOBAL:
@@ -435,7 +466,7 @@ AUTHORIZATION_GRANTS:
       executor: assigned-agent
       scope:
         task: declared-implementation-and-verification
-    - [~] grant_id: push-kinet
+    - [+] grant_id: push-kinet
       action: git.push
       executor: coordinator
       scope:
@@ -443,7 +474,9 @@ AUTHORIZATION_GRANTS:
         remote: https://github.com/openudon/kinet.git
         ref: refs/heads/main
         mode: fast-forward
-    - [~] grant_id: push-uws
+        content: accepted-goal-commits
+        baseline: <full approved baseline commit for this repository>
+    - [+] grant_id: push-uws
       action: git.push
       executor: coordinator
       scope:
@@ -451,6 +484,8 @@ AUTHORIZATION_GRANTS:
         remote: https://github.com/openudon/uws.git
         ref: refs/heads/main
         mode: fast-forward
+        content: accepted-goal-commits
+        baseline: <full approved baseline commit for this repository>
 ```
 
 **Outcome**:
@@ -461,19 +496,30 @@ AUTHORIZATION_GRANTS:
 
 ### Example D: Multi-Package Workspace with SCOPE_POLICY: workspace-contained
 
-When managing a large workspace with sibling repositories (e.g. `kinet`, `openudon`, `udon`, `uws`, `apitools`):
+For a workspace containing `kinet` and `uws`, approve concrete targets rather
+than wildcard repository paths or remote URLs. `workspace-contained` does not
+turn a pinned grant into permission to push unrelated repositories.
 
 ```text
 Using the memory-bank goal protocol, execute this loop.
 
-STATUS_PRIORITY: kinet:M01, openudon:A01, uws:M02
-
-PARALLELISM: 3
-INTEGRATION: local-rebase-ff
+STATUS_PRIORITY: kinet:M01, uws:M02
+PARALLELISM: 1
+INTEGRATION: none
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: auto
 SCOPE_POLICY: workspace-contained
-EXTERNAL_MUTATIONS: none
+EXTERNAL_MUTATIONS:
+  - action: git.push
+    repository: /workspace/kinet
+    remote: https://github.com/example/kinet.git
+    ref: refs/heads/main
+    mode: fast-forward
+  - action: git.push
+    repository: /workspace/uws
+    remote: https://github.com/example/uws.git
+    ref: refs/heads/main
+    mode: fast-forward
 
 AUTHORIZATION_GRANTS:
   GLOBAL:
@@ -482,20 +528,31 @@ AUTHORIZATION_GRANTS:
       executor: assigned-agent
       scope:
         task: declared-implementation-and-verification
-    - [~] grant_id: global-repo-push
+    - [+] grant_id: push-kinet
       action: git.push
       executor: coordinator
       scope:
-        repository: /home/peter/Workspace/*
-        remote: git@github.com-tabilet:OpenUdon/*.git
+        repository: /workspace/kinet
+        remote: https://github.com/example/kinet.git
         ref: refs/heads/main
         mode: fast-forward
+        content: accepted-goal-commits
+        baseline: <full approved baseline commit for this repository>
+    - [+] grant_id: push-uws
+      action: git.push
+      executor: coordinator
+      scope:
+        repository: /workspace/uws
+        remote: https://github.com/example/uws.git
+        ref: refs/heads/main
+        mode: fast-forward
+        content: accepted-goal-commits
+        baseline: <full approved baseline commit for this repository>
 ```
 
-**Outcome**:
-- The orchestrator automatically binds `git.push` to any sibling repository within `/home/peter/Workspace/*` targeting the `OpenUdon` organization.
-- Eliminates manual prompts when new sibling repositories are discovered or integrated.
-- Sibling repository policies in `milestone.md` can still attach narrower restrictions (e.g., `- [-] grant_id: push` to disallow push for specific milestones).
+After explicit launch approval, accepted goal work can be pushed within those
+scopes. Newly discovered targets need the existing scope-resolution and approval
+checks; milestone-specific denials still win.
 
 ---
 
@@ -505,11 +562,11 @@ AUTHORIZATION_GRANTS:
 |---|---|---|
 | **Goal Order** | Pauses if derived or ambiguous | Explicit `STATUS_ORDER` or `STATUS_PRIORITY` in request |
 | **Milestone Handoff** | Pauses on `suggested.txt` edits (`confirm`) | `SUGGESTED_UPDATE: auto` |
-| **Scope Resolution** | Pauses on unlisted repo or ref (`strict`) | `SCOPE_POLICY: workspace-contained` auto-resolves sibling repos |
+| **Scope Resolution** | Pauses on unlisted repo or ref (`strict`) | `SCOPE_POLICY: workspace-contained` binds local CLI work; push targets stay exact |
 | **Milestone Policies** | Monolithic inlined grants in `suggested.txt` | Milestone-attached policies in `milestone.md` override/narrow global defaults |
 | **Local Verification** | Unchecked if undeclared | `- [~] grant_id: global-local-verify` |
-| **Remote Git Push** | Pauses on `[ ]` or rejected | `- [~] grant_id: global-repo-push` |
-| **Defect Loops** | Loops up to 10 review iterations | Auto-fixes P1/P2; stops if unresolved at iteration 10 |
+| **Remote Git Push** | Pauses on `[ ]` or rejected | `- [+] grant_id: global-repo-push` |
+| **Defect Loops** | Loops up to 10 review iterations | Auto-fixes P1/P2; stops if unresolved at the approved review limit |
 | **Secrets / Credentials** | Pauses for human input | Maintained as non-bypassable human boundary |
 | **Planning Stance** | `--environment sandbox` (Default) | `--environment dangerous [modifiers]` |
 
@@ -528,7 +585,7 @@ grants when authoring plans, planning skills (`memory-bank-init`, `memory-bank-p
      - `SUGGESTED_UPDATE: auto`
      - `SCOPE_POLICY: workspace-contained`
      - `COMMIT_POLICY: task`
-     - Ambient `GLOBAL:` grants with `[~]` for verification and `[+]` or `[~]` for git push (within workspace organization remotes).
+     - Ambient `GLOBAL:` grants with `[~]` for verification and one proposed `[+]` grant per concrete push target.
    - Enables the standing revision envelope for unprivileged workspace-local verification only: the ambient `global-local-verify` grant is `[~]`, and a milestone that declares a multi-attempt local qualification loop gets an explicit `standing` block (budget at most the gate's default of 3) on a `[~]` `cli.local` grant. The executor reads only those resolved grants and markers, never the preset.
    - Preserves core security invariants: destructive or privileged operations (`sudo`, `ssh`, live browser, or external repository push outside the active workspace) remain ungranted (`[ ]` or omitted) unless an explicit modifier authorizes them.
    - Emits recommended harness runner flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).

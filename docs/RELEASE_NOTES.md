@@ -1,3 +1,40 @@
+# memory-bank v2.16.0
+
+Makes approved Goal runs continue with fewer redundant confirmations while keeping
+explicit authority, bounded verification and review, and frozen history intact.
+
+- Adds interactive `REVIEW_MAX_ITERATIONS`, default 10 independently of commit
+  policy. Explicitly approved higher ceilings preserve consumed iterations across
+  resumes and repairs. Project and milestone caps intersect with the launch cap;
+  legacy fixed-cap prose stays binding until explicit adoption.
+- Distinguishes pending task rows from proposed grants, reuses existing scoped
+  approval, and skips confirmation for empty or model-free reflection results.
+  Continuous-run planning can propose option deferral and dependency-ready priority
+  while preserving explicit choices and strict ordering.
+- Records authorized launch refresh transitions so resumes can verify the current
+  approved state without treating expected checksum changes as unexplained drift.
+  Interrupted writes are inspected; a hash chain alone never grants authority.
+- Defines exact-commit and explicitly approved accepted-goal push scopes. Approved
+  plan-only human commits require full-diff evidence. Legacy grants remain pinned.
+  `EXTERNAL_MUTATIONS` can reference concrete grant IDs, and duplicate legacy
+  declarations are intersecting constraints. `workspace-contained` covers approved
+  local CLI work only; it no longer adds push destinations. Dangerous-mode planning
+  proposes separate concrete push grants rather than organization-wide authority.
+- Keeps Python API execution capped at 10 reviews. Existing extended interactive
+  history remains readable, but a new API retirement cannot claim a higher limit
+  using self-authored approval prose. The controller pauses before dispatch on
+  unsupported interactive counters without resetting them.
+- Adds regression coverage for retirement authorization, controller handoffs,
+  example-policy omissions, case-insensitive contract guards, and byte-identical
+  shared planning blocks. Updates the English and Chinese Goal guidance.
+
+The stock protocol fingerprint has changed. Existing paused goals require the
+normal identity-transition approval; installing this release does not approve new
+grants, migrate fixed project caps, or reset counters. Review the narrower push
+scope when adopting it. This release does not update the separately published DSH
+companion package; its documented v2.15.0 artifact and compatibility evidence remain
+unchanged.
+
 # memory-bank v2.15.0
 
 Adds required amendment milestones and deferred options so implementation discoveries

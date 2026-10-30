@@ -327,7 +327,7 @@ spelling so an inbound link survives translation.
   request, covered actions, grants and limits before using standing approval.
   Missing provenance retains the ordinary approval gate. Never weaken acceptance
   or cancel unmet obligations. Repair milestones preserve the originating
-  milestone's review gate and counter, including its iteration-10 stop.
+  milestone's review gate and counter, including its approved review-limit stop.
   Suspend `[~]` as `[!]` with prerequisite IDs and resumption conditions before
   another row starts; resume `[~]` only after prerequisite acceptance and all
   blockers clear. Preserve partial work; pause if changes cannot be separated.
@@ -383,14 +383,33 @@ spelling so an inbound link survives translation.
   Generated launch references always show `AUTHORIZATION_GRANTS`, with `{}` as
   the empty default. Proposed grants in launch input or `suggested.txt` carry
   decision markers: `[ ]` (need authorization), `[+]` (approve), `[-]` (deny),
-  and `[~]` (auto). High-level `GLOBAL:` grants declare common authorities across
+  and `[~]` (auto). A pending task `[ ]` never requires confirmation by itself;
+  checksum approval does not activate proposed grants. Reuse scoped approval
+  already given with the launch, and continue independent authorized work when
+  a protected action is blocked, subject to order and ownership.
+  Launch preflight resolves push grants against external-mutation prohibitions
+  before checksum approval; presets never override an explicit denial. Push
+  content distinguishes `exact-commit` from explicitly approved
+  `accepted-goal-commits`; verify the full outgoing range and never broaden
+  legacy grants, whose exact command/artifact pins remain binding. Approved
+  plan-only human commits may accompany accepted goal work only after their full
+  diff matches approved planning evidence. Prefer `EXTERNAL_MUTATIONS` grant-ID
+  references; legacy duplicate target lists are intersecting constraints, never
+  alternative authority. Authorized launch refreshes retain the original approval and
+  verified old/new hash transitions in trusted continuation context; a hash chain
+  alone grants nothing. Unexplained drift and uncertain external effects stop
+  affected work. Prefer authorized workspace scratch paths without broadening
+  filesystem authority. Continuous-run planning may propose option deferral and
+  dependency-ready priority, preserving explicit choices and strict ordering.
+  High-level `GLOBAL:` grants declare common authorities across
   tasks. When resuming from `suggested.txt`, matching its SHA256 checksum against
   human approval is required before activating grants (under default `SUGGESTED_UPDATE: confirm`;
   `SUGGESTED_UPDATE: auto` authorizes the orchestrator to refresh remaining milestones
   within the approved horizon and smoothly continue). Scope resolution defaults to
   `SCOPE_POLICY: strict` (exact string matches); `SCOPE_POLICY: workspace-contained`
-  authorizes binding `git.push` and `cli.local` to sibling repositories within the approved
-  workspace root and organization without re-prompting. The standing revision envelope
+  authorizes binding approved `cli.local` work to sibling repositories within the
+  approved workspace root and organization. Push targets always stay exact;
+  workspace containment grants no additional push destinations. The standing revision envelope
   for unprivileged workspace-local verification retries (with its optional `standing` block)
   is defined only in `GOAL.md`; it never covers `sudo`, `ssh`, live browser, or push grants,
   treats `/tmp` as outside the workspace unless listed, and has its budget reserved and
@@ -518,8 +537,20 @@ spelling so an inbound link survives translation.
 - `GOAL.md` and the template milestone review use the same bounded review-fix
   gate. The initial deep-review pass is iteration 1; after every P1, P2, or
   higher-severity fix, verify and review the whole milestone again. A clean pass
-  is required within 10 iterations, and the counter does not reset across
-  sessions or reviewers; persist the iteration count in the active status or
+  is required within the approved review limit (default 10), and the counter does not reset across
+  sessions or reviewers. `REVIEW_MAX_ITERATIONS` is a positive integer, default
+  10, independent of commit policy; only explicit human approval can raise it.
+  Preserve stricter project caps, counters and limits through resumes and repairs.
+  Project/milestone caps use `REVIEW_MAX_ITERATIONS` in verification standards or
+  owning milestone specs; the minimum applicable cap governs. Legacy fixed-cap
+  prose remains binding until explicit adoption, never inferred from its origin.
+  Python API execution retains its existing limits; optional retired `Review limit`
+  and `Review limit approval` fields preserve historical evidence only. Newly
+  created API retirement records cannot exceed 10 or self-authorize a higher
+  ceiling. The controller pauses on larger interactive checkpoints before dispatch,
+  preserving their counters. Shared planning policy blocks are byte-identical
+  across their consumers and checked using their BEGIN/END SHARED markers.
+  Persist the iteration count in the active status or
   equivalent goal state. `milestone.md` owns the review-severity context and
   project override rules; P1/P2 are not product-domain concepts. An expensive or
   protected check also uses a bounded verification-attempt gate per stage: persist

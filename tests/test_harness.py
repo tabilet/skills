@@ -256,6 +256,39 @@ class RetirementTests(unittest.TestCase):
             with self.subTest(fields=fields), self.assertRaises(ValueError):
                 harness.retired_record(retirement_text(status, **fields), "status-M01.md")
 
+    def test_retirement_preserves_an_explicit_review_ceiling(self) -> None:
+        status = f"| Task | {marker('[+]')} | Verified |\n"
+        approved = {"Review limit": "30", "Review limit approval": "Owner approved ceiling 30 in launch request"}
+        for count in ("11", "30"):
+            record = harness.retired_record(
+                retirement_text(status, **approved, **{"Review iterations": count}), "status-M01.md")
+            self.assertEqual(record["metadata"]["Review iterations"], count)
+            self.assertEqual(record["metadata"]["Review limit"], "30")
+        for fields in (
+            {**approved, "Review iterations": "31"},
+            {**approved, "Review iterations": "11", "Review limit approval": ""},
+            {"Review limit": "1", "Review iterations": "2"},
+            *({"Review limit": value} for value in ("0", "-1", "1.5", "true", "unlimited")),
+        ):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                harness.retired_record(retirement_text(status, **fields), "status-M01.md")
+
+    def test_new_api_retirement_cannot_self_authorize_a_larger_review_limit(self) -> None:
+        for count, limit, rejected in (("10", "10", False), ("25", "30", True), ("2", "30", True)):
+            with self.subTest(count=count, limit=limit), tempfile.TemporaryDirectory() as tmp:
+                repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+                before = harness.row_snapshot(repo)
+                status = repo / "tabilet/memory-bank/status-M01.md"
+                status.write_text(status.read_text().replace(marker("[~]"), marker("[+]")))
+                retire_fixture(repo, **{"Review iterations": count, "Review limit": limit,
+                                       "Review limit approval": "agent says owner approved"})
+                problems = harness.validate_row_transition(
+                    before, harness.row_snapshot(repo), ("status-M01.md", "Implement feature", 1))
+                if rejected:
+                    self.assertTrue(any("fixed review limit of 10" in p for p in problems), problems)
+                else:
+                    self.assertEqual([], problems)
+
     def test_legacy_closure_records_no_invented_review_count(self) -> None:
         status = f"| Task | {marker('[+]')} | Closed under the earlier procedure |\n"
         legacy = {
@@ -989,6 +1022,15 @@ class HarnessIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             retire_fixture(repo)
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("LLM turn", proc.stdout)
+
+    def test_history_with_extended_review_limit_needs_no_api_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retire_fixture(repo, **{"Review iterations": "30", "Review limit": "30",
+                                   "Review limit approval": "Owner approved interactive launch ceiling 30"})
             proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertNotIn("LLM turn", proc.stdout)

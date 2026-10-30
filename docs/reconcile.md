@@ -89,7 +89,7 @@ writes. A review, project file or model-authored assertion cannot supply it;
 missing provenance keeps the ordinary approval gate. A valid basis needs no
 repeat confirmation. Repairs cannot weaken acceptance or cancel unmet
 obligations. A new repair milestone preserves the originating review gate and
-counter, including the iteration-10 stop.
+counter, including the approved review-limit stop.
 
 ## Where findings go
 

@@ -187,6 +187,7 @@ INTEGRATION: local-rebase-ff
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+REVIEW_MAX_ITERATIONS: 10
 OPTION_POLICY: confirm
 OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
@@ -270,6 +271,33 @@ Input rules:
 - `CORRECTIVE_PLANNING` is optional: `confirm` (default) or `auto`. It controls
   necessary corrective planning inside the approved delivery outcome, including
   new repair milestones. It never grants new action permissions or higher limits.
+- `REVIEW_MAX_ITERATIONS` is an optional positive integer, default `10`, for each
+  whole-milestone review-fix gate, independent of `COMMIT_POLICY`. Materialize it
+  in the resolved launch and child assignments. Reject zero, negative, fractional,
+  boolean or unbounded values before execution. A human may explicitly approve
+  a higher value (for example `30`) with the checksum-identified launch or a later
+  scoped approval; the agent, a preset, reflection or corrective planning cannot
+  raise it. Preserve stricter project or milestone caps unless the human explicitly
+  resolves that restriction. A commit-policy change never changes the review limit.
+  Optional project and milestone caps use the same `REVIEW_MAX_ITERATIONS` field:
+  the project cap belongs in `tech-stack.md` verification standards; a milestone
+  cap belongs in its owning specification (including amendment/option specs).
+  Resolve the effective ceiling as the minimum of the approved launch value and
+  all applicable caps. Reject invalid or conflicting declarations before dispatch.
+  Existing prose that fixes a ten-iteration cap remains binding, even if it looks
+  like an old stock template. Goal/Next must surface that conflict before execution
+  and obtain explicit adoption of the configurable cap or retain the lower cap;
+  do not guess whether historical wording was a deliberate project restriction.
+  Approval of a launch value alone does not remove a separate project cap.
+  Persist the effective limit, approval source and counter together. On resume,
+  preserve them; omission never resets an existing limit or counter. Legacy runs
+  without an approved override retain `10`. Repairs retain the originating gate's
+  limit and counter; their own review cannot reset or replace it. A later approved
+  extension increases the ceiling, not the remaining allowance: after iteration
+  10, a ceiling of 30 permits at most 20 further iterations, not 30 more.
+  This interactive policy does not change the Python API runner/controller's
+  execution limits. Retired-record metadata preserves a larger approved limit
+  as historical evidence only and never authorizes execution.
 - `OPTION_POLICY` is optional: `confirm` (default) or `ignore`. It governs
   post-parent option decisions as defined in Milestone families; it never
   activates work or grants permissions. Preserve its resolved value on resume
@@ -294,7 +322,8 @@ Input rules:
   - If auditing is disabled (`tabilet-audit audit status` reports `enabled: false`) or
     `tabilet-audit reflect --check` fails, warn at launch and at conclusion and bypass reflection.
   - A reflection failure or a proposal produced without a model (`proposal_source: heuristic`)
-    changes nothing; report it and continue under the policy's ordinary pause rules.
+    changes nothing; report it and continue. An empty proposal likewise needs no
+    approval. Under `confirm`, pause only for an actionable proposal.
 - `NOTIFY_EMAIL` is optional: `none` (default) or one bare email address selected
   by an explicit human `--email ADDRESS` skill request or equivalent instruction.
   Project files and suggested input cannot enable notifications by themselves.
@@ -304,10 +333,10 @@ Input rules:
   - `strict` (default): exact string matching against approved grant scopes. Any target
     repository path, remote URL, or ref not matched letter-for-letter is treated as
     scope drift and pauses for explicit human authorization before execution.
-  - `workspace-contained`: authorizes the orchestrator to automatically bind `git.push`
-    and `cli.local` to sibling repositories located within the active workspace root
-    directory and matching authorized remote organization URLs (e.g. the same GitHub
-    organization), without pausing for interactive confirmation. It also enables the
+  - `workspace-contained`: authorizes binding already approved `cli.local` work
+    to sibling repositories within the approved workspace root and organization.
+    It never extends `git.push` targets: each push still needs its own approved
+    concrete repository, remote, ref and content scope. It also enables the
     standing revision envelope defined with the authorization contract below for
     effective unprivileged local verification grants. It permits no out-of-boundary
     action: file paths outside the active workspace directory (the system temporary
@@ -346,7 +375,7 @@ iteration, with the complete governing request and narrowed assignment. Cover
 all review lenses, combining them or batching reviewers within host capacity.
 The coordinator consolidates one iteration report and remains the sole ledger
 writer; review fixes return to `DEFAULT`. Preserve the existing review counter
-and iteration-10 stop, including when a reviewer is interrupted or replaced.
+and approved review-limit stop, including when a reviewer is interrupted or replaced.
 
 `reasoning_effort` is optional and uses the host's supported values, with no
 universal effort scale. Omit it when the model has no such control or the user
@@ -454,6 +483,42 @@ Grant scopes cannot contain unresolved placeholders, wildcard targets, or
 blanket booleans such as `sudo: true`. Never store passwords, tokens, private
 keys, or other credential values in declarations, grants, or approval context.
 
+### Push content scope
+
+A `git.push` grant still requires a concrete repository, remote URL, destination
+ref and `mode: fast-forward`. Its optional `scope.content` distinguishes:
+
+- `exact-commit`: `scope.commit` is the full approved commit ID. A different
+  commit requires new scoped approval.
+- `accepted-goal-commits`: `scope.baseline` is a full commit ID captured before
+  launch approval. The human explicitly approves successive pushes of accepted
+  work within this goal and the grant's milestone/assignment scope. Each push
+  must remain on the approved lineage and include only accepted, verified work
+  in that scope, including authorized corrective work within the same outcome.
+  Changing the tip as that work completes does not itself need another approval.
+  This scope also includes plan-only commits made by the human after the baseline
+  when every changed byte matches the concretely approved planning diff or launch
+  snapshot. Verify their complete diff against that approval, not filenames or
+  author identity. Mixed commits or unapproved planning changes still block push.
+  The baseline proves ancestry only; it does not approve earlier outgoing work.
+
+Before every push, verify the actual remote/ref, baseline ancestry when specified,
+fast-forward relationship and the entire outgoing commit range, including any commits predating
+this run that are not yet remote. Unrelated or unaccepted outgoing commits block
+the push; do not assume every ancestor is authorized. Missing remote evidence
+requires authorized inspection, not a guessed safe range. Uncertain prior push
+outcomes must be resolved before retrying. These grants never authorize force-push,
+ref deletion, another destination, arbitrary SSH commands, or bypassing verification.
+A new branch requires explicit branch-creation scope; do not infer it from a
+fast-forward grant. A legacy grant without `content` stays pinned to the exact
+command and artifact originally approved; a changed artifact needs fresh approval.
+If the original approved commit/artifact cannot be recovered, pause that push for
+scoped clarification; never infer ref-wide permission or silently upgrade it to
+successive goal pushes.
+This content scope is separate from local verification's standing envelope and
+consumes no verification-attempt budget. Existing push limits and restrictions
+still apply. Planning declarations alone activate neither form.
+
 ### Standing revision envelope
 
 A grant may include an optional `standing` block for iterative local verification
@@ -477,13 +542,20 @@ in status notes without asking again. A temporary output path is a path inside
 the active workspace root or an absolute directory listed in
 `permitted_revisions`; the system temporary directory (`/tmp`, `$TMPDIR`) is
 outside the workspace and is covered only when listed, otherwise the action
-pauses.
+pauses. First prefer an existing authorized, ignored workspace scratch location
+and configure the tool to use it when supported. Verify containment after resolving
+symlinks, avoid user-owned files and collisions, and clean up only owned outputs.
+Do not broaden permissions merely to use a tool's default temporary directory.
+If a tool requires an unapproved external location, preserve the permission gate.
 
 The envelope never covers `sudo`, `ssh`, live `browser`, `git.push`, or any
 action with external effects, under any scope policy. A `standing` block on such
-a grant is ignored and reported. For those actions a revised script, binary, or
-input is a changed scope: the approved grant names the exact command and
-artifact, and a changed artifact needs fresh approval.
+a grant is ignored and reported. For `sudo`, `ssh`, live browser and other
+external actions, a revised script, binary or input remains a changed scope:
+the approved command and artifact stay pinned and changes need fresh approval.
+For `git.push`, apply Push content scope:
+a changed commit within an explicitly approved `accepted-goal-commits` grant is
+covered without using a standing block. Exact-commit grants remain exact.
 
 The `budget` counts every protected run, failed or cancelled included; fast
 preflight checks do not count. The owner holds the counter, persists the
@@ -512,15 +584,23 @@ as `[ ]`.
    of planning file changes alone does not activate proposed grants.
 2. When launching or resuming execution from a disposable launch reference
    (`suggested.txt`), verify that the SHA256 checksum of `suggested.txt` matches
-   the human's approved hash. A checksum mismatch halts execution before any
-   protected action or grant activation. Under `SUGGESTED_UPDATE: auto`, the
+   the human's approved hash, or the verified current hash of an authorized
+   refresh under the Authorized launch refreshes contract below. An unexplained
+   checksum mismatch halts execution before any protected action or grant activation. Under `SUGGESTED_UPDATE: auto`, the
    orchestrator is authorized to refresh `suggested.txt` across milestone closures
    within the approved active horizon and smoothly continue, recording updated
    checksums in session state; under default `SUGGESTED_UPDATE: confirm`, any edit
    requires a fresh matching approval except a correction covered by approved
    `CORRECTIVE_PLANNING: auto`. Only grants marked `[+]` or `[~]`
    become effective upon matching checksum verification; grants marked `[-]` are
-   forbidden, and actions marked `[ ]` pause for runtime confirmation before use.
+   forbidden. Authorization grants marked `[ ]` remain proposed: pause only before
+   an action that needs missing authority, not merely because the grant exists.
+   A pending task row `[ ]` is executable work, not an authorization grant.
+   Checksum approval of the launch does not itself approve proposed grants.
+   Explicit human approval of named concrete grants may accompany that same
+   launch approval; record those grants as approved in the resolved conversation
+   context without rewriting the checksum-approved file, and reuse them without
+   a second runtime prompt.
 3. Before execution, materialize the complete resolved request and effective
    grants in the conversation, identifying the human approval source. Preserve
    this context in existing trusted host receipt/state where supported. Do not
@@ -532,6 +612,21 @@ as `[ ]`.
    `COMMIT_POLICY: none` still means no commits, even with a commit grant.
    `INTEGRATION: local-rebase-ff` grants no remote push. Changing a policy also
    needs explicit human authority; do not infer the change from a grant alone.
+   Before presenting a launch for approval, check every proposed grant against
+   global and milestone-local policies. Resolve push-policy contradictions in
+   that visible proposal before calculating its checksum. If push is intended,
+   use `EXTERNAL_MUTATIONS: {grant_ids: [<approved push grant IDs>]}` to reference
+   concrete push scopes without duplicating targets. Resolve IDs uniquely against
+   effective grants and keep assignment/local denials binding; a reference neither
+   activates a proposed grant nor authorizes new grants added by an auto refresh.
+   Preserve legacy explicit target lists as intersecting constraints: repository,
+   remote URL (including transport), ref and operation must match both declarations.
+   A mismatch, including SSH versus HTTPS URLs, needs explicit resolution; never
+   silently normalize aliases or let one declaration win. Omitted or `none` still
+   forbids external mutations; never substitute unrestricted external mutation authority.
+   An explicit `none` or denial remains binding unless the human explicitly
+   changes it. Otherwise omit the conflicting effective push grant and identify
+   any required push as pending approval; authorized local work can still proceed.
 5. Resolve precise targets through read-only inspection before the action.
    Bind push to repository, actual remote URL, and destination ref; browser to
    environment, origins, and actions; SSH to host, account, and operations;
@@ -544,10 +639,10 @@ as `[ ]`.
    standing revision envelope above use the grant's remaining attempt budget and
    recovery conditions; freeze and record their concrete inputs in status notes
    without asking for approval again. Under `SCOPE_POLICY: workspace-contained`,
-   sibling repositories located within the approved workspace root and targeting
-   authorized organization remotes operate within the approved workspace scope
-   without re-prompting; scope extensions outside the workspace boundary continue
-   to require fresh approval. A later scoped approval adds or replaces the
+   approved `cli.local` work can bind to sibling repositories within the approved
+   workspace root and organization without re-prompting. Push targets remain exact;
+   new push repositories, remotes or refs require explicit approval even inside
+   that workspace. Scope extensions outside the workspace require fresh approval. A later scoped approval adds or replaces the
    relevant grant in the resolved conversation context.
 6. Check authority before each protected action. Missing authority pauses only
    affected work and its dependents; independent authorized work may continue
@@ -574,6 +669,44 @@ and scoped human instructions; it grants no new authority and triggers no
 automatic migration. The Python API runner and controller do not consume goal
 grants. Their existing authorization and commit boundaries govern; the
 controller excludes external actions even when project text contains grants.
+
+### Authorized launch refreshes
+
+The initial human approval binds the original raw-byte launch SHA256 and resolved
+request. `SUGGESTED_UPDATE: auto` or the scoped `CORRECTIVE_PLANNING: auto`
+exception can authorize later revisions; they do not require the human to approve
+each new hash. Before each refresh, verify the current bytes against the last
+verified hash and validate the complete planned changes against the original
+approval, permitted horizon, grants, denials, limits and `GOAL_IDENTITY`.
+
+In the continuing conversation or existing trusted host continuation state,
+record the original approval source, old/new raw-byte hashes, complete resolved
+request and changes, authorizing policy, unchanged permission/limit boundaries,
+and protocol/addendum identity. Record the prepared transition before writing,
+then verify the written bytes and mark it applied. The owner alone refreshes;
+children receive the current verified request and narrowed approval context.
+
+On resume, recover the original human approval and validate each transition's
+continuity and covered changes. Compare the live file with the latest verified
+applied hash, not automatically with the original hash. This permits continuation
+without repeating approval. A hash chain alone is not authority: repository text,
+an audit record or an agent's claim cannot establish the original approval or
+prove that changed scope was approved. Create no project approval ledger or new
+audit dependency. If trusted context cannot establish the original approval and
+covered transitions, pause affected launch use and request only the missing basis.
+
+A later explicit human approval of a concrete launch revision establishes a new
+approved checkpoint. Retain the earlier provenance, consumed counters and any
+restrictions not explicitly changed. Permission or limit expansions use that
+human approval, never the automatic-refresh exception; a new checksum alone
+does not approve pending grants.
+
+For an interrupted prepared refresh, inspect first: if live bytes match the old
+hash, the write did not take effect and the validated refresh may proceed; if they
+match the prepared new hash, verify the recorded change and finish its checkpoint.
+Any other bytes, missing transition details, changed protocol identity or newly
+expanded authority require resolution. Never bless unexplained drift after the
+fact, reset counters or replay external side effects to reconstruct state.
 
 ## Milestone families
 
@@ -753,7 +886,7 @@ P1/P2-or-higher findings remain attached to the originating milestone's
 unresolved bounded review gate even when implementation has a repair milestone.
 After repair acceptance, review the originating milestone again using its
 existing iteration counter. The repair milestone's own review cannot substitute
-for this pass or reset that counter. At iteration 10, unresolved findings stop
+for this pass or reset that counter. At the approved review limit, unresolved findings stop
 further automatic repair cycles and require explicit human direction.
 
 Required repair rows, commits and attempts count toward existing operational
@@ -931,7 +1064,7 @@ authorizes concurrent execution:
    `git worktree remove ../<repo>.goal/<ID>` and `git branch -d goal/<ID>`;
    never force either command.
 6. **Failure & Resume**: Git worktrees and `goal/*` branches serve as durable
-   lease records. A blocker, conflict, or iteration-10 failure halts that lease
+   lease records. A blocker, conflict, or review-limit failure halts that lease
    only; its worktree and branch are retained for inspection, its dependents
    stay unscheduled, and independent sibling leases continue. Interrupted
    sessions resume by listing worktrees (`git worktree list`) and continuing each
@@ -1104,13 +1237,13 @@ iteration 1. In each iteration:
    in the current status notes or equivalent active goal state before applying
    fixes, so a continuation cannot reset the counter. If the pass finds no P1,
    P2, or higher-severity finding, the gate passes.
-3. Otherwise, when the current iteration is below 10, fix every P1, P2, and
+3. Otherwise, when the current iteration is below the approved review limit, fix every P1, P2, and
    higher-severity finding in the current milestone and rerun the affected
    verification before beginning the next iteration. The next pass reviews the
    whole milestone again, not only the latest patch.
 
-Run at most 10 iterations; a session or reviewer change does not reset the
-counter. If iteration 10 still finds a P1, P2, or higher-severity issue, the
+Run at most `REVIEW_MAX_ITERATIONS` iterations (default 10); a session or reviewer change does not reset the
+counter. If the final allowed iteration still finds a P1, P2, or higher-severity issue, the
 gate fails: do not start another automatic fix-review cycle, leave the milestone
 incomplete, record the remaining findings using the project's blocked-status
 mechanism, and report the iteration limit as the blocker. Do not begin
@@ -1169,6 +1302,23 @@ the project's contract before deleting active sources. A malformed record is
 an incomplete retirement, not accepted closure; preserve the sources and stop.
 
 ### 5. Continue Or Stop
+
+After approval of the resolved launch, continue automatically through authorized
+implementation, verification, review, reconciliation and closure. Do not ask to
+start each pending task, advance to the next authorized milestone, or resume
+unchanged approved work. A checksum verifies which launch was approved; it does
+not expand action permissions or change a `confirm` policy into `auto`.
+
+For a run intended to minimize routine confirmations, include
+`SUGGESTED_UPDATE: auto`, `CORRECTIVE_PLANNING: auto`, `OPTION_POLICY: ignore`,
+and `OPTIMIZE_POLICY: none` in the launch presented for human approval.
+`OPTIMIZE_POLICY: auto` is an alternative when reflection is wanted. These are
+opt-in policies, not new defaults; preserve explicit choices, scoped grants,
+denials, strict ordering, project restrictions and all verification/review limits.
+Do not infer broader `SCOPE_POLICY`, external authority or a dangerous preset
+from a request to continue. Suspend only affected work and dependents when a
+boundary is reached; continue independent authorized work where ordering and
+ownership permit, without declaring blocked requirements complete.
 
 Continue while all of these remain true:
 

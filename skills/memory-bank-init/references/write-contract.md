@@ -174,9 +174,9 @@ explicitly requested as the next pass of an already active persisted gate.
 Include a milestone review procedure with a bounded review-fix gate. The
 initial deep-review pass is iteration 1. After every P1, P2, or higher-severity
 fix, rerun affected verification and review the whole milestone again. The gate
-passes only when a review finds no such issue. Limit it to 10 iterations without
+passes only when a review finds no such issue. Limit it to `REVIEW_MAX_ITERATIONS` iterations (default 10) without
 resetting across sessions or reviewers, and persist each iteration number in the
-current status notes or equivalent active goal state. If iteration 10 still
+current status notes or equivalent active goal state. If the final allowed iteration still
 finds a blocking issue, leave the milestone incomplete and record the findings
 with the project's blocked-status mechanism.
 
@@ -187,6 +187,19 @@ reason. It gets no ID, never promotes, and returns only through a new approved
 direction, so the same idea is not re-proposed as a candidate.
 When a trigger becomes true, reconsider the candidate and obtain approval
 before allocating the next unused permanent ID.
+
+<!-- BEGIN SHARED review-limit-planning -->
+Preserve explicit `REVIEW_MAX_ITERATIONS` in launch references; emit `10` when
+absent in a new launch. It is a positive integer independent of commit policy.
+A value above 10 requires explicit human approval of that ceiling at execution;
+planning approval alone does not activate it. Preserve stricter project caps and
+existing run limits/counters. Never raise this limit through a preset or an
+automatic repair. Existing projects adopt configurable caps explicitly; surface
+conflicts with an older fixed cap instead of silently rewriting restrictions.
+Use the resolved value in every launch template, never a literal default over an
+explicit value. Apply the minimum of declared project/milestone caps; legacy fixed
+prose remains binding until explicit human adoption resolves the conflict.
+<!-- END SHARED review-limit-planning -->
 
 ## Handle the stock goal protocol
 
@@ -328,6 +341,7 @@ M01 -> M02
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
 OPTION_POLICY: confirm
 OPTIMIZE_POLICY: none
 EXTERNAL_MUTATIONS: none
@@ -374,7 +388,7 @@ the user authorizes the orchestrator to refresh remaining milestones without
 prompting for fresh authorization. Under `--environment dangerous`, synthesize hands-free
 launch defaults from day one: `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`,
 `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local
-verification and `- [+] global-repo-push` for workspace organization remotes). Under
+verification and one proposed `[+]` push grant per concrete repository/remote/ref needed by the goal). Under
 `--environment dangerous`, `SCOPE_POLICY: workspace-contained` and `global-local-verify` (`[~]`)
 enable the goal protocol's standing revision envelope for unprivileged workspace-local
 verification; write an explicit `standing` block (schema in `GOAL.md`) only for such local,
@@ -384,6 +398,33 @@ privileged operations (`sudo`, `ssh`, live browser, external pushes outside the 
 remain `[ ]` or omitted unless an explicit modifier authorizes them, and then as an exact-command
 grant without a `standing` block. Include recommended runner
 flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
+<!-- BEGIN SHARED continuous-launch-planning -->
+Before calculating the launch checksum, check proposed grants against global and
+milestone-local policies. For dangerous mode's intended pushes, propose narrowly
+scoped `EXTERNAL_MUTATIONS: {grant_ids: [<push grant IDs>]}` references to the
+concrete per-repository grants, rather than duplicating their targets; never leave an effective push grant paired with
+`EXTERNAL_MUTATIONS: none`. Preserve an explicit prohibition: surface the conflict
+for human resolution or omit the conflicting effective grant, identifying a
+required push as pending approval while allowing authorized local work.
+For each proposed push, resolve the protocol's `scope.content`: `exact-commit`
+with a full `commit`, or explicitly proposed `accepted-goal-commits` with a full
+`baseline` captured before approval. Resolve each target separately, including
+sibling repositories; do not invent wildcard targets or a future baseline.
+The checksum-approved proposal must disclose successive-push intent, including
+plan-only human commits whose complete diff matches the approved planning evidence. Legacy or
+explicitly pinned grants are never silently broadened. These planning changes
+activate no grants and do not alter host/tool permission controls.
+
+When the user requests continuous or unattended work and has not explicitly
+chosen otherwise, propose `OPTION_POLICY: ignore` to defer optional discoveries,
+and `STATUS_PRIORITY` when dependencies alone define the required sequence.
+Preserve an explicit `confirm` or strict `STATUS_ORDER`; never change approved
+selection or policies merely because execution is blocked. The dangerous preset
+alone does not change option or ordering policy. Prefer an authorized ignored
+workspace scratch location over requesting permission for a default external
+temporary path; verify symlink containment and preserve unrelated files.
+<!-- END SHARED continuous-launch-planning -->
+
 Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
 grants, including any explicit `standing` block for local verification, marked `[ ]`). Under `--environment least`, synthesize strict least privilege:
@@ -447,7 +488,7 @@ topics before substantial changes; it does not read the whole history on boot.
 
 Generate these retirement rules in `tabilet/memory-bank/milestone.md`:
 
-- After the review gate passes within its persisted 10 iterations, verification
+- After the review gate passes within its persisted approved review limit, verification
   passes, current facts/lessons are consolidated, and downstream work is
   reconciled, automatically retire the milestone. Terminal markers alone are
   insufficient; unresolved or conditional pending work stays active.

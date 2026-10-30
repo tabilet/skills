@@ -181,6 +181,24 @@ A protocol switch requires explicit approval; unavailable or incompatible
 selection pauses affected launch refresh and preserves existing input.
 Do not remove or truncate a file currently selected as the alternative full
 protocol merely because the stock addendum classifier would reject it.
+When updating launch guidance, preserve the original approval and any verifiable
+authorized refresh context. Never invent a refresh chain or broaden legacy push
+grants. Propose explicit push content scope and coherent external-mutation
+policies only in the visible upgrade proposal; retain denials and exact pins.
+
+<!-- BEGIN SHARED review-limit-planning -->
+Preserve explicit `REVIEW_MAX_ITERATIONS` in launch references; emit `10` when
+absent in a new launch. It is a positive integer independent of commit policy.
+A value above 10 requires explicit human approval of that ceiling at execution;
+planning approval alone does not activate it. Preserve stricter project caps and
+existing run limits/counters. Never raise this limit through a preset or an
+automatic repair. Existing projects adopt configurable caps explicitly; surface
+conflicts with an older fixed cap instead of silently rewriting restrictions.
+Use the resolved value in every launch template, never a literal default over an
+explicit value. Apply the minimum of declared project/milestone caps; legacy fixed
+prose remains binding until explicit human adoption resolves the conflict.
+<!-- END SHARED review-limit-planning -->
+
 Preserve explicit `MODEL_POLICY`; omission preserves host model settings.
 Propose the optional policy only when requested, without activating it on a
 paused run. A fresh legacy launch without `GOAL_IDENTITY` follows the protocol's

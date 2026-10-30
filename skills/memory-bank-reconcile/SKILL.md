@@ -58,7 +58,7 @@ from the horizon. Supersession needs a named successor preserving every
 obligation. Keep blocking findings attached to the originating milestone's
 review gate and persisted counter even when a repair milestone owns the fix;
 its review never replaces the originating milestone's next full review. At
-iteration 10, unresolved findings require human direction before more repairs.
+the approved review limit, unresolved findings require human direction before more repairs.
 
 When `tabilet/stages.md` exists, use its current stage and provisional later
 ideas as planning context. A review still follows the existing severity and
@@ -141,7 +141,7 @@ machine-specific absolute path into the memory bank.
 An incoming review counts as a bounded milestone review-fix iteration only when
 the current status explicitly records that gate as active and the review was
 requested as its next full pass. Continue the persisted counter and its
-10-iteration limit in that case. Otherwise this is review intake, not iteration
+approved review limit in that case. Otherwise this is review intake, not iteration
 1; any remediation milestone receives its normal closing gate when implemented.
 
 ## Phase 2 - Propose

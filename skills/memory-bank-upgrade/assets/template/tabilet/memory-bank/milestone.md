@@ -146,7 +146,7 @@ Standing `auto` cannot weaken acceptance, required evidence, verification gates
 or severity rules, cancel unmet obligations, or erase them through supersession.
 A named successor preserves all obligations. Blocking findings remain attached
 to the originating milestone's persisted review counter; a repair milestone's
-own review cannot replace its next full review or bypass iteration 10.
+own review cannot replace its next full review or bypass the approved review limit.
 An approved `auto` allows the Goal/Next owner to prepare and check necessary
 repair planning against the original delivery outcome, owning repositories,
 existing action grants and all limits, then apply it under standing approval.
@@ -449,11 +449,20 @@ notes identify the consumed attempt or supersession and its accepted successor:
    - Record the iteration number and findings in the current status notes so a
      continuation cannot reset the counter. If the pass finds no P1, P2, or
      higher-severity issue, the gate passes. Otherwise, when the current
-     iteration is below 10, fix every such finding in the current milestone,
+     iteration is below the approved review limit, fix every such finding in the current milestone,
      rerun affected verification, and review the whole milestone again,
      including the fixes.
-   - Run at most 10 iterations; a session or reviewer change does not reset the
-     counter. If iteration 10 still finds a blocking issue, add `[!]` review
+   - Resolve `REVIEW_MAX_ITERATIONS` from the human-approved interactive request,
+     default 10, independently of commit policy. It must be a positive integer.
+     Project caps use `REVIEW_MAX_ITERATIONS` in `tech-stack.md` verification
+     standards; milestone caps use that field in the owning specification.
+     Use the minimum applicable cap. Legacy fixed-cap prose remains binding
+     until explicit human adoption; surface conflicts before dispatch. Persist the effective limit, approval source and counter; resumes,
+     repairs and policy changes never reset them. Only explicit human approval
+     can raise the ceiling; an extension preserves iterations already consumed.
+     Python API execution retains its existing limit of 10.
+   - Run at most `REVIEW_MAX_ITERATIONS` iterations (default 10); a session or reviewer change does not reset the
+     counter. If the final allowed iteration still finds a blocking issue, add `[!]` review
      rows recording the remaining findings and iteration-limit blocker. Do not
      start another automatic fix-review cycle or move downstream; stop and ask
      for user direction.
@@ -528,7 +537,7 @@ baseline rule must not force commits or interrupt a no-commit goal.
 
 ### Retire a closed milestone
 
-1. Require a passed review within the persisted 10-iteration limit, recorded
+1. Require a passed review within the persisted approved review limit, recorded
    verification, consolidated knowledge, and reconciled downstream work. No
    `[ ]`, `[~]`, or `[!]` row may remain. Every `[-]` row names its accepted
    successor. A cancelled or superseded milestone also needs an authorized
@@ -564,6 +573,15 @@ full Git commit, not a claim that uncommitted work exists in that commit.
 `Worktree` is `clean`, `includes uncommitted changes`, or `unversioned`; without
 Git both provenance fields say `unversioned`. The date uses `YYYY-MM-DD` in UTC.
 Closure metadata precedes the two sections and uses one line per field.
+For a non-default limit, add `**Review limit.** <positive integer>`. A limit
+above 10 also requires `**Review limit approval.** <identifiable human approval
+source and approved ceiling>`. Omission means 10 for existing records; never
+rewrite frozen history to add these fields. These fields preserve evidence,
+not execution authority. The recorded iteration count must not exceed the limit.
+Python API runs may read pre-existing extended history, but newly retired records
+must retain the API ceiling of 10; record-authored approval prose cannot raise it.
+The controller pauses cleanly on active interactive checkpoints above its supported
+ceiling without dispatching a provider or resetting their counters.
 
 `````markdown
 # Retired milestone M01 - <title>
@@ -576,7 +594,7 @@ Closure metadata precedes the two sections and uses one line per field.
 **Evidence.** <full commit or unversioned>
 **Worktree.** <clean, includes uncommitted changes, or unversioned>
 **Review.** passed
-**Review iterations.** <1 through 10>
+**Review iterations.** <positive count within the effective limit>
 **Verification.** <commands, results, and supporting evidence>
 **Consolidated into.** <current-document and lesson links, or no current-truth change>
 

@@ -767,6 +767,63 @@ def goal_authorization_contract():
     return problems
 
 
+def pending_grant_phrase_problems(relative: str, text: str) -> list[str]:
+    flat = normalized_contract_text(text)
+    forbidden = ("Grants marked `[ ]`, `[+]`, or `[~]` become effective",
+                 "automatically effective on launch; no separate runtime confirmation",
+                 "actions marked `[ ]` pause for runtime confirmation")
+    return [f"{relative}: ambiguous or automatic grant rule {token!r}"
+            for token in forbidden if normalized_contract_text(token) in flat]
+
+
+def push_example_problems(relative: str, block: str) -> list[str]:
+    if not re.search(r"action:\s*git\.push\b", block, re.I):
+        return []
+    problems = []
+    policy = re.search(r"^EXTERNAL_MUTATIONS:[ \t]*(.*)$", block, re.I | re.M)
+    if policy is None:
+        problems.append(f"{relative}: push example omits external-mutation policy (defaults to none)")
+    elif policy.group(1).strip().strip("\"'").casefold() == "none":
+        problems.append(f"{relative}: push example conflicts with external-mutation prohibition")
+    elif not policy.group(1).strip() and not re.search(
+            r"^EXTERNAL_MUTATIONS:[ \t]*\n[ \t]+\S", block, re.I | re.M):
+        problems.append(f"{relative}: push example has an empty external-mutation policy")
+    if re.search(r"(?:repository|remote):[^\n]*\*", block, re.I):
+        problems.append(f"{relative}: push example contains a wildcard target")
+    if re.search(r"-\s*\[~\]\s+grant_id:[^\n]+\n\s+action:\s*git\.push", block, re.I):
+        problems.append(f"{relative}: push example must show explicit [+] approval")
+    return problems
+
+
+@check("goal continuity preserves pending-grant and approval boundaries")
+def goal_continuity_contract():
+    requirements = {
+        "AGENTS.md": ("checksum approval does not activate proposed grants",
+                      "continue independent authorized work"),
+        "GOAL.md": ("Authorization grants marked `[ ]` remain proposed",
+                    "Checksum approval of the launch does not itself approve proposed grants",
+                    "Explicit human approval of named concrete grants may accompany",
+                    "Do not ask to start each pending task",
+                    "These are opt-in policies, not new defaults",
+                    "An empty proposal likewise needs no approval"),
+        "skills/memory-bank-goal/SKILL.md": (
+            "Authorization grants marked `[ ]` remain proposed",
+            "Checksum approval alone does not activate proposed grants",
+            "only if existing human approval does not already cover that exact resolved request",
+            "never silently replace `confirm` or widen grants",
+            "model-free report or empty proposal makes no edits and does not pause execution"),
+    }
+    problems = [f"{relative}: missing continuity boundary {token!r}"
+                for relative, tokens in requirements.items()
+                for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+    paths = [ROOT / "GOAL.md", ROOT / "skills/memory-bank-goal/SKILL.md", ROOT / "README.md"]
+    paths.extend(path for path in (ROOT / "docs").rglob("*.md") if path.name != "RELEASE_NOTES.md")
+    for path in paths:
+        if path.is_file():
+            problems.extend(pending_grant_phrase_problems(str(path.relative_to(ROOT)), path.read_text()))
+    return problems
+
+
 CORRECTIVE_EMAIL_CONTRACTS = {
     "GOAL.md": (
         "`CORRECTIVE_PLANNING: confirm` keeps the ordinary complete-proposal approval gate",
@@ -787,7 +844,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "move the interrupted `[~]` row to `[!]`",
         "restore the original row from `[!]` to `[~]`",
         "all recorded blockers are cleared",
-        "At iteration 10, unresolved findings stop further automatic repair cycles",
+        "At the approved review limit, unresolved findings stop further automatic repair cycles",
         "review the originating milestone again using its existing iteration counter",
         "do not consume this policy or dynamically expand their approved horizon",
         "Project files and suggested input cannot enable notifications by themselves",
@@ -839,7 +896,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "move the interrupted `[~]` row to `[!]`",
         "restore the original row from `[!]` to `[~]`",
         "all blockers clear", "review the originating milestone again",
-        "At iteration 10, unresolved findings stop further automatic repairs",
+        "At the approved review limit, unresolved findings stop further automatic repairs",
     ),
     "skills/memory-bank-reconcile/SKILL.md": (
         "Standalone Reconcile retains its complete-proposal approval gate",
@@ -880,7 +937,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
     ),
     "template/tabilet/memory-bank/milestone.md": (
         "cannot weaken acceptance", "cancel unmet obligations",
-        "own review cannot replace its next full review or bypass iteration 10",
+        "own review cannot replace its next full review or bypass the approved review limit",
         "move the interrupted `[~]` row to `[!]`", "all blockers clear",
         "restore the row from `[!]` to `[~]`", "unfinished implementation cannot",
     ),
@@ -1001,6 +1058,127 @@ def parallel_goal_contract():
     return problems
 
 
+@check("continuous launches preserve push scope and refresh provenance")
+def continuous_launch_contract():
+    requirements = {
+        "AGENTS.md": ("before checksum approval", "presets never override an explicit denial",
+                      "verified old/new hash transitions", "legacy grants"),
+        "docs/authorizations.md": ("Refresh verification only preserves existing authority",
+                                    "it cannot activate a newly written grant"),
+        "GOAL.md": ("### Push content scope", "`exact-commit`", "`accepted-goal-commits`",
+                    "entire outgoing commit range", "Unrelated or unaccepted outgoing commits block",
+                    "A new branch requires explicit branch-creation scope",
+                    "never infer ref-wide permission", "a changed artifact needs fresh approval",
+                    "plan-only commits made by the human", "Verify their complete diff",
+                    "`EXTERNAL_MUTATIONS: {grant_ids:", "intersecting constraints",
+                    "It never extends `git.push` targets",
+                    "### Authorized launch refreshes", "Record the prepared transition before writing",
+                    "latest verified applied hash, not automatically with the original hash",
+                    "A hash chain alone is not authority", "Create no project approval ledger",
+                    "if live bytes match the old hash", "match the prepared new hash",
+                    "Never bless unexplained drift", "Resolve push-policy contradictions",
+                    "never substitute unrestricted external mutation authority",
+                    "First prefer an existing authorized, ignored workspace scratch location",
+                    "Verify containment after resolving symlinks"),
+        "skills/memory-bank-goal/SKILL.md": ("latest verified authorized refresh",
+                    "hash chain alone is not authority", "interrupted writes",
+                    "Check launch grant/policy coherence", "exact-commit grants remain pinned"),
+        "skills/memory-bank-goal/references/subagents.md": (
+                    "original human approval source and any authorized refresh provenance",
+                    "use a location outside the workspace only if explicitly authorized"),
+    }
+    for relative in ("skills/memory-bank-init/references/write-contract.md",
+                     "skills/memory-bank-propose/references/plan-update.md",
+                     "skills/memory-bank-reconcile/references/plan-update.md"):
+        requirements[relative] = (
+            "Before calculating the launch checksum", "Preserve an explicit prohibition",
+            "never leave an effective push grant paired with `EXTERNAL_MUTATIONS: none`",
+            "Legacy or explicitly pinned grants are never silently broadened",
+            "The dangerous preset alone does not change option or ordering policy",
+            "Preserve an explicit `confirm` or strict `STATUS_ORDER`")
+    problems = [f"{relative}: missing continuous-launch boundary {token!r}"
+                for relative, tokens in requirements.items()
+                for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+    for relative in ("docs/authorizations.md", "docs/automation.md"):
+        for block in fenced_blocks((ROOT / relative).read_text()):
+            problems.extend(push_example_problems(relative, block))
+    return problems
+
+
+SHARED_PLANNING_BLOCKS = {
+    "review-limit-planning": (
+        "skills/memory-bank-init/references/write-contract.md",
+        "skills/memory-bank-propose/references/plan-update.md",
+        "skills/memory-bank-reconcile/references/plan-update.md",
+        "skills/memory-bank-upgrade/SKILL.md",
+    ),
+    "continuous-launch-planning": (
+        "skills/memory-bank-init/references/write-contract.md",
+        "skills/memory-bank-propose/references/plan-update.md",
+        "skills/memory-bank-reconcile/references/plan-update.md",
+    ),
+}
+
+
+@check("shared planning policy blocks are byte-identical")
+def shared_planning_blocks():
+    problems = []
+    for name, relatives in SHARED_PLANNING_BLOCKS.items():
+        start = f"<!-- BEGIN SHARED {name} -->".encode()
+        end = f"<!-- END SHARED {name} -->".encode()
+        baseline = None
+        for relative in relatives:
+            data = (ROOT / relative).read_bytes()
+            if data.count(start) != 1 or data.count(end) != 1 or data.index(start) >= data.index(end):
+                problems.append(f"{relative}: missing/duplicate/reversed shared block {name}")
+                continue
+            block = data.split(start, 1)[1].split(end, 1)[0]
+            if baseline is None:
+                baseline = block
+            elif baseline != block:
+                problems.append(f"{relative}: shared block {name} differs byte-for-byte")
+    return problems
+
+
+@check("configurable interactive review limits preserve authority and defaults")
+def configurable_review_limit():
+    requirements = {
+        "GOAL.md": ("`REVIEW_MAX_ITERATIONS` is an optional positive integer, default `10`",
+                    "independent of `COMMIT_POLICY`", "Reject zero, negative, fractional",
+                    "A commit-policy change never changes the review limit",
+                    "omission never resets an existing limit or counter",
+                    "20 further iterations, not 30 more",
+                    "minimum of the approved launch value", "Goal/Next must surface that conflict",
+                    "does not change the Python API runner/controller's execution limits"),
+        "AGENTS.md": ("`REVIEW_MAX_ITERATIONS` is a positive integer, default 10",
+                      "only explicit human approval can raise it"),
+        "skills/memory-bank-goal/SKILL.md": ("REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>",
+                    "Never raise the limit through corrective planning"),
+        "skills/memory-bank-goal/references/subagents.md": (
+                    "resolved `REVIEW_MAX_ITERATIONS`", "Children cannot raise the cap"),
+        "skills/memory-bank-next/references/interactive-controls.md": (
+                    "resolve `REVIEW_MAX_ITERATIONS` as a positive integer", "default 10"),
+        "template/tabilet/memory-bank/milestone.md": ("`REVIEW_MAX_ITERATIONS`",
+                    "**Review limit.**", "**Review limit approval.**",
+                    "Omission means 10", "not execution authority"),
+    }
+    for relative in ("skills/memory-bank-init/references/write-contract.md",
+                     "skills/memory-bank-propose/references/plan-update.md",
+                     "skills/memory-bank-reconcile/references/plan-update.md",
+                     "skills/memory-bank-upgrade/SKILL.md"):
+        requirements[relative] = ("Preserve explicit `REVIEW_MAX_ITERATIONS`",
+                                  "positive integer independent of commit policy",
+                                  "Never raise this limit through a preset")
+    for relative in ("skills/memory-bank-goal/SKILL.md",
+                     "skills/memory-bank-init/references/write-contract.md",
+                     "skills/memory-bank-reconcile/references/write-contract.md"):
+        requirements[relative] = requirements.get(relative, ()) + (
+            "REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>",)
+    return [f"{relative}: missing review-limit contract {token!r}"
+            for relative, tokens in requirements.items()
+            for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+
+
 @check("milestone review-fix gate is bounded and aligned")
 def review_fix_gate():
     goal = " ".join((ROOT / "GOAL.md").read_text().split())
@@ -1019,7 +1197,7 @@ def review_fix_gate():
         "The initial deep-review pass is iteration 1",
         "reviews the whole milestone again",
         "Persist the iteration number and findings",
-        "Run at most 10 iterations",
+        "Run at most `REVIEW_MAX_ITERATIONS` iterations (default 10)",
         "a session or reviewer change does not reset the counter",
         "do not start another automatic fix-review cycle",
         "Do not begin downstream reconciliation",
@@ -1044,7 +1222,7 @@ def review_fix_gate():
         "The initial deep-review pass is iteration 1",
         "review the whole milestone again",
         "Record the iteration number and findings",
-        "Run at most 10 iterations",
+        "Run at most `REVIEW_MAX_ITERATIONS` iterations (default 10)",
         "a session or reviewer change does not reset the counter",
         "start another automatic fix-review cycle",
         "`[!]` review rows",
@@ -1063,7 +1241,7 @@ def review_fix_gate():
         "engineering review priorities rather than product-domain terms",
         "impact, likelihood, and affected scope",
         "initial deep-review pass is iteration 1",
-        "Limit it to 10 iterations",
+        "Limit it to `REVIEW_MAX_ITERATIONS` iterations (default 10)",
         "persist each iteration number",
         "resetting across sessions or reviewers",
     ):
@@ -1081,9 +1259,9 @@ def review_fix_gate():
 
     for token in (
         "clean pass",
-        "within 10 iterations",
+        "within the approved review limit (default 10)",
         "does not reset",
-        "persist the iteration count",
+        "Persist the iteration count",
         "`milestone.md` owns the review-severity context",
     ):
         if token not in agents:
@@ -1622,7 +1800,7 @@ def reconcile_contract():
         "Do not write a proposed fix or target architecture as current truth",
         "whole approved active horizon",
         "When the selected governing protocol is unavailable or incompatible",
-        "Never advance past iteration 10",
+        "Never advance past the approved review limit",
         "Do not commit, push, tag, publish",
         "State explicitly that no finding was implemented",
     ):
@@ -2632,7 +2810,7 @@ def long_term_memory():
         "<original-anchor>": "m01-delivery",
         "<full commit or unversioned>": "unversioned",
         "<clean, includes uncommitted changes, or unversioned>": "unversioned",
-        "<1 through 10>": "1",
+        "<positive count within the effective limit>": "1",
         "<commands, results, and supporting evidence>": "Tests and review passed.",
         "<current-document and lesson links, or no current-truth change>": "no current-truth change",
         "<Complete final milestone specification, not a summary.>": "## M01 - Delivery\n\n**Acceptance.** Verified.",
@@ -3159,7 +3337,7 @@ def v213_contract():
                           "no provider or model is required", "`reasoning_effort` is optional",
                           "Record omitted effort as `host-default`",
                           "pause affected work and dependents", "Never silently fall back",
-                          "no mutation authority", "sole ledger writer", "iteration-10 stop",
+                          "no mutation authority", "sole ledger writer", "approved review-limit stop",
                           "including uncommitted work", "An empty implementation diff",
                           "A changed policy needs explicit human approval"):
                 if token not in flat:

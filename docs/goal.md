@@ -159,7 +159,7 @@ only when requested, and launch refresh preserves an existing selection.
 reviews and review fixes. Every authoritative whole-milestone review iteration
 uses fresh read-only reviewers under `WHOLE_MILESTONE_REVIEW`. The coordinator
 alone records one iteration report and applies fixes under `DEFAULT`; the
-persisted review counter and iteration-10 stop still apply. All review lenses
+persisted review counter and approved review-limit stop still apply. All review lenses
 must be covered, with combined lenses or batches when host capacity is limited.
 
 The host must support the selected model, effort and fresh-agent controls.
@@ -219,17 +219,48 @@ package-qualified keys for cross-package work. Executor roles are
 authorities across milestones and tasks in the goal, avoiding repetitive boilerplate.
 Tasks inherit matching `GLOBAL:` grants, while milestone-specific entries narrow or override them.
 
+Once the resolved launch is approved, Goal continues through pending tasks and
+milestone boundaries without asking for the same approval again. A task's `[ ]`
+means pending work; an authorization grant's `[ ]` means missing permission.
+Checksum approval alone does not activate proposed grants. You can explicitly
+approve named, scoped grants together with the launch and avoid a second prompt.
+Other authorized work continues when an action is blocked, subject to dependencies,
+strict ordering and ownership.
+
+To minimize routine confirmations, approve a launch containing
+`SUGGESTED_UPDATE: auto`, `CORRECTIVE_PLANNING: auto`, `OPTION_POLICY: ignore`,
+and `OPTIMIZE_POLICY: none` (or `auto` for reflection). These are opt-in choices;
+existing `confirm` policies are not silently changed. Permissions, denials,
+acceptance requirements and attempt/review limits still apply. Empty or model-free
+reflection proposals do not require approval.
+
+`REVIEW_MAX_ITERATIONS` is a positive integer with a default of **10 per
+milestone**, independently of `COMMIT_POLICY`. Include it in `suggested.txt`;
+explicitly approving `REVIEW_MAX_ITERATIONS: 30` with that launch allows up to
+30 reviews. Preserve stricter project caps unless explicitly resolved. Project caps use the same field
+in `tech-stack.md` verification standards; milestone caps use it in the owning
+specification. The minimum applicable value governs. Legacy fixed-cap prose is
+binding until explicit adoption, even when it resembles an old stock template. Resumes,
+reviewer changes and repair milestones preserve the original counter and limit.
+A later extension from 10 to 30 leaves at most 20 further iterations after ten
+were consumed. Agents cannot raise this ceiling themselves. Python API execution
+keeps its existing limit; retirement records may preserve larger approved limits
+as historical evidence, not execution authority. Newly created API retirement
+records remain capped at 10; record-authored approval text cannot extend that cap.
+The controller pauses before dispatch on an interactive checkpoint above 10,
+leaving its counter intact for the interactive owner.
+
 Proposed grants in `suggested.txt` carry decision markers:
 - `[ ]` (**need authorization**): default proposed state awaiting human review.
 - `[+]` (**approve**): explicitly approved by the human; activated for execution.
 - `[-]` (**deny**): explicitly denied by the human; forbidden from execution.
 - `[~]` (**auto**): pre-approved safe operations under governing goal policy.
 
-When resuming or launching from `suggested.txt`, matching its SHA256 checksum against human
-approval is required before activating grants. Under `SUGGESTED_UPDATE: auto`, the orchestrator
+When resuming or launching from `suggested.txt`, verify its SHA256 against the original
+human approval or a verified authorized refresh before activating grants. Under `SUGGESTED_UPDATE: auto`, the orchestrator
 is authorized to refresh remaining milestones in `suggested.txt` and continue execution smoothly
 without pausing for new authorization; under default `SUGGESTED_UPDATE: confirm`, any edit
-requires fresh human approval.
+requires fresh human approval except a covered corrective refresh.
 
 This illustrates a grant's scope; the example itself approves nothing:
 
@@ -317,6 +348,40 @@ apply. These are instruction-level rules, not tool-level or OS enforcement.
 The Python runner and controller do not consume goal grants, and the
 controller continues to exclude external actions.
 
+### Continuing an approved launch {#continuing-approved-launch}
+
+With `SUGGESTED_UPDATE: auto` (or a covered corrective refresh), the human approves
+the original launch and the allowed updates. The owner records prepared/applied
+old-to-new SHA256 transitions, their changes and governing approval in the
+conversation or existing trusted host state. Resume checks the latest verified
+hash and the unchanged permission boundaries. It does not ask for approval again
+merely because an authorized refresh changed the file. A hash chain or repository
+record alone grants nothing; missing approval context or unexplained edits still
+stop affected execution. Interrupted writes are inspected against the prepared
+old/new hashes before proceeding, without replaying external effects.
+
+Resolve contradictory push and external-mutation policies before requesting the
+launch checksum approval. Prefer `EXTERNAL_MUTATIONS: {grant_ids: [push-id]}`;
+a reference activates no grant by itself. Legacy duplicate target lists must
+agree exactly, including URL transport. `workspace-contained` extends approved
+local CLI work only, never push targets. A push grant may explicitly specify `scope.content`:
+`exact-commit` with a full `commit` ID, or `accepted-goal-commits` with a full
+pre-approved `baseline`. The latter allows successive accepted goal work on the
+approved lineage; each push still checks the entire outgoing range, exact target
+and fast-forward condition. It never includes unrelated work, force-push, ref
+deletion, new destinations or arbitrary SSH commands. Branch creation needs
+explicit scope. Legacy grants remain pinned to their originally approved command and artifact;
+missing pins require clarification. Approved plan-only human commits can be
+included after the baseline only when their complete diff matches the concretely
+approved planning evidence; mixed or unapproved changes still block push.
+
+For requested unattended work, planning can propose `OPTION_POLICY: ignore` and
+`STATUS_PRIORITY` when dependency ordering is sufficient. Explicit confirmation
+policies and strict order remain binding. Prefer an authorized ignored workspace
+scratch directory over requesting access to `/tmp`; resolve symlinks and preserve
+user files. None of these choices increases permissions or attempt/review limits.
+
+
 ## Expensive checks and the attempt gate
 
 Some acceptance depends on a check that is expensive or protected: privileged
@@ -395,7 +460,7 @@ Corrections cannot weaken acceptance, required evidence, verification or severit
 rules, cancel unmet obligations, or erase them through a replacement. Blocking
 findings remain on the originating milestone's review gate even when a repair
 milestone owns implementation. Re-review the original using its persisted
-counter; a repair review cannot replace that pass or evade iteration 10.
+counter; a repair review cannot replace that pass or evade the approved review limit.
 
 Before another row starts, suspend the interrupted `[~]` row as `[!]` and record
 prerequisite IDs, approval source and resumption condition. After prerequisite

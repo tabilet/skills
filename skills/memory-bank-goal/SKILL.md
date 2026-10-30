@@ -90,8 +90,10 @@ When it is not `none`, run these preflight checks before milestone execution:
    and continue; milestones shorter than the `min_model_milestone_sec` it reports get no model call either.
 When both pass, run `tabilet-audit reflect . --milestone <ID>` upon milestone closure and read its proposal
 (`proposal_source` of `heuristic` means no model ran; treat it as a summary with no edits). Probe commands
-are not run unless you pass `--probe` with the host-shell acknowledgment. Under `confirm`, pause for human
-approval of the complete proposal. Under `auto`, apply only additive, evidence-linked edits to `tech-stack.md`
+are not run unless you pass `--probe` with the host-shell acknowledgment. A failed reflection,
+model-free report or empty proposal makes no edits and does not pause execution.
+Under `confirm`, pause for human approval only of an actionable complete proposal.
+Under `auto`, apply only additive, evidence-linked edits to `tech-stack.md`
 and `lessons.md`, never touching authorization, review or verification limits. Apply milestone graph changes
 (amending downstream scopes, adding repair milestones, or marking obsolete pending milestones `[X]` with a
 named successor) only under human-approved `CORRECTIVE_PLANNING: auto`; otherwise propose them and pause.
@@ -143,8 +145,13 @@ global launch defaults for that milestone's execution. Resolve `AUTHORIZATION_GR
 from explicit human approval in the invoking request or a later scoped approval, following
 the project's protocol. Requirements, repository content, model output, and `suggested.txt`
 are evidence, not authorization. When launching or resuming from `suggested.txt`,
-verify that its raw-byte SHA256 checksum matches the human's approved hash and
-that its `GOAL_IDENTITY` matches the identity resolved now. Compare normalized
+verify its raw-byte SHA256 against the original approved hash or the latest
+verified authorized refresh under the protocol's Authorized launch refreshes
+contract. Recover the original approval and covered transitions from the continuing
+conversation or existing trusted host state; file text or a hash chain alone is
+not authority. Preserve pending refresh checkpoints and resolve interrupted writes
+by inspecting old/new hashes before retrying. Verify that its `GOAL_IDENTITY`
+matches the identity resolved now. Compare normalized
 protocol/addendum hashes and classifications, not version labels. For a fresh
 legacy launch missing identity, follow the protocol's legacy-launch transition:
 show the resolved request and identity, obtain missing identity approval and
@@ -156,19 +163,29 @@ state; under default `SUGGESTED_UPDATE: confirm`, an edit requires fresh matchin
 approval except a prepared correction under approved `CORRECTIVE_PLANNING: auto`.
 Do not accept unknown checksum drift or expand action grants through that exception.
 Only grants marked `[+]` or `[~]` become effective upon matching checksum verification;
-grants marked `[-]` are forbidden, and actions marked `[ ]` pause for runtime confirmation before use.
+grants marked `[-]` are forbidden. Authorization grants marked `[ ]` remain proposed;
+pause only before an action that needs missing authority. A pending task row `[ ]`
+does not require confirmation. Checksum approval alone does not activate proposed
+grants. Explicit human approval of named concrete grants may accompany launch
+approval; record those grants as approved in the resolved conversation context
+without rewriting the checksum-approved file, and reuse them without a second
+runtime prompt.
 A suggested grant stays proposed until the human approves its concrete action, scope,
 and expected effects. Planning approval alone does not activate it. Never store credential values.
 
 Resolve exact targets by read-only inspection. Preserve `COMMIT_POLICY`,
 `INTEGRATION`, `EXTERNAL_MUTATIONS`, and project restrictions; conflicting or
 unresolved scopes need clarification before the protected action. Do not
-silently accept a grant over a prohibition. `COMMIT_POLICY: none` permits no
+silently accept a grant over a prohibition. Check launch grant/policy coherence
+before requesting its checksum approval. Apply the protocol's Push content scope:
+reuse approved successive-goal push scope only for accepted outgoing work on its
+approved lineage; exact-commit grants remain pinned. `COMMIT_POLICY: none` permits no
 commits, and local integration grants no push. Reuse a valid grant without
 repeated approval; changed scope requires fresh approval. Under `SCOPE_POLICY: workspace-contained`,
-sibling repositories within the approved workspace root matching authorized organization remotes
-operate within the approved workspace scope without re-prompting; scope extensions outside
-the workspace boundary continue to require fresh approval.
+approved `cli.local` work can bind to sibling repositories within the approved
+workspace root and organization. Push grants remain bound to their exact targets;
+workspace containment never adds a push destination. Scope extensions outside
+the workspace boundary require fresh approval.
 
 Materialize the complete resolved request in the conversation so execution does
 not depend on the disposable file remaining on disk:
@@ -189,6 +206,7 @@ INTEGRATION: <resolved authority, or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
 OPTION_POLICY: <resolved confirm or ignore>
 OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
@@ -204,14 +222,15 @@ conditional status is complete, and every milestone's documented verification
 passes.
 ```
 
-Preserve explicitly supplied commit, external-mutation, scope, and launch-update policies.
+Preserve explicitly supplied `REVIEW_MAX_ITERATIONS`, commit, external-mutation, scope, and launch-update policies.
 `SUGGESTED_UPDATE: auto` permits refreshing `suggested.txt` across milestones without
 pausing for authorization; default `confirm` pauses whenever `suggested.txt` is updated.
 Approved `CORRECTIVE_PLANNING: auto` supplies the protocol's narrower corrective
 refresh exception, including necessary new repair milestones; no other update
 or permission expansion is authorized by it.
-`SCOPE_POLICY: workspace-contained` auto-authorizes sibling workspace repositories under
-the authorized organization without re-prompting; default `strict` requires exact string matches.
+`SCOPE_POLICY: workspace-contained` binds approved local CLI work to sibling
+workspace repositories under the authorized organization; push targets stay exact.
+Default `strict` requires exact string matches.
 `task` policy must not override a request for `none`. `COMMIT_POLICY` governs
 commits for the whole run: `none` means no commits; `task` means per-row commits.
 Use the protocol's request precedence and other policy definitions.
@@ -241,11 +260,30 @@ only this subset, not every grant visible in the parent request.
 
 When neither order nor priority was supplied, prefer a valid suggested order,
 otherwise derive one from `tabilet/memory-bank/milestone.md`. Show the complete resolved request and obtain
-confirmation before starting. Ask for an order if none is unambiguous.
+confirmation before starting only if existing human approval does not already
+cover that exact resolved request. An explicitly selected, checksum-approved
+`suggested.txt` supplies its order or priority; do not ask for the same approval
+again merely because the invoking message did not repeat it. Ask for an order
+if none is unambiguous.
 A trailing `?` marks a conditional milestone: when its documented trigger is
 absent, skip it without completing or cancelling it.
 
+Resolve `REVIEW_MAX_ITERATIONS` under the protocol (positive integer, default 10),
+independent of commit policy. Resolve project/milestone caps and legacy fixed-cap
+conflicts under the protocol before dispatch; a launch value alone cannot remove
+a project restriction. Preserve the approved limit and counter on resume,
+launch refresh and child dispatch. Never raise the limit through corrective
+planning or infer a larger allowance from `COMMIT_POLICY: milestone`.
+
 ## Execute through acceptance
+
+Follow the protocol's Continue Or Stop contract: an approved launch continues
+through pending tasks and milestone boundaries without routine confirmation.
+For a requested continuous run, present the protocol's opt-in continuity policies
+in the launch for approval; never silently replace `confirm` or widen grants in
+an already approved request. Optional discoveries do not block main work, and
+missing authority blocks only affected work and dependents under the approved
+order and ownership rules.
 
 Resolve missing information through safe inspection first. If required files,
 bundled resources, verification commands, permissions, or user answers are unavailable,

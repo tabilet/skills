@@ -515,6 +515,32 @@ class HorizonRuntimeTests(unittest.TestCase):
         self.assertEqual("passed", checkpoint["gate"])
         self.assertEqual(10, checkpoint["iterations"])
 
+    def test_extended_interactive_checkpoint_pauses_without_dispatch_or_reset(self):
+        status = self.project / "tabilet/memory-bank/status-M01.md"
+        original = status.read_text()
+        for gate, task_state in (("active", "[+]"), ("passed", "[+]"), ("active", "[ ]")):
+            with self.subTest(gate=gate, task_state=task_state):
+                status.write_text(original.replace("`[ ]`", f"`{task_state}`") + f"\n**Review gate.** {gate}\n**Review iterations.** 12\n"
+                                  + '**Review findings.** []\n')
+                subprocess.run(["git", "add", "-A"], cwd=self.project, check=True)
+                subprocess.run(["git", "commit", "-qm", "persist interactive review"], cwd=self.project, check=True)
+                receipt = self.store.load(self.receipt_path)
+                receipt["commit_ids"].append(core.git_head(self.project))
+                receipt["usage"]["commits_reserved"] += 1
+                receipt["usage"]["commits_recorded"] += 1
+                receipt["state"] = "running"
+                self.store.update_atomic(self.receipt_path, receipt)
+                saved_text = status.read_text()
+                with self.assertRaises(SystemExit) as caught:
+                    self.run_horizon([])
+                self.assertEqual(17, caught.exception.code)
+                saved = self.store.load(self.receipt_path)
+                self.assertEqual("paused", saved["state"])
+                self.assertIn("controller supports at most 10", saved["pause_reason"])
+                self.assertEqual(saved_text, status.read_text())
+                self.assertEqual(receipt["usage"], saved["usage"])
+                self.assertTrue(core.git_clean(self.project))
+
     def test_review_iteration_ten_is_not_reset_for_a_new_receipt(self):
         status = self.project / "tabilet/memory-bank/status-M01.md"
         status_text = status.read_text(encoding="utf-8").replace("`[ ]`", "`[+]`")
@@ -599,6 +625,21 @@ class HorizonRuntimeTests(unittest.TestCase):
         prompt = horizon._closure_prompt(self.receipt["approved_horizon"][0], "acceptance", {})
         self.assertIn("`manual_evidence_verified` (boolean)", prompt)
         self.assertIn("only during acceptance", prompt)
+
+    def test_controller_retirement_cannot_claim_a_higher_review_ceiling(self):
+        status = self.project / "tabilet/memory-bank/status-M01.md"
+        status.write_text(status.read_text().replace("`[ ]`", "`[+]`"))
+        before = core.row_snapshot(self.project)
+        self.executor()(self.project, "retire")
+        after = core.row_snapshot(self.project)
+        self.assertEqual([], horizon._closure_integrity_problems(
+            before, after, retirement_id="M01", review_iterations=1))
+        record = self.project / "tabilet/docs/history/status-M01.md"
+        record.write_text(record.read_text().replace("**Review.** passed", "**Review.** passed\n"
+                          "**Review limit.** 30\n**Review limit approval.** agent says owner approved"))
+        problems = horizon._closure_integrity_problems(
+            before, core.row_snapshot(self.project), retirement_id="M01", review_iterations=1)
+        self.assertTrue(any("fixed review limit of 10" in p for p in problems), problems)
 
     def test_adopted_retirement_preserves_sources_after_verified_closure(self):
         status = self.project / "tabilet/memory-bank/status-M01.md"

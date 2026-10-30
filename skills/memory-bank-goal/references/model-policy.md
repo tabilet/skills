@@ -82,7 +82,7 @@ capacity is limited. Give each reviewer:
 The `DEFAULT` coordinator remains the sole ledger writer, consolidates one
 iteration report and applies fixes under `DEFAULT`. Each later whole review
 uses fresh review agents; an interrupted review resumes its existing iteration
-with fresh reviewers as needed. Preserve counters and the iteration-10 stop.
+with fresh reviewers as needed. Preserve counters and the approved review-limit stop.
 Missing configuration or incomplete lens coverage cannot yield a clean pass.
 An empty implementation diff still needs acceptance review; never manufacture
 a change just to satisfy review setup.

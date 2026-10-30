@@ -466,7 +466,7 @@ complete protocol request as the objective only when you intend to use
 
 The [native goal service](https://github.com/deepseek-ai/deepseek-harness/tree/dsh-v0.1.5-rc.1/packages/goal/goal)
 owns runtime continuation. Its `maxGoalRounds` limit is separate from the
-**persisted 10-iteration milestone review counter**. A round can contain many
+**persisted milestone review counter (`REVIEW_MAX_ITERATIONS`, default 10)**. A round can contain many
 model requests and tools; it is not a dollar budget. Resuming a session or goal
 does not reset the review counter. DSH completion messages, todos, and goal state
 are not acceptance evidence. Terminal task markers also cannot conceal an

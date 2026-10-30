@@ -1407,7 +1407,7 @@ def _review_checkpoint(repo: pathlib.Path, milestone_id: str) -> dict | None:
         fields["gate"][0], fields["iterations"][0], fields["findings"][0]
     )
     iterations = int(raw_iterations)
-    if not 1 <= iterations <= 10:
+    if iterations < 1:
         raise HorizonError(f"status-{milestone_id}.md has an out-of-range review iteration count")
     try:
         findings = json.loads(raw_findings)
@@ -1421,6 +1421,16 @@ def _review_checkpoint(repo: pathlib.Path, milestone_id: str) -> dict | None:
     ):
         raise HorizonError(f"status-{milestone_id}.md has malformed review findings")
     return {"gate": gate, "iterations": iterations, "findings": findings}
+
+
+def _controller_review_checkpoint(core, store, receipt_path, receipt, repo, identity):
+    checkpoint = _review_checkpoint(repo, identity)
+    if checkpoint is not None and checkpoint["iterations"] > 10:
+        _pause(core, store, receipt_path, receipt,
+               f"interactive review checkpoint for {identity} has {checkpoint['iterations']} "
+               "iterations; controller supports at most 10; resume with the interactive owner",
+               17)
+    return checkpoint
 
 
 def _receipt_review_checkpoint(core, store, repo: pathlib.Path, milestone_id: str, receipt: dict) -> dict | None:
@@ -1564,6 +1574,9 @@ def _closure_integrity_problems(
             if not original_spec or record.get("specification") != original_spec:
                 problems.append(f"retirement changed or discarded the complete specification: {expected_name}")
             metadata = record.get("metadata", {})
+            raw_limit = metadata.get("Review limit", "10")
+            if raw_limit.isdecimal() and int(raw_limit) > 10:
+                problems.append(f"new controller retirement exceeds its fixed review limit of 10: {expected_name}")
             if metadata.get("Outcome") != "completed":
                 problems.append(f"retirement outcome is not completed: {expected_name}")
             if review_iterations is None or metadata.get("Review iterations") != str(review_iterations):
@@ -1754,7 +1767,7 @@ def _close_milestone(core, controller, args, repo, store, receipt_path, receipt,
         "closure_state": "pending", "phase": "review", "review_iterations": 0,
         "evidence": [], "manual_evidence": [],
     })
-    persisted_review = _review_checkpoint(repo, identity)
+    persisted_review = _controller_review_checkpoint(core, store, receipt_path, receipt, repo, identity)
     prior_receipt_review = _receipt_review_checkpoint(core, store, repo, identity, receipt)
     if (
         persisted_review is not None
@@ -1983,6 +1996,7 @@ def run_horizon(
                 _save(store, receipt_path, receipt)
                 core.fail(selection["reason"], 17)
             if selection["status"] == "row":
+                _controller_review_checkpoint(core, store, receipt_path, receipt, root, selection["milestone"]["id"])
                 _run_task(core, controller, args, root, store, receipt_path, receipt, executor, selection, reservations, output_fn)
                 receipt = store.load(receipt_path)
                 reservations.receipt = receipt

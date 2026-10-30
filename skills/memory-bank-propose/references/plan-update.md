@@ -42,6 +42,19 @@ approval; a missing or incompatible selection pauses affected launch refresh
 and preserves existing input for resolution instead of silently replacing it.
 Never copy the protocol into a project or write a merged protocol. Requirements
 stay in the milestone specification; do not duplicate them in `suggested.txt`.
+<!-- BEGIN SHARED review-limit-planning -->
+Preserve explicit `REVIEW_MAX_ITERATIONS` in launch references; emit `10` when
+absent in a new launch. It is a positive integer independent of commit policy.
+A value above 10 requires explicit human approval of that ceiling at execution;
+planning approval alone does not activate it. Preserve stricter project caps and
+existing run limits/counters. Never raise this limit through a preset or an
+automatic repair. Existing projects adopt configurable caps explicitly; surface
+conflicts with an older fixed cap instead of silently rewriting restrictions.
+Use the resolved value in every launch template, never a literal default over an
+explicit value. Apply the minimum of declared project/milestone caps; legacy fixed
+prose remains binding until explicit human adoption resolves the conflict.
+<!-- END SHARED review-limit-planning -->
+
 Preserve explicit `MODEL_POLICY` on refresh. Omission preserves host model
 settings; add a policy only when requested, as a proposal for future execution,
 never as a preset or an effect of planning approval.
@@ -60,7 +73,7 @@ does not support the structured field; do not silently switch protocols.
 Under `--environment dangerous`, synthesize hands-free execution defaults from day one:
 `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`,
 and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local implementation and verification,
-and `- [+] global-repo-push` for workspace organization remotes). `SCOPE_POLICY: workspace-contained`
+and one proposed `[+]` push grant per concrete repository/remote/ref needed by the goal). `SCOPE_POLICY: workspace-contained`
 and `global-local-verify` (`[~]`) enable the goal protocol's standing revision envelope for unprivileged
 workspace-local verification; write an explicit `standing` block (schema in `GOAL.md`) only for such
 local, disposable `cli.local` checks, marked `[~]` (effective when the human approves the launch checksum)
@@ -76,6 +89,33 @@ human policy overrides the preset. Reconcile preserves the approved corrective
 policy during ordinary refreshes; an absent policy defaults to `confirm`.
 Changing that standing policy requires human approval, even inside an automatic
 correction. Omitted selectors in an existing plan preserve its explicit policy.
+<!-- BEGIN SHARED continuous-launch-planning -->
+Before calculating the launch checksum, check proposed grants against global and
+milestone-local policies. For dangerous mode's intended pushes, propose narrowly
+scoped `EXTERNAL_MUTATIONS: {grant_ids: [<push grant IDs>]}` references to the
+concrete per-repository grants, rather than duplicating their targets; never leave an effective push grant paired with
+`EXTERNAL_MUTATIONS: none`. Preserve an explicit prohibition: surface the conflict
+for human resolution or omit the conflicting effective grant, identifying a
+required push as pending approval while allowing authorized local work.
+For each proposed push, resolve the protocol's `scope.content`: `exact-commit`
+with a full `commit`, or explicitly proposed `accepted-goal-commits` with a full
+`baseline` captured before approval. Resolve each target separately, including
+sibling repositories; do not invent wildcard targets or a future baseline.
+The checksum-approved proposal must disclose successive-push intent, including
+plan-only human commits whose complete diff matches the approved planning evidence. Legacy or
+explicitly pinned grants are never silently broadened. These planning changes
+activate no grants and do not alter host/tool permission controls.
+
+When the user requests continuous or unattended work and has not explicitly
+chosen otherwise, propose `OPTION_POLICY: ignore` to defer optional discoveries,
+and `STATUS_PRIORITY` when dependencies alone define the required sequence.
+Preserve an explicit `confirm` or strict `STATUS_ORDER`; never change approved
+selection or policies merely because execution is blocked. The dangerous preset
+alone does not change option or ordering policy. Prefer an authorized ignored
+workspace scratch location over requesting permission for a default external
+temporary path; verify symlink containment and preserve unrelated files.
+<!-- END SHARED continuous-launch-planning -->
+
 Under `--environment sandbox` (default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
 grants, including any explicit `standing` block for local verification, marked `[ ]`).

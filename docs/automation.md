@@ -23,7 +23,7 @@ milestones into long-term history automatically.
 ```mermaid
 flowchart TD
     Launch["Goal Launch (Approved SHA256 + Grants)"] --> Milestone["Active Milestone Execution"]
-    Milestone --> ReviewGate{"Review-Fix Gate (≤10 Iterations)"}
+    Milestone --> ReviewGate{"Review-Fix Gate (approved cap; default 10)"}
     ReviewGate -- "P1/P2 Defects" --> Fix["Apply Fixes & Rerun Verification"]
     Fix --> ReviewGate
     ReviewGate -- "Passed" --> Reconcile["Reconcile Downstream Milestones"]
@@ -73,7 +73,12 @@ Rather than declaring identical grants repeatedly for each milestone, high-level
 `GLOBAL:` grants apply ambient authority across all tasks and milestones in the
 goal:
 
+This example requires explicit approval of successive pushes and replacement of
+the baseline placeholder with the inspected full commit ID before launch.
+
 ```yaml
+EXTERNAL_MUTATIONS: {grant_ids: [global-git-push]}
+
 AUTHORIZATION_GRANTS:
   GLOBAL:
     - [~] grant_id: global-local-test
@@ -89,6 +94,8 @@ AUTHORIZATION_GRANTS:
         remote: https://github.com/example/project.git
         ref: refs/heads/main
         mode: fast-forward
+        content: accepted-goal-commits
+        baseline: <full approved baseline commit>
 ```
 
 Child workers inherit matching `GLOBAL:` grants narrowed to their assigned
@@ -102,7 +109,12 @@ Grants proposed in launch references use checkbox decision markers:
 - `[ ]` (**Need authorization**): Unapproved grants that will pause execution for runtime confirmation if encountered.
 - `[-]` (**Deny**): Explicitly forbidden actions.
 
-Ensuring all required grants are marked `[+]` or `[~]` prevents runtime prompts.
+Approved `[+]` or `[~]` grants avoid repeated permission prompts only within their
+concrete scopes and governing policies. A marker cannot resolve a conflicting ban.
+For successive pushes, explicitly approve `scope.content: accepted-goal-commits`
+and a full baseline; exact-commit grants stay pinned. See the
+[continuation rules](goal.md#continuing-approved-launch) for authorized launch
+refreshes and scoped pushes.
 
 ### D. Declarative Planning Stance (`--environment` Option)
 
@@ -113,9 +125,10 @@ and `GLOBAL:` grants in `suggested.txt`, planning skills (`memory-bank-init`,
 - **`--environment dangerous`**: Configures maximal hands-free execution from day one:
   - Sets `SUGGESTED_UPDATE: auto`;
   - Init and Propose propose `CORRECTIVE_PLANNING: auto`; Reconcile preserves an existing approved corrective policy, defaulting to `confirm` when absent;
-  - Sets `SCOPE_POLICY: workspace-contained` (auto-authorizes sibling repositories within the active workspace directory);
+  - Sets `SCOPE_POLICY: workspace-contained` (binds approved local CLI work to sibling workspace repositories; push targets remain exact);
   - Sets `COMMIT_POLICY: task`;
-  - Emits ambient `GLOBAL:` grants with `[~]` for verification (`global-local-verify`) and `[+]` or `[~]` for repository pushes to authorized workspace organization remotes;
+  - Resolves any proposed push against `EXTERNAL_MUTATIONS` before checksum approval, preserving explicit prohibitions;
+  - Emits ambient `GLOBAL:` grants with `[~]` for verification (`global-local-verify`) and one proposed `[+]` grant per concrete repository/remote/ref needed by the goal;
   - Preserves fail-safe invariants: destructive actions (`sudo`, `ssh`, live browser, or foreign remotes outside workspace) remain ungranted (`[ ]` or omitted) unless explicitly modified;
   - Recommends harness flags in comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
 - **`--environment sandbox`** (Default): Init/Propose propose `CORRECTIVE_PLANNING: confirm`. Standard fail-safe mode (`SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, proposed grants marked `[ ]`).
@@ -145,13 +158,15 @@ protocol enforces non-bypassable safety circuits that will pause execution:
 - **External Real-World Commitments**: Payment authorizations, production
   deployments with external consequences, or legal terms agreement.
 
-### 2. Bounded Milestone Review Gate (10-Iteration Limit)
+### 2. Bounded Milestone Review Gate (Default 10-Iteration Limit)
+`REVIEW_MAX_ITERATIONS` defaults to 10 independently of commit policy. A higher positive integer requires explicit human approval; resumes and repairs preserve the consumed count.
+
 - When a milestone completes implementation, it must pass a rigorous
   verification and multi-perspective review gate.
 - If defects classified as **P1** (blocking acceptance/integrity) or **P2**
   (material defect in supported behavior) are found, the agent must fix them
   and re-verify.
-- If iteration 10 still contains P1/P2 issues, the gate **fails permanently**.
+- If the final allowed iteration still contains P1/P2 issues, the gate **exhausts its approved limit**.
   The milestone is marked `[!]` (blocked), downstream reconciliation is halted,
   and the agent must stop for human direction rather than looping indefinitely.
 
@@ -188,7 +203,8 @@ Run milestones M01, M02, and M03 to completion under the memory-bank goal protoc
 COMMIT_POLICY: task
 INTEGRATION: local-rebase-ff
 SUGGESTED_UPDATE: auto
-EXTERNAL_MUTATIONS: none
+EXTERNAL_MUTATIONS: {grant_ids: [global-repo-push]}
+
 AUTHORIZATION_GRANTS:
   GLOBAL:
     - [~] grant_id: global-local-verify
@@ -196,7 +212,7 @@ AUTHORIZATION_GRANTS:
       executor: assigned-agent
       scope:
         task: declared-implementation-and-verification
-    - [~] grant_id: global-repo-push
+    - [+] grant_id: global-repo-push
       action: git.push
       executor: coordinator
       scope:
@@ -204,6 +220,8 @@ AUTHORIZATION_GRANTS:
         remote: https://github.com/my-org/my-project.git
         ref: refs/heads/main
         mode: fast-forward
+        content: accepted-goal-commits
+        baseline: <full approved baseline commit>
 ```
 
 With this block approved:

@@ -10,6 +10,8 @@ For a project with uncertain later delivery, the optional
 for the current stage and can leave later stages as brief ideas. 
 
 
+Read the [published guides](https://tabilet.github.io/skills/) in English or Simplified Chinese.
+
 ## Contents
 
 1. [Getting started](#chapter-1-getting-started)
@@ -619,8 +621,10 @@ from `tabilet/memory-bank/milestone.md`, complete required verification, and com
 review changes before moving on. Do not create an extra commit when review
 changes nothing. The review-fix gate reviews the whole milestone again after
 every [P1/P2-or-higher](template/tabilet/memory-bank/milestone.md#review-finding-severity)
-fix and requires a clean pass within 10 iterations; if the tenth review still
-finds a blocking issue, the milestone stays incomplete.
+fix and requires a clean pass within `REVIEW_MAX_ITERATIONS` (default 10),
+independent of commit policy. A higher interactive limit needs explicit approval;
+stricter project caps remain binding. If the final allowed review still finds a
+blocking issue, the milestone stays incomplete. Python API execution retains 10.
 During that review it should also decide whether `tabilet/evolution/` needs a new version
 because the product direction, architecture boundary, milestone target, or
 public/private contract direction materially changed.

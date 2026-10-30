@@ -165,7 +165,7 @@ API-runner/controller invocation are outside this feature.
 When a row is the last unfinished item in its milestone, next runs the milestone
 review in `milestone.md` before continuing. The initial full review is iteration
 1; every P1, P2, or higher-severity fix is verified and followed by another full
-review of the whole milestone. A clean pass is required within ten iterations,
+review of the whole milestone. A clean pass is required within the approved review limit (default ten),
 and the counter persists across sessions and reviewers.
 
 Closing a milestone also asks whether `tabilet/evolution/` needs a new version. Only a

@@ -16,6 +16,50 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_grant_phrase_guard_normalizes_case_and_wrapping_and_scans_docs(self):
+        phrase = "GRANTS MARKED `[ ]`, `[+]`, OR `[~]`\n\tBECOME EFFECTIVE"
+        self.assertTrue(repository_checks.pending_grant_phrase_problems("guide", phrase))
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in ("AGENTS.md", "GOAL.md", "skills/memory-bank-goal/SKILL.md"):
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            (fixture / "docs").mkdir()
+            (fixture / "docs/guide.md").write_text(phrase)
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertTrue(any("docs/guide.md" in p for p in repository_checks.goal_continuity_contract()))
+
+    def test_push_examples_require_explicit_policy_and_no_wildcards(self):
+        grant = "AUTHORIZATION_GRANTS:\n  GLOBAL:\n    - [+] grant_id: push-one\n      action: git.push\n"
+        for policy in ("", "external_mutations: NoNe\n", "EXTERNAL_MUTATIONS: 'none'\n", "EXTERNAL_MUTATIONS:\n"):
+            with self.subTest(policy=policy):
+                self.assertTrue(repository_checks.push_example_problems("guide", policy + grant))
+        approved = "EXTERNAL_MUTATIONS: {grant_ids: [push-one]}\n" + grant
+        self.assertEqual([], repository_checks.push_example_problems("guide", approved))
+        self.assertTrue(repository_checks.push_example_problems("guide", approved.replace("[+]", "[~]")))
+        self.assertTrue(repository_checks.push_example_problems("guide", approved + "      Remote: https://example.com/*\n"))
+
+    def test_shared_planning_blocks_reject_byte_drift_and_missing_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in set(path for paths in repository_checks.SHARED_PLANNING_BLOCKS.values() for path in paths):
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual([], repository_checks.shared_planning_blocks())
+                for name, paths in repository_checks.SHARED_PLANNING_BLOCKS.items():
+                    path = fixture / paths[-1]
+                    original = path.read_bytes()
+                    marker = f"<!-- BEGIN SHARED {name} -->".encode()
+                    for replacement in (marker + b" ", b"<!-- removed marker -->"):
+                        with self.subTest(name=name, replacement=replacement):
+                            path.write_bytes(original.replace(marker, replacement))
+                            self.assertTrue(repository_checks.shared_planning_blocks())
+                    path.write_bytes(original)
+                self.assertEqual([], repository_checks.shared_planning_blocks())
+
     def test_upgrade_removal_checks_references_without_rewriting_frozen_evidence(self) -> None:
         # Static contract coverage only: these fixtures do not run an agent
         # or establish that a project's references were actually inspected.
@@ -105,7 +149,7 @@ class CheckHelperTests(unittest.TestCase):
                 ("GOAL.md", "named successor that retains every obligation", "successor that drops required evidence"),
                 ("GOAL.md", "review the originating milestone again using its existing iteration counter",
                  "reset the originating milestone counter after a repair milestone passes"),
-                ("GOAL.md", "At iteration 10, unresolved findings stop further automatic repair cycles",
+                ("GOAL.md", "At the approved review limit, unresolved findings stop further automatic repair cycles",
                  "At iteration 10 create a new repair milestone and continue"),
                 ("template/tabilet/memory-bank/milestone.md", "move the interrupted `[~]` row to `[!]`",
                  "keep the interrupted `[~]` row while another row runs"),

@@ -17,7 +17,7 @@ Never weaken acceptance, required evidence, verification or severity rules, or
 cancel unmet obligations. Supersession retains them through a named successor.
 Keep P1/P2-or-higher findings and the review counter on the originating
 milestone; repair acceptance requires its next full review and cannot bypass
-iteration 10. A new repair milestone has its own additional review gate.
+the approved review limit. A new repair milestone has its own additional review gate.
 This exception does not authorize new features, new action scopes, higher limits
 or unknown checksum drift. Standalone Reconcile retains complete-proposal
 approval. Hand execution back to the owner; this contract never implements,
@@ -136,7 +136,7 @@ work while preserving real prerequisites and unavailable-input blockers.
 
 If the incoming review is an explicitly active bounded-gate pass, persist its
 iteration and findings in the active status without resetting the existing
-counter. Never advance past iteration 10 or treat ordinary review intake as a
+counter. Never advance past the approved review limit or treat ordinary review intake as a
 gate iteration.
 
 ## Keep current truth separate from target work
@@ -212,6 +212,7 @@ M01 -> M02
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
 OPTIMIZE_POLICY: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}
@@ -232,7 +233,7 @@ downstream consumers. When refreshing `suggested.txt`, preserve existing human
 and synthesize new candidate grants with `[ ]` (or `[~]` under goal policy).
 Under `--environment dangerous`, synthesize hands-free defaults: `SUGGESTED_UPDATE: auto`,
 `SCOPE_POLICY: workspace-contained`, `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants
-(`- [~] global-local-verify`, `- [+] global-repo-push`), which enable the goal protocol's standing
+(`- [~] global-local-verify`, one proposed `[+]` push grant per concrete repository/remote/ref), which enable the goal protocol's standing
 revision envelope for unprivileged workspace-local verification; write an explicit `standing`
 block only for local, disposable `cli.local` checks, marked `[~]`, with a budget no larger than the
 gate's default of 3, while destructive actions (`sudo`,
@@ -276,7 +277,7 @@ Before reporting completion, verify:
 7. Current-truth documents contain no unimplemented target state, and verified
    archives are unchanged.
 8. Any active review-gate counter continued from its persisted value and did
-   not exceed 10; ordinary intake did not start a counter.
+   not exceed the effective approved review limit; ordinary intake did not start a counter.
 9. When `suggested.txt` exists, it represents the complete approved active
    graph and a compatible protocol exists. Otherwise no stale launch reference
    remains unless preservation was explicitly approved.

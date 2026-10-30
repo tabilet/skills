@@ -360,7 +360,7 @@ Check retained evidence; teardown eligible lease; dispatch ready milestones
   boundary, reconciles the lease's pending rows, and lets it resume. A
   completed row that is now invalid is retained as `[-]` closed historical
   evidence with a named successor.
-- **Failure isolation.** A blocked row, a review gate exhausted at iteration 10,
+- **Failure isolation.** A blocked row, a review gate exhausted at the approved review limit,
   or an integration conflict stops that lease only. Its branch and worktree are
   kept for inspection, its dependents stay unscheduled, independent leases
   continue, and the owner reports the blocker.

@@ -36,7 +36,8 @@ for a long run. It keeps the objective active; the bundled goal protocol, plus
 any `tabilet/GOAL.md` project addendum, still defines the multi-milestone
 execution protocol. Include the complete protocol request,
 commit policy, and a measurable completion condition. When the disposable
-reference exists, verify that its SHA256 checksum matches human approval before
+reference exists, verify its SHA256 against the original approval or a verified
+authorized refresh under the protocol's Authorized launch refreshes contract before
 activating grants, and let the goal reconcile it first:
 
 ```text
