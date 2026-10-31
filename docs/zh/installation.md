@@ -71,12 +71,12 @@ agy plugin install https://github.com/tabilet/skills
 
 ## DeepSeek Harness {#deepseek-harness}
 
-想要 **Memory Bank 侧边栏和全部七个技能**，就在 Web 配置里装预构建的 v2.16.1 伴侣。
+想要 **Memory Bank 侧边栏和全部七个技能**，就在 Web 配置里装预构建的 v2.16.2 伴侣。
 在运行 DSH 的机器上打开一个终端，执行：
 
 ```bash
 dsh plugin --profile web add \
-  https://github.com/tabilet/tabilet-skills/releases/download/v2.16.1/tabilet-skills-2.16.1.tgz \
+  https://github.com/tabilet/tabilet-skills/releases/download/v2.16.2/tabilet-skills-2.16.2.tgz \
   --ignore-scripts
 ```
 
@@ -91,7 +91,7 @@ dsh plugin --profile web add \
 该伴侣已在 Linux 上验证通过，用的是 Node **24.14.1** 和锁定的 DSH **0.1.5-rc.2** 组件；
 另有一个隔离的 rc.1 启动器，跑的是 rc.2 组件。
 
-只要**技能、不要仪表盘**，就走[纯文件方式](#as-plain-files-you-own)。把 v2.16.1 检出里
+只要**技能、不要仪表盘**，就走[纯文件方式](#as-plain-files-you-own)。把 v2.16.2 检出里
 七个完整文件夹全部复制到 `$DSH_HOME/skills`，通常是 `~/.dsh/skills`。文件系统途径的
 全 rc.1 兼容性是单独测过的。
 
@@ -169,10 +169,10 @@ API 运行器和控制器不消费该参数。
 
 ## 作为你自有的纯文件 {#as-plain-files-you-own}
 
-把 v2.16.1 源码克隆到一个单独目录（七个技能全在里面）：
+把 v2.16.2 源码克隆到一个单独目录（七个技能全在里面）：
 
 ```bash
-git clone --branch v2.16.1 --depth 1 https://github.com/tabilet/skills.git
+git clone --branch v2.16.2 --depth 1 https://github.com/tabilet/skills.git
 ```
 
 把该检出 `skills/` 目录下的每个 `memory-bank-*` 文件夹，复制到你的智能体对应的目录：

@@ -215,14 +215,14 @@ milestones](#run-an-ordered-set-of-milestones).
 ### 1.4 DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
-packages the seven v2.16.1 skills and provides a read-only Memory Bank sidebar
+packages the seven v2.16.2 skills and provides a read-only Memory Bank sidebar
 and reviewable workflow request previews. The tested companion target is Linux,
 Node 24.14.1, and DSH 0.1.5-rc.2. Direct filesystem installation is also
 available; its acceptance evidence has a separate runtime scope.
 
 See the [DSH guide](docs/DSH.md#install-the-dsh-companion) for installation,
 updates, support boundaries, and acceptance evidence. For reproducible source
-installation, use the `v2.16.1` tag and its matching guide. A plugin update does
+installation, use the `v2.16.2` tag and its matching guide. A plugin update does
 not migrate project rules or history.
 
 <a id="update-installed-skills"></a>
