@@ -3,7 +3,7 @@
 Coding agents work better when a project can explain itself: what it is, what is
 done, and what comes next. The **Tabilet Harness** gives you a small set of plain-text
 files—a **Tabilet memory bank**—that does exactly that. You install / copy them into your project and
-own them from that moment on. Everything here is plain text, so `git` is the only tool you need. 
+own them from that moment on. The memory bank itself needs no runtime; optional tools have their own prerequisites.
 
 For a project with uncertain later delivery, the optional
 [`tabilet/stages.md`](#stage-planning) records broad stages. Init plans milestones
@@ -108,9 +108,6 @@ audit toolkit, and the one-time v1.5.0 migration command. All of them use only
 the standard library. The audit toolkit also needs Python's `sqlite3` module with
 SQLite 3.24.0 or later; without it, auditing reports a gap and work continues.
 
-The existing-project instructions below also use
-[ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`) for the initial inventory.
-
 The quickest way to start does not require cloning anything. Install the Tabilet plugin
 and let its namespaced `memory-bank-init` skill interview you and write the
 Tabilet memory bank for you:
@@ -135,8 +132,8 @@ git clone https://github.com/tabilet/skills.git
 cd skills
 ```
 
-Nothing runs from the clone itself. You copy files out of it: `template/` into a
-project, `harness/` into your home directory.
+Copy `template/` into a project and, if needed, install the optional tools from
+`harness/` into your home directory.
 
 <a id="what-is-in-this-repository"></a>
 ## Chapter 2. What Is In This Repository
@@ -355,42 +352,13 @@ form there.
 
 #### 4.1.3 With Help Of An AI Agent
 
-For a new project, you can use the sample files as the initial structure and ask
-an AI agent to fill them in after you describe the product.
-
-Warning: copying these files over an existing project can overwrite files already
-on disk. Make a backup or commit your current work first.
-
-From the new project root:
-
-```bash
-cp -R /path/to/skills/template/. .
-mkdir -p docs
-```
-
-Then chat with the agent until the product, users, boundaries, commands, and
-first milestone are clear. Ask it to fill in:
-
-- `AGENTS.md`
-- `tabilet/memory-bank/product.md`
-- `tabilet/memory-bank/architecture.md`
-- `tabilet/memory-bank/tech-stack.md`
-- `tabilet/memory-bank/milestone.md`
-- `tabilet/memory-bank/status-M01.md`
-- `tabilet/evolution/prompt-v1.md`
-- `tabilet/evolution/result-v1.md`
-
-Example prompt:
-
-```text
-Read the sample AGENTS.md, tabilet/memory-bank/*, and tabilet/evolution/* files. Based on our
-discussion of this new project, replace the placeholders with accurate project
-content. Keep README user-facing, put long-form references in docs/, define the
-status ID lanes in tabilet/memory-bank/milestone.md, and make tabilet/memory-bank/status-M01.md
-contain the first actionable milestone rows.
-```
+Instead of filling the copied template yourself, describe the project and ask an
+agent to replace the placeholders with supported facts, verification commands,
+and an actionable first milestone. Copying into an existing project can
+overwrite files; back up or commit existing work first.
 
 <a id="set-up-an-existing-project"></a>
+
 ### 4.2 Set Up An Existing Project
 
 `memory-bank-init` handles a small existing package directly. It reads what the
@@ -439,66 +407,14 @@ harness.
 
 #### 4.2.2 Manual
 
-For an existing project, read before writing:
-
-```bash
-find . -name '*.md' -print | sort
-rg -n "TODO|FIXME|roadmap|architecture|security|deploy|test|release" .
-rg --files
-```
-
-Then:
-
-1. Read the root README, agent guides, docs, package READMEs, and major package
-   comments.
-2. Copy in `template/` from this repository.
-3. Fill the memory bank from what the project already says, not from an imagined
-   rewrite.
-4. Move stable long-form references into `docs/`.
-5. Convert duplicated roadmap/status material into `tabilet/memory-bank/milestone.md`
-   and one `tabilet/memory-bank/status-<LANE><NN>.md` file per milestone.
-6. Keep known gaps visible in the matching status file instead of hiding them.
-
-#### 4.2.3 With Help Of An AI Agent
-
-For an existing project, the agent can do the inventory and first memory-bank
-draft. This works best when the project already has useful README, docs, package
-comments, tests, or CI files.
-
-Warning: copying these sample files into an existing project can overwrite
-existing `AGENTS.md`, `tabilet/memory-bank/`, or `tabilet/evolution/` files. Commit first, make a
-backup, or copy the samples to a temporary location before asking the agent to
-merge them.
-
-From the existing project root:
-
-```bash
-cp -R /path/to/skills/template/. .
-mkdir -p docs
-```
-
-Then ask the agent to read the project before writing:
-
-```text
-Read the existing README, docs, package README files, tests, build files, and
-major source directories. Use that actual project content to fill in AGENTS.md,
-tabilet/memory-bank/*, and tabilet/evolution/*. Preserve useful existing documentation by moving
-long-form references into docs/. Keep known gaps visible in the matching
-tabilet/memory-bank/status-<LANE><NN>.md file. Do not invent product direction that is
-not supported by the existing project.
-```
-
-The agent should:
-
-1. Inventory existing markdown and source layout.
-2. Identify commands, dependencies, tests, and harnesses.
-3. Fill in the memory bank from current project reality.
-4. Move or summarize long-form references into `docs/`.
-5. Keep `README.md` simple and user-facing.
-6. Leave unresolved gaps as pending or blocked rows in the matching
-   `tabilet/memory-bank/status-<LANE><NN>.md` file.
+Inventory the project's documentation, tests, build files, and source before
+writing. Back up or commit existing files; copy the template to a temporary
+location if it would overwrite them. Merge supported facts and commands into the
+memory bank, and keep unresolved gaps visible. An agent can perform the same
+inventory and propose the merge for your review.
 
 <a id="stage-planning"></a>
+
 ### 4.3 Stage Planning
 
 For a project with uncertain later work, Init can create an optional
@@ -515,52 +431,17 @@ applies. The [Init guide](docs/init.md) describes the staging question and outpu
 <a id="propose-a-requested-change"></a>
 ### 5.1 Propose A Requested Change
 
-When an initialized project needs a new feature, candidate promotion, or change
-to future direction, use `memory-bank-propose`. It inspects current records and
-implementation, asks only consequential questions, and presents one complete
-proposal with acceptance, dependencies, downstream effects, and exact file
-actions. It rechecks affected files and IDs before approved planning writes.
-The new work is implemented later under a separate request. See the
-[Propose guide](docs/propose.md).
+Use `memory-bank-propose` for a feature, candidate promotion, stage, or change
+of direction in an initialized project. It inspects current evidence and presents
+one complete plan and file actions for approval; implementation is separate.
 
-Use `--stages` to propose a stage overview, or `--stage STG-02` to focus on an
-existing stage. The request can enrich its context without scheduling tasks;
-ask explicitly to plan milestones when ready. A stage label alone does not
-defer approved pending work. Propose can present an explicit rescope for
-approval, preserving the old task record and reconciling its dependencies.
-
-Use `--environment dangerous`, `--environment sandbox` (the default when omitted),
-or `--environment least` to set the hands-free authorization stance for the proposed
-launch reference and milestone policies. Natural English modifiers adapt the environment:
-`plus <action>` (e.g., `plus sudo`) explicitly adds concrete approval in milestones
-requiring it; `minus <action>` or `deny <action>` sets the action to `[-]` (denied); and
-`but <action> in milestone <status-XNN.md | MNN>` attaches a milestone-specific policy
-override in `milestone.md`. Even under `--environment dangerous`, destructive actions
-(`sudo`, `ssh`, live browser, or repository push outside the workspace) remain ungranted
-unless explicitly authorized via modifiers like `plus sudo`.
-
-Init and Propose also propose `CORRECTIVE_PLANNING: auto` under dangerous,
-and `confirm` under sandbox or least. When approved for execution, `auto`
-covers necessary repair planning within the original outcome, existing
-grants and limits, including new repair milestones and launch/hash updates.
-Nested Reconcile honors that standing approval; standalone Reconcile keeps
-its gate. Next completes only necessary prerequisites and returns to its
-selected task. See [standing corrective planning](docs/goal.md#standing-corrective-planning).
-
-Use `--test standard` (the default when omitted), `--test browserlight`, `--test golight`,
-`--test rustlight`, `--test tslight`, `--test jslight`, or `--test pythonlight` across planning
-skills (`init`, `propose`, `reconcile`) to configure testing standards and execution limits in
-`tabilet/memory-bank/tech-stack.md` and `AGENTS.md`. Light profiles default to a **30-second
-focused-test target with a two-minute cap**, **20 minutes for full regression**, and
-**five minutes for applicable UI/race checks**. Explicit project limits override these
-starting defaults; `standard` adds no extra constraints. Account for compilation
-separately, and run full regression once per unchanged milestone closure candidate.
-Routine fixtures stay offline and small, without Xvfb, custom supervisor daemons,
-kernel debugging or multi-gigabyte snapshots. Physical browser/end-to-end proof
-belongs to a named final release gate with its required coverage retained. These
-are planning instructions, not automatic timeout enforcement or action authority.
+Planning skills accept environment and testing profiles. Presets propose policies;
+they do not grant authority. Explicit project policies, verification requirements,
+and approvals still apply. See the [Propose guide](docs/propose.md),
+[authorization guide](docs/authorizations.md), and [Init guide](docs/init.md).
 
 <a id="reconcile-a-new-review"></a>
+
 ### 5.2 Reconcile A New Review
 
 After a project has its milestone/status harness, a new code, architecture,
@@ -705,120 +586,36 @@ marker records the selection but does not grant external-mutation authority.
 <a id="keep-long-term-memory-without-growing-the-active-plan"></a>
 ### 6.2 Keep long-term memory without growing the active plan
 
-The Tabilet memory bank is the working context, not a lifetime log. Keep current facts,
-active plans, and applicable learning there; preserve retired evidence under
-`tabilet/docs/history/` and consult it on demand. This prevents accumulated history
-from growing the startup read indefinitely. It does not impose a hard token or
-file-size cap: genuinely active work and relevant knowledge can still grow.
+Keep current facts, active work, and applicable lessons in the memory bank.
+After a milestone passes its review, verification, consolidation, and downstream
+reconciliation, the project's adopted procedure can retire its specification and
+status to frozen records in `tabilet/docs/history/`. Terminal task markers alone
+do not establish acceptance; permanent IDs and frozen history are never reused or
+rewritten. Superseded knowledge belongs in the append-only knowledge journal.
 
-**What triggers it?** `memory-bank-init` establishes the convention in newly
-initialized projects. During normal work, `memory-bank-next` and
-`memory-bank-goal` follow the project's milestone-closing procedure: after the
-bounded review gate, verification, knowledge consolidation, and downstream
-reconciliation pass, the agent retires the milestone. The same procedure can
-be followed without skills. “Automatic” means part of that agent workflow,
-not a background process, timer, or plugin-install side effect.
-
-Retirement is milestone-level, not row-level. Individual completed, cancelled,
-or closed-historical rows stay in their active status file until the whole
-milestone qualifies. Unresolved work or missing closure evidence keeps it
-active; terminal markers alone do not prove acceptance. Retirement respects
-the governing commit policy.
-
-**What stays, and where does history go?** Paths below are relative to the
-project root. History files are created only when needed.
-
-| Content | Location and lifetime |
-|---|---|
-| Current product/domain facts, architecture, and stack | Their existing files in `tabilet/memory-bank/`; keep them current. |
-| Applicable learning, rationale, and evidence | `tabilet/memory-bank/lessons.md`; curate and merge duplicates, not one entry per milestone or session. |
-| Active specifications, task rows, and later candidate directions | `tabilet/memory-bank/milestone.md` and active `status-<LANE><NN>.md` files. Retired specifications and index rows leave this active plan; one history-index link remains. |
-| Complete retired milestone specification and status document | `tabilet/docs/history/status-<LANE><NN>.md`; frozen literal Markdown with provenance, verification, review iterations, and consolidation links. |
-| Retired IDs, outcomes, and record links | `tabilet/docs/history/index.md`; also links the knowledge journal when present. |
-| Superseded facts and lessons | `tabilet/docs/history/knowledge.md`; append-only old wording, source, reason, supporting evidence, and replacement reference (or why there is none). |
-
-**Knowledge has its own trigger.** During ordinary maintenance, update relevant
-lessons when reusable learning is supported by evidence. Before materially
-replacing or removing obsolete knowledge from current memory, preserve it in
-the knowledge journal. This applies outside milestone closure too. Routine
-wording edits need no journal entry, and still-useful lessons stay active even
-after their supporting milestone retires.
-
-**Retirement is not a context archive.** `memory-bank-archive` creates optional
-frozen repository baselines in `tabilet/docs/archive-<LANE><NN>.md`; it does not retire
-milestones. Routine retirement needs no separate archive invocation or clean
-snapshot commit. `memory-bank-reconcile` plans work from a new review and may
-propose evidenced knowledge updates, but does not retire milestones.
-`tabilet/evolution/` remains reserved for direction changes.
-
-**How do you retrieve old memory?** Search current memory first, then the history
-index by permanent ID or the knowledge journal by topic, and open only the
-relevant records. Original paths in literal excerpts retain their original
-document context. IDs remain reserved; historical rows are never retried.
-Cancellation and supersession do not automatically satisfy completion
-dependencies. Later corrections point back from new knowledge or remediation,
-without rewriting frozen records. The Markdown evidence is readable without
-Git; Git adds intermediate revisions when present.
-
-**Existing projects need explicit adoption.** Update their project instructions
-and, if used, adopt a compatible API runner before retirement. Separately request
-cleanup of older closed milestones; missing closure evidence keeps them active.
-A completed milestone that closed before the review gate was adopted may retire
-as a legacy closure that records no invented review count.
-Installing newer skills alone never merges project instructions or moves files.
-
-See the complete
+Retirement is distinct from `memory-bank-archive`, which captures optional frozen
+context baselines. Existing projects must explicitly adopt retirement; installing
+skills alone does not move files or change rules. See the
 [retirement contract](template/tabilet/memory-bank/milestone.md#long-term-memory-and-retirement)
-and the tutorial's
-[worked example](docs/TUTORIAL.md#example-a-milestone-closes-and-a-lesson-survives).
-For when to invoke each skill, see [skill use cases](docs/USE_CASES.md), especially
-[automatic retirement](docs/USE_CASES.md#6-automatic-retirement-during-normal-work)
-and [explicit successor snapshots](docs/USE_CASES.md#7-explicitly-snapshot-a-materially-changed-system).
+and [worked example](docs/TUTORIAL.md#example-a-milestone-closes-and-a-lesson-survives).
 
 <a id="upgrade-an-existing-project"></a>
+
 ### 6.3 Upgrade an existing project
 
-Use `memory-bank-upgrade` after updating the installed skills. It compares an
-existing project's rules with its bundled template, shows a complete merge
-proposal, and applies only approved changes. It preserves plans, local policies,
-task states, permanent IDs, review counters, and frozen history. An already
-compatible project is a no-op; older milestones are not retired by the upgrade.
+After updating the skills, use `memory-bank-upgrade` to compare an existing
+project's workflow rules with the bundled contract. It presents a complete merge
+proposal and applies only approved changes, preserving project plans, custom
+policies, task states, IDs, review counters, and frozen history. Updating the
+skills alone does not change project files or migrate v1.5.0 projects.
 
 Invoke `/memory-bank:memory-bank-upgrade` in Claude Code,
 `$memory-bank:memory-bank-upgrade` in Codex, or `/memory-bank-upgrade` in DSH.
-Use Web for the proposal and approval; a headless continuation requires the
-exact approved proposal and stops for missing decisions or capabilities.
-The skill carries a complete reference template, so no repository checkout or
-network download is needed after installation. Its assets are examples and
-contracts, never permission to overwrite project content. The manual equivalent
-is:
-
-1. Update the [installed skills](#install-the-seven-skills), preserving their
-   supporting resources. If used, update the separately installed
-   [API runner](docs/EXECUTION.md) before adopting retirement.
-2. Compare the project's instructions with `template/AGENTS.md`, the review and
-   retirement rules in `template/tabilet/memory-bank/milestone.md`, the status contract,
-   and `template/tabilet/memory-bank/lessons.md`. Inventory active and retired IDs,
-   frozen archives, custom rules, verification commands, and any review counter.
-3. Request a file-by-file proposal for merging the applicable rules. Preserve
-   project facts, existing task states, permanent IDs, historical evidence,
-   local policies, and the persisted review count. Upgrade classifies an existing
-   `tabilet/GOAL.md` against the bundled protocol: it proposes removing a stock
-   copy, reducing a modified full copy to its project-specific rules, and keeps an
-   addendum; it never writes a merged protocol.
-4. After approval, apply the scoped merges and verify links, status tables,
-   protocol compatibility, and the project's required checks. Do not copy
-   template placeholders over live content or rerun initialization.
-5. Request retirement of older closed milestones separately. Retain active
-   sources when verification, review, consolidation, or downstream evidence is
-   missing. Create history files only when there is evidence to preserve.
-
-An ordinary-language request can start this review: “Use memory-bank-upgrade
-to compare this project's rules with the bundled contract. Preserve our
-plans, custom instructions, IDs, and history. Show the complete file actions
-before writing.” This request does not authorize implementation tasks or commits.
+See the [Upgrade guide](docs/upgrade.md), including the separate v1.5.0
+migration and explicit adoption of retirement.
 
 <a id="run-an-ordered-set-of-milestones"></a>
+
 ### 6.4 Run an ordered set of milestones
 
 The workflow above advances one row at a time. To work through several
@@ -1001,52 +798,10 @@ paraphrase of it.
 <a id="suggested-models"></a>
 ### 7.1 Suggested models
 
-By default, skills run with the model chosen by their host agent, and project
-files remain portable across providers. Interactive Goal and Next also accept
-an opt-in [model policy](docs/goal.md#optional-model-policy): you choose the
-ordinary-work model and the model for fresh read-only whole-milestone reviewers
-from any provider supported by your host. Effort settings are optional and use
-that host's supported values. No OpenAI model or account is required.
-Without the field, host settings stay
-in effect. An unsupported selected policy pauses affected work for an explicit
-replacement; it never silently falls back. Model capability still matters
-because the skills do different kinds of work. The names below are current Codex examples, not names
-the skills recognize or require; Codex may rename or replace them, and other
-providers have their own model names.
-
-| Work shape | Skills | Capability profile | Current Codex example |
-|---|---|---|---|
-| Open-ended discovery and planning | `memory-bank-init`, `memory-bank-propose`, `memory-bank-reconcile` | Deep model with strong judgment | Sol with high reasoning |
-| Bounded evidence, rule analysis, and combined implementation-review runs | `memory-bank-archive`, `memory-bank-upgrade`, `memory-bank-goal` | Balanced model with strong reasoning and tool use | Terra with high reasoning |
-| One explicit task from an approved plan | `memory-bank-next` | Fast model for clear, repeatable work | Luna with high reasoning, followed by a manual balanced-model review such as Terra |
-
-Choose the closest equivalent available in the host agent: a deeper model for ambiguous planning and
-high-consequence review, a balanced model for evidence-heavy analysis, and a
-fast model for clear tasks with explicit acceptance and verification. Escalate
-from Luna to Terra or Sol when implementation exposes an unclear dependency,
-changes architecture, or fails verification repeatedly. Use Sol for a
-release-critical, security-sensitive, or unusually broad final review.
-
-A skill cannot change its parent session's model or reasoning effort in place.
-A selected model policy checks the coordinator's actual settings and chooses
-the user-selected model and any requested effort for fresh children through
-supported host controls. In
-Codex, choose the model with `/model` or start the session with a model profile. A Goal run contains
-both implementation and the bounded milestone review, so a balanced model such
-as Terra is the practical default for the whole run. Next can use a fast model
-such as Luna for a clear row and then receive a manual review from a balanced
-model such as Terra. If that row will close its milestone and trigger the
-closing review inside Next, use the balanced model for the Next run as well. Task state,
-review counters, and acceptance evidence remain in the project files across a
-separate review handoff.
-
-`memory-bank-init` is the one that changes the experience most: it maps one
-delivery boundary as a design tree, asks each dependency-ready frontier as a
-numbered round with recommended answers, and looks up repository facts instead
-of asking you for them. It writes nothing until you approve both the active
-horizon and every file action. You never see a bracketed placeholder, because
-the memory bank arrives filled in. *(Interview technique adapted from the `grilling` skill in
-[mattpocock/skills](https://github.com/mattpocock/skills), MIT.)*
+Skills use the host agent's selected model by default. Choose stronger reasoning
+for ambiguous planning and milestone review; a faster model can suit a clear,
+bounded task. Goal and Next support an optional [model policy](docs/goal.md#optional-model-policy)
+for supported hosts. Project files remain provider-independent.
 
 ### 7.2 Supported agents (Claude Code, Codex, agy, DSH)
 
@@ -1054,11 +809,11 @@ Claude Code, Codex, and `agy` (Google Antigravity) read the same `SKILL.md` form
 **and the same manifest**. DSH loads the same complete directories through its
 filesystem skill loader; see [DSH installation](#74-dsh-installation).
 
-**Claude Code:**
+**Claude Code:** Run these commands in your terminal:
 
 ```bash
-/plugin marketplace add tabilet/skills
-/plugin install memory-bank
+claude plugin marketplace add tabilet/skills
+claude plugin install memory-bank@tabilet
 ```
 
 **Codex** has its own plugin system, and reads
@@ -1142,54 +897,18 @@ milestones](#run-an-ordered-set-of-milestones).
 ### 7.4 DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
-packages the seven v2.15.0 skills and adds a native
-Memory Bank sidebar with task, memory, acceptance, stage, history, and SQLite
-browsing views. It prepares workflow requests for
-your conversation; the user reviews and sends them. It makes no model calls or
-project writes while browsing or preparing requests. The companion targets
-DSH **0.1.5-rc.2**, Linux, and Node **24.14.1**. See
-[companion installation and release status](docs/DSH.md#install-the-dsh-companion).
-The direct filesystem route below remains available independently.
+packages the seven v2.16.1 skills and provides a read-only Memory Bank sidebar
+and reviewable workflow request previews. The tested companion target is Linux,
+Node 24.14.1, and DSH 0.1.5-rc.2. Direct filesystem installation is also
+available; its acceptance evidence has a separate runtime scope.
 
-DSH provides tools, permissions, and persistent sessions; memory-bank defines
-approved engineering work, verification, review, and project history. The
-tested configuration is **DSH 0.1.5-rc.1 on Linux with Node 24**, in **Web** and
-the **headless** one-shot profile. Credential-free integration checks and the
-eight bounded live workflow scenario groups reached accepted final states after
-the documented corrections. The
-[observed test results](docs/DSH.md#acceptance-evidence) record the exact scope,
-corrections, cost, and limitations; loader tests alone do not prove acceptance.
-
-Copy the complete directories from your chosen release checkout's `skills/`
-into `$DSH_HOME/skills`, defaulting to `~/.dsh/skills`, using the
-[preserving installation commands](docs/DSH.md#install-the-six-bundles). They
-keep supporting references and init's bundled protocol, allow identical repeat
-installation, and stop on differing existing content. `~/.agents/skills` is an
-alternative; higher-priority duplicates can shadow an update. DSH uses its
-existing filesystem loader, without a new plugin or installer CLI.
-
-Follow [update or removal](docs/DSH.md#update-or-remove) to back up and replace
-only the identified memory-bank bundles. Removal retains those bundles in a
-backup and leaves project memory, credentials, and unrelated skills alone.
-Installing updated skills never migrates project instructions or history.
-For a reproducible installation, use the `v2.15.0` tag and its matching guide.
-A marketplace install or `main` download follows the repository's current
-published state.
-
-Start `dsh web` from your project, confirm the workspace, and invoke
-`/memory-bank-init`, `/memory-bank-archive`, `/memory-bank-propose`,
-`/memory-bank-upgrade`, or `/memory-bank-reconcile` for
-interviews and explicit approvals. Use `/memory-bank-next`, `/memory-bank-goal`,
-or an ordinary-language request for execution. For pre-approved work, use
-`dsh --profile headless 'complete authorized request'`; the
-[headless examples](docs/DSH.md#headless-workflow) include scope and stop rules.
-A process can exit with a question or unfinished milestone: exit status, native
-todos, and native goal state never prove acceptance. Keep one execution owner
-for the active ledger. See [the DSH tutorial route](docs/TUTORIAL.md#dsh-route)
-and [detailed integration guide](docs/DSH.md) for prerequisites, permissions,
-resource loading, goal continuation, and verification.
+See the [DSH guide](docs/DSH.md#install-the-dsh-companion) for installation,
+updates, support boundaries, and acceptance evidence. For reproducible source
+installation, use the `v2.16.1` tag and its matching guide. A plugin update does
+not migrate project rules or history.
 
 <a id="update-installed-skills"></a>
+
 ### 7.5 Update installed skills
 
 Updating installed skills refreshes the tools available to your agent. Remember:
@@ -1252,159 +971,41 @@ authoritative documentation and manual task tracking.
 
 ### If you already use `/grill-me`
 
-`/grill-me` and `/grilling` from
-[mattpocock/skills](https://github.com/mattpocock/skills) end where they mean
-to: *"Do not act on it until I confirm we have reached a shared understanding."*
-Stopping there is the right call for a general-purpose interview, and it is why
-that skill works on anything.
-
-But when the session closes, the understanding closes with it. Nothing is on
-disk, nothing an agent can pick up tomorrow, and nothing to execute against.
-
-`memory-bank-init` is the same interview discipline pointed at a persistent
-artifact. It asks dependency-independent decisions together in frontier rounds,
-each with a recommended answer, and looks facts up rather than asking about
-them. Ask for one-at-a-time pacing if that is easier. Run it **in the same
-session, right after the grill**:
-
-```text
-/grill-me                              # explore the design; no files written
-/memory-bank:memory-bank-init          # Claude Code plugin
-$memory-bank:memory-bank-init          # Codex plugin
-```
-
-It will not re-ask what you already settled. "Look up facts, ask about
-decisions" applies to the conversation as much as to the repository, so a grill
-you have just finished makes for a short interview, mostly confirming a
-proposed breakdown of lanes and milestones.
-
-What the memory bank keeps after the session ends:
-
-| | After `/grill-me` | After `memory-bank-init` |
-|---|---|---|
-| Where the decisions live | The conversation | `product.md`, `architecture.md`, `tech-stack.md` |
-| Tomorrow's agent | Starts cold | Reads `AGENTS.md` and knows |
-| Next action | You decide | The next `` `[ ]` `` row |
-| Executing it | — | `memory-bank-next`, or `memory-bank-goal` for a set |
-
-The two are complements, not rivals. Keep `/grill-me` for decisions that produce
-no project, such as an architecture argument, a hiring plan, or a talk outline. Reach for
-`memory-bank-init` when the thing you are grilling about is a codebase that has
-to still know what it is next week.
+After a design interview, run `memory-bank-init` in the same session to turn
+agreed decisions into an approved, persistent project plan. The interview
+technique is adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
 
 <a id="optional-sqlite-audit-and-lookup"></a>
+
 ## Chapter 8. Optional SQLite Audit And Lookup
 
-Markdown remains authoritative. The optional `tabilet-audit` toolkit records
-workflow evidence in **one database per project**, always at
-`tabilet/audit.sqlite3`, and builds a disposable Markdown lookup index.
-Linked Git worktrees share the primary checkout's database and enabled setting.
-Audit is disabled by default and must be enabled manually in each project.
-
-Install the toolkit from a `skills` checkout:
-
-```bash
-install -d "$HOME/.local/bin"
-install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
-install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py "$HOME/.local/bin/"
-install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-Then enable only the project you choose:
+Markdown remains authoritative. Optional `tabilet-audit` records workflow
+evidence and maintains a rebuildable lookup index at `tabilet/audit.sqlite3`;
+linked worktrees share the primary checkout's database. Recording is disabled by
+default and requires explicit per-project opt-in:
 
 ```bash
 tabilet-audit audit enable /absolute/path/to/project
 tabilet-audit audit status /absolute/path/to/project
 ```
 
-The same commands work on Linux and macOS. On Windows, or without installing a
-shell launcher, invoke the existing Python CLI from the checkout:
-
-```powershell
-py -3 C:\path\to\skills\harness\tabilet_audit_host.py audit enable C:\path\to\project
-py -3 C:\path\to\skills\harness\tabilet_audit_host.py audit status C:\path\to\project
-```
-
-Setup creates or preserves `tabilet/.gitignore` and appends `/audit.sqlite3*`, plus the
-offline-reflection proposal path `/memory-bank/suggested-harness-update.md`.
-Commit that ignore file; the database, WAL, shared-memory, journal, and temporary
-initialization files remain untracked. No environment variable or database-path
-option is needed. The saved setting survives new agent sessions; enabling A
-leaves B disabled.
-
-To stop recording:
-
-```bash
-tabilet-audit audit disable /absolute/path/to/project
-```
-
-See [installation, commands, capture policy, and recovery](docs/sqlite.md#install-and-use-the-optional-toolkit).
-
-The API runner records enabled runs; interactive skills can use the same optional
-CLI. Exact chat capture requires text supplied by the host. Default audit capture
-stores metadata; the lookup index separately contains current Markdown text.
-Installing skills alone never creates a database. Existing
-snapshot evidence stays readable; new full-file snapshot capture is deferred.
-
-Install the explorer module and web assets using the linked guide if you want
-the browser view. The optional `tabilet-audit explorer PROJECT --port 8000`
-serves a local browser explorer bound to a loopback address. Overview summarizes active
-milestones, history, archives, and evolution; Timeline groups goal children and
-opens the recorded request, output, changes, and resolved current state; To-do
-groups resume, ready, waiting, blocked, and review-required work with dependency
-links. Filters and selected details stay in the URL. The explorer keeps recorded
-evidence visible when it withholds recommendations, rechecks live source hashes,
-and prepares follow-up text for copying only. It does not launch an agent, change
-Markdown, or create task rows. From a remote server, use
-`ssh -N -L 8000:127.0.0.1:8000 user@host` and browse to `http://localhost:8000/`.
+See [installation and use](docs/sqlite.md#install-and-use-the-optional-toolkit)
+for toolkit installation, ignore files, disabling audit, and platform instructions.
 
 <a id="sync-and-repair"></a>
+
 ### 8.1 Sync and Repair
 
-`audit enable` already creates the database if needed. `index sync` builds or
-refreshes its Markdown lookup tables. Run it:
-
-- After initializing the memory bank, to populate the first searchable index.
-- After manual Markdown edits or changes made outside an audited workflow.
-- When the SQLite sidebar or Explorer reports stale or incomplete lookup data.
-
-```bash
-tabilet-audit index sync /absolute/path/to/project
-tabilet-audit index status /absolute/path/to/project
-```
-
-From the project folder, use `.` instead of the absolute path. Audited workflows
-normally refresh the index when they finish, so a manual sync is not required
-after every task. **Sync preserves the enable/disable setting:** enabled stays
-enabled, disabled stays disabled, and a new database created by sync starts with
-audit disabled. It does not change project Markdown or durable audit history.
-
-If older retired records make refresh fail with `expected one fenced markdown
-document` or `expected Milestone specification and Status record sections`,
-follow [retirement-index recovery](docs/sqlite.md#recover-a-failed-retirement-index):
-update the checkout, reinstall the optional toolkit, and rebuild the index.
-Updating the Tabilet plugin alone does not update `~/.local/bin`; preserve frozen Markdown
-and the audit database during recovery.
-
-```bash
-tabilet-audit index sync /absolute/path/to/project --rebuild
-tabilet-audit index status /absolute/path/to/project
-```
-
-Inspect the reported diagnostics if the refresh remains incomplete.
-
-To discard a broken database, stop its agents and Explorer, disable audit if the
-database is readable, and delete `tabilet/audit.sqlite3` and its `-wal`, `-shm`,
-and `-journal` sidecars. For linked worktrees, use the primary checkout's database
-path reported by `audit status`. Missing storage leaves audit disabled. You can
-rebuild lookup data without enabling audit; deleted audit history is not rebuilt
-from Markdown. This changes no Markdown or frozen records.
-
-If you have an older shared database (including one from before v2.6.0), you can
-ask your LLM agent to extract this project's history and import it into its SQLite database.
+Use `tabilet-audit index sync /absolute/path/to/project` after manual Markdown
+changes or when lookup data is stale. Sync does not enable audit or rewrite
+Markdown and durable audit history. See [index recovery](docs/sqlite.md#recover-a-failed-retirement-index)
+for diagnostics and rebuilding the index without changing frozen records; a
+deleted audit history cannot be rebuilt from Markdown. For an older shared
+database, ask your LLM agent to extract this project from its history and import
+it into its own SQLite database.
 
 <a id="install-the-api-harness"></a>
+
 ## Chapter 9. Install The API Harness
 
 This section is optional. Everything above works without it, because the Tabilet Harness
@@ -1418,263 +1019,81 @@ this memory-bank shape. It needs Python 3.9 or later and nothing else.
 <a id="api-changes-since-v240"></a>
 ### 9.1 Changes since v2.4.0
 
-The v2.5 goal protocol adds sub-agent execution instructions for capable agents.
-The two API paths retain their existing execution scope:
-
-| Path | Execution and context | Commit policy |
-|---|---|---|
-| Standalone `tackle-memory-bank-api-loop` | Serial, one actionable row per run; fresh conversation for each row. | A commit is required per run. |
-| Optional `tabilet` controller | Serial rows within one approved horizon; separate planning, task, and closure conversations. | Host commits and required closure follow the approved receipt. |
-| Agent running the goal protocol | Delegation and concurrency depend on the agent's capabilities and explicit project/request authorization. | The resolved goal `COMMIT_POLICY` governs. |
-
-Neither API path adds a native sub-agent scheduler. The controller still rejects
-linked worktrees, so it does not execute the goal protocol's concurrent leases.
-See the [execution reference](docs/EXECUTION.md#changes-since-v240).
-
-Since v2.6.0, the audit redesign uses `tabilet/audit.sqlite3` and manual
-per-project enable/disable commands. Database-path options and environment
-overrides are removed. Reinstall the optional toolkit files together; updating
-skills alone does not update the installed runner or controller. Index
-compatibility fixes do not relax the runner's status/history validation.
-See [SQLite setup](#optional-sqlite-audit-and-lookup) and
-[Sync and Repair](#sync-and-repair). Published v2.4.0 and v2.5.x tags retain the
-storage behavior documented in their release notes.
-
-For an interactive skill workflow, adopting newer goal instructions does not
-require installing either API path. Check the executable you actually use:
-an older copy in `~/.local/bin` is independent of this checkout and the plugin.
-Reinstall an existing audit toolkit as a set from one release, including its
-runner/parser and any installed Explorer files; see the
-[toolkit installation](docs/sqlite.md#install-and-use-the-optional-toolkit).
-The obsolete `TABILET_AUDIT_DB` variable does not select storage or enable audit
-in the current toolkit. Existing external databases are left untouched.
+The standalone runner executes one row per run and requires a commit. The
+optional controller runs serial rows within an approved bounded horizon; neither
+API path runs the Goal protocol's concurrent worktree leases. Updating skills
+does not update an installed runner or audit toolkit. See the
+[execution reference](docs/EXECUTION.md#changes-since-v240).
 
 <a id="setup-and-run"></a>
+
 ### 9.2 Setup and Run
+
+Install the standalone runner from a checkout:
 
 ```bash
 mkdir -p ~/.local/bin
 cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
 chmod +x ~/.local/bin/tackle-memory-bank-api-loop
-```
-
-The commands below call `tackle-memory-bank-api-loop` by name, which requires
-`~/.local/bin` on your `PATH`. If `command -v tackle-memory-bank-api-loop`
-prints nothing, add this line to your shell profile:
-
-```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-An actionable run gives model-generated commands an unsandboxed shell on the
-host, so the harness refuses to start one until you explicitly set
-`ALLOW_UNSANDBOXED_SHELL=1` or pass `--allow-unsandboxed-shell`. This is an
-acknowledgment, not isolation: commands can still read host files, inspect other
-processes, and use the network. Run the harness inside a disposable sandbox and
-against a repository you can restore.
-
-Shell commands receive a minimal environment. Provider credential variables are
-not copied into it; use `TOOL_ENV_ALLOW=NAME,OTHER_NAME` to forward additional
-project variables deliberately. This reduces accidental disclosure but does not
-make the host shell safe. `ALLOW_DANGEROUS_COMMANDS=1` only disables a short
-command denylist, which is a guardrail and can be bypassed.
-
-Run one row:
+An actionable run gives model-generated commands an unsandboxed host shell.
+`ALLOW_UNSANDBOXED_SHELL=1` acknowledges this risk; it does not isolate commands.
+Use a disposable sandbox and a recoverable repository. Provider credentials are
+not forwarded to commands by default; `TOOL_ENV_ALLOW` explicitly forwards named
+variables and does not make the shell safe.
 
 ```bash
 ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
+# Or select Anthropic:
+ALLOW_UNSANDBOXED_SHELL=1 LLM_PROVIDER=anthropic LLM_MODEL=claude-opus-5 ANTHROPIC_API_KEY=... MAX_RUNS=1 tackle-memory-bank-api-loop .
 ```
 
-Run a loop:
-
-```bash
-ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=gpt-5.6 OPENAI_API_KEY=... MAX_RUNS=5 tackle-memory-bank-api-loop .
-```
-
-Use an OpenAI-compatible provider:
-
-```bash
-LLM_API_BASE=https://openrouter.ai/api/v1 \
-LLM_API_KEY=... \
-LLM_MODEL=openai/gpt-5.6 \
-ALLOW_UNSANDBOXED_SHELL=1 \
-MAX_RUNS=1 \
-tackle-memory-bank-api-loop .
-```
-
-Use a local OpenAI-compatible server:
-
-```bash
-LLM_API_BASE=http://localhost:1234/v1 \
-LLM_MODEL=local-model-name \
-ALLOW_UNSANDBOXED_SHELL=1 \
-MAX_RUNS=1 \
-tackle-memory-bank-api-loop .
-```
-
-Use Anthropic (Claude) instead of the OpenAI-compatible path:
-
-```bash
-LLM_PROVIDER=anthropic \
-LLM_MODEL=claude-opus-5 \
-ANTHROPIC_API_KEY=... \
-ALLOW_UNSANDBOXED_SHELL=1 \
-MAX_RUNS=1 \
-tackle-memory-bank-api-loop .
-```
-
-For an Anthropic-compatible gateway, pass its base URL and model explicitly.
-Custom shell names such as `DS_ANTHROPIC_MODEL` and `DS_ANTHROPIC_BASE_URL` are
-not read automatically. With those variables and `ANTHROPIC_API_KEY` already
-set in your shell, use this configuration with the same shell acknowledgement
-and sandbox precautions above:
-
-```bash
-LLM_PROVIDER=anthropic \
-LLM_MODEL="$DS_ANTHROPIC_MODEL" \
-LLM_API_BASE="$DS_ANTHROPIC_BASE_URL" \
-ALLOW_UNSANDBOXED_SHELL=1 \
-MAX_RUNS=1 \
-tackle-memory-bank-api-loop .
-```
-
-The runner appends `/messages` to the base URL; provide the gateway's API prefix,
-without that final endpoint. Provider credentials stay out of project launch
-references. This configuration is separate from interactive goal `MODEL_POLICY`.
-
-The harness embeds the task instruction in its API prompt. It does not call the
-Codex CLI, and it does not require the external prompt file at runtime. The
-prompt file remains in this repository as the required human-readable duplicate
-of the embedded instruction; it is not installed into a Codex prompt directory.
-The same JSON
-command protocol drives the agent loop regardless of which provider is used.
-
-Model names change over time. These examples use the current `gpt-5.6` family
-alias and `claude-opus-5`; consult the official [OpenAI model
-catalog](https://developers.openai.com/api/docs/models) and [Anthropic model
-catalog](https://platform.claude.com/docs/en/about-claude/models/overview) when
-selecting a model for a real run.
+Model names change; check the [OpenAI](https://developers.openai.com/api/docs/models)
+and [Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview)
+catalogs. See the [execution reference](docs/EXECUTION.md) for provider gateways,
+limits, environment handling, and the separate controller.
 
 <a id="llm-prompt-caching"></a>
+
 ### 9.3 LLM prompt caching
 
-Prompt caching reuses provider-side processing of a matching input prefix;
-each API call still generates a response against the supplied context. Tabilet
-has no local LLM response cache, and SQLite audit/index storage is separate.
-
-Supported [OpenAI models](https://developers.openai.com/api/docs/guides/prompt-caching)
-and [DeepSeek](https://api-docs.deepseek.com/guides/kv_cache/) cache a matching
-prefix automatically; the harness orders every request so the identical part
-comes first and adds nothing else. For direct [Claude](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
-it sends `cache_control` markers on the official Anthropic host. Other
-OpenAI-compatible servers and gateways follow their own caching rules and
-receive an unchanged request unless you set `LLM_PROMPT_CACHE=on`.
-
-The runner prints input, cached, cache-write, and output tokens for every
-turn, showing `unknown` for anything the provider did not report. See
-[caching behavior and settings](docs/EXECUTION.md#prompt-caching-and-context).
+The runner uses provider-supported prompt caching where available; this does
+not cache model responses. See [caching behavior](docs/EXECUTION.md#prompt-caching-and-context).
 
 <a id="first-run"></a>
+
 ### 9.4 First run & guardrails
 
-A run starts by printing the repository, provider, model, and API endpoint, then
-works one row:
-
-```text
-Repo: /path/to/your-project
-Provider: anthropic
-Model: claude-opus-5
-API: https://api.anthropic.com/v1/messages
-Run 1/1: asking LLM to tackle one row.
-  LLM turn 1/60
-  shell: sed -n '1,120p' AGENTS.md  # Read the bootstrap guide.
-```
-
-The harness stops early on purpose, and its exit code says why. `3` through `7`
-are normal stopping conditions rather than failures. For example, `4` means the
-worktree was dirty before the run, and `6` means the agent finished without
-committing. `11` means active and retired status state is missing or invalid;
-check filenames and the history index. A valid project with all milestones
-retired exits `0`. The full table is in
-[Execution Harness](docs/EXECUTION.md#exit-codes).
+The runner checks repository and row state before and after each run. It stops
+on conditions such as a dirty worktree, missing commit, or invalid status/history.
+See the [exit-code table](docs/EXECUTION.md#exit-codes); terminal rows do not
+by themselves prove milestone acceptance.
 
 <a id="api-only-workflow"></a>
+
 ### 9.5 API-only workflow
 
-An API-only setup uses the project's Markdown as authoritative memory and the
-`tabilet/audit.sqlite3` database for observed workflow history. The API runner rereads
-`AGENTS.md`, active milestones and tasks, current facts, retired history, and
-evolution files on each run. SQLite records its observed lifecycle, task
-transitions, verification, and commits; its index makes current and historical
-Markdown searchable without replacing it.
-
-Enable the recorder before starting the runner:
-
-```bash
-tabilet-audit audit enable /absolute/path/to/project
-ALLOW_UNSANDBOXED_SHELL=1 LLM_MODEL=your-model MAX_RUNS=1 \
-  tackle-memory-bank-api-loop /absolute/path/to/project
-```
-
-See [Sync and Repair](#sync-and-repair) for manual index refresh and recovery.
-Use `tabilet-audit audit runs --project /absolute/path/to/project` to review
-recorded runs. The API runner owns its own audit lifecycle; do not start a
-duplicate manual run. Commit the setup ignore file before running against a
-clean Git baseline.
-
-`metadata` is the safe default. Set `TABILET_AUDIT_CAPTURE=relevant` to retain
-selected visible messages that the runner supplies. This does not capture every
-API prompt, tool result, hidden reasoning, or surrounding chat. Exact raw text
-must be supplied by the host through the selected-message procedure in
-[`docs/sqlite.md`](docs/sqlite.md#capture-selected-visible-messages). Recorded
-message text is limited to 1,024 characters; longer interactive messages need a
-concise `summarized` record or a clearly `incomplete`/redacted extract.
-
-SQLite 13 adds optional v4 run provenance and append-only conversation coverage.
-Interactive skills report instruction-driven coverage and do not infer exact
-instruction fingerprints; the API runner records automatic provenance for its
-own harness, provider, and model. `tabilet-audit audit purge-message` performs a
-confirmed logical content purge while retaining the immutable envelope and
-tombstone. Markdown remains authoritative, and purge cannot remove copies in
-backups or exports.
+The API runner reads project Markdown on each run. Optional SQLite audit records
+its observed lifecycle and builds a lookup index without replacing the Markdown.
+Enable audit separately and commit the setup ignore file before a clean-baseline
+run. See the [API-only setup](docs/installation.md#api-only-workflow) and
+[SQLite guide](docs/sqlite.md).
 
 <a id="what-the-harness-is"></a>
+
 ## Chapter 10. What The Harness Is
 
-For normal project work, the Tabilet Harness (`tackle-memory-bank-api-loop`) is an execution harness:
-it repeatedly runs an agent against a repository, gives it shell access through a
-JSON command protocol, and checks git state between runs. It requires the target
-to be the git worktree root, requires history to advance without a rewrite, and
-requires exactly one existing actionable row to become completed, blocked, or
-closed historical in each run. Separate milestone-review commits are allowed
-within that run. If one `[~]` row already exists, the harness requires the agent
-to resume exactly it; more than one in-progress row stops before the API call.
-
-A closing task may retire its milestone using the project's adopted contract.
-The harness follows the row into its validated history record, checks that
-earlier rows and notes survived, and rejects changes to previously retired
-records. Valid all-retired projects exit `0`; missing or invalid status/history
-state exits `11`. Historical rows never become actionable.
-
-It discovers every `tabilet/memory-bank/status-<LANE><NN>.md` file, reports how many
-actionable, in-progress, blocked, and closed-historical rows each lane holds,
-and asks the agent to pick a row using the lane meanings and milestone priority.
-A blocked row in one lane does
-not stop work in the others; the loop stops for human review only when blocked
-rows are all that remain.
-
-It becomes part of a model eval harness only when you score outcomes across
-models, prompts, pass rates, review findings, cost, latency, or regressions.
-
-Read more:
-
-- [Execution Harness](docs/EXECUTION.md)
-- [Model Eval Harness](docs/MODEL_EVAL.md)
-- [Controller Architecture](docs/api.md)
-- [Autonomous Execution](docs/automation.md)
-- [Milestone Authorizations](docs/authorizations.md)
+The standalone API harness runs a model through a JSON command protocol and
+checks Git and task transitions between runs. It resumes an existing in-progress
+row, validates retired history, and stops when no actionable work remains. It is
+not a sandbox. The [execution reference](docs/EXECUTION.md)
+covers the runner and controller; the [model evaluation guide](docs/MODEL_EVAL.md)
+describes measuring outcomes across models.
 
 <a id="maintenance-rules"></a>
+
 ### 10.1 Maintenance Rules
 
 - Keep `AGENTS.md` short.
