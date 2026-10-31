@@ -203,6 +203,23 @@ def retire_fixture(repo: pathlib.Path, milestone_id: str = "M01", **fields: str)
 
 
 class RetirementTests(unittest.TestCase):
+    def test_historical_section_and_heading_variants_preserve_documents(self) -> None:
+        status = f"# Status\n\n| Task | {marker('[+]')} | evidence |\n"
+        original = retirement_text(status, "M153")
+        text = original.replace("## M153 - Delivery", "### M153 - Delivery").replace(
+            "## Status record\n\n`````markdown\n# Status", "## Final status\n\n`````markdown\n# Status")
+        record = harness.retired_record(text, "status-M153.md", historical=True)
+        self.assertEqual(record['status'], status)
+        self.assertIn('### M153 - Delivery', record['specification'])
+        with self.assertRaises(ValueError):
+            harness.retired_record(text, "status-M153.md")
+        with self.assertRaisesRegex(ValueError, 'specification does not match'):
+            harness.retired_record(text.replace('### M153 - Delivery', '### M152 - Delivery'),
+                                   'status-M153.md', historical=True)
+        with self.assertRaisesRegex(ValueError, 'only closed'):
+            harness.retired_record(text.replace('`[+]`', '`[ ]`'),
+                                   'status-M153.md', historical=True)
+
     def test_review_state_table_is_not_a_task_table(self) -> None:
         status = (
             '| Item | State | Notes |\n|---|---|---|\n'

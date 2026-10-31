@@ -502,7 +502,7 @@ def _workflow_snapshot(core, repo: pathlib.Path) -> tuple[dict, list[str]]:
                 path = base / filename
                 if path.is_symlink():
                     raise ProposalError(f"symbolic-link workflow file is not allowed: {path}")
-                if filename.endswith(".md"):
+                if filename.endswith(".md") or path.relative_to(repo).as_posix() == core.HISTORY_CORRECTIONS:
                     paths.append(path.relative_to(repo).as_posix())
                     if len(paths) > MAX_SNAPSHOT_FILES:
                         raise ProposalError("workflow snapshot contains too many Markdown files")

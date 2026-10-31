@@ -56,7 +56,8 @@ def _live_projection(core, project: pathlib.Path) -> dict:
         if kind not in {"milestone", "active_status", "history_status"}:
             continue
         text, digest, _ = index.read_document(project, relative)
-        parsed[relative] = index.parse_document(relative, kind, text, digest)
+        parsed[relative] = index.parse_document(relative, kind, text, digest,
+                                                snapshot['history'].get('corrections', {}))
     milestone_doc = parsed.get("tabilet/memory-bank/milestone.md")
     if milestone_doc is None:
         raise _UnresolvedDependency("live milestone.md is missing")
@@ -730,6 +731,9 @@ def snapshot_digest(snapshot: dict) -> str:
             for name, value in snapshot.get("specifications", {}).items()
         ),
     }
+    correction_digest = snapshot.get('history', {}).get('corrections_sha256')
+    if correction_digest is not None:
+        payload['history_corrections_sha256'] = correction_digest
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
@@ -1546,6 +1550,8 @@ def _closure_integrity_problems(
     problems = list(after.get("history", {}).get("problems", []))
     old_history = before.get("history", {})
     new_history = after.get("history", {})
+    if old_history.get('corrections_sha256') != new_history.get('corrections_sha256'):
+        problems.append('history corrections changed during closure')
     for name, digest in old_history.get("digests", {}).items():
         if new_history.get("digests", {}).get(name) != digest:
             problems.append(f"previously retired record changed during closure: {name}")
@@ -1568,6 +1574,10 @@ def _closure_integrity_problems(
             problems.append(f"retirement phase did not move active {expected_name} into history")
         record = new_history.get("records", {}).get(expected_name)
         if record is not None:
+            if record.get('strict') is False:
+                problems.append('new retirement does not meet the strict contract: ' + expected_name)
+            if expected_name in new_history.get('index_compatibility', []):
+                problems.append('new retirement index does not meet the strict contract: ' + expected_name)
             if record.get("status") != before.get("documents", {}).get(expected_name):
                 problems.append(f"retirement changed the complete status source: {expected_name}")
             original_spec = before.get("specifications", {}).get(expected_name)

@@ -240,6 +240,11 @@ The record envelope preserves original documents as literal fenced Markdown;
 the parser reads task rows only from its Status record section. Legacy projects
 adopt this explicitly. Context snapshots remain optional and separate.
 
+The shared historical reader and optional project correction manifest are
+described in [historical record compatibility](docs/history-corrections.md).
+Corrections preserve literal sources, remain separate from execution approval,
+and do not relax the strict contract for newly retired records.
+
 ### The agent loop (`harness/tackle-memory-bank-api-loop`)
 
 Python 3, standard library only (`urllib`, no `requests`/SDKs) — deliberate, per

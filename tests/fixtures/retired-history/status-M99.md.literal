@@ -1,0 +1,65 @@
+# Retired milestone M99 - UI Navigation & Project-Centric Structure Refactoring
+
+**Milestone.** M99
+**Outcome.** completed
+**Retired.** 2026-10-19
+**Source status.** tabilet/memory-bank/status-M99.md
+**Source specification.** tabilet/memory-bank/milestone.md#approved-ui-navigation--project-centric-structure-refactoring--2026-10-18
+**Evidence.** 59fd58ae3dabcd47dde41f4c25934a6e67737171
+**Worktree.** includes uncommitted changes
+**Review.** passed
+**Review iterations.** 1
+**Verification.** Recorded at closure in the status notes: Go and web tests (36 web tests), a production asset build and a live Playwright run. Re-checked at retirement (M108.1): /api/projects returns cwd, the Create Project entry and Artifacts in Project exist, and no OPERATIONS category remains in web/src; vet, go test -count=1 ./... and the 43 web tests pass at 59fd58ae3dabcd47dde41f4c25934a6e67737171.
+**Consolidated into.** [architecture.md](../../memory-bank/architecture.md) (Local GUI Architecture, Navigation, added by M108); no new lesson.
+
+## Milestone specification
+
+````markdown
+## Approved UI Navigation & Project-Centric Structure Refactoring — 2026-10-18
+
+On 2026-10-18 the user approved Milestone M99 through `memory-bank-propose` and `/plan`. This work refactors the Web UI navigation to be project-centric, provides top-level switching between Projects and Artifacts, streamlines project creation with working directory context, and cleans up command categorization.
+
+**Goal.**
+1. Sidebar top dual tabs: Place two tabs on the left sidebar: `PROJECTS` (default) and `ARTIFACTS`.
+2. Project selection dropdown: Include `+ Create Project` as its first entry. When selected (or when no project is active), display existing registered projects in the left panel and the Add Project form in the right main panel.
+3. Server working directory context: Return `cwd` from `/api/projects` and display it in the Add Project panel so users clearly see which directory relative project paths resolve against.
+4. Project workflow trigger: When an existing project is selected, update the sidebar action button to `⚡ [project name]` and reveal the COMMANDS and "Artifacts in Project" sections.
+5. Command categories refactoring: Eliminate the `OPERATIONS` category; reassign `import` and `force-unlock` to `Plan & Apply`, and reassign `version` to `Inspection`. Rename the sidebar artifacts section to "Artifacts in Project" (listing both project and global artifacts).
+6. Artifacts tab switching: Selecting the top `ARTIFACTS` tab jumps directly to the full Artifacts Library management panel.
+7. Verification: Full vitest suite, Go tests, vet, and live Playwright verification.
+
+**Boundary.** Scope is restricted to Web UI rendering, component state, project/artifact switching, and project API metadata in the local GUI server.
+
+**Outcome.** M99 completed and verified (1 review iteration).
+````
+
+## Status document
+
+````markdown
+# Status M99 - UI Navigation & Project-Centric Structure Refactoring
+
+**Milestone.** M99
+**Status.** completed
+**Goal.** Refactor the Web UI navigation to be project-centric with top PROJECTS/ARTIFACTS tabs, + Create Project selection flow, server cwd relative path notice, ⚡ [project name] trigger, reorganized command categories, and Artifacts in Project.
+**Specification.** [milestone.md#approved-ui-navigation--project-centric-structure-refactoring--2026-10-18](milestone.md#approved-ui-navigation--project-centric-structure-refactoring--2026-10-18)
+**Owner.** coordinator
+**Review gate iterations.** 1 (passed)
+
+## Tasks
+
+| Item | State | Notes |
+| --- | --- | --- |
+| M99.1: Command categories refactoring and backend `cwd` on `/api/projects` | `[+]` | Eliminated Operations category; moved `import` and `force-unlock` to Plan & Apply, and `version` to Inspection. Returned `cwd` from `handleGetProjects` in `server.go` and verified with Go unit test and vitest suite. |
+| M99.2: Left sidebar top dual tabs (`PROJECTS` / `ARTIFACTS`), project dropdown with `+ Create Project`, and dynamic `⚡ [project name]` workflow trigger | `[+]` | Implemented top dual tabs on sidebar, project picker dropdown with `+ Create Project` as first option, and dynamic `⚡ [project name]` button when a project is active. |
+| M99.3: Left panel project listing with Right panel "Add Project" creation view displaying relative cwd resolution path | `[+]` | In project creation / initial mode, rendered existing projects list in left sidebar and Add Project form on right with explicit `Relative paths are resolved against: <cwd>` notice. |
+| M99.4: "Artifacts in Project" integration, sidebar artifact management tab switching, test suite updates (vitest + Go tests), and production bundle build | `[+]` | Wired "Artifacts in Project" listing under project mode, top ARTIFACTS tab to jump to Artifacts Library, updated App.test.tsx with all 36 vitest tests passing, full Go test suite and go vet passing, and built production web bundle into internal/gui/static/. |
+
+## Verification Plan
+
+```bash
+cd web && npm test -- --run && npm run build
+GOWORK=off go test ./internal/gui/...
+GOWORK=off go vet ./...
+git diff --check
+```
+````

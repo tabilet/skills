@@ -936,6 +936,8 @@ def status_table_rows(status: str):
         cells = row["cells"]
         if cells[1].lower() == "state":
             in_review_table = cells[0].lower() == "iteration"
+        elif [cell.lower() for cell in cells] == ['#', 'finding', 'severity', 'disposition']:
+            in_review_table = True
         if not in_review_table:
             yield row
 
@@ -1002,13 +1004,17 @@ def fenced_document(section: str) -> str:
     return "".join(lines[1:-1])
 
 
-def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> dict:
+def retired_record(text: str, name: str, *, allow_unfinished: bool = False,
+                   historical: bool = False) -> dict:
     """Validate the portable retirement envelope; original documents stay literal."""
     if not STATUS_NAME.fullmatch(name):
         raise ValueError("invalid retired status ID or child suffix")
     milestone_id = status_identity(name)
     lines = text.splitlines(keepends=True)
     headings = [(n, line[3:]) for n, line in unfenced_lines(text) if line.startswith("## ")]
+    if historical:
+        aliases = {"Status", "Status document", "Full status document", "Final status"}
+        headings = [(n, "Status record" if title in aliases else title) for n, title in headings]
     if [title for _, title in headings] != ["Milestone specification", "Status record"]:
         raise ValueError("expected Milestone specification and Status record sections")
     metadata = {}
@@ -1074,9 +1080,11 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
         raise ValueError("supersession needs its accepted successor")
     if not specification.strip() or not status.strip():
         raise ValueError("retired source documents are empty")
-    spec_headings = [line for _, line in unfenced_lines(specification) if line.startswith("## ")]
+    spec_headings = [line for _, line in unfenced_lines(specification)
+                     if re.match(r"^#{2,3} " if historical else r"^## ", line)]
+    spec_pattern = (r"#{2,3} " if historical else r"## ") + re.escape(milestone_id) + r"(?:\s|$)"
     if (not spec_headings or (name.startswith("status-") and len(spec_headings) != 1)) or not re.match(
-        r"## " + re.escape(milestone_id) + r"(?:\s|$)", spec_headings[0]
+        spec_pattern, spec_headings[0]
     ):
         raise ValueError("retired specification does not match its milestone ID")
     rows = status_rows(status)
@@ -1095,28 +1103,409 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
     return {"metadata": metadata, "specification": specification, "status": status}
 
 
+HISTORY_CORRECTIONS = "tabilet/docs/history/corrections.json"
+HISTORY_CORRECTIONS_SCHEMA = "tabilet.history-corrections/v1"
+HISTORY_INPUT_LIMIT = 4 * 1024 * 1024
+
+
+def _history_json_pairs(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate correction JSON key: " + key)
+        result[key] = value
+    return result
+
+
+def history_corrections(text: str) -> dict:
+    """Validate a declarative evidence manifest, never execution authority."""
+    if len(text.encode('utf-8')) > HISTORY_INPUT_LIMIT:
+        raise ValueError('history corrections exceed input limit')
+    value = json.loads(text, object_pairs_hook=_history_json_pairs)
+    if (not isinstance(value, dict) or set(value) != {'schema', 'records'}
+            or value['schema'] != HISTORY_CORRECTIONS_SCHEMA
+            or not isinstance(value['records'], list) or len(value['records']) > 10000):
+        raise ValueError('invalid history correction manifest')
+    found = {}
+    fields = {'Milestone', 'Outcome', 'Retired', 'Source status', 'Source specification',
+              'Evidence', 'Worktree', 'Review', 'Review iterations', 'Review limit',
+              'Review limit approval', 'Verification', 'Consolidated into'}
+    schemas = {
+        'expand-evidence-commit': {'recorded', 'resolved'},
+        'resolve-evidence-set': {'commits', 'evidence'},
+        'identify-specification': {'heading', 'evidence'},
+        'historical-successor': {'item', 'successor', 'evidence'},
+        'recover-document': {'document', 'content', 'sha256', 'source'},
+        'supply-metadata': {'field', 'value', 'evidence'},
+        'blocker': {'message', 'evidence'},
+    }
+    for entry in value['records']:
+        if not isinstance(entry, dict) or set(entry) != {'milestone_id', 'record_path', 'record_sha256', 'corrections'}:
+            raise ValueError('invalid history correction entry fields')
+        path = entry['record_path']
+        if (not isinstance(path, str) or pathlib.PurePosixPath(path).parent != pathlib.PurePosixPath('tabilet/docs/history')
+                or not STATUS_NAME.fullmatch(pathlib.PurePosixPath(path).name)
+                or entry['milestone_id'] != status_identity(pathlib.PurePosixPath(path).name)
+                or not isinstance(entry['record_sha256'], str)
+                or not re.fullmatch(r'[a-f0-9]{64}', entry['record_sha256'])
+                or not isinstance(entry['corrections'], list) or not entry['corrections']):
+            raise ValueError('invalid history correction identity or hash')
+        if path in found:
+            raise ValueError('duplicate history correction record: ' + path)
+        seen = set()
+        for correction in entry['corrections']:
+            if not isinstance(correction, dict):
+                raise ValueError('invalid history correction operation')
+            kind = correction.get('kind')
+            if not isinstance(kind, str) or kind not in schemas or set(correction) != schemas[kind] | {'kind'}:
+                raise ValueError('unsupported history correction: ' + str(kind))
+            if kind == 'supply-metadata' and (not isinstance(correction['field'], str) or correction['field'] not in fields
+                    or not isinstance(correction['value'], str) or not correction['value'].strip()
+                    or '\n' in correction['value'] or '\r' in correction['value']):
+                raise ValueError('unsupported metadata correction')
+            if any(field in correction and not isinstance(correction[field], str) for field in ('field', 'document', 'item')):
+                raise ValueError('invalid correction discriminator')
+            key = (kind, correction.get('field', correction.get('document', correction.get('item', ''))))
+            if key in seen:
+                raise ValueError('duplicate or conflicting history correction')
+            seen.add(key)
+            if kind == 'expand-evidence-commit':
+                if (not isinstance(correction['recorded'], str) or not re.fullmatch(r'[a-f0-9]{7,39}', correction['recorded'])
+                        or not isinstance(correction['resolved'], str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', correction['resolved'])
+                        or not correction['resolved'].startswith(correction['recorded'])):
+                    raise ValueError('invalid expanded evidence commit')
+            elif kind == 'resolve-evidence-set':
+                commits = correction['commits']
+                if (not isinstance(commits, list) or not commits
+                        or any(not isinstance(c, str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', c) for c in commits)
+                        or len(commits) != len(set(commits))):
+                    raise ValueError('invalid evidence commit set')
+            elif kind == 'recover-document':
+                source = correction['source']
+                if (correction['document'] not in {'specification', 'status'} or not isinstance(correction['content'], str)
+                        or not isinstance(source, dict) or set(source) != {'commit', 'path', 'start_line', 'end_line', 'source_sha256'}
+                        or not isinstance(source['commit'], str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', source['commit'])
+                        or not isinstance(source['path'], str)
+                        or source['path'] not in {path, 'tabilet/memory-bank/milestone.md', 'tabilet/memory-bank/' + pathlib.PurePosixPath(path).name}
+                        or type(source['start_line']) is not int or type(source['end_line']) is not int
+                        or not 1 <= source['start_line'] <= source['end_line']
+                        or not isinstance(source['source_sha256'], str) or not re.fullmatch(r'[a-f0-9]{64}', source['source_sha256'])
+                        or correction['sha256'] != hashlib.sha256(correction['content'].encode('utf-8')).hexdigest()
+                        or len(correction['content'].splitlines()) != source['end_line'] - source['start_line'] + 1):
+                    raise ValueError('invalid recovered document or source hash')
+            elif kind in {'identify-specification', 'historical-successor', 'blocker'}:
+                if any(not isinstance(correction[field], str) or not correction[field].strip()
+                       for field in schemas[kind] - {'evidence'}):
+                    raise ValueError('invalid correction text')
+            if 'evidence' in correction:
+                evidence = correction['evidence']
+                if not isinstance(evidence, list) or not evidence:
+                    raise ValueError('missing correction evidence')
+                for citation in evidence:
+                    if (not isinstance(citation, dict) or set(citation) not in (
+                            {'start_line', 'end_line', 'quote'},
+                            {'start_line', 'end_line', 'quote', 'path', 'commit', 'content', 'sha256'})
+                            or type(citation['start_line']) is not int or type(citation['end_line']) is not int
+                            or not 1 <= citation['start_line'] <= citation['end_line']
+                            or not isinstance(citation['quote'], str) or not citation['quote'].strip()):
+                        raise ValueError('invalid correction evidence location')
+                    if 'content' in citation:
+                        if (not isinstance(citation['path'], str) or citation['path'] not in {'tabilet/docs/history/index.md', 'tabilet/memory-bank/milestone.md'}
+                                or not isinstance(citation['commit'], str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', citation['commit'])
+                                or not isinstance(citation['content'], str)
+                                or citation['sha256'] != hashlib.sha256(citation['content'].encode('utf-8')).hexdigest()
+                                or len(citation['content'].splitlines()) != citation['end_line'] - citation['start_line'] + 1
+                                or citation['quote'] not in citation['content']):
+                            raise ValueError('invalid embedded correction evidence')
+        if sum(key in seen for key in [('expand-evidence-commit', ''), ('resolve-evidence-set', ''),
+                                      ('supply-metadata', 'Evidence')]) > 1:
+            raise ValueError('conflicting evidence corrections')
+        found[path] = entry
+    return found
+
+
+def read_history_corrections(repo: pathlib.Path) -> tuple[dict, str | None]:
+    path = repo / HISTORY_CORRECTIONS
+    if not path.exists() and not path.is_symlink():
+        return {}, None
+    # Opening the bounded regular file without following links also rejects FIFOs.
+    for parent in (path, *path.parents):
+        if parent == repo:
+            break
+        if parent.is_symlink():
+            raise ValueError('symlink history corrections rejected')
+    fd = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        os.close(fd)
+        raise ValueError('history corrections must be a regular file')
+    with os.fdopen(fd, 'rb') as stream:
+        raw = stream.read(HISTORY_INPUT_LIMIT + 1)
+    return history_corrections(raw.decode('utf-8')), hashlib.sha256(raw).hexdigest()
+
+
+def historical_record(text: str, name: str, correction: dict | None = None) -> dict:
+    """Read frozen evidence; literal documents and interpreted task cells stay separate."""
+    if not STATUS_NAME.fullmatch(name):
+        raise ValueError('invalid retired status ID')
+    identity = status_identity(name)
+    lines = text.splitlines(keepends=True)
+    operations = correction['corrections'] if correction else []
+    if correction:
+        history_corrections(json.dumps({'schema': HISTORY_CORRECTIONS_SCHEMA, 'records': [correction]}))
+        if (correction['record_path'] != 'tabilet/docs/history/' + name
+                or correction['milestone_id'] != identity
+                or correction['record_sha256'] != hashlib.sha256(text.encode('utf-8')).hexdigest()):
+            raise ValueError('stale history correction hash or mismatched ID')
+        for operation in operations:
+            for citation in operation.get('evidence', []):
+                if 'content' in citation:
+                    continue
+                if (citation['end_line'] > len(lines) or citation['quote'] not in
+                        ''.join(lines[citation['start_line'] - 1:citation['end_line']])):
+                    raise ValueError('correction evidence does not match frozen source')
+    headings = [(n, line[3:]) for n, line in unfenced_lines(text) if line.startswith('## ')]
+    metadata_end = headings[0][0] - 1 if headings else len(lines)
+    metadata = {}
+    for _, line in unfenced_lines(''.join(lines[:metadata_end])):
+        match = re.fullmatch(r'\*\*([\w ]+)\.\*\* (.+)', line)
+        if match:
+            if match[1] in metadata:
+                raise ValueError('duplicate retirement field: ' + match[1])
+            metadata[match[1]] = match[2]
+    literal_metadata = dict(metadata)
+    documents, offsets, sources = {}, {}, {}
+    aliases = {'Milestone specification': 'specification', 'Status record': 'status', 'Status': 'status',
+               'Status document': 'status', 'Full status document': 'status', 'Final status': 'status',
+               'Source status ledger': 'status'}
+    recovery = {op['document']: op for op in operations if op['kind'] == 'recover-document'}
+    for index, (number, title) in enumerate(headings):
+        key = aliases.get(title)
+        if key is None:
+            if title == 'Related approved correction context':
+                continue
+            if set(recovery) == {'specification', 'status'}:
+                continue
+            raise ValueError('unsupported historical section: ' + title)
+        if key in recovery:
+            continue
+        if key in documents:
+            raise ValueError('ambiguous historical document: ' + key)
+        end = headings[index + 1][0] - 1 if index + 1 < len(headings) else len(lines)
+        section_lines = lines[number:end]
+        opening = next((i for i, line in enumerate(section_lines) if line.strip()), None)
+        if opening is None:
+            raise ValueError('missing literal historical document')
+        adapted = list(section_lines)
+        if re.fullmatch(r'`{3,}|~{3,}', adapted[opening].strip()):
+            adapted[opening] = adapted[opening].rstrip('\r\n') + 'markdown\n'
+        documents[key] = fenced_document(''.join(adapted))
+        offsets[key] = number + opening + 1
+    for key, operation in recovery.items():
+        documents[key] = operation['content']
+        source = operation['source']
+        sources[key] = source
+        offsets[key] = source['start_line'] - 1
+        if source['path'] == 'tabilet/docs/history/' + name:
+            if (source['source_sha256'] != hashlib.sha256(text.encode('utf-8')).hexdigest()
+                    or operation['content'] != ''.join(lines[source['start_line'] - 1:source['end_line']])):
+                raise ValueError('recovered record excerpt differs from literal source')
+    if 'status' in recovery:
+        original_status = None
+        for index, (number, title) in enumerate(headings):
+            if aliases.get(title) != 'status':
+                continue
+            end = headings[index + 1][0] - 1 if index + 1 < len(headings) else len(lines)
+            section = ''.join(lines[number:end]).strip()
+            section = re.sub(r'\A(`{3,}|~{3,})\r?\n', r'\1markdown\n', section)
+            try:
+                original_status = fenced_document(section)
+            except ValueError:
+                continue
+        if original_status is not None:
+            if documents['status'] != original_status:
+                raise ValueError('status recovery cannot change or discard the retained task document')
+        else:
+            source = recovery['status']['source']
+            status_starts = [n for n, line in enumerate(lines, 1)
+                             if re.match(r'^# (?:Status )?' + re.escape(identity) + r'(?:\s|$)', line)]
+            start = status_starts[0] if len(status_starts) == 1 else 1
+            end = len(lines) - 1 if lines and re.fullmatch(r'`{3,}|~{3,}', lines[-1].strip()) else len(lines)
+            if (source['path'] != 'tabilet/docs/history/' + name or source['start_line'] != start
+                    or source['end_line'] not in {end, len(lines)}):
+                raise ValueError('status recovery must retain the complete frozen status evidence')
+    if set(documents) != {'specification', 'status'}:
+        raise ValueError('missing historical specification or status document')
+    for op in operations:
+        if op['kind'] == 'supply-metadata':
+            field, value = op['field'], op['value']
+            old = metadata.get(field)
+            if old and old != value and not (field == 'Review iterations' and re.match(re.escape(value) + r'\s+\(', old)):
+                raise ValueError('conflicting metadata correction: ' + field)
+            if field == 'Review' and value == 'passed' and not any(
+                    citation['start_line'] == citation['end_line']
+                    and citation['quote'].strip() == (citation['content'].strip() if 'content' in citation
+                        else lines[citation['start_line'] - 1].strip())
+                    and re.fullmatch(
+                        r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?|'
+                        r'\|\s*Review\s*\|\s*passed\s*\|', citation['quote'].strip(), re.I)
+                    for citation in op['evidence']):
+                raise ValueError('missing recorded passed-review result; a correction cannot supply acceptance')
+            metadata[field] = value
+        elif op['kind'] == 'expand-evidence-commit':
+            if metadata.get('Evidence') != op['recorded']:
+                raise ValueError('evidence expansion does not match recorded provenance')
+            metadata['Evidence'] = op['resolved']
+        elif op['kind'] == 'resolve-evidence-set':
+            recorded = re.findall(r'\b[a-f0-9]{7,64}\b', metadata.get('Evidence', ''))
+            if not recorded or any(not any(commit.startswith(prefix) for prefix in recorded) for commit in op['commits']):
+                raise ValueError('evidence set is unsupported by recorded provenance')
+            metadata['Evidence'] = op['commits'][0]
+    source_spec = metadata.get('Source specification', '')
+    anchor = re.fullmatch(r'((?:tabilet/)?memory-bank/milestone\.md#\S+)(?: \([^\n]+\))?', source_spec)
+    if anchor:
+        metadata['Source specification'] = anchor[1]
+    specification, status = documents['specification'], documents['status']
+    spec_headings = [line for _, line in unfenced_lines(specification) if re.match(r'^#{2,3} ', line)]
+    explicit = [op for op in operations if op['kind'] == 'identify-specification']
+    first = spec_headings[0] if spec_headings else ''
+    if explicit and explicit[0]['heading'] != first:
+        raise ValueError('specification identification does not match its source heading')
+    own_heading = re.match(r'^#{2,3} ' + re.escape(identity) + r'(?:\s|$)', first)
+    if not own_heading:
+        if (len(explicit) != 1 or explicit[0]['heading'] != first
+                or re.match(r'^#{2,3} ' + ROOT_ID + r'(?:\s|$)', first)
+                or not re.search(r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![A-Za-z0-9])', specification)):
+            raise ValueError('historical specification identity is missing or ambiguous')
+    elif any(re.match(r'^#{' + str(first.index(' ')) + r'} ' + ROOT_ID + r'(?:\s|$)', heading)
+             for heading in spec_headings[1:]):
+        raise ValueError('ambiguous historical milestone specifications')
+    task_status = status
+    legacy = []
+    task_lines = task_status.splitlines(keepends=True)
+    for row in status_table_rows(status):
+        if row['cells'][1] == '`[x]`':
+            cells = re.split(r'(?<!\\)\|', task_lines[row['line'] - 1], maxsplit=3)
+            cells[2] = cells[2].replace('`[x]`', '`[+]`', 1)
+            task_lines[row['line'] - 1] = '|'.join(cells)
+            legacy.append(row['line'])
+    task_status = ''.join(task_lines)
+    validation_status = task_status
+    for op in operations:
+        if op['kind'] == 'historical-successor':
+            rows = status_rows(task_status)
+            matches = [row for row in rows if row['item'] == op['item'] and row['state'] == 'historical']
+            successors = [row for row in rows if row['item'] == op['successor'] and row['state'] == 'completed']
+            if len(matches) != 1 or len(successors) != 1:
+                raise ValueError('missing or ambiguous completed historical successor')
+            adapted = validation_status.splitlines(keepends=True)
+            n = matches[0]['line'] - 1
+            adapted[n] = adapted[n].rstrip('\r\n').rstrip('|').rstrip() + '; Accepted successor: ' + op['successor'] + ' |\n'
+            validation_status = ''.join(adapted)
+    task_status = validation_status
+    # Strict envelope checks are reused on an interpreted copy only. The caller
+    # receives the complete literal documents and metadata as separate evidence.
+    fence = '`' * (max([3] + [len(m[0]) for m in re.finditer(r'`+', validation_status)]) + 1)
+    blockers = [op['message'] for op in operations if op['kind'] == 'blocker']
+    validation_metadata = dict(metadata)
+    if correction:
+        # Incomplete recovered records remain searchable, with explicit gaps.
+        # Validation placeholders never become recorded facts or acceptance.
+        defaults = {'Milestone': identity, 'Outcome': 'completed', 'Retired': '1970-01-01',
+                    'Source status': 'tabilet/memory-bank/' + name,
+                    'Source specification': 'tabilet/memory-bank/milestone.md#' + identity.lower(),
+                    'Evidence': 'unversioned', 'Worktree': 'unversioned', 'Review': 'passed',
+                    'Review iterations': '1', 'Verification': 'not recorded', 'Consolidated into': 'not recorded'}
+        for key, value in defaults.items():
+            if not metadata.get(key):
+                blockers.append('missing historical closure evidence: ' + key)
+                metadata[key] = 'unverified' if key == 'Review' else 'not recorded'
+                validation_metadata[key] = value
+        if metadata['Review'] == 'unverified':
+            validation_metadata['Review'] = 'passed'
+        if metadata['Evidence'] == 'not recorded':
+            validation_metadata['Worktree'] = 'unversioned'
+        elif metadata['Worktree'] == 'not recorded':
+            validation_metadata['Worktree'] = 'clean'
+    normalized = '\n'.join('**' + key + '.** ' + value for key, value in validation_metadata.items())
+    normalized += '\n\n## Milestone specification\n\n' + fence + 'markdown\n## ' + identity + ' - Historical specification\n' + fence
+    normalized += '\n\n## Status record\n\n' + fence + 'markdown\n' + validation_status
+    if not validation_status.endswith('\n'):
+        normalized += '\n'
+    normalized += fence + '\n'
+    try:
+        retired_record(normalized, name, allow_unfinished=True)
+    except ValueError as exc:
+        message = re.sub(r'\bline (\d+):', lambda m: f'line {int(m[1]) + offsets["status"]}:', str(exc))
+        raise ValueError(message) from exc
+    if legacy and (metadata['Outcome'] != 'completed' or metadata['Review'] != 'passed'):
+        raise ValueError('historical `[x]` completion markers require a completed outcome and passed review')
+    if any(row['state'] in {'pending', 'in_progress', 'blocked'} for row in status_rows(task_status)):
+        blockers.append('retired status contains unfinished task rows')
+    if legacy:
+        blockers.append('historical `[x]` markers are lookup only')
+    counts = re.findall(r'(?:Review gate iterations:|\*\*Review gate iterations\.\*\*)\s*(\d+)', status)
+    if counts and (len(set(counts)) != 1 or counts[0] != metadata['Review iterations']):
+        blockers.append('retained review counter conflicts with retirement metadata')
+    try:
+        retired_record(text, name)
+        strict = True
+    except ValueError:
+        strict = False
+    return {'metadata': metadata, 'literal_metadata': literal_metadata, 'specification': specification,
+            'status': status, 'task_status': task_status, 'offsets': offsets, 'sources': sources,
+            'legacy_completion_lines': legacy, 'blockers': blockers, 'strict': strict}
+
+
+def historical_index_cells(cells: list[str]) -> list[str]:
+    """Recover pipes inside a legacy summary's inline code, never identity fields."""
+    if len(cells) <= 5:
+        return cells
+    prefix = cells[4]
+    for cell in cells[5:]:
+        # Only extra separators inside one-backtick code spans are demonstrated
+        # historical syntax. An actual sixth column remains invalid.
+        if prefix.count('`') % 2 != 1 or '``' in prefix:
+            return cells
+        prefix += '|' + cell
+    return cells[:4] + [prefix] if prefix.count('`') % 2 == 0 else cells
+
+
 def history_snapshot(repo: pathlib.Path) -> dict:
     history = repo / "tabilet" / "docs" / "history"
     records, digests, problems = {}, {}, []
     paths = declared_status_files(history)
+    corrections, correction_digest = {}, None
+    try:
+        corrections, correction_digest = read_history_corrections(repo)
+    except (ValueError, OSError) as exc:
+        problems.append(f'{HISTORY_CORRECTIONS}: {exc}')
     for path in paths:
         try:
             if path.is_symlink() or not STATUS_NAME.fullmatch(path.name):
                 raise ValueError("invalid retired filename or symlink")
             raw = path.read_bytes()
-            records[path.name] = retired_record(raw.decode("utf-8"), path.name)
+            if len(raw) > HISTORY_INPUT_LIMIT:
+                raise ValueError('history record exceeds input limit')
             digests[path.name] = hashlib.sha256(raw).hexdigest()
+            record = historical_record(raw.decode('utf-8'), path.name,
+                                       corrections.get('tabilet/docs/history/' + path.name))
+            records[path.name] = record
+            problems.extend(f'tabilet/docs/history/{path.name}: {problem}' for problem in record['blockers'])
         except (ValueError, OSError) as exc:
             problems.append(f"tabilet/docs/history/{path.name}: {exc}")
+    for missing in set(corrections) - {'tabilet/docs/history/' + path.name for path in paths}:
+        problems.append('correction record is missing: ' + missing)
     index_path = history / "index.md"
     index = index_path.read_text(encoding="utf-8") if index_path.is_file() else ""
-    entries = {}
+    entries, index_compatibility = {}, []
     for row in table_rows(index):
-        cells = row["cells"]
+        cells = historical_index_cells(row["cells"])
         if not re.fullmatch(MILESTONE_ID, cells[0]):
             continue
         name = next((p.name for p in paths if STATUS_NAME.fullmatch(p.name)
                      and status_identity(p.name) == cells[0]), f"status-{cells[0]}.md")
+        if cells != row['cells']:
+            index_compatibility.append(name)
         if name in entries:
             problems.append(f"duplicate history index ID: {cells[0]}")
         entries[name] = cells
@@ -1163,7 +1552,9 @@ def history_snapshot(repo: pathlib.Path) -> dict:
     journal = journal_path.read_bytes() if journal_path.is_file() else b""
     return {
         "records": records, "digests": digests, "entries": entries,
-        "journal": journal, "problems": problems,
+        "journal": journal, "problems": problems, "corrections_sha256": correction_digest,
+        "corrections": corrections,
+        "index_compatibility": index_compatibility,
     }
 
 
@@ -1204,7 +1595,7 @@ def row_snapshot(repo: pathlib.Path) -> dict:
     for path in declared_status_files(repo / "tabilet" / "memory-bank"):
         if path.is_symlink() or not STATUS_NAME.fullmatch(path.name):
             history["problems"].append(f"invalid active status filename or symlink: {path.name}")
-    documents.update({name: record["status"] for name, record in history["records"].items()})
+    documents.update({name: record["task_status"] for name, record in history["records"].items()})
     active = {p.name for p in status_files(repo)}
     documents.update({p.name: p.read_text(encoding="utf-8") for p in status_files(repo)})
     families, problems = family_metadata(documents)
@@ -1272,6 +1663,8 @@ def validate_row_transition(
     problems = list(after.get("history", {}).get("problems", []))
     old_history = before.get("history", {})
     new_history = after.get("history", {})
+    if old_history.get('corrections_sha256') != new_history.get('corrections_sha256'):
+        problems.append('history corrections changed during execution')
     for name, digest in old_history.get("digests", {}).items():
         if new_history.get("digests", {}).get(name) != digest:
             problems.append(f"previously retired record was changed or removed: {name}")
@@ -1285,6 +1678,10 @@ def validate_row_transition(
     # Larger interactive ceilings are readable only as pre-existing history.
     for name in retired:
         metadata = new_history["records"][name]["metadata"]
+        if new_history['records'][name].get('strict') is False:
+            problems.append('new retirement does not meet the strict contract: ' + name)
+        if name in new_history.get('index_compatibility', []):
+            problems.append('new retirement index does not meet the strict contract: ' + name)
         if any(value.isdecimal() and int(value) > 10 for value in (
                 metadata.get("Review iterations", ""), metadata.get("Review limit", "10"))):
             problems.append(f"new API retirement exceeds the fixed review limit of 10: {name}")

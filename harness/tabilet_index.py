@@ -25,7 +25,7 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 4
-INDEX_PROJECTION = 'v8'
+INDEX_PROJECTION = 'v9'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -69,6 +69,7 @@ def inventory(root):
         **{f'tabilet/memory-bank/{name}.md':name for name in ('product','architecture','tech-stack','lessons','milestone')},
         'tabilet/docs/history/index.md':'history_index',
         'tabilet/docs/history/knowledge.md':'knowledge_history',
+        parser().HISTORY_CORRECTIONS:'history_corrections',
     }
     for name,kind in fixed.items():
         path=root/name
@@ -231,75 +232,18 @@ def apply_external_dependencies(documents, parsed, mapping):
     return diagnostics
 
 
-def retired_record_for_index(text, name):
-    """Read older literal envelopes without rewriting frozen source records.
-
-    Historical headings/fences and exact backticked [x] task-state cells are
-    adapted only in the lookup copy. The latter requires a completed outcome
-    and passed review. The runner still validates the full envelope; active
-    parsing and execution keep strict markers. Source bytes and line locations
-    remain literal, with every historical completion adaptation diagnosed.
-    """
-    p = parser()
-    lines = text.splitlines(keepends=True)
-    sections = [(n, value) for n, value in p.unfenced_lines(text)
-                if value.startswith('## ')]
-    if [value for _, value in sections] in (
-            ['## Milestone specification', '## Status record'],
-            ['## Milestone specification', '## Status'],
-            ['## Milestone specification', '## Full status document']):
-        for n, value in sections:
-            if value in ('## Status', '## Full status document'):
-                lines[n - 1] = lines[n - 1].replace(value, '## Status record', 1)
-            opening = next((i for i in range(n, len(lines)) if lines[i].strip()), None)
-            if opening is not None:
-                fence = lines[opening].strip()
-                if re.fullmatch(r'`{3,}|~{3,}', fence):
-                    lines[opening] = lines[opening].replace(fence, fence + 'markdown', 1)
-    normalized = ''.join(lines)
-    offsets = {}
-    legacy_completion_lines = []
+def retired_record_for_index(text, name, corrections=None):
+    """Use the runner's shared literal historical reader for lookup."""
     try:
-        canonical_sections = [(n, heading) for n, heading in p.unfenced_lines(normalized)
-                              if heading.startswith('## ')]
-        if [heading for _, heading in canonical_sections] == [
-                '## Milestone specification', '## Status record']:
-            for n, heading in canonical_sections:
-                opening = next((i for i in range(n, len(lines)) if lines[i].strip()), None)
-                if opening is None:
-                    raise ValueError('expected one fenced markdown document')
-                offsets[heading] = opening + 1
-            # Validate and unwrap the literal status fence before touching state
-            # cells. Nested examples and review-state tables are not task rows.
-            status = p.fenced_document(''.join(lines[canonical_sections[1][0]:]))
-            for row in p.status_table_rows(status):
-                if row['cells'][1] != '`[x]`':
-                    continue
-                physical = offsets['## Status record'] + row['line']
-                # Only the second unescaped table cell is the state. Preserve
-                # labels, notes, escaped pipes, whitespace and newline endings.
-                cells = re.split(r'(?<!\\)\|', lines[physical - 1], maxsplit=3)
-                cells[2] = cells[2].replace('`[x]`', '`[+]`', 1)
-                lines[physical - 1] = '|'.join(cells)
-                legacy_completion_lines.append(row['line'])
-            normalized = ''.join(lines)
-        record = p.retired_record(normalized, name, allow_unfinished=True)
-        if legacy_completion_lines and (record['metadata']['Outcome'] != 'completed'
-                                        or record['metadata']['Review'] != 'passed'):
-            raise ValueError('historical `[x]` completion markers require a completed '
-                             'outcome and passed review')
+        record = parser().historical_record(text, name, (corrections or {}).get('tabilet/docs/history/' + name))
     except ValueError as exc:
-        message = str(exc)
-        if '## Status record' in offsets:
-            message = re.sub(r'\bline (\d+):',
-                             lambda m: f'line {int(m[1]) + offsets["## Status record"]}:',
-                             message)
-        raise ValueError(f'{name}: {message}') from exc
-    record['legacy_completion_lines'] = legacy_completion_lines
+        raise ValueError(f'{name}: {exc}') from exc
+    offsets = {'## Status record': record['offsets']['status'],
+               '## Milestone specification': record['offsets']['specification']}
     return record, offsets
 
 
-def parse_document(path,kind,text,digest):
+def parse_document(path,kind,text,digest,corrections=None):
     p=parser()
     parsed={table:[] for table in DERIVED_TABLES if table!='index_documents'}
     parsed['index_sections']=list(headings(text))
@@ -307,6 +251,8 @@ def parse_document(path,kind,text,digest):
     for section in parsed['index_sections']:
         match = re.match(r'('+p.MILESTONE_ID+r')(?:\s|$)', section['heading'])
         parsed['index_search'].append(dict(line=section['line'],kind='section',milestone_id=match[1] if match else None,state=None,text=section['text']))
+    if kind == 'history_corrections':
+        return parsed
     if kind == 'stages':
         # Stages describe future intent. Their prose cannot create executable
         # milestone dependencies or task-readiness edges.
@@ -322,8 +268,9 @@ def parse_document(path,kind,text,digest):
         meta={}
         specification=None
         if kind=='history_status':
-            record, offsets = retired_record_for_index(text, pathlib.Path(path).name)
-            meta=record['metadata'];status=record['status'];specification=record['specification']
+            record, offsets = retired_record_for_index(text, pathlib.Path(path).name, corrections)
+            meta=dict(record['metadata']);status=record['task_status'];specification=record['specification']
+            if record['blockers']:meta['Review']='unverified'
             source_path=meta['Source status']
             offset = offsets['## Status record']
             specification_offset = offsets['## Milestone specification']
@@ -405,6 +352,15 @@ def parse_document(path,kind,text,digest):
     relation_lines = list(p.unfenced_lines(text))
     if kind == 'history_status':
         relation_lines = [(n + specification_offset, value) for n, value in p.unfenced_lines(specification)]
+        recovered_source = record['sources'].get('specification')
+        if recovered_source and recovered_source['path'] != path:
+            # A Git source range is not a physical line in the frozen container.
+            # Point derived relationships at their owning record, and expose
+            # the actual source identity with the recovered searchable text.
+            relation_lines = [(1, value) for _, value in p.unfenced_lines(specification)]
+            origin = f"{recovered_source['commit']}:{recovered_source['path']}:{recovered_source['start_line']}-{recovered_source['end_line']}"
+            parsed['index_search'].append(dict(line=1,kind='recovered_specification',milestone_id=identity,
+                state=None,text='Recovered source ' + origin + '\n' + specification))
         relation_lines += [(n + offset, value) for n, value in p.unfenced_lines(status)]
     external_links=external_milestone_links(text,source_path)
     current_identity=identity
@@ -472,7 +428,9 @@ def task_dependencies(notes):
     return unique
 
 
-def validate_projection(documents, parsed):
+def validate_projection(documents, parsed, corrections=None):
+    if set(corrections or {}) - set(documents):
+        raise AuditError('history correction refers to a missing record')
     """Cross-file identity/retirement checks; terminal states are never acceptance."""
     milestones={};diagnostics=[]
     specs={}; milestone_paths={}; family_documents={}
@@ -492,7 +450,7 @@ def validate_projection(documents, parsed):
             milestones[identity]=milestone
             milestone_paths[identity]=path
             name=pathlib.Path(path).name
-            family_documents[name]=(retired_record_for_index(doc['text'], name)[0]['status']
+            family_documents[name]=(retired_record_for_index(doc['text'], name, corrections)[0]['task_status']
                                     if doc['kind']=='history_status' else doc['text'])
             if doc['kind']=='active_status' and not name.startswith('status-'):
                 if identity in specs:raise AuditError(f'duplicate child specification: {identity}')
@@ -505,7 +463,7 @@ def validate_projection(documents, parsed):
         identity=row['cells'][0]
         if re.fullmatch(p.MILESTONE_ID,identity):
             if identity in history_rows:raise AuditError(f'duplicate history index ID: {identity}')
-            history_rows[identity]=row['cells']
+            history_rows[identity]=p.historical_index_cells(row['cells'])
     for identity,milestone in milestones.items():
         if milestone['lifecycle']=='active':
             if identity not in specs:raise AuditError(f'active status missing specification: {identity}')
@@ -514,8 +472,10 @@ def validate_projection(documents, parsed):
             if identity in specs:raise AuditError(f'retired specification remains active: {identity}')
             cells=history_rows.get(identity,[])
             path=milestone_paths[identity]
-            record, offsets = retired_record_for_index(documents[path]['text'], pathlib.Path(path).name)
+            record, offsets = retired_record_for_index(documents[path]['text'], pathlib.Path(path).name, corrections)
             meta = record['metadata']
+            diagnostics.extend(f'{path}: {problem}' for problem in record['blockers']
+                               if problem != 'historical `[x]` markers are lookup only')
             if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\('+re.escape(pathlib.Path(path).name)+r'\)',cells[3]):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
             for legacy_line in record['legacy_completion_lines']:
@@ -659,8 +619,14 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False, depend
             (f'index_projection:{workspace}',),
         ).fetchone()
         projection_ready = projection == (INDEX_PROJECTION,)
+        corrections, new_correction = parser().read_history_corrections(root)
+        correction_path = parser().HISTORY_CORRECTIONS
+        old_correction = previous.get(correction_path, {}).get('sha256')
+        rebuild = rebuild or old_correction != new_correction
         for path,kind in paths.items():
             text,digest,info=read_document(root,path)
+            if path == correction_path and digest != new_correction:
+                raise AuditError('history corrections changed during index scan')
             stats[path]=signature(info)
             documents[path]=dict(kind=kind,sha256=digest,mtime_ns=info.st_mtime_ns,size=info.st_size,text=text)
             old=previous.get(path)
@@ -671,10 +637,10 @@ def sync(connection, project_root, *, rebuild=False, force_literal=False, depend
                 for table in DERIVED_TABLES[1:]:
                     parts[table]=[{k:v for k,v in row.items() if k not in ('workspace_id','path','search_id')} for row in records(connection,f'SELECT * FROM {table} WHERE workspace_id=? AND path=?',(workspace,path))]
                 parsed[path]=parts
-            else:parsed[path]=parse_document(path,kind,text,digest)
+            else:parsed[path]=parse_document(path,kind,text,digest,corrections)
         if mapping is not None:
             diagnostics.extend(apply_external_dependencies(documents,parsed,mapping))
-        diagnostics.extend(validate_projection(documents,parsed))
+        diagnostics.extend(validate_projection(documents,parsed,corrections))
         generation=str(uuid.uuid4())
         publish(connection,workspace,documents,parsed,generation,context,attempted,diagnostics,force_literal,root=root,paths=paths,stats=stats,external_mapping=mapping_update,expected_external_mapping=saved)
         return status(connection,workspace)
@@ -843,7 +809,7 @@ def _readiness(connection, workspace, project_root=None):
         unfinished=any(row['state'] in {'pending','in_progress','blocked'} for row in target_rows)
         unsafe_terminal=any(row['state'] in {'cancelled','historical'} for row in target_rows)
         accepted = (target['lifecycle'] == 'retired' and target.get('outcome') == 'completed'
-                    and bool(target_rows) and not unfinished)
+                    and target.get('review') in {'passed', 'legacy'} and bool(target_rows) and not unfinished)
         if not accepted:
             milestone_waiting.setdefault(source_id,[]).append(target_id)
             if (not target_rows or unsafe_terminal or target['lifecycle'] == 'retired'
@@ -971,6 +937,13 @@ def _readiness(connection, workspace, project_root=None):
                                        'milestone_ids': cycle_milestones})
     if diagnostics:
         result['needs_review'].append({'reason':'projection or source diagnostics require inspection', 'diagnostics':diagnostics})
+    unresolved_history = sorted(key for key, value in milestones.items()
+                                if value['lifecycle'] == 'retired' and value['review'] == 'unverified')
+    if unresolved_history:
+        reason = 'historical closure evidence requires review: ' + ', '.join(unresolved_history)
+        result['needs_review'].append({'reason':reason, 'milestone_ids':unresolved_history})
+        result['waiting'].extend({'task':entry['task'], 'reason':reason} for entry in result['ready'])
+        result['ready'] = []
     return result
 
 

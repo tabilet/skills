@@ -295,7 +295,8 @@ class IndexTests(unittest.TestCase):
                   '| Cancelled | `[X]` | authorized cancellation |\n'
                   '| Historical | `[-]` | successor: M02 |\n')
         record, _ = ix.retired_record_for_index(h.retirement_text(status), 'status-M01.md')
-        self.assertEqual([row['state'] for row in ix.parser().status_rows(record['status'])],
+        self.assertEqual(record['status'], status)
+        self.assertEqual([row['state'] for row in ix.parser().status_rows(record['task_status'])],
                          ['completed', 'completed', 'pending', 'in_progress', 'blocked',
                           'cancelled', 'historical'])
         self.assertEqual(record['legacy_completion_lines'], [3])
@@ -358,11 +359,12 @@ class IndexTests(unittest.TestCase):
                 self.assertEqual(self.hashes(), before)
                 # Incremental reuse must retain the warning, not silently clear it.
                 self.assertIn(diagnostic, self.sync()['diagnostics'])
-        # Unrelated current work remains available despite inconsistent history.
+        # The shared runner gate rejects unresolved history even when the
+        # current task has no explicit dependency on that record.
         active.write_text(active.read_text() + '\n')
         (self.root/'tabilet/memory-bank/milestone.md').write_text('# Milestones\n\n## M02 - Next\n')
         synced = self.sync()
-        self.assertEqual(len(ix.readiness(self.c, synced['workspace_id'], self.root)['ready']), 1)
+        self.assertEqual(ix.readiness(self.c, synced['workspace_id'], self.root)['ready'], [])
         # Consistent closure still satisfies the dependency without warnings.
         retired.write_text(valid)
         (self.root/'tabilet/memory-bank/milestone.md').write_text(
