@@ -1179,6 +1179,26 @@ def configurable_review_limit():
             for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
 
 
+@check("status roots support at least two digits and preserve child/archive limits")
+def extended_status_id_contract():
+    runner = load_harness()
+    problems = []
+    for root in ('M99', 'M100', 'M130', 'M153'):
+        for name in (f'status-{root}.md', f'amend-{root}-01.md', f'option-{root}-99.md'):
+            if not runner.STATUS_NAME.fullmatch(name):
+                problems.append(f'valid status name rejected: {name}')
+        if f'status-{root}.md' not in runner.root_specifications(f'## {root} - Title\n'):
+            problems.append(f'root specification not recognized: {root}')
+    for name in ('status-M1.md', 'status-M00.md', 'status-M001.md',
+                 'amend-M100-00.md', 'option-M130-100.md', 'status-M153-01.md'):
+        if runner.STATUS_NAME.fullmatch(name):
+            problems.append(f'invalid status name accepted: {name}')
+    template = (ROOT / 'template/tabilet/memory-bank/milestone.md').read_text()
+    for token in missing_contract_tokens(template, ('after `A99`, continue with', 'Child suffixes remain two digits')):
+        problems.append(f'milestone template lacks extended ID rule: {token}')
+    return problems
+
+
 @check("milestone review-fix gate is bounded and aligned")
 def review_fix_gate():
     goal = " ".join((ROOT / "GOAL.md").read_text().split())

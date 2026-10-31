@@ -26,6 +26,34 @@ class IndexTests(unittest.TestCase):
     def sync(self,**kwargs):return ix.sync(self.c,self.root,**kwargs)
     def hashes(self):return {str(p.relative_to(self.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (self.root/'tabilet').rglob('*.md')}
 
+    def test_extended_ids_are_reindexed_and_keep_full_dependency_targets(self):
+        bank = self.root / 'tabilet/memory-bank'
+        self.source.unlink()
+        roots = ('M99', 'M100', 'M130', 'M153')
+        (bank/'milestone.md').write_text('# Milestones\n' + ''.join(
+            f'\n## {root} - Delivery\n\n**Acceptance.** Feature works.\n' for root in roots))
+        for root in roots:
+            (bank/f'status-{root}.md').write_text(
+                '| ID | State | Notes |\n|---|---|---|\n'
+                f'| T01 | `[ ]` | Depends on: {root}-01/T01 |\n')
+            (bank/f'amend-{root}-01.md').write_text(
+                f'## {root}-01 - Repair\n\nParent: {root}\n\n'
+                '| ID | State | Notes |\n|---|---|---|\n| T01 | `[ ]` | Repair |\n')
+            (bank/f'option-{root}-02.md').write_text(
+                f'## {root}-02 - Option\n\nParent: {root}\n')
+        first = self.sync(); workspace = first['workspace_id']
+        ids = {row[0] for row in self.c.execute('SELECT milestone_id FROM index_milestones')}
+        for root in roots:
+            self.assertTrue({root, root + '-01', root + '-02'} <= ids)
+            self.assertEqual((root + '-01', 'T01'), ix.dependency_target(root + '-01/T01'))
+        with self.c:
+            self.c.execute('UPDATE schema_meta SET value=? WHERE key=?', ('v7', f'index_projection:{workspace}'))
+        with mock.patch.object(ix, 'parse_document', wraps=ix.parse_document) as parse:
+            self.sync()
+            self.assertGreater(parse.call_count, 0)
+        self.assertEqual((ix.INDEX_PROJECTION,), self.c.execute(
+            'SELECT value FROM schema_meta WHERE key=?', (f'index_projection:{workspace}',)).fetchone())
+
     def test_search_fallback_and_no_project_writes(self):
         before=self.hashes()
         first=self.sync();w=first['workspace_id']

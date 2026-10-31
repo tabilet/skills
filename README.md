@@ -658,11 +658,11 @@ Under the surface, the normal agent workflow is:
 ### 6.1 Status ID lanes
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. The lane letter
-classifies the work and the number is zero-padded to two digits, so accounting
+classifies the work and the positive number has at least two digits, so accounting
 milestones become `status-A01.md` and `status-A02.md` while shopping milestones
 become `status-S01.md`. `M` is the default lane for work that does not classify
-into a domain lane. A lane holds at most 99 files; when a lane fills up, open a
-new letter instead of adding a third digit. `tabilet/memory-bank/milestone.md` records
+into a domain lane. After `M99`, continue with `M100`; child suffixes remain
+two digits. Sort IDs numerically when order matters. `tabilet/memory-bank/milestone.md` records
 what each letter means and never lets an ID be reused.
 
 The milestone file also holds **candidate directions** outside the active

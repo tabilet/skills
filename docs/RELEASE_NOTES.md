@@ -1,3 +1,25 @@
+# memory-bank v2.16.1
+
+Fixes discovery, indexing, execution selection and retirement for milestone root
+IDs above 99, such as `M100`, `M130` and `M153`. Root IDs use at least two digits;
+existing IDs remain unchanged. Amendment and option child suffixes, and context
+archive IDs, retain their separate two-digit limits.
+
+- Aligns runner, controller proposal validation, SQLite indexing and v1.5 migration
+  scanning with the root-ID grammar. The SQLite projection revision forces a
+  rebuild on the next index sync without rewriting project Markdown or audit records.
+- Adds coverage for `M99`, `M100`, `M130` and `M153`, their child records,
+  selection, indexing, retirement, migration, and the unchanged API review ceiling
+  of 10. The template and published guidance now describe the extended range.
+- Leaves frozen history untouched and preserves strict history validation. Recognizing
+  a longer filename does not make an existing nonconforming history record valid;
+  projects with such records still require separate reconciliation of the original
+  format and evidence without weakening review gates.
+
+The stock `GOAL.md` protocol bytes are unchanged from v2.16.0; the registry version
+moves with this release. Installing updated skills does not update account-level API
+runner or audit toolkit executables. Update those separately where installed.
+
 # memory-bank v2.16.0
 
 Makes approved Goal runs continue with fewer redundant confirmations while keeping

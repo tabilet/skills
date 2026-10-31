@@ -58,6 +58,55 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual('M01-02', parsed['index_milestones'][0]['milestone_id'])
         self.assertEqual('parent', parsed['index_relationships'][0]['relation'])
 
+    def test_extended_root_ids_work_across_discovery_selection_and_retirement(self):
+        # Fresh fixtures keep each root and its frozen history independent.
+        for root_id in ('M99', 'M100', 'M130', 'M153'):
+            with self.subTest(root=root_id):
+                fixture = FamilyTests('test_identity_and_deferred_option_discovery')
+                fixture.setUp()
+                try:
+                    fixture.base.set_project([(root_id, [('T01', '`[ ]`', 'Ready.')])])
+                    (fixture.bank / 'status-M01.md').unlink(missing_ok=True)
+                    amendment = fixture.child(root_id + '-01', 'amend')
+                    option = fixture.child(root_id + '-02', 'option', state='[+]')
+                    snapshot = core.row_snapshot(fixture.root)
+                    self.assertEqual([], snapshot['history']['problems'])
+                    self.assertEqual({root_id, root_id + '-01', root_id + '-02'}, set(snapshot['families']))
+                    self.assertEqual(root_id, fixture.select(fixture.receipt(
+                        (root_id, root_id + '-01')))['row']['milestone_id'])
+                    for path, identity in ((amendment, root_id + '-01'), (option, root_id + '-02')):
+                        self.assertEqual(identity, core.status_identity(path.name))
+                        parsed = index.parse_document('tabilet/memory-bank/'+path.name,
+                                                      'active_status', path.read_text(), '0'*64)
+                        self.assertEqual(identity, parsed['index_milestones'][0]['milestone_id'])
+                    amendment.write_text(amendment.read_text().replace('`[ ]`', '`[+]`'))
+                    frozen = fixture.retire(amendment)
+                    record = core.retired_record(frozen, amendment.name)
+                    self.assertEqual(root_id + '-01', record['metadata']['Milestone'])
+                    self.assertEqual(frozen, (fixture.root/'tabilet/docs/history'/amendment.name).read_text())
+                    option_frozen = fixture.retire(option)
+                    option_record = core.retired_record(option_frozen, option.name)
+                    self.assertEqual(root_id + '-02', option_record['metadata']['Milestone'])
+                    self.assertEqual(frozen, (fixture.root/'tabilet/docs/history'/amendment.name).read_text())
+                    self.assertEqual(option_frozen, (fixture.root/'tabilet/docs/history'/option.name).read_text())
+                    self.assertEqual((root_id + '-01', 'T01'), index.dependency_target(root_id + '-01/T01'))
+                finally:
+                    fixture.doCleanups()
+
+    def test_extended_identity_validation_keeps_child_and_archive_limits(self):
+        for root_id in ('M99', 'M100', 'M130', 'M153'):
+            for name in ('status-'+root_id+'.md', 'amend-'+root_id+'-01.md', 'option-'+root_id+'-99.md'):
+                self.assertTrue(core.STATUS_NAME.fullmatch(name), name)
+        for name in ('status-M1.md', 'status-M00.md', 'status-M001.md', 'amend-M100-00.md',
+                     'option-M130-100.md', 'status-M153-01.md'):
+            self.assertIsNone(core.STATUS_NAME.fullmatch(name), name)
+        self.assertIsNone(index.ARCHIVE.fullmatch('archive-M100.md'))
+
+    def test_malformed_wide_child_dependency_does_not_resolve_as_root(self):
+        text = '## M130 - Delivery\n\n**Dependencies.** M100-100\n'
+        parsed = index.parse_document('tabilet/memory-bank/milestone.md', 'milestone', text, '0'*64)
+        self.assertFalse(any(edge['target'] == 'milestone:M100' for edge in parsed['index_relationships']))
+
     def test_duplicate_child_number_across_kinds_is_rejected(self):
         self.child()
         self.child(kind='option')

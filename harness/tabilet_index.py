@@ -25,7 +25,7 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 4
-INDEX_PROJECTION = 'v7'
+INDEX_PROJECTION = 'v8'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -305,7 +305,7 @@ def parse_document(path,kind,text,digest):
     parsed['index_sections']=list(headings(text))
     parsed['index_search'].append(dict(line=1,kind=kind,milestone_id=None,state=None,text=text))
     for section in parsed['index_sections']:
-        match = re.match(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)', section['heading'])
+        match = re.match(r'('+p.MILESTONE_ID+r')(?:\s|$)', section['heading'])
         parsed['index_search'].append(dict(line=section['line'],kind='section',milestone_id=match[1] if match else None,state=None,text=section['text']))
     if kind == 'stages':
         # Stages describe future intent. Their prose cannot create executable
@@ -391,7 +391,7 @@ def parse_document(path,kind,text,digest):
         for section in parsed['index_sections']:
             if not text.splitlines()[section['line']-1].startswith('## '):
                 continue
-            match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)',section['heading'])
+            match=re.match(r'('+p.MILESTONE_ID+r')(?:\s|$)',section['heading'])
             if not match:continue
             order += 1
             body=section['text'].splitlines()[1:]
@@ -410,7 +410,7 @@ def parse_document(path,kind,text,digest):
     current_identity=identity
     seen_relations=set()
     for line,value in relation_lines:
-        section_id=re.match(r'## ([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)',value)
+        section_id=re.match(r'## ('+p.MILESTONE_ID+r')(?:\s|$)',value)
         if kind=='milestone' and section_id:current_identity=section_id[1]
         # Task-table notes have their own dependency grammar and scope. They
         # cannot create a milestone edge merely by naming an ID in prose.
@@ -422,7 +422,7 @@ def parse_document(path,kind,text,digest):
             source=('milestone:'+current_identity) if current_identity else path
             if kind=='context_archive':source='archive:'+ARCHIVE.fullmatch(pathlib.Path(path).name)[1]
             line_targets=set()
-            for target_match in re.finditer(r'\b[A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?\b',dependency[2]):
+            for target_match in re.finditer(r'(?<![A-Za-z0-9_])'+p.MILESTONE_ID+r'(?![A-Za-z0-9_-])',dependency[2]):
                 target=target_match[0]
                 if target in line_targets:
                     continue
@@ -451,7 +451,7 @@ def parse_document(path,kind,text,digest):
 def dependency_target(value):
     """Return an explicit target ID without treating ordinary prose as a relation."""
     value=value.strip().strip('`[]()')
-    match=re.fullmatch(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)/([A-Za-z0-9][A-Za-z0-9_.:-]*)',value)
+    match=re.fullmatch(r'('+parser().MILESTONE_ID+r')/([A-Za-z0-9][A-Za-z0-9_.:-]*)',value)
     if match:return match[1],match[2]
     return None,value
 
@@ -482,7 +482,7 @@ def validate_projection(documents, parsed):
             for section in parsed[path]['index_sections']:
                 if not doc['text'].splitlines()[section['line']-1].startswith('## '):
                     continue
-                match=re.match(r'([A-Z](?:0[1-9]|[1-9][0-9])(?:-(?:0[1-9]|[1-9][0-9]))?)(?:\s|$)',section['heading'])
+                match=re.match(r'('+p.MILESTONE_ID+r')(?:\s|$)',section['heading'])
                 if match:
                     if match[1] in specs:raise AuditError(f'duplicate milestone specification: {match[1]}')
                     specs[match[1]]=section['text']

@@ -133,7 +133,7 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
             # cannot recognize back out of "status-<id>.md" would pass
             # approval and be committed, then never resolve to a live or
             # retired record when the horizon tries to execute it.
-            raise ProposalError("each horizon milestone needs a status-lane ID (one uppercase letter, two digits)")
+            raise ProposalError("each horizon milestone needs a status-lane ID (one uppercase letter and a positive number with at least two digits)")
         if identifier in ids:
             raise ProposalError(f"duplicate milestone ID in horizon: {identifier}")
         ids.add(identifier)
@@ -203,7 +203,9 @@ def _validate_horizon(value, limits: dict) -> list[dict]:
             resume_after = task.get("resume_after", [])
             if (not isinstance(resume_after, list) or any(not isinstance(child, str) for child in resume_after)
                     or len(set(resume_after)) != len(resume_after)
-                    or any(not isinstance(child, str) or not re.fullmatch(re.escape(identifier)+r"-[0-9]{2}", child)
+                    or (resume_after and '-' in identifier)
+                    or any(not isinstance(child, str) or not re.fullmatch(
+                        re.escape(identifier)+r"-(?:0[1-9]|[1-9][0-9])", child)
                            for child in resume_after)):
                 raise ProposalError("resume_after must name this parent's amendment IDs")
         milestone.setdefault("manual_evidence", [])

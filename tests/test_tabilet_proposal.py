@@ -61,6 +61,37 @@ class ProposalTests(unittest.TestCase):
         self.input_calls = 0
         self.plan = self.make_proposal()
 
+    def test_horizon_accepts_extended_root_and_child_ids(self):
+        for root in ('M99', 'M100', 'M130', 'M153'):
+            for kind, identity in (('status', root), ('amend', root + '-01'), ('option', root + '-99')):
+                with self.subTest(identity=identity, kind=kind):
+                    milestone = dict(self.plan['horizon'][0])
+                    milestone['id'] = identity
+                    status_path = f'tabilet/memory-bank/{kind}-{identity}.md'
+                    milestone['closure_paths'] = ['tabilet/memory-bank/milestone.md', status_path]
+                    milestone['tasks'] = [dict(milestone['tasks'][0])]
+                    milestone['tasks'][0]['id'] = identity + '-T01'
+                    milestone['tasks'][0]['approved_paths'] = [status_path, 'src/example.py']
+                    result = proposal_api._validate_horizon([milestone], proposal_api.DEFAULT_LIMITS)
+                    self.assertEqual(identity, result[0]['id'])
+
+    def test_extended_root_resume_after_requires_a_valid_child_sequence(self):
+        milestone = dict(self.plan['horizon'][0])
+        milestone['id'] = 'M130'
+        path = 'tabilet/memory-bank/status-M130.md'
+        milestone['closure_paths'] = ['tabilet/memory-bank/milestone.md', path]
+        task = dict(milestone['tasks'][0])
+        task['approved_paths'] = [path]
+        milestone['tasks'] = [task]
+        task['resume_after'] = ['M130-01']
+        self.assertEqual(['M130-01'], proposal_api._validate_horizon(
+            [milestone], proposal_api.DEFAULT_LIMITS)[0]['tasks'][0]['resume_after'])
+        for invalid in ('M130-00', 'M130-100', 'M13-01'):
+            with self.subTest(invalid=invalid):
+                task['resume_after'] = [invalid]
+                with self.assertRaises(proposal_api.ProposalError):
+                    proposal_api._validate_horizon([milestone], proposal_api.DEFAULT_LIMITS)
+
     def commit(self, message):
         result = git("add", "-A", cwd=self.project)
         self.assertEqual(0, result.returncode, result.stderr)

@@ -554,7 +554,7 @@ Before reporting completion, verify all of the following:
 1. Every marker is wrapped in backticks.
 2. At most one general row is `[~]`; every `[-]` row names its accepted
    successor and is non-actionable.
-3. Every status filename is `status-<LANE><NN>.md` with a two-digit number.
+3. Every status filename is `status-<LANE><NN>.md` with a positive number of at least two digits, without extra leading zeros.
 4. The milestone index lists exactly the active status files that exist, and
    every link resolves.
 5. Candidate directions have no lane letters, IDs, status files, or launch

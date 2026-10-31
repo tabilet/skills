@@ -87,6 +87,23 @@ class MigrationTests(unittest.TestCase):
     def migrate(self, repo, *flags, env=None):
         return call(sys.executable, str(CLI), str(repo), *flags, env=env)
 
+    def test_extended_root_ids_migrate_without_rewriting_status_bytes(self):
+        for root in ('M99', 'M100', 'M130', 'M153'):
+            with self.subTest(root=root), tempfile.TemporaryDirectory() as tmp:
+                repo = Path(tmp) / 'project'
+                fixture(repo, goal=False)
+                bank = repo / 'memory-bank'
+                (bank/'status-M01.md').rename(bank/f'status-{root}.md')
+                milestone = bank/'milestone.md'
+                milestone.write_text(milestone.read_text().replace('M01', root))
+                original = (bank/f'status-{root}.md').read_bytes()
+                commit(repo)
+                preview = self.migrate(repo)
+                self.assertEqual(preview.returncode, 0, preview.stderr)
+                result = self.migrate(repo, '--apply')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(original, (repo/'tabilet/memory-bank'/f'status-{root}.md').read_bytes())
+
     def test_copied_v15_template_migrates_to_v2_goal(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "project"

@@ -189,8 +189,8 @@ No recursive child families and no silent renaming. A root lane and archive
 namespace keep their existing independent numbering.
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. `<LANE>` is a single
-uppercase letter that classifies the work, and `<NN>` is a zero-padded number
-within that lane:
+uppercase letter that classifies the work, and `<NN>` is a positive number
+with at least two digits within that lane:
 
 ```text
 M01, M02, M03, ... M09, M10, M11, ...    Default lane
@@ -207,10 +207,10 @@ Lane meanings:
 
 Rules:
 
-- Always use the zero-padded two-digit form (`A01`, not `A1`). It keeps file
-  names and tables sorting naturally after a lane reaches `10`.
-- A lane holds at most 99 status files, `01` through `99`. When a lane fills up,
-  stop that lane and open a new letter instead of adding a third digit.
+- Use at least two digits (`A01`, not `A1`); after `A99`, continue with
+  `A100`, `A101`, and so on. Do not add leading zeros beyond the minimum.
+  Sort numeric IDs numerically when chronological order matters; lexical order
+  puts `A100` before `A99`. Child suffixes remain two digits (`01`–`99`).
 - Do not reuse an ID after its status file exists, including after retirement.
   Search both active files and the history index before allocating an ID.
   Context archive IDs use an independent namespace; a matching archive ID is

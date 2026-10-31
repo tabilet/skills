@@ -197,10 +197,10 @@ or goal orders, and the API harness ignores them because it discovers only root 
 ### Status ID lanes
 
 Status files are `tabilet/memory-bank/status-<LANE><NN>.md`: one uppercase letter
-classifying the domain, then a zero-padded two-digit number. `A01`/`A02` for
+classifying the domain, then a positive number with at least two digits. `A01`/`A02` for
 accounting, `S01` for shopping, `M` as the default lane for anything that
-doesn't classify. A lane holds at most 99 files — when it fills, open a new
-letter rather than a third digit. IDs are never reused or renamed once their
+doesn't classify. After `M99` continue with `M100`; extra leading zeros are invalid.
+Child suffixes and archive IDs retain their separate two-digit limits. IDs are never reused or renamed once their
 file exists, and there is no aggregate `status.md`. The pattern, the lane
 meanings, and the index table live in `template/tabilet/memory-bank/milestone.md`.
 

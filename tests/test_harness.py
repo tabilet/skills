@@ -224,7 +224,7 @@ class RetirementTests(unittest.TestCase):
         text = retirement_text(f"| Task | {marker('[+]')} | Verified |\n")
         with self.assertRaisesRegex(ValueError, "specification does not match"):
             harness.retired_record(text.replace("## M01 - Delivery", "## M02 - Other"), "status-M01.md")
-        with self.assertRaisesRegex(ValueError, "01 through 99"):
+        with self.assertRaisesRegex(ValueError, "invalid retired status ID"):
             harness.retired_record(text.replace("M01", "M00"), "status-M00.md")
 
     def test_fence_with_info_string_does_not_end_literal_example(self) -> None:
@@ -272,6 +272,31 @@ class RetirementTests(unittest.TestCase):
         ):
             with self.subTest(fields=fields), self.assertRaises(ValueError):
                 harness.retired_record(retirement_text(status, **fields), "status-M01.md")
+
+    def test_extended_root_retirement_keeps_the_api_review_ceiling(self) -> None:
+        for identity in ('M99', 'M100', 'M130', 'M153'):
+            for iterations, limit, rejected in (('10', '10', False), ('25', '30', True)):
+                with self.subTest(identity=identity, iterations=iterations), tempfile.TemporaryDirectory() as tmp:
+                    repo = make_repo(pathlib.Path(tmp) / 'repo', marker('[~]'))
+                    bank = repo / 'tabilet/memory-bank'
+                    (bank / 'status-M01.md').rename(bank / f'status-{identity}.md')
+                    milestone = bank / 'milestone.md'
+                    milestone.write_text(milestone.read_text().replace('M01', identity))
+                    before = harness.row_snapshot(repo)
+                    status = bank / f'status-{identity}.md'
+                    status.write_text(status.read_text().replace(marker('[~]'), marker('[+]')))
+                    retired = retire_fixture(repo, identity, **{
+                        'Review iterations': iterations, 'Review limit': limit,
+                        'Review limit approval': 'agent says approved',
+                    })
+                    original = retired.read_bytes()
+                    after = harness.row_snapshot(repo)
+                    problems = harness.validate_row_transition(before, after, (status.name, 'Implement feature', 1))
+                    if rejected:
+                        self.assertTrue(any('fixed review limit of 10' in problem for problem in problems), problems)
+                    else:
+                        self.assertEqual([], problems)
+                    self.assertEqual(original, retired.read_bytes())
 
     def test_new_api_retirement_cannot_self_authorize_a_larger_review_limit(self) -> None:
         for count, limit, rejected in (("10", "10", False), ("25", "30", True), ("2", "30", True)):
