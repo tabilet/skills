@@ -15,38 +15,39 @@ Read the [published guides](https://tabilet.github.io/skills/) in English or Sim
 ## Contents
 
 1. [Getting started](#chapter-1-getting-started)
-2. [What is in this repository](#chapter-2-what-is-in-this-repository)
-3. [Filled-in example and memory-bank structure](#chapter-3-what-a-filled-in-memory-bank-looks-like)
-4. [Project setup](#chapter-4-project-setup)
-    - 4.1 [Set up a new project](#41-set-up-a-new-project) ([Wiring up your agent](#wiring-up-your-agent))
-    - 4.2 [Set up an existing project](#42-set-up-an-existing-project) ([Archive a large package](#archive-a-large-existing-package))
-    - 4.3 [Stage planning](#43-stage-planning)
-5. [Planning and review workflows](#chapter-5-planning-and-review-workflows)
-    - 5.1 [Propose a requested change](#51-propose-a-requested-change)
-    - 5.2 [Reconcile a new review](#52-reconcile-a-new-review)
-6. [Use the memory bank](#chapter-6-use-the-memory-bank)
-    - 6.1 [Status ID lanes](#61-status-id-lanes)
-    - 6.2 [Keep long-term memory without growing the active plan](#62-keep-long-term-memory-without-growing-the-active-plan)
-    - 6.3 [Upgrade an existing project](#63-upgrade-an-existing-project)
-    - 6.4 [Run an ordered set of milestones (goal protocol)](#64-run-an-ordered-set-of-milestones)
-7. [Install the seven skills](#chapter-7-install-the-seven-skills)
-    - 7.1 [Suggested models](#71-suggested-models)
-    - 7.2 [Supported agents (Claude Code, Codex, agy, DSH)](#72-supported-agents-claude-code-codex-agy-dsh)
-    - 7.3 [Plain files installation](#73-plain-files-installation)
-    - 7.4 [DSH installation](#74-dsh-installation)
-    - 7.5 [Update installed skills](#75-update-installed-skills)
-    - 7.6 [Uninstall or remove skills](#76-uninstall-or-remove-skills)
-8. [Optional SQLite audit and lookup](#chapter-8-optional-sqlite-audit-and-lookup)
-    - 8.1 [Sync and Repair](#81-sync-and-repair)
-9. [Install the API harness](#chapter-9-install-the-api-harness)
-    - 9.1 [Changes since v2.4.0](#91-changes-since-v240)
-    - 9.2 [Setup and Run](#92-setup-and-run)
-    - 9.3 [LLM prompt caching](#93-llm-prompt-caching)
-    - 9.4 [First run & guardrails](#94-first-run-guardrails)
-    - 9.5 [API-only workflow](#95-api-only-workflow)
-    - 9.6 [Tabilet controller guide](docs/tabilet-controller.md)
-    - 9.7 [Execution harness reference](docs/EXECUTION.md)
-10. [What the harness is](#chapter-10-what-the-harness-is) and [maintenance rules](#101-maintenance-rules)
+    - 1.1 [Install the seven skills](#11-install-the-seven-skills)
+    - 1.2 [Suggested models](#12-suggested-models)
+    - 1.3 [Install for your agent](#13-install-for-your-agent)
+    - 1.4 [Plain files installation](#14-plain-files-installation)
+    - 1.5 [DSH installation](#15-dsh-installation)
+    - 1.6 [Update installed skills](#16-update-installed-skills)
+    - 1.7 [Uninstall or remove skills](#17-uninstall-or-remove-skills)
+2. [Filled-in example and memory-bank structure](#chapter-2-what-a-filled-in-memory-bank-looks-like)
+3. [Project setup](#chapter-3-project-setup)
+    - 3.1 [Set up a new project](#31-set-up-a-new-project) ([Wiring up your agent](#wiring-up-your-agent))
+    - 3.2 [Set up an existing project](#32-set-up-an-existing-project) ([Archive a large package](#archive-a-large-existing-package))
+    - 3.3 [Stage planning](#33-stage-planning)
+4. [Planning and review workflows](#chapter-4-planning-and-review-workflows)
+    - 4.1 [Propose a requested change](#41-propose-a-requested-change)
+    - 4.2 [Reconcile a new review](#42-reconcile-a-new-review)
+5. [Use the memory bank](#chapter-5-use-the-memory-bank)
+    - 5.1 [Status ID lanes](#51-status-id-lanes)
+    - 5.2 [Keep long-term memory](#52-keep-long-term-memory-without-growing-the-active-plan)
+    - 5.3 [Upgrade an existing project](#53-upgrade-an-existing-project)
+    - 5.4 [Run an ordered set of milestones](#54-run-an-ordered-set-of-milestones)
+6. [Optional SQLite audit and lookup](#chapter-6-optional-sqlite-audit-and-lookup)
+    - 6.1 [Sync and Repair](#61-sync-and-repair)
+7. [Install the API harness](#chapter-7-install-the-api-harness)
+    - 7.1 [Changes since v2.4.0](#71-changes-since-v240)
+    - 7.2 [Setup and Run](#72-setup-and-run)
+    - 7.3 [LLM prompt caching](#73-llm-prompt-caching)
+    - 7.4 [First run & guardrails](#74-first-run-guardrails)
+    - 7.5 [API-only workflow](#75-api-only-workflow)
+    - [Tabilet controller guide](docs/tabilet-controller.md)
+    - [Execution harness reference](docs/EXECUTION.md)
+8. [What the harness is](#chapter-8-what-the-harness-is)
+    - 8.1 [Repository contents](#81-repository-contents)
+    - 8.2 [Maintenance rules](#82-maintenance-rules)
 
 Your project ends up looking like this:
 
@@ -108,24 +109,13 @@ audit toolkit, and the one-time v1.5.0 migration command. All of them use only
 the standard library. The audit toolkit also needs Python's `sqlite3` module with
 SQLite 3.24.0 or later; without it, auditing reports a gap and work continues.
 
-The quickest way to start does not require cloning anything. Install the Tabilet plugin
-and let its namespaced `memory-bank-init` skill interview you and write the
-Tabilet memory bank for you:
+Install the skills for your agent below, then start a new or small existing
+project with `memory-bank-init` and answer its questions. A large existing
+package may first need `memory-bank-archive`; see
+[Set Up An Existing Project](#set-up-an-existing-project).
 
-```bash
-/plugin marketplace add tabilet/skills
-/plugin install memory-bank
-/memory-bank:memory-bank-init
-```
-
-Run those commands in Claude Code from a new or small existing project and
-answer the questions. A large existing package may first be routed through
-`memory-bank-archive`; see [Set Up An Existing Project](#set-up-an-existing-project).
-The Codex equivalent, DSH route, and plain-file installation are in
-[Install The Seven Skills](#install-the-seven-skills).
-
-To work from the files by hand instead, clone this repository once. Every `cp`
-command below refers to your clone as `/path/to/skills`:
+To use the template manually, clone the repository; `/path/to/skills` in the
+examples refers to this checkout:
 
 ```bash
 git clone https://github.com/tabilet/skills.git
@@ -135,76 +125,211 @@ cd skills
 Copy `template/` into a project and, if needed, install the optional tools from
 `harness/` into your home directory.
 
-<a id="what-is-in-this-repository"></a>
-## Chapter 2. What Is In This Repository
+<a id="install-the-five-skills"></a>
+<a id="install-the-six-skills"></a>
 
-Project-level sample files in [template/](template/), copied into a project
-root:
+<a id="install-the-seven-skills"></a>
+<a id="chapter-7-install-the-seven-skills"></a>
+### 1.1 Install the seven skills
 
-- [template/AGENTS.md](template/AGENTS.md)
-- [GOAL.md](GOAL.md) — the stock multi-milestone execution protocol; it ships inside the skills, not in the template
-- [template/tabilet/memory-bank/product.md](template/tabilet/memory-bank/product.md)
-- [template/tabilet/memory-bank/architecture.md](template/tabilet/memory-bank/architecture.md)
-- [template/tabilet/memory-bank/tech-stack.md](template/tabilet/memory-bank/tech-stack.md)
-- [template/tabilet/memory-bank/lessons.md](template/tabilet/memory-bank/lessons.md)
-- [template/tabilet/memory-bank/milestone.md](template/tabilet/memory-bank/milestone.md)
-- [template/tabilet/memory-bank/status-M01.md](template/tabilet/memory-bank/status-M01.md)
-- [template/tabilet/evolution/prompt-v1.md](template/tabilet/evolution/prompt-v1.md)
-- [template/tabilet/evolution/result-v1.md](template/tabilet/evolution/result-v1.md)
+The optional skills carry repeatable instructions for each stage of the workflow.
+You can also work with the Markdown files using ordinary language.
 
-The optional API runner and controller payload live in [harness/](harness/):
+| Skill | When |
+|---|---|
+| `memory-bank-archive` | Before init when a large existing package needs a commit-anchored context map; later only when a material context change needs a successor snapshot. |
+| `memory-bank-init` | Once, on a project with no initialized milestone/status harness. It interviews you, proposes a breakdown, then writes the files. |
+| `memory-bank-upgrade` | After updating skills, review and approve merges of new workflow rules into an existing project. |
+| `memory-bank-propose` | When an initialized project needs a requested feature, candidate promotion, or change to future direction. |
+| `memory-bank-reconcile` | Whenever a new review arrives after initialization. It validates findings and updates the approved plan without implementing them. |
+| `memory-bank-next` | Execute or resume one row, verify, and commit under the governing policy. |
+| `memory-bank-goal` | When you want several milestones run in order. |
 
-- [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
-- [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
-- [harness/tabilet](harness/tabilet) and [harness/tabilet_install.py](harness/tabilet_install.py) install the optional controller.
+<a id="suggested-models"></a>
+<a id="71-suggested-models"></a>
+### 1.2 Suggested models
 
-The seven skills are in [skills/](skills/). Claude Code, Codex, and DSH read the
-same `SKILL.md` bundles, so there is one source per skill:
+Skills use the host agent's selected model by default. Choose stronger reasoning
+for ambiguous planning and milestone review; a faster model can suit a clear,
+bounded task. Goal and Next support an optional [model policy](docs/goal.md#optional-model-policy)
+for supported hosts. Project files remain provider-independent.
 
-- [memory-bank-archive](skills/memory-bank-archive/SKILL.md) — snapshot a large
-  existing package into frozen, evidence-backed context archives
-- [memory-bank-init](skills/memory-bank-init/SKILL.md) — interview a
-  project into existence, then write its memory bank
-- [memory-bank-upgrade](skills/memory-bank-upgrade/SKILL.md) — propose and apply
-  approved workflow-rule upgrades while preserving existing project state
-- [memory-bank-propose](skills/memory-bank-propose/SKILL.md) — plan a requested
-  feature, candidate promotion, or future direction change
-- [memory-bank-reconcile](skills/memory-bank-reconcile/SKILL.md) — validate a
-  new review against current code and reconcile the approved work plan
-- [memory-bank-next](skills/memory-bank-next/SKILL.md) — tackle one row,
-  verify it, commit it
-- [memory-bank-goal](skills/memory-bank-goal/SKILL.md) — run an ordered
-  set of milestones
+<a id="72-supported-agents-claude-code-codex-agy-dsh"></a>
+### 1.3 Install for your agent
 
-Init, archive, propose, and reconcile inspect their planning references before
-presenting a complete proposal. They write only after its approval, then continue through
-verification within that scope. Upgrade presents focused rule diffs while
-preserving project content. Goal loads optional runtime help only when needed;
-keep its supporting reference when copying the bundle.
+Claude Code, Codex, and `agy` (Google Antigravity) read the same `SKILL.md` format
+**and the same manifest**. DSH loads the same complete directories through its
+filesystem skill loader; see [DSH installation](#15-dsh-installation).
 
-Unlike the copyable template, `memory-bank-init` can derive project-specific
-goal input; `memory-bank-reconcile` and `memory-bank-propose` can refresh it
-when approved planning changes the active graph. When goal use is approved and the selected governing protocol is available and compatible,
-they write `tabilet/memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
-`STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is advisory and disposable,
-covers only the approved active horizon, and excludes unnumbered candidate
-directions; the milestone and status files remain authoritative. They omit the
-launch reference when no compatible protocol exists instead of naming a missing
-or incompatible file.
+**Claude Code:** Run these commands in your terminal:
 
-`.claude-plugin/` holds the compatibility manifest used to install the same
-Tabilet plugin in Claude Code and Codex. Nothing in `template/` is vendor-specific.
+```bash
+claude plugin marketplace add tabilet/skills
+claude plugin install memory-bank@tabilet
+```
 
-Harness references:
+**Codex** has its own plugin system, and reads
+`.claude-plugin/plugin.json` as a fallback, so the same repository works:
 
-- [Execution Harness](docs/EXECUTION.md)
-- [Model Eval Harness](docs/MODEL_EVAL.md)
-- [Controller Architecture](docs/api.md)
-- [Autonomous Execution](docs/automation.md)
-- [Milestone Authorizations](docs/authorizations.md)
+```bash
+codex plugin marketplace add tabilet/skills
+codex plugin add memory-bank@tabilet
+```
+
+Codex requires the `@marketplace` qualifier when a plugin name is not unique
+across your configured marketplaces, so `memory-bank@tabilet` is the form worth
+learning. `codex plugin marketplace upgrade` refreshes the snapshot when a new
+version ships.
+
+**agy (Antigravity):**
+
+`agy` has a built-in plugin manager and can install directly from GitHub:
+
+```bash
+agy plugin install https://github.com/tabilet/skills
+```
+
+*(Or from a local clone: `agy plugin install .`)*
+
+`agy` registers all seven skills as slash commands and installs them into
+`~/.gemini/config/plugins/memory-bank`. Verify with `agy plugin list`.
+
+**Plugin installations are namespaced.** This follows current [Claude Code
+skill namespacing](https://code.claude.com/docs/en/slash-commands), [Codex
+skill invocation](https://developers.openai.com/plugins/build/skills), and
+`agy` slash command registration:
+
+| Agent | Archive | Init | Propose change | Upgrade rules | Reconcile review | Next row | Ordered milestones |
+|---|---|---|---|---|---|---|---|
+| Claude Code plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-propose` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
+| Codex plugin | `$memory-bank:memory-bank-archive` | `$memory-bank:memory-bank-init` | `$memory-bank:memory-bank-propose` | `$memory-bank:memory-bank-upgrade` | `$memory-bank:memory-bank-reconcile` | `$memory-bank:memory-bank-next` | `$memory-bank:memory-bank-goal` |
+| agy plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-propose` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
+| DSH filesystem | `/memory-bank-archive` | `/memory-bank-init` | `/memory-bank-propose` | `/memory-bank-upgrade` | `/memory-bank-reconcile` | `/memory-bank-next` | `/memory-bank-goal` |
+
+Plain English also works across all agents.
+
+<a id="as-plain-files-you-own"></a>
+<a id="73-plain-files-installation"></a>
+### 1.4 Plain files installation
+
+**As plain files you own** rather than a managed plugin, install into each
+agent's personal skill directory:
+
+```bash
+# Codex and agy personal skill directory
+mkdir -p ~/.agents/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=2 -C ~/.agents/skills 'skills-main/skills'
+
+# Claude Code alternative
+mkdir -p ~/.claude/skills
+curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
+  | tar -xz --strip-components=2 -C ~/.claude/skills 'skills-main/skills'
+```
+
+Plain-file skills are unnamespaced: `/memory-bank-archive` and
+`/memory-bank-init` in Claude Code and agy, `$memory-bank-archive` and
+`$memory-bank-init` in Codex, with the same pattern for `upgrade`, `propose`, `reconcile`, `next`, and
+`goal`. `agy` also scans project-local skills in `.agents/skills/`.
+
+To pin a published version, replace `refs/heads/main` with its tag path and
+match the archive's directory name. For tag `v1.3.0`, those are
+`refs/tags/v1.3.0` and `skills-1.3.0` respectively: the extracted directory omits
+the tag's leading `v`. A tag download is available only after publication.
+
+The Tabilet plugin installs the *generator*, not the output. What it writes into your
+project is yours, is never updated from here, and survives uninstalling it.
+
+The skill is deliberately not named `goal`: Claude Code and Codex reserve
+built-in `/goal` for keeping a durable objective active, while
+`memory-bank-goal` supplies this repository's multi-milestone protocol. The two
+work together; see [Run an ordered set of
+milestones](#run-an-ordered-set-of-milestones).
+
+<a id="dsh-installation"></a>
+<a id="74-dsh-installation"></a>
+### 1.5 DSH installation
+
+The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
+packages the seven v2.16.1 skills and provides a read-only Memory Bank sidebar
+and reviewable workflow request previews. The tested companion target is Linux,
+Node 24.14.1, and DSH 0.1.5-rc.2. Direct filesystem installation is also
+available; its acceptance evidence has a separate runtime scope.
+
+See the [DSH guide](docs/DSH.md#install-the-dsh-companion) for installation,
+updates, support boundaries, and acceptance evidence. For reproducible source
+installation, use the `v2.16.1` tag and its matching guide. A plugin update does
+not migrate project rules or history.
+
+<a id="update-installed-skills"></a>
+
+<a id="75-update-installed-skills"></a>
+### 1.6 Update installed skills
+
+Updating installed skills refreshes the tools available to your agent. Remember:
+**updating installed skills does not alter your project's memory bank files or rules**.
+To adopt newer workflow rules in an existing project, use `memory-bank-upgrade`
+after updating the skills.
+
+- **Claude Code:**
+  ```bash
+  claude plugin marketplace update tabilet
+  claude plugin update memory-bank@tabilet
+  ```
+  *(Or inside an active session: `/plugin marketplace update tabilet`, then `/plugin install memory-bank@tabilet`, followed by `/reload-plugins`.)*
+- **Codex:**
+  ```bash
+  codex plugin marketplace upgrade tabilet
+  codex plugin add memory-bank@tabilet
+  ```
+  *(Start a new Codex session to load the updated skills.)*
+- **agy:**
+  Re-run the [agy installation command](#13-install-for-your-agent) to pull the latest version from GitHub.
+- **DSH:**
+  Follow [update or removal](docs/DSH.md#update-or-remove) to update the companion package or replace the filesystem bundles under `$DSH_HOME/skills` with complete folders from the new release.
+- **Plain-file installs:**
+  Re-download or copy the updated `skills/` folders into `~/.agents/skills/` (or `~/.claude/skills/`).
+
+<a id="uninstall-or-remove-skills"></a>
+<a id="76-uninstall-or-remove-skills"></a>
+### 1.7 Uninstall or remove skills
+
+Uninstalling removes the generator skills from your agent environment. Project
+Markdown files in your repositories remain untouched and continue to function as
+authoritative documentation and manual task tracking.
+
+- **Claude Code:**
+  ```bash
+  claude plugin uninstall memory-bank@tabilet
+  # Optional: claude plugin marketplace remove tabilet
+  ```
+  *(Or inside Claude Code: `/plugin` to open the interactive manager and uninstall.)*
+- **Codex:**
+  ```bash
+  codex plugin remove memory-bank@tabilet
+  # Optional: codex plugin marketplace remove tabilet
+  ```
+- **agy:**
+  ```bash
+  agy plugin uninstall memory-bank
+  ```
+- **DSH:**
+  ```bash
+  dsh plugin --profile web remove tabilet-skills
+  ```
+  *(Remove the headless profile installation separately if installed there.)*
+- **Plain-file installs:**
+  Delete only the `memory-bank-*` directories from `~/.agents/skills/` (or `~/.claude/skills/`).
+
+### If you already use `/grill-me`
+
+After a design interview, run `memory-bank-init` in the same session to turn
+agreed decisions into an approved, persistent project plan. The interview
+technique is adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
 
 <a id="what-a-filled-in-memory-bank-looks-like"></a>
-## Chapter 3. What A Filled-In Memory Bank Looks Like
+<a id="chapter-3-what-a-filled-in-memory-bank-looks-like"></a>
+## Chapter 2. What A Filled-In Memory Bank Looks Like
 
 The template ships placeholders. Here is the same Tabilet memory bank filled in for a
 small shopping service, so you can see the destination before the directions.
@@ -284,10 +409,12 @@ Empty or unreadable status files also stop the run. Older separately installed
 runners can silently overlook malformed rows; updating skills does not update
 that runner.
 
-## Chapter 4. Project Setup
+<a id="chapter-4-project-setup"></a>
+## Chapter 3. Project Setup
 
 <a id="set-up-a-new-project"></a>
-### 4.1 Set Up A New Project
+<a id="41-set-up-a-new-project"></a>
+### 3.1 Set Up A New Project
 
 If you installed [the seven skills](#install-the-seven-skills),
 `memory-bank-init` does everything in this section: it interviews you, proposes
@@ -297,7 +424,8 @@ filled in. The two routes below are the same work done by hand.
 For a medium or large project, Init asks about stages without requiring a
 detailed plan for distant work.
 
-#### 4.1.1 Manual
+<a id="411-manual"></a>
+#### 3.1.1 Manual
 
 From a new project root:
 
@@ -330,7 +458,8 @@ see [Stage Planning](#stage-planning).
 Keep `README.md` simple and user-facing. Put long-form references in `docs/`.
 
 <a id="wiring-up-your-agent"></a>
-#### 4.1.2 Wiring up your agent
+<a id="412-wiring-up-your-agent"></a>
+#### 3.1.2 Wiring up your agent
 
 `AGENTS.md` is an [open cross-vendor standard](https://agents.md) stewarded by
 the Agentic AI Foundation. Most coding agents read it with no setup at all,
@@ -350,7 +479,8 @@ that will drift:
 On Windows, symlinks need Administrator or Developer Mode, so prefer the import
 form there.
 
-#### 4.1.3 With Help Of An AI Agent
+<a id="413-with-help-of-an-ai-agent"></a>
+#### 3.1.3 With Help Of An AI Agent
 
 Instead of filling the copied template yourself, describe the project and ask an
 agent to replace the placeholders with supported facts, verification commands,
@@ -359,7 +489,8 @@ overwrite files; back up or commit existing work first.
 
 <a id="set-up-an-existing-project"></a>
 
-### 4.2 Set Up An Existing Project
+<a id="42-set-up-an-existing-project"></a>
+### 3.2 Set Up An Existing Project
 
 `memory-bank-init` handles a small existing package directly. It reads what the
 repository already states in the README, tests, build and CI files, interfaces,
@@ -373,7 +504,8 @@ before writing and requires `memory-bank-archive` as a preflight. This is an
 adaptive evidence boundary, not a file-count or line-count threshold.
 
 <a id="archive-a-large-existing-package"></a>
-#### 4.2.1 Archive A Large Existing Package
+<a id="421-archive-a-large-existing-package"></a>
+#### 3.2.1 Archive A Large Existing Package
 
 Start from a clean Git commit and run:
 
@@ -405,7 +537,8 @@ After the archive index shows every selected context as verified, run
 summaries, interviews the remaining decisions, and creates the milestone/status
 harness.
 
-#### 4.2.2 Manual
+<a id="422-manual"></a>
+#### 3.2.2 Manual
 
 Inventory the project's documentation, tests, build files, and source before
 writing. Back up or commit existing files; copy the template to a temporary
@@ -415,7 +548,8 @@ inventory and propose the merge for your review.
 
 <a id="stage-planning"></a>
 
-### 4.3 Stage Planning
+<a id="43-stage-planning"></a>
+### 3.3 Stage Planning
 
 For a project with uncertain later work, Init can create an optional
 `tabilet/stages.md`. It plans milestones for the current stage's next verifiable
@@ -426,10 +560,12 @@ have their own stable IDs. A stage description does not create a task or advance
 the active milestone plan. Without this file, the existing one-stage workflow
 applies. The [Init guide](docs/init.md) describes the staging question and output.
 
-## Chapter 5. Planning And Review Workflows
+<a id="chapter-5-planning-and-review-workflows"></a>
+## Chapter 4. Planning And Review Workflows
 
 <a id="propose-a-requested-change"></a>
-### 5.1 Propose A Requested Change
+<a id="51-propose-a-requested-change"></a>
+### 4.1 Propose A Requested Change
 
 Use `memory-bank-propose` for a feature, candidate promotion, stage, or change
 of direction in an initialized project. It inspects current evidence and presents
@@ -442,7 +578,8 @@ and approvals still apply. See the [Propose guide](docs/propose.md),
 
 <a id="reconcile-a-new-review"></a>
 
-### 5.2 Reconcile A New Review
+<a id="52-reconcile-a-new-review"></a>
+### 4.2 Reconcile A New Review
 
 After a project has its milestone/status harness, a new code, architecture,
 security, or engineering review should change the plan only after its findings
@@ -474,7 +611,8 @@ commit, or launch the fixes; use `memory-bank-next` or `memory-bank-goal` after
 approving the reconciled plan.
 
 <a id="use-the-memory-bank"></a>
-## Chapter 6. Use The Memory Bank
+<a id="chapter-6-use-the-memory-bank"></a>
+## Chapter 5. Use The Memory Bank
 
 There are four ways to execute against the Tabilet memory bank, and all of them are
 optional, because the memory bank is plain markdown and works on its own:
@@ -536,7 +674,8 @@ Under the surface, the normal agent workflow is:
    direction, boundary, milestone, or contract change.
 
 <a id="status-id-lanes"></a>
-### 6.1 Status ID lanes
+<a id="61-status-id-lanes"></a>
+### 5.1 Status ID lanes
 
 Status files are named `tabilet/memory-bank/status-<LANE><NN>.md`. The lane letter
 classifies the work and the positive number has at least two digits, so accounting
@@ -584,7 +723,8 @@ operational launcher, its exact authorized operation row must be `[~]`; that
 marker records the selection but does not grant external-mutation authority.
 
 <a id="keep-long-term-memory-without-growing-the-active-plan"></a>
-### 6.2 Keep long-term memory without growing the active plan
+<a id="62-keep-long-term-memory-without-growing-the-active-plan"></a>
+### 5.2 Keep long-term memory without growing the active plan
 
 Keep current facts, active work, and applicable lessons in the memory bank.
 After a milestone passes its review, verification, consolidation, and downstream
@@ -601,7 +741,8 @@ and [worked example](docs/TUTORIAL.md#example-a-milestone-closes-and-a-lesson-su
 
 <a id="upgrade-an-existing-project"></a>
 
-### 6.3 Upgrade an existing project
+<a id="63-upgrade-an-existing-project"></a>
+### 5.3 Upgrade an existing project
 
 After updating the skills, use `memory-bank-upgrade` to compare an existing
 project's workflow rules with the bundled contract. It presents a complete merge
@@ -616,7 +757,8 @@ migration and explicit adoption of retirement.
 
 <a id="run-an-ordered-set-of-milestones"></a>
 
-### 6.4 Run an ordered set of milestones
+<a id="64-run-an-ordered-set-of-milestones"></a>
+### 5.4 Run an ordered set of milestones
 
 The workflow above advances one row at a time. To work through several
 milestones in a defined order, the [stock goal protocol](GOAL.md) is one protocol for
@@ -700,7 +842,8 @@ strict; `STATUS_PRIORITY` chooses among dependency-ready milestones. These are
 goal-protocol capabilities of the hosting agent. The standalone API runner and
 `tabilet` controller remain serial and keep their own commit requirements.
 
-#### 6.4.1 Keep a long run active
+<a id="641-keep-a-long-run-active"></a>
+#### 5.4.1 Keep a long run active
 
 Both [Claude Code](https://code.claude.com/docs/en/goal) and
 [Codex](https://learn.chatgpt.com/use-cases/follow-goals) provide a built-in
@@ -727,7 +870,8 @@ prompts](https://learn.chatgpt.com/docs/custom-prompts) are deprecated in favor
 of skills, so this repository does not install or recommend a separate
 `goal.md` prompt.
 
-#### 6.4.2 Any other agent
+<a id="642-any-other-agent"></a>
+#### 5.4.2 Any other agent
 
 Paste the block as an ordinary request. Selecting the protocol is all it
 needs; nothing depends on a slash command existing. Without the plugin, copy the
@@ -772,212 +916,11 @@ writing one of these is fiddly, not because anything here depends on it. If you
 have your own, select it with `GOAL_PROTOCOL`, or delete the `AGENTS.md` and
 `tabilet/memory-bank/milestone.md` mentions of the goal protocol.
 
-<a id="install-the-five-skills"></a>
-<a id="install-the-six-skills"></a>
-
-<a id="install-the-seven-skills"></a>
-## Chapter 7. Install The Seven Skills
-
-Version 2.0.0 publishes all seven skills under the new project layout. Existing projects
-adopt its requested-change procedure through an approved Upgrade proposal.
-
-Also optional. Everything above works by typing plain sentences; these just make
-the seven moments repeatable, and carry the full instruction rather than your
-paraphrase of it.
-
-| Skill | When |
-|---|---|
-| `memory-bank-archive` | Before init when a large existing package needs a commit-anchored context map; later only when a material context change needs a successor snapshot. |
-| `memory-bank-init` | Once, on a project with no initialized milestone/status harness. It interviews you, proposes a breakdown, then writes the files. |
-| `memory-bank-upgrade` | After updating skills, review and approve merges of new workflow rules into an existing project. |
-| `memory-bank-propose` | When an initialized project needs a requested feature, candidate promotion, or change to future direction. |
-| `memory-bank-reconcile` | Whenever a new review arrives after initialization. It validates findings and updates the approved plan without implementing them. |
-| `memory-bank-next` | Execute or resume one row, verify, and commit under the governing policy. |
-| `memory-bank-goal` | When you want several milestones run in order. |
-
-<a id="suggested-models"></a>
-### 7.1 Suggested models
-
-Skills use the host agent's selected model by default. Choose stronger reasoning
-for ambiguous planning and milestone review; a faster model can suit a clear,
-bounded task. Goal and Next support an optional [model policy](docs/goal.md#optional-model-policy)
-for supported hosts. Project files remain provider-independent.
-
-### 7.2 Supported agents (Claude Code, Codex, agy, DSH)
-
-Claude Code, Codex, and `agy` (Google Antigravity) read the same `SKILL.md` format
-**and the same manifest**. DSH loads the same complete directories through its
-filesystem skill loader; see [DSH installation](#74-dsh-installation).
-
-**Claude Code:** Run these commands in your terminal:
-
-```bash
-claude plugin marketplace add tabilet/skills
-claude plugin install memory-bank@tabilet
-```
-
-**Codex** has its own plugin system, and reads
-`.claude-plugin/plugin.json` as a fallback, so the same repository works:
-
-```bash
-codex plugin marketplace add tabilet/skills
-codex plugin add memory-bank@tabilet
-```
-
-Codex requires the `@marketplace` qualifier when a plugin name is not unique
-across your configured marketplaces, so `memory-bank@tabilet` is the form worth
-learning. `codex plugin marketplace upgrade` refreshes the snapshot when a new
-version ships.
-
-**agy (Antigravity):**
-
-`agy` has a built-in plugin manager and can install directly from GitHub:
-
-```bash
-agy plugin install https://github.com/tabilet/skills
-```
-
-*(Or from a local clone: `agy plugin install .`)*
-
-`agy` registers all seven skills as slash commands and installs them into
-`~/.gemini/config/plugins/memory-bank`. Verify with `agy plugin list`.
-
-**Plugin installations are namespaced.** This follows current [Claude Code
-skill namespacing](https://code.claude.com/docs/en/slash-commands), [Codex
-skill invocation](https://developers.openai.com/plugins/build/skills), and
-`agy` slash command registration:
-
-| Agent | Archive | Init | Propose change | Upgrade rules | Reconcile review | Next row | Ordered milestones |
-|---|---|---|---|---|---|---|---|
-| Claude Code plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-propose` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
-| Codex plugin | `$memory-bank:memory-bank-archive` | `$memory-bank:memory-bank-init` | `$memory-bank:memory-bank-propose` | `$memory-bank:memory-bank-upgrade` | `$memory-bank:memory-bank-reconcile` | `$memory-bank:memory-bank-next` | `$memory-bank:memory-bank-goal` |
-| agy plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-propose` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
-| DSH filesystem | `/memory-bank-archive` | `/memory-bank-init` | `/memory-bank-propose` | `/memory-bank-upgrade` | `/memory-bank-reconcile` | `/memory-bank-next` | `/memory-bank-goal` |
-
-Plain English also works across all agents.
-
-<a id="as-plain-files-you-own"></a>
-### 7.3 Plain files installation
-
-**As plain files you own** rather than a managed plugin, install into each
-agent's personal skill directory:
-
-```bash
-# Codex and agy personal skill directory
-mkdir -p ~/.agents/skills
-curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=2 -C ~/.agents/skills 'skills-main/skills'
-
-# Claude Code alternative
-mkdir -p ~/.claude/skills
-curl -fsSL https://github.com/tabilet/skills/archive/refs/heads/main.tar.gz \
-  | tar -xz --strip-components=2 -C ~/.claude/skills 'skills-main/skills'
-```
-
-Plain-file skills are unnamespaced: `/memory-bank-archive` and
-`/memory-bank-init` in Claude Code and agy, `$memory-bank-archive` and
-`$memory-bank-init` in Codex, with the same pattern for `upgrade`, `propose`, `reconcile`, `next`, and
-`goal`. `agy` also scans project-local skills in `.agents/skills/`.
-
-To pin a published version, replace `refs/heads/main` with its tag path and
-match the archive's directory name. For tag `v1.3.0`, those are
-`refs/tags/v1.3.0` and `skills-1.3.0` respectively: the extracted directory omits
-the tag's leading `v`. A tag download is available only after publication.
-
-The Tabilet plugin installs the *generator*, not the output. What it writes into your
-project is yours, is never updated from here, and survives uninstalling it.
-
-The skill is deliberately not named `goal`: Claude Code and Codex reserve
-built-in `/goal` for keeping a durable objective active, while
-`memory-bank-goal` supplies this repository's multi-milestone protocol. The two
-work together; see [Run an ordered set of
-milestones](#run-an-ordered-set-of-milestones).
-
-<a id="dsh-installation"></a>
-### 7.4 DSH installation
-
-The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
-packages the seven v2.16.1 skills and provides a read-only Memory Bank sidebar
-and reviewable workflow request previews. The tested companion target is Linux,
-Node 24.14.1, and DSH 0.1.5-rc.2. Direct filesystem installation is also
-available; its acceptance evidence has a separate runtime scope.
-
-See the [DSH guide](docs/DSH.md#install-the-dsh-companion) for installation,
-updates, support boundaries, and acceptance evidence. For reproducible source
-installation, use the `v2.16.1` tag and its matching guide. A plugin update does
-not migrate project rules or history.
-
-<a id="update-installed-skills"></a>
-
-### 7.5 Update installed skills
-
-Updating installed skills refreshes the tools available to your agent. Remember:
-**updating installed skills does not alter your project's memory bank files or rules**.
-To adopt newer workflow rules in an existing project, use `memory-bank-upgrade`
-after updating the skills.
-
-- **Claude Code:**
-  ```bash
-  claude plugin marketplace update tabilet
-  claude plugin update memory-bank@tabilet
-  ```
-  *(Or inside an active session: `/plugin marketplace update tabilet`, then `/plugin install memory-bank@tabilet`, followed by `/reload-plugins`.)*
-- **Codex:**
-  ```bash
-  codex plugin marketplace upgrade tabilet
-  codex plugin add memory-bank@tabilet
-  ```
-  *(Start a new Codex session to load the updated skills.)*
-- **agy:**
-  Re-run install to pull the latest version from GitHub:
-  ```bash
-  agy plugin install https://github.com/tabilet/skills
-  ```
-  *(Or run `agy plugin install .` from within an updated local clone.)*
-- **DSH:**
-  Follow [update or removal](docs/DSH.md#update-or-remove) to update the companion package or replace the filesystem bundles under `$DSH_HOME/skills` with complete folders from the new release.
-- **Plain-file installs:**
-  Re-download or copy the updated `skills/` folders into `~/.agents/skills/` (or `~/.claude/skills/`).
-
-<a id="uninstall-or-remove-skills"></a>
-### 7.6 Uninstall or remove skills
-
-Uninstalling removes the generator skills from your agent environment. Project
-Markdown files in your repositories remain untouched and continue to function as
-authoritative documentation and manual task tracking.
-
-- **Claude Code:**
-  ```bash
-  claude plugin uninstall memory-bank@tabilet
-  # Optional: claude plugin marketplace remove tabilet
-  ```
-  *(Or inside Claude Code: `/plugin` to open the interactive manager and uninstall.)*
-- **Codex:**
-  ```bash
-  codex plugin remove memory-bank@tabilet
-  # Optional: codex plugin marketplace remove tabilet
-  ```
-- **agy:**
-  ```bash
-  agy plugin uninstall memory-bank
-  ```
-- **DSH:**
-  ```bash
-  dsh plugin --profile web remove tabilet-skills
-  ```
-  *(Remove the headless profile installation separately if installed there.)*
-- **Plain-file installs:**
-  Delete only the `memory-bank-*` directories from `~/.agents/skills/` (or `~/.claude/skills/`).
-
-### If you already use `/grill-me`
-
-After a design interview, run `memory-bank-init` in the same session to turn
-agreed decisions into an approved, persistent project plan. The interview
-technique is adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
-
 <a id="optional-sqlite-audit-and-lookup"></a>
 
-## Chapter 8. Optional SQLite Audit And Lookup
+<a id="chapter-8-optional-sqlite-audit-and-lookup"></a>
+<a id="chapter-7-optional-sqlite-audit-and-lookup"></a>
+## Chapter 6. Optional SQLite Audit And Lookup
 
 Markdown remains authoritative. Optional `tabilet-audit` records workflow
 evidence and maintains a rebuildable lookup index at `tabilet/audit.sqlite3`;
@@ -994,7 +937,9 @@ for toolkit installation, ignore files, disabling audit, and platform instructio
 
 <a id="sync-and-repair"></a>
 
-### 8.1 Sync and Repair
+<a id="81-sync-and-repair"></a>
+<a id="71-sync-and-repair"></a>
+### 6.1 Sync and Repair
 
 Use `tabilet-audit index sync /absolute/path/to/project` after manual Markdown
 changes or when lookup data is stale. Sync does not enable audit or rewrite
@@ -1006,7 +951,9 @@ it into its own SQLite database.
 
 <a id="install-the-api-harness"></a>
 
-## Chapter 9. Install The API Harness
+<a id="chapter-9-install-the-api-harness"></a>
+<a id="chapter-8-install-the-api-harness"></a>
+## Chapter 7. Install The API Harness
 
 This section is optional. Everything above works without it, because the Tabilet Harness
 only adds an unattended loop that drives an agent through the API instead of you
@@ -1017,7 +964,9 @@ The Tabilet API harness is account-level because it can drive any project that f
 this memory-bank shape. It needs Python 3.9 or later and nothing else.
 
 <a id="api-changes-since-v240"></a>
-### 9.1 Changes since v2.4.0
+<a id="91-changes-since-v240"></a>
+<a id="81-changes-since-v240"></a>
+### 7.1 Changes since v2.4.0
 
 The standalone runner executes one row per run and requires a commit. The
 optional controller runs serial rows within an approved bounded horizon; neither
@@ -1027,7 +976,9 @@ does not update an installed runner or audit toolkit. See the
 
 <a id="setup-and-run"></a>
 
-### 9.2 Setup and Run
+<a id="92-setup-and-run"></a>
+<a id="82-setup-and-run"></a>
+### 7.2 Setup and Run
 
 Install the standalone runner from a checkout:
 
@@ -1057,14 +1008,18 @@ limits, environment handling, and the separate controller.
 
 <a id="llm-prompt-caching"></a>
 
-### 9.3 LLM prompt caching
+<a id="93-llm-prompt-caching"></a>
+<a id="83-llm-prompt-caching"></a>
+### 7.3 LLM prompt caching
 
 The runner uses provider-supported prompt caching where available; this does
 not cache model responses. See [caching behavior](docs/EXECUTION.md#prompt-caching-and-context).
 
 <a id="first-run"></a>
 
-### 9.4 First run & guardrails
+<a id="94-first-run-guardrails"></a>
+<a id="84-first-run-guardrails"></a>
+### 7.4 First run & guardrails
 
 The runner checks repository and row state before and after each run. It stops
 on conditions such as a dirty worktree, missing commit, or invalid status/history.
@@ -1073,7 +1028,9 @@ by themselves prove milestone acceptance.
 
 <a id="api-only-workflow"></a>
 
-### 9.5 API-only workflow
+<a id="95-api-only-workflow"></a>
+<a id="85-api-only-workflow"></a>
+### 7.5 API-only workflow
 
 The API runner reads project Markdown on each run. Optional SQLite audit records
 its observed lifecycle and builds a lookup index without replacing the Markdown.
@@ -1083,7 +1040,9 @@ run. See the [API-only setup](docs/installation.md#api-only-workflow) and
 
 <a id="what-the-harness-is"></a>
 
-## Chapter 10. What The Harness Is
+<a id="chapter-10-what-the-harness-is"></a>
+<a id="chapter-9-what-the-harness-is"></a>
+## Chapter 8. What The Harness Is
 
 The standalone API harness runs a model through a JSON command protocol and
 checks Git and task transitions between runs. It resumes an existing in-progress
@@ -1092,9 +1051,80 @@ not a sandbox. The [execution reference](docs/EXECUTION.md)
 covers the runner and controller; the [model evaluation guide](docs/MODEL_EVAL.md)
 describes measuring outcomes across models.
 
+<a id="what-is-in-this-repository"></a>
+<a id="chapter-2-what-is-in-this-repository"></a>
+### 8.1 Repository contents
+
+Project-level sample files in [template/](template/), copied into a project
+root:
+
+- [template/AGENTS.md](template/AGENTS.md)
+- [GOAL.md](GOAL.md) — the stock multi-milestone execution protocol; it ships inside the skills, not in the template
+- [template/tabilet/memory-bank/product.md](template/tabilet/memory-bank/product.md)
+- [template/tabilet/memory-bank/architecture.md](template/tabilet/memory-bank/architecture.md)
+- [template/tabilet/memory-bank/tech-stack.md](template/tabilet/memory-bank/tech-stack.md)
+- [template/tabilet/memory-bank/lessons.md](template/tabilet/memory-bank/lessons.md)
+- [template/tabilet/memory-bank/milestone.md](template/tabilet/memory-bank/milestone.md)
+- [template/tabilet/memory-bank/status-M01.md](template/tabilet/memory-bank/status-M01.md)
+- [template/tabilet/evolution/prompt-v1.md](template/tabilet/evolution/prompt-v1.md)
+- [template/tabilet/evolution/result-v1.md](template/tabilet/evolution/result-v1.md)
+
+The optional API runner and controller payload live in [harness/](harness/):
+
+- [harness/tackle-memory-bank-api-loop](harness/tackle-memory-bank-api-loop)
+- [harness/prompts/tackle-next-memory-bank-todo.md](harness/prompts/tackle-next-memory-bank-todo.md)
+- [harness/tabilet](harness/tabilet) and [harness/tabilet_install.py](harness/tabilet_install.py) install the optional controller.
+
+The seven skills are in [skills/](skills/). Claude Code, Codex, and DSH read the
+same `SKILL.md` bundles, so there is one source per skill:
+
+- [memory-bank-archive](skills/memory-bank-archive/SKILL.md) — snapshot a large
+  existing package into frozen, evidence-backed context archives
+- [memory-bank-init](skills/memory-bank-init/SKILL.md) — interview a
+  project into existence, then write its memory bank
+- [memory-bank-upgrade](skills/memory-bank-upgrade/SKILL.md) — propose and apply
+  approved workflow-rule upgrades while preserving existing project state
+- [memory-bank-propose](skills/memory-bank-propose/SKILL.md) — plan a requested
+  feature, candidate promotion, or future direction change
+- [memory-bank-reconcile](skills/memory-bank-reconcile/SKILL.md) — validate a
+  new review against current code and reconcile the approved work plan
+- [memory-bank-next](skills/memory-bank-next/SKILL.md) — tackle one row,
+  verify it, commit it
+- [memory-bank-goal](skills/memory-bank-goal/SKILL.md) — run an ordered
+  set of milestones
+
+Init, archive, propose, and reconcile inspect their planning references before
+presenting a complete proposal. They write only after its approval, then continue through
+verification within that scope. Upgrade presents focused rule diffs while
+preserving project content. Goal loads optional runtime help only when needed;
+keep its supporting reference when copying the bundle.
+
+Unlike the copyable template, `memory-bank-init` can derive project-specific
+goal input; `memory-bank-reconcile` and `memory-bank-propose` can refresh it
+when approved planning changes the active graph. When goal use is approved and the selected governing protocol is available and compatible,
+they write `tabilet/memory-bank/suggested.txt` with a proposed `STATUS_ORDER`,
+`STATUS_FILE_MAP`, and `DOWNSTREAM_IMPACTS`. The file is advisory and disposable,
+covers only the approved active horizon, and excludes unnumbered candidate
+directions; the milestone and status files remain authoritative. They omit the
+launch reference when no compatible protocol exists instead of naming a missing
+or incompatible file.
+
+`.claude-plugin/` holds the compatibility manifest used to install the same
+Tabilet plugin in Claude Code and Codex. Nothing in `template/` is vendor-specific.
+
+Harness references:
+
+- [Execution Harness](docs/EXECUTION.md)
+- [Model Eval Harness](docs/MODEL_EVAL.md)
+- [Controller Architecture](docs/api.md)
+- [Autonomous Execution](docs/automation.md)
+- [Milestone Authorizations](docs/authorizations.md)
+
 <a id="maintenance-rules"></a>
 
-### 10.1 Maintenance Rules
+<a id="101-maintenance-rules"></a>
+<a id="91-maintenance-rules"></a>
+### 8.2 Maintenance Rules
 
 - Keep `AGENTS.md` short.
 - Keep project `README.md` user-facing.

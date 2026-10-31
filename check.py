@@ -6,7 +6,8 @@ Every rule in AGENTS.md that a human would otherwise have to remember and
 re-derive by hand is checked here instead. Run it before claiming a change is
 done, and in CI:
 
-    python3 check.py
+    python3 check.py                 # full suite
+    python3 check.py --readme        # README-only changes
 
 Exits 0 when every check passes, 1 otherwise. Standard library only, matching
 the repository's own dependency rule.
@@ -2113,22 +2114,29 @@ def goal_examples():
 # --------------------------------------------------------------------------
 # 5. Links and heading anchors.
 # --------------------------------------------------------------------------
-@check("markdown links and heading anchors resolve")
-def links():
+def link_problems(*, readme_only: bool = False):
     problems = []
     link_re = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+    readme = (ROOT / "README.md").resolve()
     for md in markdown_files():
         for target in link_re.findall(prose(md.read_text())):
             if target.startswith(("http://", "https://", "mailto:")):
                 continue
             file_part, _, frag = target.partition("#")
             dest = (md.parent / file_part).resolve() if file_part else md.resolve()
+            if readme_only and md.resolve() != readme and dest != readme:
+                continue
             rel = md.relative_to(ROOT)
             if not dest.exists():
                 problems.append(f"{rel}: missing file {file_part}")
             elif frag and frag not in anchors(dest):
                 problems.append(f"{rel}: dead anchor #{frag} in {file_part or md.name}")
     return problems
+
+
+@check("markdown links and heading anchors resolve")
+def links():
+    return link_problems()
 
 
 @check("published guides match MkDocs navigation and website rules")
@@ -3375,10 +3383,34 @@ def v213_contract():
     return problems
 
 
-def main() -> int:
+def readme_contract_problems() -> list[str]:
+    """Run README contracts without reporting unrelated documents' problems."""
+    problems = link_problems(readme_only=True)
+    for fn in (goal_examples, public_interfaces, goal_continuity_contract,
+               protocol_identity_contract, suggested_goal_reference,
+               harness_safety_contract, english_only_docs, sqlite_bundle_contract,
+               site_contract, dsh_contract):
+        problems.extend(problem for problem in fn() if problem.startswith("README.md"))
+    return problems
+
+
+@check("README-only verification retains focused coverage and full-suite boundaries")
+def readme_verification_contract():
+    instructions = (ROOT / "AGENTS.md").read_text()
+    return [f"AGENTS.md: missing README verification rule {token!r}" for token in (
+        "python3 check.py --readme",
+        "limited to the root `README.md`",
+        "Code, protocols, repository instructions, and changes to other files require the",
+        "full `python3 check.py`",
+        "mkdocs build --strict",
+    ) if token not in instructions]
+
+
+def main(*, readme_only: bool = False) -> int:
     print(f"Checking {ROOT}\n")
     failures = 0
-    for name, fn in CHECKS:
+    checks = [("README links and public contracts", readme_contract_problems)] if readme_only else CHECKS
+    for name, fn in checks:
         try:
             problems = fn()
         except Exception as exc:
@@ -3392,7 +3424,7 @@ def main() -> int:
     if failures:
         print(f"\n{failures} problem(s) found.")
         return 1
-    print(f"\nAll {len(CHECKS)} checks passed.")
+    print(f"\nAll {len(checks)} checks passed.")
     return 0
 
 
@@ -3400,4 +3432,8 @@ if __name__ == "__main__":
     sys.dont_write_bytecode = True
     if sys.argv[1:] == ["--sync-goal-protocol"]:
         raise SystemExit(sync_goal_protocol())
+    if sys.argv[1:] == ["--readme"]:
+        raise SystemExit(main(readme_only=True))
+    if sys.argv[1:]:
+        raise SystemExit("usage: check.py [--readme | --sync-goal-protocol]")
     raise SystemExit(main())

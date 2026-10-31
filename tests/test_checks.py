@@ -16,6 +16,29 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_readme_links_check_outgoing_and_incoming_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            readme = root / "README.md"
+            guide = root / "guide.md"
+            readme.write_text("# Start\n[missing](absent.md)\n")
+            guide.write_text("[bad inbound](README.md#missing)\n[unrelated](elsewhere.md)\n")
+            with mock.patch.object(repository_checks, "ROOT", root), mock.patch.object(
+                repository_checks, "markdown_files", return_value=[readme, guide]
+            ):
+                problems = repository_checks.link_problems(readme_only=True)
+                self.assertTrue(any("absent.md" in problem for problem in problems))
+                self.assertTrue(any("#missing" in problem for problem in problems))
+                self.assertFalse(any("elsewhere.md" in problem for problem in problems))
+                readme.write_text("# Start\n## Missing\n")
+                self.assertEqual([], repository_checks.link_problems(readme_only=True))
+
+    def test_readme_mode_runs_no_behavioral_suite(self):
+        with mock.patch.object(repository_checks, "readme_contract_problems", return_value=[]), mock.patch.object(
+            repository_checks, "CHECKS", [("behavior", mock.Mock(side_effect=AssertionError))]
+        ):
+            self.assertEqual(0, repository_checks.main(readme_only=True))
+
     def test_grant_phrase_guard_normalizes_case_and_wrapping_and_scans_docs(self):
         phrase = "GRANTS MARKED `[ ]`, `[+]`, OR `[~]`\n\tBECOME EFFECTIVE"
         self.assertTrue(repository_checks.pending_grant_phrase_problems("guide", phrase))

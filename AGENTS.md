@@ -111,7 +111,10 @@ is only worth anything if additions are argued against something:
 ## Essential Commands
 
 ```bash
-# Verify this repository. Run before claiming a change is done; CI runs it too.
+# For changes limited to README.md, verify its links and public contracts.
+python3 check.py --readme
+
+# For code, protocol, instruction, or other changes, run the full suite; CI does too.
 python3 check.py
 
 # Separate credential-free DSH compatibility suite (Linux, Node 24).
@@ -144,6 +147,11 @@ status-marker regexes, the shipped payload, the disposable goal-reference
 contract, the English-only documentation policy and its translated-site
 exception. Standard library only, like the harness.
 When you add a rule to this file, add the check that enforces it.
+The `--readme` mode checks README links, inbound anchors, and its public
+instruction and installation contracts; it does not run behavioral tests. Use
+it only when the changes being completed are limited to the root `README.md`.
+Code, protocols, repository instructions, and changes to other files require the
+full `python3 check.py`. Website changes also require `mkdocs build --strict`.
 
 The DSH suite is repository-only: `tests/dsh/` locks the runtime and its
 dependencies, and a separate CI job tests the seven shared bundles through DSH's
