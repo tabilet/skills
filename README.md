@@ -15,13 +15,12 @@ Read the [published guides](https://tabilet.github.io/skills/) in English or Sim
 ## Contents
 
 1. [Getting started](#chapter-1-getting-started)
-    - 1.1 [Install the seven skills](#11-install-the-seven-skills)
-    - 1.2 [Suggested models](#12-suggested-models)
-    - 1.3 [Install for your agent](#13-install-for-your-agent)
-    - 1.4 [Plain files installation](#14-plain-files-installation)
-    - 1.5 [DSH installation](#15-dsh-installation)
-    - 1.6 [Update installed skills](#16-update-installed-skills)
-    - 1.7 [Uninstall or remove skills](#17-uninstall-or-remove-skills)
+    - 1.1 [Suggested models](#11-suggested-models)
+    - 1.2 [Install for your agent](#12-install-for-your-agent)
+    - 1.3 [Plain files installation](#13-plain-files-installation)
+    - 1.4 [DSH installation](#14-dsh-installation)
+    - 1.5 [Update installed skills](#15-update-installed-skills)
+    - 1.6 [Uninstall or remove skills](#16-uninstall-or-remove-skills)
 2. [Filled-in example and memory-bank structure](#chapter-2-what-a-filled-in-memory-bank-looks-like)
 3. [Project setup](#chapter-3-project-setup)
     - 3.1 [Set up a new project](#31-set-up-a-new-project) ([Wiring up your agent](#wiring-up-your-agent))
@@ -99,55 +98,10 @@ Already have a project or a new review? [Skill use cases](docs/USE_CASES.md)
 shows individual and combined workflows, including automatic retirement versus
 explicit context snapshots.
 
-The Tabilet memory bank is plain Markdown and needs no runtime to read or maintain.
-Git is required by the usual per-task commit workflow and the optional API
-harness. A permitted no-commit workflow can maintain the same files without
-Git, including their retired records.
-
-Python 3.9 or later is used by the optional API harness, the optional SQLite
-audit toolkit, and the one-time v1.5.0 migration command. All of them use only
-the standard library. The audit toolkit also needs Python's `sqlite3` module with
-SQLite 3.24.0 or later; without it, auditing reports a gap and work continues.
-
-Install the skills for your agent below, then start a new or small existing
-project with `memory-bank-init` and answer its questions. A large existing
-package may first need `memory-bank-archive`; see
-[Set Up An Existing Project](#set-up-an-existing-project).
-
-To use the template manually, clone the repository; `/path/to/skills` in the
-examples refers to this checkout:
-
-```bash
-git clone https://github.com/tabilet/skills.git
-cd skills
-```
-
-Copy `template/` into a project and, if needed, install the optional tools from
-`harness/` into your home directory.
-
-<a id="install-the-five-skills"></a>
-<a id="install-the-six-skills"></a>
-
-<a id="install-the-seven-skills"></a>
-<a id="chapter-7-install-the-seven-skills"></a>
-### 1.1 Install the seven skills
-
-The optional skills carry repeatable instructions for each stage of the workflow.
-You can also work with the Markdown files using ordinary language.
-
-| Skill | When |
-|---|---|
-| `memory-bank-archive` | Before init when a large existing package needs a commit-anchored context map; later only when a material context change needs a successor snapshot. |
-| `memory-bank-init` | Once, on a project with no initialized milestone/status harness. It interviews you, proposes a breakdown, then writes the files. |
-| `memory-bank-upgrade` | After updating skills, review and approve merges of new workflow rules into an existing project. |
-| `memory-bank-propose` | When an initialized project needs a requested feature, candidate promotion, or change to future direction. |
-| `memory-bank-reconcile` | Whenever a new review arrives after initialization. It validates findings and updates the approved plan without implementing them. |
-| `memory-bank-next` | Execute or resume one row, verify, and commit under the governing policy. |
-| `memory-bank-goal` | When you want several milestones run in order. |
-
 <a id="suggested-models"></a>
 <a id="71-suggested-models"></a>
-### 1.2 Suggested models
+<a id="12-suggested-models"></a>
+### 1.1 Suggested models
 
 Skills use the host agent's selected model by default. Choose stronger reasoning
 for ambiguous planning and milestone review; a faster model can suit a clear,
@@ -155,11 +109,17 @@ bounded task. Goal and Next support an optional [model policy](docs/goal.md#opti
 for supported hosts. Project files remain provider-independent.
 
 <a id="72-supported-agents-claude-code-codex-agy-dsh"></a>
-### 1.3 Install for your agent
+<a id="13-install-for-your-agent"></a>
+<a id="install-the-five-skills"></a>
+<a id="install-the-six-skills"></a>
+<a id="install-the-seven-skills"></a>
+<a id="chapter-7-install-the-seven-skills"></a>
+<a id="11-install-the-seven-skills"></a>
+### 1.2 Install for your agent
 
 Claude Code, Codex, and `agy` (Google Antigravity) read the same `SKILL.md` format
 **and the same manifest**. DSH loads the same complete directories through its
-filesystem skill loader; see [DSH installation](#15-dsh-installation).
+filesystem skill loader; see [DSH installation](#14-dsh-installation).
 
 **Claude Code:** Run these commands in your terminal:
 
@@ -206,11 +166,14 @@ skill invocation](https://developers.openai.com/plugins/build/skills), and
 | agy plugin | `/memory-bank:memory-bank-archive` | `/memory-bank:memory-bank-init` | `/memory-bank:memory-bank-propose` | `/memory-bank:memory-bank-upgrade` | `/memory-bank:memory-bank-reconcile` | `/memory-bank:memory-bank-next` | `/memory-bank:memory-bank-goal` |
 | DSH filesystem | `/memory-bank-archive` | `/memory-bank-init` | `/memory-bank-propose` | `/memory-bank-upgrade` | `/memory-bank-reconcile` | `/memory-bank-next` | `/memory-bank-goal` |
 
-Plain English also works across all agents.
+Plain English also works across all agents. After installing, run
+`memory-bank-init` for a new or small existing project. A large existing package
+may first need `memory-bank-archive`; see [existing project setup](#set-up-an-existing-project).
 
 <a id="as-plain-files-you-own"></a>
 <a id="73-plain-files-installation"></a>
-### 1.4 Plain files installation
+<a id="14-plain-files-installation"></a>
+### 1.3 Plain files installation
 
 **As plain files you own** rather than a managed plugin, install into each
 agent's personal skill directory:
@@ -248,7 +211,8 @@ milestones](#run-an-ordered-set-of-milestones).
 
 <a id="dsh-installation"></a>
 <a id="74-dsh-installation"></a>
-### 1.5 DSH installation
+<a id="15-dsh-installation"></a>
+### 1.4 DSH installation
 
 The optional [tabilet-skills companion](https://github.com/tabilet/tabilet-skills)
 packages the seven v2.16.1 skills and provides a read-only Memory Bank sidebar
@@ -264,7 +228,8 @@ not migrate project rules or history.
 <a id="update-installed-skills"></a>
 
 <a id="75-update-installed-skills"></a>
-### 1.6 Update installed skills
+<a id="16-update-installed-skills"></a>
+### 1.5 Update installed skills
 
 Updating installed skills refreshes the tools available to your agent. Remember:
 **updating installed skills does not alter your project's memory bank files or rules**.
@@ -284,7 +249,7 @@ after updating the skills.
   ```
   *(Start a new Codex session to load the updated skills.)*
 - **agy:**
-  Re-run the [agy installation command](#13-install-for-your-agent) to pull the latest version from GitHub.
+  Re-run the [agy installation command](#12-install-for-your-agent) to pull the latest version from GitHub.
 - **DSH:**
   Follow [update or removal](docs/DSH.md#update-or-remove) to update the companion package or replace the filesystem bundles under `$DSH_HOME/skills` with complete folders from the new release.
 - **Plain-file installs:**
@@ -292,7 +257,8 @@ after updating the skills.
 
 <a id="uninstall-or-remove-skills"></a>
 <a id="76-uninstall-or-remove-skills"></a>
-### 1.7 Uninstall or remove skills
+<a id="17-uninstall-or-remove-skills"></a>
+### 1.6 Uninstall or remove skills
 
 Uninstalling removes the generator skills from your agent environment. Project
 Markdown files in your repositories remain untouched and continue to function as
@@ -426,6 +392,12 @@ detailed plan for distant work.
 
 <a id="411-manual"></a>
 #### 3.1.1 Manual
+
+Clone the template repository once; `/path/to/skills` below is the checkout path:
+
+```bash
+git clone https://github.com/tabilet/skills.git /path/to/skills
+```
 
 From a new project root:
 
@@ -614,64 +586,30 @@ approving the reconciled plan.
 <a id="chapter-6-use-the-memory-bank"></a>
 ## Chapter 5. Use The Memory Bank
 
-There are four ways to execute against the Tabilet memory bank, and all of them are
-optional, because the memory bank is plain markdown and works on its own:
+The memory bank is plain Markdown; choose how to execute work:
 
-| Way to execute | Scope | Needs |
-|---|---|---|
-| Type a request to your agent | One row at a time, you in the loop | Nothing |
-| [`memory-bank-next`](#install-the-seven-skills) | The same, with the full instruction rather than your paraphrase | The optional skills |
-| [The Tabilet API harness](#install-the-api-harness) | One row per run, unattended | Python 3.9+ |
-| [A goal loop](#run-an-ordered-set-of-milestones) | Several milestones in order | The bundled goal protocol and an agent request or optional skill |
+| Method | Scope |
+|---|---|
+| Ask your agent | One row at a time |
+| [`memory-bank-next`](#install-the-seven-skills) | One row under the project's workflow |
+| [API harness](#install-the-api-harness) | One row per run, unattended |
+| [Goal protocol](#run-an-ordered-set-of-milestones) | Several milestones in order |
 
-With an agent such as Codex or Claude Code, the user-facing workflow can be as
-simple as typing:
+For example, ask an agent to `tackle next pending item in memory bank`. It reads
+`AGENTS.md` and the memory bank, selects one actionable row, implements it,
+verifies it, updates the records, and commits under the governing policy. Git is
+needed for the usual commit workflow; an authorized no-commit workflow can
+maintain the Markdown without Git. Record meaningful verification commands in
+the **Execution harnesses** table in `tabilet/memory-bank/tech-stack.md`; a row
+reaches `[+]` only after required checks pass.
 
-```text
-tackle next pending item in memory bank
-```
-
-The agent should find the next actionable row in the current milestone's
-`tabilet/memory-bank/status-<LANE><NN>.md` file,
-complete that task, run the required verification, update the memory bank, and
-make a scoped git commit. If that row is the last open item in a milestone, the
-agent should run a deep code review of the milestone, run the milestone review
-from `tabilet/memory-bank/milestone.md`, complete required verification, and commit any
-review changes before moving on. Do not create an extra commit when review
-changes nothing. The review-fix gate reviews the whole milestone again after
-every [P1/P2-or-higher](template/tabilet/memory-bank/milestone.md#review-finding-severity)
-fix and requires a clean pass within `REVIEW_MAX_ITERATIONS` (default 10),
-independent of commit policy. A higher interactive limit needs explicit approval;
-stricter project caps remain binding. If the final allowed review still finds a
-blocking issue, the milestone stays incomplete. Python API execution retains 10.
-During that review it should also decide whether `tabilet/evolution/` needs a new version
-because the product direction, architecture boundary, milestone target, or
-public/private contract direction materially changed.
-
-Before you trust any of this, give the agent something to verify against. Fill
-the **Execution harnesses** table in `tabilet/memory-bank/tech-stack.md` with the command
-that proves your project works, such as `make test`, `npm test`, or a script you
-already run, and record what passing it proves. A row should not reach `[+]` until that
-command has passed. Without it, "mark a row complete only when verified" has no
-referent and the agent will decide for itself what verified means.
-
-Under the surface, the normal agent workflow is:
-
-1. Read `AGENTS.md`.
-2. Read the memory bank files in the order listed by `AGENTS.md`.
-3. Tackle exactly one scoped task or status row.
-4. Update the matching memory-bank file if scope, architecture, tools,
-   milestone acceptance, or status changed.
-5. Mark a row `[+]` only after verification passes.
-6. Commit the row as a scoped unit.
-7. Keep one `tabilet/memory-bank/status-<LANE><NN>.md` file for each active milestone;
-   preserve closed records through the adopted retirement procedure.
-8. If a milestone becomes complete, run a deep code review and the milestone
-   review procedure in `tabilet/memory-bank/milestone.md`.
-9. After review and required verification pass, commit any review changes; do
-   not create an empty or redundant milestone commit.
-10. Check `tabilet/evolution/` and add a new version only when the review finds a real
-   direction, boundary, milestone, or contract change.
+At milestone closure, run the milestone's whole-milestone review and required
+verification. After each P1/P2-or-higher fix, review the milestone again. A
+clean review is required within `REVIEW_MAX_ITERATIONS` (default 10); a higher
+interactive limit requires explicit approval, stricter project limits still apply,
+and the Python API ceiling remains 10. Unresolved blocking findings at the limit
+leave the milestone incomplete. Commit review changes under the applicable policy;
+do not make an empty review commit. See the [milestone contract](template/tabilet/memory-bank/milestone.md).
 
 <a id="status-id-lanes"></a>
 <a id="61-status-id-lanes"></a>
@@ -685,25 +623,8 @@ into a domain lane. After `M99`, continue with `M100`; child suffixes remain
 two digits. Sort IDs numerically when order matters. `tabilet/memory-bank/milestone.md` records
 what each letter means and never lets an ID be reused.
 
-The milestone file also holds **candidate directions** outside the active
-execution horizon. They remain unnumbered and have no status files until their
-promotion trigger is met, the work is reconciled again, and the promoted
-breakdown is approved. This keeps permanent IDs and task lists from freezing
-speculative far-future work.
-
-**Choosing lanes.** A lane is a long-lived track of work, on the scale of a
-product area rather than a milestone or a sprint. Classify by domain, meaning the
-part of the product a change belongs to, because domains outlive teams,
-priorities, and dates. Start
-with `M` alone; split a letter out the first time a domain has enough work that
-its rows would drown out everything else, or when it needs its own review
-cadence. Two or three lanes is a normal steady state, and a project can run a
-long time on one.
-
-Under-splitting is cheap to fix: open a new letter and put new work there. Over-
-splitting is permanent, because an ID keeps its name for the life of the
-project once its file exists. When unsure, leave it in
-`M`.
+Choose lanes by durable product domain; start with `M` when unsure. Candidate
+directions remain unnumbered until their promotion and breakdown are approved.
 
 Status rows use these markers:
 
@@ -760,38 +681,9 @@ migration and explicit adoption of retirement.
 <a id="64-run-an-ordered-set-of-milestones"></a>
 ### 5.4 Run an ordered set of milestones
 
-The workflow above advances one row at a time. To work through several
-milestones in a defined order, the [stock goal protocol](GOAL.md) is one protocol for
-that: it ships with the skills, so a project carries no copy of it, and it reconciles dependencies before each milestone, reconciles the
-milestones downstream of one that just closed, and stops rather than guessing
-when a decision or authority is missing.
-
-Milestone specifications can declare optional `AUTHORIZATION_REQUIREMENTS`.
-Human-approved goal requests can carry scoped `AUTHORIZATION_GRANTS` for exact
-milestone assignments, or high-level `GLOBAL:` grants applicable across tasks.
-Proposed grants in `suggested.txt` include decision markers: `[ ]` (need authorization),
-`[+]` (approve), `[-]` (deny), and `[~]` (auto). Verifying the SHA256 checksum of
-`suggested.txt` against human approval is required before activating grants (under
-default `SUGGESTED_UPDATE: confirm`, while `SUGGESTED_UPDATE: auto` authorizes the
-orchestrator to refresh remaining milestones in `suggested.txt` and smoothly continue).
-Declarations and suggested grants confer no permission;
-commit and external-mutation policies still apply. See the
-[authorization guide](docs/goal.md#authorization-requirements-and-grants) for
-approval, delegation, and resume rules,
-[milestone authorizations](docs/authorizations.md) for checkpoint catalogs and decision markers, and
-[autonomous goal execution](docs/automation.md) for continuous multi-milestone runs. This is instruction-level guidance;
-the Python API controller continues to exclude external actions.
-
-Goal and Next accept `--email ADDRESS` in the conversation request for one
-short alert per workflow approval need. Configure private Cloudflare REST
-delivery once with permitted recipients and a sending token; see
-[email setup](docs/installation.md#approval-email-setup). No flag means no
-email for a new run. Resumes retain their selection, duplicate or uncertain
-attempts never replay automatically, and delivery never approves work.
-The Python API paths consume neither email nor corrective-planning options.
-
-It is invoked, not ambient. Whatever your agent, the request that starts a run is
-the same block, and it names the protocol, the order, and the commit policy:
+The [stock goal protocol](GOAL.md) runs approved milestones in order, checks
+dependencies and downstream effects, and stops when a required decision or
+authority is missing. Request it explicitly:
 
 ```text
 Using the memory-bank goal protocol, execute this loop.
@@ -800,121 +692,43 @@ STATUS_ORDER: M01 -> S01 -> A01?
 COMMIT_POLICY: task
 ```
 
-When `memory-bank-init` creates the active horizon, or `memory-bank-reconcile`
-changes it after a new review, either skill writes the complete proposed request
-to `tabilet/memory-bank/suggested.txt` when goal use is approved.
-Treat that file as a launch suggestion, not a second roadmap: reconcile it
-against `milestone.md` and the current status files, then delete it after launch
-or whenever it becomes stale. It always shows `AUTHORIZATION_GRANTS`, with `{}`
-as the default when no explicit grants are proposed. Propose refreshes it for
-approved plan changes; Upgrade offers a refresh of an existing `suggested.txt` and a
-classification of an existing `tabilet/GOAL.md` in its complete approval proposal
-while preserving local rules, explicit `GOAL_PROTOCOL` and `MODEL_POLICY`, and
-other policies. If the selected governing protocol is unavailable or incompatible,
-planning skills omit new launch input and preserve existing input pending
-resolution; one-row execution remains available. To reference
-an existing suggestion directly:
+A trailing `?` marks a conditional milestone; an unmet trigger skips it without
+cancelling it. `COMMIT_POLICY: none` is the goal default and makes no commits;
+`task` requests per-task commits. The resolved goal commit policy governs for
+the run. See [commit policy and project addenda](docs/goal.md#commit_policy-is-the-one-that-matters).
 
-```text
-Using the memory-bank goal protocol, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop.
-COMMIT_POLICY: task
-```
+With the plugin, use `/memory-bank:memory-bank-goal` in Claude Code or
+`$memory-bank:memory-bank-goal` in Codex. Other agents can use the request above;
+for a plain-file installation, copy the complete `skills/memory-bank-goal/`
+directory, including its protocol registry and references.
 
-You can paste that block into any agent as an ordinary request. If you installed
-the Tabilet plugin, its goal skill supplies the same protocol and commit policy:
-
-```text
-/memory-bank:memory-bank-goal M01 -> S01 -> A01?   # Claude Code plugin
-$memory-bank:memory-bank-goal M01 -> S01 -> A01?   # Codex plugin
-```
-
-With no arguments, the skill prefers a valid `suggested.txt`, shows the complete
-resolved request for confirmation, and falls back to deriving the order from
-`milestone.md` when the file is absent or stale.
-
-Plain-file installations use `/memory-bank-goal` in Claude Code and
-`$memory-bank-goal` in Codex. Plain English remains valid everywhere.
-
-Since v2.5.0, agents that support delegation can use fresh milestone contexts,
-read-only review fan-out, and explicitly approved concurrent worktree leases.
-See [Sub-Agent Milestone Execution](docs/subagents.md). `STATUS_ORDER` remains
-strict; `STATUS_PRIORITY` chooses among dependency-ready milestones. These are
-goal-protocol capabilities of the hosting agent. The standalone API runner and
-`tabilet` controller remain serial and keep their own commit requirements.
+When approved planning produces `tabilet/memory-bank/suggested.txt`, it is an
+advisory launch reference; reconcile it with the live plan. Planning skills omit
+new launch input if the selected protocol is unavailable or incompatible.
+Proposed `AUTHORIZATION_GRANTS` do not grant permission: explicit human approval
+of the resolved request and concrete scope is required. When resuming from the
+suggestion, match its SHA256 against human approval before activating grants;
+checksum approval alone does not approve proposed grants. Existing action,
+commit, and external-mutation restrictions remain in force. See the
+[authorization guide](docs/goal.md#authorization-requirements-and-grants) and
+[continuation rules](docs/goal.md#continuing-approved-launch).
 
 <a id="641-keep-a-long-run-active"></a>
+<a id="541-keep-a-long-run-active"></a>
 #### 5.4.1 Keep a long run active
 
-Both [Claude Code](https://code.claude.com/docs/en/goal) and
-[Codex](https://learn.chatgpt.com/use-cases/follow-goals) provide a built-in
-`/goal` for keeping a durable objective active. It is an optional persistence
-layer, not the memory-bank protocol: `/goal` keeps the run alive, while
-the bundled goal protocol defines how milestones are reconciled, implemented,
-reviewed, and closed. Give the built-in command the complete protocol request and a measurable
-completion condition together:
-
-```text
-/goal Using the memory-bank goal protocol, reconcile tabilet/memory-bank/suggested.txt against the current memory bank, then execute the resolved loop. COMMIT_POLICY: task. Completion condition: every required status is complete, every triggered conditional status is complete, and every milestone's documented verification passes.
-```
-
-In either agent, run `/goal` with no arguments to show its status and
-`/goal clear` to stop it. Codex additionally supports `/goal pause` and
-`/goal resume`.
-If `/goal` is not listed in Codex, enable it with `codex features enable goals`.
-
-Built-in `/goal` does not discover this repository's protocol automatically;
-the objective must select the protocol, as in the example above. You can instead
-invoke `memory-bank-goal` directly using the Claude Code or Codex forms shown
-above; that is the portable non-persistent launcher. [Codex custom
-prompts](https://learn.chatgpt.com/docs/custom-prompts) are deprecated in favor
-of skills, so this repository does not install or recommend a separate
-`goal.md` prompt.
+The built-in `/goal` in [Claude Code](https://code.claude.com/docs/en/goal) and
+[Codex](https://learn.chatgpt.com/use-cases/follow-goals) is an optional
+persistence layer, distinct from the memory-bank protocol. Include the protocol
+request and a measurable completion condition in its objective. Codex supports
+`/goal pause` and `/goal resume`; if unavailable, use
+`codex features enable goals`. See the [Goal guide](docs/goal.md#built-in-goal-is-a-different-thing).
 
 <a id="642-any-other-agent"></a>
-#### 5.4.2 Any other agent
-
-Paste the block as an ordinary request. Selecting the protocol is all it
-needs; nothing depends on a slash command existing. Without the plugin, copy the
-complete `skills/memory-bank-goal/` directory from this repository to an
-account-level location outside your projects. Keep `GOAL.md`,
-`goal-protocol.json`, and all supporting references and scripts together, then
-name that bundled protocol in your ordinary request. Copying only `GOAL.md`
-omits the registry needed to recognize historical project copies and resources
-needed by optional controls.
-
-`COMMIT_POLICY` matters, and a goal run is a deliberate exception to the usual
-rule. For the length of the run it is the entire commit rule: `AGENTS.md` may say
-each status row is a commit unit, but `COMMIT_POLICY: none`, which is the
-protocol's default, means no commits at all. That is correct behavior rather
-than a conflict. Say `task` when you want the usual per-row commits. Precedence runs
-request, then the project addendum, then the goal protocol, then `AGENTS.md`, and only for commits, and only inside
-the run.
-
-A trailing `?` marks a milestone conditional: it is skipped, not cancelled, when
-its documented trigger is absent. Use it only for work conditionally required to
-reach the active outcome; discretionary later work stays an unnumbered candidate
-direction instead.
-
-The stock protocol carries no project-specific paths, lane letters, or commands. It
-discovers those from `AGENTS.md` and the memory bank, so the same bundled file
-works unchanged in every project.
-
-**Project addendum.** An optional `tabilet/GOAL.md` in a project is an addendum
-that adds project rules and narrows defaults, such as a stricter commit policy or
-extra verification. It is combined with the stock protocol at run time; no merged
-file is ever written, and it cannot weaken the review gate, authorization, or
-ownership rules. A project file that is a byte-identical stock copy is ignored
-(and can be deleted); a modified full copy stops the run until you reduce it to
-the project-specific part. The goal skill records a `GOAL_IDENTITY` block (the
-protocol hash plus each participating package's addendum hash or `none`) and
-pauses if any of it changes on resume. Select an entirely different protocol with
-`GOAL_PROTOCOL: <path>`.
-
-Nothing requires you to use any of this. Bring your own protocol, or none at all, and
-the memory bank behaves exactly the same. The bundled protocol is offered because
-writing one of these is fiddly, not because anything here depends on it. If you
-have your own, select it with `GOAL_PROTOCOL`, or delete the `AGENTS.md` and
-`tabilet/memory-bank/milestone.md` mentions of the goal protocol.
+<a id="542-any-other-agent"></a>
+Other agents can use the protocol request directly. Optional delegation, review,
+email alerts, project addenda, and resume controls are described in the
+[Goal guide](docs/goal.md) and [sub-agent guide](docs/subagents.md).
 
 <a id="optional-sqlite-audit-and-lookup"></a>
 
@@ -924,8 +738,9 @@ have your own, select it with `GOAL_PROTOCOL`, or delete the `AGENTS.md` and
 
 Markdown remains authoritative. Optional `tabilet-audit` records workflow
 evidence and maintains a rebuildable lookup index at `tabilet/audit.sqlite3`;
-linked worktrees share the primary checkout's database. Recording is disabled by
-default and requires explicit per-project opt-in:
+linked worktrees share the primary checkout's database. The toolkit needs Python
+3.9 or later, including `sqlite3` with SQLite 3.24.0 or later. Recording is
+disabled by default and requires explicit per-project opt-in:
 
 ```bash
 tabilet-audit audit enable /absolute/path/to/project
@@ -961,7 +776,8 @@ typing into one. Skip it if Codex, Claude Code, or another agent already does
 that for you.
 
 The Tabilet API harness is account-level because it can drive any project that follows
-this memory-bank shape. It needs Python 3.9 or later and nothing else.
+this memory-bank shape. It needs Git and Python 3.9 or later; Python's standard
+library supplies its dependencies.
 
 <a id="api-changes-since-v240"></a>
 <a id="91-changes-since-v240"></a>
