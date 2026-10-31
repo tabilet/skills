@@ -1,3 +1,23 @@
+# memory-bank v2.16.2
+
+Improves compatibility with older retired milestone records across the API
+runner, controller and SQLite index while preserving their original evidence.
+
+- Adds a shared historical reader and an optional, hash-bound correction
+  manifest for reviewed interpretations of historical evidence. Corrections
+  do not grant execution authority or rewrite frozen records; incomplete or
+  conflicting evidence remains blocking.
+- Keeps new retirements subject to the strict contract and preserves the API
+  review ceiling of 10. Correction changes are included in workflow snapshots
+  and cannot be made during task execution or closure.
+- Updates the SQLite index projection so the next sync rebuilds affected lookup
+  data. See [historical record compatibility](history-corrections.md) for the
+  supported formats, evidence requirements and approval boundaries.
+
+The stock `GOAL.md` protocol is unchanged. Updating the plugin does not update
+an installed API runner, controller or SQLite toolkit; update those separately.
+The separately published DSH companion is not updated by this release.
+
 # memory-bank v2.16.1
 
 Fixes discovery, indexing, execution selection and retirement for milestone root

@@ -1,6 +1,6 @@
 {
   "schema": "tabilet.goal-protocol/v1",
-  "version": "2.16.1",
+  "version": "2.16.2",
   "sha256": "985ca262726b9b7de02d83206ef96c2c43b966c0891e736c7ce3a6d762570cee",
   "released": [
     {
@@ -142,7 +142,8 @@
     {
       "sha256": "985ca262726b9b7de02d83206ef96c2c43b966c0891e736c7ce3a6d762570cee",
       "versions": [
-        "2.16.0"
+        "2.16.0",
+        "2.16.1"
       ]
     }
   ]
