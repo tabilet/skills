@@ -437,7 +437,7 @@ def goal_copies():
         "never force either command",
         "A resume sweep removes a leftover lease only when all of these hold",
         "Preserve and report every uncertain lease",
-        "Pin the milestone's base commit and inspect the full diff",
+        "pins the milestone's base commit and inspects the full diff",
         "Check acceptance fidelity as its own concern",
         "Reproduce only when safely possible within current authority and budget",
         "becomes a proposed deterministic check",
@@ -846,7 +846,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "restore the original row from `[!]` to `[~]`",
         "all recorded blockers are cleared",
         "At the approved review limit, unresolved findings stop further automatic repair cycles",
-        "review the originating milestone again using its existing iteration counter",
+        "run that gate's next iteration using its existing iteration counter",
         "do not consume this policy or dynamically expand their approved horizon",
         "Project files and suggested input cannot enable notifications by themselves",
         "only the coordinator or standalone Next executor sends alerts",
@@ -896,7 +896,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "Missing or unverifiable provenance retains the ordinary complete-proposal approval gate",
         "move the interrupted `[~]` row to `[!]`",
         "restore the original row from `[!]` to `[~]`",
-        "all blockers clear", "review the originating milestone again",
+        "all blockers clear", "run that gate's next iteration",
         "At the approved review limit, unresolved findings stop further automatic repairs",
     ),
     "skills/memory-bank-reconcile/SKILL.md": (
@@ -938,7 +938,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
     ),
     "template/tabilet/memory-bank/milestone.md": (
         "cannot weaken acceptance", "cancel unmet obligations",
-        "own review cannot replace its next full review or bypass the approved review limit",
+        "own review cannot replace the originating gate's next iteration, scoped as the review gate defines, or bypass the approved review limit",
         "move the interrupted `[~]` row to `[!]`", "all blockers clear",
         "restore the row from `[!]` to `[~]`", "unfinished implementation cannot",
     ),
@@ -1118,6 +1118,10 @@ SHARED_PLANNING_BLOCKS = {
         "skills/memory-bank-propose/references/plan-update.md",
         "skills/memory-bank-reconcile/references/plan-update.md",
     ),
+    "test-policy-resolution": (
+        "GOAL.md",
+        "skills/memory-bank-next/references/interactive-controls.md",
+    ),
 }
 
 
@@ -1216,7 +1220,7 @@ def review_fix_gate():
     for token in (
         "#### Bounded Review-Fix Gate",
         "The initial deep-review pass is iteration 1",
-        "reviews the whole milestone again",
+        "Do not sweep the whole milestone again",
         "Persist the iteration number and findings",
         "Run at most `REVIEW_MAX_ITERATIONS` iterations (default 10)",
         "a session or reviewer change does not reset the counter",
@@ -1241,7 +1245,7 @@ def review_fix_gate():
         "Project-specific definitions",
         "using the review finding severity context above",
         "The initial deep-review pass is iteration 1",
-        "review the whole milestone again",
+        "Do not sweep the whole milestone again",
         "Record the iteration number and findings",
         "Run at most `REVIEW_MAX_ITERATIONS` iterations (default 10)",
         "a session or reviewer change does not reset the counter",
@@ -1250,7 +1254,7 @@ def review_fix_gate():
         "## Verification-attempt gate",
         "Persist the row's attempt count in its status notes",
         "Never repeat an unchanged failed attempt",
-        "**Expensive checks.**",
+        "**Real-effect checks.**",
     ):
         if token not in milestone:
             problems.append(
@@ -3210,7 +3214,7 @@ V213_CONTRACTS = {
     "skills/memory-bank-init/references/testing-profiles.md": (
         "keep implementation and focused verification together",
         "consolidate related work and reuse still-valid verification",
-        "Preserve mandatory reviews, acceptance coverage, attempt records"),
+        "Preserve mandatory reviews, acceptance coverage, grant budgets and class R attempt records"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
@@ -3380,6 +3384,341 @@ def v213_contract():
     for relative in ("harness/prompts/tackle-next-memory-bank-todo.md", "harness/tackle-memory-bank-api-loop"):
         if "MODEL_POLICY" in (ROOT / relative).read_text():
             problems.append(f"{relative}: interactive model policy leaked into Python API payload")
+    return problems
+
+
+# --------------------------------------------------------------------------
+# 3c. Stock test policy and convergent review gate (v2.17). The policy file is
+#     stock payload; the review gate lives in GOAL.md and milestone.md. Stale
+#     full-sweep prose is rejected everywhere except two bounded paragraphs.
+# --------------------------------------------------------------------------
+REVIEW_PROSE_EXEMPT_LEADS = (
+    "When the project's own severity definitions make P2 blocking",
+    "The optional `tabilet` controller applies its own deterministic gate",
+)
+
+STALE_REVIEW_PROSE = (
+    r"after every P1, P2, or higher-severity fix",
+    r"examine the same full milestone diff",
+    r"Review the whole milestone through these lenses",
+    r"If P1 or P2 findings exist",
+    r"reviews the whole milestone again, not only the latest patch",
+    r"P1/P2-or-higher findings remain attached",
+    r"fix every P1, P2, and higher-severity finding",
+    r"replace its next full review",
+    r"If the pass finds no blocking\s+finding, the gate passes",
+    r"and review the full milestone diff for correctness",
+)
+
+TEST_POLICY_FILE = "template/tabilet/memory-bank/test-policy.md"
+
+
+def stale_review_prose_problems(relative: str, text: str) -> list[str]:
+    """Reject stale full-sweep review prose outside the two exempt paragraphs.
+
+    A paragraph is a blank-line-bounded block. It is exempt only when its first
+    sentence is one of the fixed leads, after list and quote markers are removed;
+    the paragraph that follows an exempt one is scanned on its own.
+    """
+    problems = []
+    for paragraph in re.split(r"\n[ \t]*\n", text):
+        flat = " ".join(paragraph.split())
+        lead = re.sub(r"^(?:[-*>]\s+|\d+\.\s+)+", "", flat)
+        if any(lead.startswith(prefix) for prefix in REVIEW_PROSE_EXEMPT_LEADS):
+            continue
+        for pattern in STALE_REVIEW_PROSE:
+            if re.search(pattern, flat, re.I):
+                problems.append(f"{relative}: stale review-gate prose {pattern!r}")
+    return problems
+
+
+def severity_table_problems(relative: str, text: str) -> list[str]:
+    """Parse the severity table; the P2 gate-effect cell must say it is not blocking."""
+    rows = [[cell.strip() for cell in line.strip().strip("|").split("|")]
+            for line in text.splitlines() if re.match(r"^\s*\|\s*P2\s*\|", line)]
+    if len(rows) != 1:
+        return [f"{relative}: expected exactly one `| P2 |` severity row, found {len(rows)}"]
+    cells = rows[0]
+    if len(cells) < 4 or not cells[-1].startswith("Not blocking"):
+        return [f"{relative}: the P2 gate-effect cell must start with 'Not blocking'"]
+    return []
+
+
+def review_prose_selftest_problems() -> list[str]:
+    """Prove the scanner on in-memory strings, not on repository files."""
+    stale = "After every P1, P2, or higher-severity fix, review again."
+    legacy = ("When the project's own severity definitions make P2 blocking, that stricter\n"
+              "gate applies. " + stale)
+    controller = ("The optional `tabilet` controller applies its own deterministic gate. "
+                  "It rejects P2. " + stale)
+    problems = []
+    for name, text, expect_clean in (
+        ("legacy paragraph", legacy, True),
+        ("controller paragraph", controller, True),
+        ("stale operative sentence", stale, False),
+        ("stale paragraph after an exempt one", legacy + "\n\n" + stale, False),
+        ("stale sentence in a list item", "- " + stale, False),
+        ("abbreviated pass rule", "If the pass finds no blocking\nfinding, the gate passes.", False),
+        ("unqualified full-diff instruction", "Pin the base commit and review the full milestone diff for correctness.", False),
+        ("repair next full review", "A repair review cannot replace its next full review.", False),
+        ("qualified pass rule", "The gate passes only under the pass condition below.", True),
+        ("iteration-1 full diff", "and in iteration 1 review the full milestone diff for correctness", True),
+    ):
+        clean = not stale_review_prose_problems("fixture", text)
+        if clean != expect_clean:
+            problems.append(f"prose scanner fixture failed: {name}")
+    ok = "| Priority | Context | Examples | Gate effect |\n|---|---|---|---|\n| P2 | c | e | Not blocking under the adopted gate. |\n"
+    bad = ok.replace("Not blocking under the adopted gate.", "Blocking. Fix and review again.")
+    if severity_table_problems("fixture", ok):
+        problems.append("severity fixture: a 'Not blocking' P2 cell was rejected")
+    if not severity_table_problems("fixture", bad):
+        problems.append("severity fixture: a 'Blocking' P2 cell was accepted")
+    return problems
+
+
+def _import_by_path(name: str, path: pathlib.Path):
+    sys.dont_write_bytecode = True
+    harness_dir = str(path.parent)
+    added = harness_dir not in sys.path
+    if added:
+        sys.path.insert(0, harness_dir)
+    try:
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        if added:
+            sys.path.remove(harness_dir)
+
+
+@check("stock test policy and convergent review gate")
+def test_policy_and_convergent_review_gate():
+    problems = list(review_prose_selftest_problems())
+
+    def flat(relative: str) -> str:
+        return " ".join((ROOT / relative).read_text().split())
+
+    milestone = "template/tabilet/memory-bank/milestone.md"
+    gate_tokens = (
+        "Iteration 2 and later", "Do not sweep the whole milestone again",
+        "Record each iteration's reviewed state", "the full `HEAD` commit ID",
+        "review the full milestone diff instead", "no unreviewed review change",
+        "(a) carry or decline them without changing code", "(b) apply",
+        "make no further review change", "A carried P2 still unfixed",
+        "When the project's own severity definitions make P2 blocking",
+        "no open review findings register",
+        "The optional `tabilet` controller applies its own deterministic gate",
+        "does not read the open review findings register",
+        "Any change made in response to a review, blocking or not",
+        "Recording findings, dispositions, review counters, reviewed state, register rows and owner notes is not a review change",
+        "A class O check never uses this gate", "reservations, budget and stop conditions bind",
+        "fix now", "carry", "decline", "test-policy compliance",
+    )
+    required = {
+        "GOAL.md": gate_tokens + (
+            "review findings carried, fixed or deferred, by ID",
+            "stays in force for a check that uses it", "the approved `budget` is the only count",
+            "A preset never writes a budget above the gate's default",
+            "Findings blocking under the originating gate's criteria remain attached",
+            "TEST_POLICY: tabilet/memory-bank/test-policy.md"),
+        milestone: gate_tokens + (
+            "## Open review findings", "Last used ID: none", "FND-01",
+            "| ID | Finding | Severity | Origin | Fix owner | Disposition |",
+            "Horizon closure", "carried as FND-03", "fixes FND-03", "deferred by human",
+            "only the goal owner writes them",
+            "register is approved planning state, not a review copy or ledger",
+            "[test policy](test-policy.md)", "**Real-effect checks.**"),
+        TEST_POLICY_FILE: (
+            "PASS or FAIL, never UNKNOWN", "It grants no authority",
+            "**Authorization is separate:**", "An exhausted budget pauses the run for human direction",
+            "no external network access", "isolated loopback fixtures",
+            "Approvals, reservations and conditions required by effective authorization are not findings",
+            "that acceptance line is unproven, which is P1",
+            "a run needs authority it lacks, or a change falls outside an approved grant",
+            "an authorization budget or limit is exhausted", "never download it",
+            "Another language in those roles needs explicit human approval",
+            "this policy wins on method", "It never overrides acceptance requirements",
+            "the controller ban in class O rule 1 applies in every language",
+            "remove a leftover only when its label or temp root shows", "use the real built artifact or binary, not a mock",
+            "UNKNOWN is allowed only when a real external effect may remain",
+            "## Project specifics", "[verification-attempt gate](milestone.md#verification-attempt-gate)"),
+        "template/AGENTS.md": (
+            "Every test follows the test policy in `tabilet/memory-bank/test-policy.md`; it grants no authority.",),
+        "template/tabilet/memory-bank/tech-stack.md": ("**Test policy**", "before each counted attempt of a check that uses the verification-attempt gate"),
+        "template/tabilet/memory-bank/status-M01.md": ("fixes FND-nn", "class O gate"),
+        "AGENTS.md": (
+            "Open review findings register", "`FND-`", "make no further review change",
+            "it does not read the register", "class R", "`TEST_POLICY`",
+            "Grant budgets bind independently of test class"),
+        "skills/memory-bank-init/references/write-contract.md": (
+            "tabilet/memory-bank/test-policy.md", "TEST_POLICY: <resolved path or none>",
+            "Open review findings", "keeps P2 blocking",
+            "carry no controller, receipt or other-language method forward"),
+        "skills/memory-bank-goal/references/subagents.md": (
+            "scopes the iteration as the governing gate", "resolved `TEST_POLICY`",
+            "(P1, P2, Lower)", "review changes remain unreviewed", "register updates"),
+        "skills/memory-bank-upgrade/SKILL.md": (
+            "explicit adoption", "keep P2 blocking", "Open review findings",
+            "Earlier UNKNOWN, aborted and failed class O records stay literal",
+            "prescribes a method the test policy forbids", "frozen records stay as they are",
+            "except an individually approved method-only rewrite of a pending row or pending specification",
+            "except individually approved method-only rewrites of pending rows and specifications"),
+        "skills/memory-bank-propose/references/plan-update.md": (
+            "carries no controller, receipt or other-language method forward",),
+        "skills/memory-bank-reconcile/references/plan-update.md": (
+            "carries no controller, receipt or other-language method forward",),
+        "docs/upgrade.md": ("prescribes a method the policy forbids",),
+        "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence"),
+        "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}",),
+        "docs/tabilet-controller.md": (
+            "does not read the project's open review findings register", "keep P2 blocking"),
+        "docs/RELEASE_NOTES.md": ("# memory-bank v2.17.0",),
+    }
+    for relative in ("skills/memory-bank-goal/references/model-policy.md",
+                     "skills/memory-bank-next/references/model-policy.md"):
+        required[relative] = ("iteration scope the governing gate defines", "resolved `TEST_POLICY`")
+    for relative, tokens in required.items():
+        path = ROOT / relative
+        if not path.is_file():
+            problems.append(f"missing {relative}")
+            continue
+        for token in missing_contract_tokens(path.read_text(), tokens):
+            problems.append(f"{relative}: missing test-policy/review contract {token!r}")
+
+    # Launch references and the protocol example all carry the field.
+    for relative in ("GOAL.md", "skills/memory-bank-goal/SKILL.md",
+                     "skills/memory-bank-init/references/write-contract.md",
+                     "skills/memory-bank-reconcile/references/write-contract.md"):
+        if not re.search(r"(?m)^TEST_POLICY: \S", (ROOT / relative).read_text()):
+            problems.append(f"{relative}: launch template lacks a TEST_POLICY line")
+    for relative in ("skills/memory-bank-propose/references/plan-update.md",
+                     "skills/memory-bank-reconcile/references/plan-update.md"):
+        if "Preserve an explicit `TEST_POLICY`" not in (ROOT / relative).read_text():
+            problems.append(f"{relative}: launch refresh does not preserve TEST_POLICY")
+
+    # Stock policy stays project- and language-neutral.
+    policy = (ROOT / TEST_POLICY_FILE).read_text() if (ROOT / TEST_POLICY_FILE).is_file() else ""
+    for pattern in (r"go test", r"\bpytest\b", r"\bnpm\b", r"\bcargo\b", r"make check", r"kinet"):
+        if re.search(pattern, policy, re.I):
+            problems.append(f"{TEST_POLICY_FILE}: language- or project-specific token {pattern!r}")
+
+    # The resolution contract is one shared block, carried by Next itself.
+    controls = "skills/memory-bank-next/references/interactive-controls.md"
+    block_re = re.compile(r"<!-- BEGIN SHARED test-policy-resolution -->(.*?)<!-- END SHARED test-policy-resolution -->", re.S)
+    for relative in ("GOAL.md", controls):
+        match = block_re.search((ROOT / relative).read_text())
+        if not match:
+            problems.append(f"{relative}: missing the test-policy-resolution shared block")
+            continue
+        for token in missing_contract_tokens(match.group(1), (
+                "explicit `TEST_POLICY` in the human-approved request, a path or `none`",
+                "checksum-approved launch reference counts as part of that request",
+                "the test policy path the project's `AGENTS.md` declares",
+                "`tabilet/memory-bank/test-policy.md` when it exists",
+                "A request value that differs from the `AGENTS.md` declaration is a conflict",
+                "use the request value only after explicit human resolution",
+                "Approving a launch value alone does not resolve it",
+                "never overrides the declaration",
+                "pauses the affected verification; never fall back silently",
+                "the policy governs the method and the acceptance outcome stays",
+                "it grants no authority", "Under `none`, the verification-attempt gate covers every expensive or protected check")):
+            problems.append(f"{relative}: test-policy-resolution block lacks {token!r}")
+    controls_text = (ROOT / controls).read_text()
+    section = controls_text.split("## Test policy", 1)[-1].split("## Model policy", 1)[0]
+    if "GOAL.md" in section or "goal protocol" in section.lower():
+        problems.append(f"{controls}: Next must carry test-policy resolution itself, not defer to GOAL.md")
+
+    # The shared execution instruction uses the already-resolved policy, keeps
+    # the legacy fallback, and names neither the launch field nor grants.
+    shared_text = (ROOT / "skills/memory-bank-next/SKILL.md").read_text()
+    shared = shared_text.split("<!-- shared-execution-start -->", 1)[-1].split("<!-- shared-execution-end -->", 1)[0]
+    for token in missing_contract_tokens(shared, (
+            "test policy already resolved for this run", "`AGENTS.md` declares",
+            "`tabilet/memory-bank/test-policy.md` when it exists",
+            "declared policy file that is missing pauses verification",
+            "class O checks pass or fail and are fixed and rerun",
+            "class R checks follow the project's verification-attempt gate",
+            "Without a test policy, follow that gate for every expensive or protected check",
+            "Authorization limits always apply")):
+        problems.append(f"shared execution block lacks {token!r}")
+    if "TEST_POLICY" in shared:
+        problems.append("shared execution block must not name the TEST_POLICY field")
+
+    # Severity table: parsed, not word-searched.
+    for relative in (milestone, "skills/memory-bank-upgrade/assets/template/tabilet/memory-bank/milestone.md"):
+        problems.extend(severity_table_problems(relative, (ROOT / relative).read_text()))
+
+    # Stale full-sweep prose anywhere in payload or docs, outside the exempt paragraphs.
+    for path in markdown_files():
+        relative = str(path.relative_to(ROOT))
+        if relative == "docs/RELEASE_NOTES.md":
+            continue
+        problems.extend(stale_review_prose_problems(relative, path.read_text()))
+    problems.extend(stale_review_prose_problems("harness/tackle-memory-bank-api-loop:EMBEDDED_TASK",
+                                                load_harness().EMBEDDED_TASK))
+    return problems
+
+
+@check("an Open review findings register passes runner history validation and the SQLite projection")
+def open_review_findings_register_is_runner_safe():
+    template = ROOT / "template/tabilet/memory-bank/milestone.md"
+    text = template.read_text()
+    if "## Open review findings" not in text or "| FND-" in text:
+        return ["template milestone.md must ship an empty Open review findings register"]
+    problems = []
+    runner = load_harness()
+    if re.fullmatch(runner.MILESTONE_ID, "FND-01"):
+        problems.append("FND-01 matches the runner MILESTONE_ID pattern")
+    with tempfile.TemporaryDirectory() as tmp:
+        project = pathlib.Path(tmp) / "project"
+        shutil.copytree(ROOT / "template", project)
+        milestone = project / "tabilet/memory-bank/milestone.md"
+        header = "| ID | Finding | Severity | Origin | Fix owner | Disposition |\n|---|---|---|---|---|---|\n"
+        row = "| FND-01 | Example carried finding | P2 | M01 iteration 1 | unassigned | open |\n"
+        if text.count("Last used ID: none") != 1 or text.count(header) != 1:
+            return ["could not seed the register fixture; its ID line or table header changed"]
+        seeded = text.replace("Last used ID: none", "Last used ID: FND-01").replace(header, header + row, 1)
+        if seeded.count(row) != 1:
+            return ["register fixture does not contain exactly one FND-01 row"]
+        milestone.write_text(seeded)
+        for args in (("init", "-q"), ("config", "user.name", "check"), ("config", "user.email", "check@example.test"),
+                     ("add", "-A"), ("commit", "-qm", "fixture")):
+            subprocess.run(["git", *args], cwd=project, capture_output=True, check=False)
+        snapshot = runner.history_snapshot(project)
+        if snapshot["problems"]:
+            problems.append(f"runner history validation rejected the register: {snapshot['problems']}")
+        audit = _import_by_path("tabilet_audit", ROOT / "harness/tabilet_audit.py")
+        index = _import_by_path("tabilet_index", ROOT / "harness/tabilet_index.py")
+        connection = audit.open_database(pathlib.Path(tmp) / "state" / "audit.db")
+        try:
+            result = index.sync(connection, project)
+            ids = {row[0] for row in connection.execute("SELECT milestone_id FROM index_milestones")}
+        finally:
+            connection.close()
+        if result.get("diagnostics"):
+            problems.append(f"SQLite index sync reported diagnostics: {result['diagnostics']}")
+        if not ids:
+            problems.append("SQLite projection is empty; the negative FND assertion would be vacuous")
+        if any(str(identity).startswith("FND") for identity in ids):
+            problems.append("SQLite projection treated a register ID as a milestone")
+    return problems
+
+
+@check("controller retirement rejects a reported P2 and accepts a clean review")
+def controller_retirement_rejects_reported_p2():
+    horizon = _import_by_path("_check_tabilet_horizon", ROOT / "harness/tabilet_horizon.py")
+
+    def closure(findings):
+        evidence = [{"phase": phase, "source": "model"} for phase in ("acceptance", "consolidation", "downstream")]
+        evidence.append({"phase": "review", "source": "model", "findings": findings})
+        return {"evidence": evidence, "review_iterations": 1}
+
+    problems = []
+    if not any("P0/P1/P2" in p for p in horizon._retirement_prerequisite_problems(closure([{"severity": "P2"}]))):
+        problems.append("controller retirement accepted closure evidence whose latest review reports a P2")
+    if horizon._retirement_prerequisite_problems(closure([])):
+        problems.append("controller retirement rejected a clean review")
     return problems
 
 

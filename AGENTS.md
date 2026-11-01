@@ -184,7 +184,7 @@ the whole point of the design:
 | Layer | Role |
 |---|---|
 | `AGENTS.md` | Short bootstrap pointer; read first by agents. Names commands, boundaries, hard rules. |
-| `tabilet/stages.md` and `tabilet/memory-bank/` | Optional stage direction, then active truth: product, architecture, stack, curated `lessons.md`, active milestone specifications and status files. |
+| `tabilet/stages.md` and `tabilet/memory-bank/` | Optional stage direction, then active truth: product, architecture, stack, the stock `test-policy.md`, curated `lessons.md`, active milestone specifications and status files. |
 | `tabilet/evolution/` | Versioned direction snapshots (`prompt-vN.md` / `result-vN.md`). New version only on a real direction, boundary, milestone, or contract change. |
 | `docs/` | Long-form reference, optional frozen context baselines, and on-demand retired milestone/knowledge history. `README.md` stays short and user-facing. |
 
@@ -548,10 +548,26 @@ spelling so an inbound link survives translation.
   `references/model-policy.md`; planning preserves explicit policy and adds it
   only when requested. The Python API paths do not consume model policy.
 - `GOAL.md` and the template milestone review use the same bounded review-fix
-  gate. The initial deep-review pass is iteration 1; after every P1, P2, or
-  higher-severity fix, verify and review the whole milestone again. A clean pass
-  is required within the approved review limit (default 10), and the counter does not reset across
-  sessions or reviewers. `REVIEW_MAX_ITERATIONS` is a positive integer, default
+  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1).
+  The initial deep-review pass is iteration 1 and covers the full milestone
+  diff; later iterations review only the prior blocking findings, the change
+  since the recorded reviewed state and its direct consumers, and each records
+  its reviewed state (the full `HEAD` commit ID, plus a saved diff and hash for
+  uncommitted work; if that cannot be reconstructed, review the full diff). P2
+  and Lower never block on their own: fix now when cheap or built upon, or carry
+  in the active `milestone.md` Open review findings register (`FND-` IDs); only
+  Lower may be declined with a rationale. Every review fix is itself verified and
+  reviewed by a later iteration; recording findings, dispositions, counters,
+  reviewed state and register rows is not a review change. On the final allowed
+  iteration make no further review change and carry non-blocking findings. A
+  carried P2 still unfixed when its fix owner or a later iteration examines it
+  becomes blocking. A clean pass is required within the approved review limit
+  (default 10), and the counter does not reset across sessions or reviewers. When
+  the project's own severity definitions make P2 blocking, or it has no register,
+  that stricter gate applies (P2 blocks and every iteration reviews the whole
+  milestone) until explicit adoption. The optional `tabilet` controller keeps its
+  own deterministic gate: it runs its own full review, any P0/P1/P2 it reports
+  blocks retirement, and it does not read the register. `REVIEW_MAX_ITERATIONS` is a positive integer, default
   10, independent of commit policy; only explicit human approval can raise it.
   Preserve stricter project caps, counters and limits through resumes and repairs.
   Project/milestone caps use `REVIEW_MAX_ITERATIONS` in verification standards or
@@ -565,12 +581,14 @@ spelling so an inbound link survives translation.
   across their consumers and checked using their BEGIN/END SHARED markers.
   Persist the iteration count in the active status or
   equivalent goal state. `milestone.md` owns the review-severity context and
-  project override rules; P1/P2 are not product-domain concepts. An expensive or
-  protected check also uses a bounded verification-attempt gate per stage: persist
+  project override rules; P1/P2 are not product-domain concepts. Only a
+  class R (real-effect) check, or every expensive or protected check when no test
+  policy applies, uses a bounded verification-attempt gate per stage: persist
   attempt counts in status notes, never repeat an unchanged failed attempt, run the
   acceptance-readiness preflight before each counted attempt, and stop after 3
   consecutive failed attempts (or a human-approved milestone or goal limit) by
-  marking `[!]`.
+  marking `[!]`. Grant budgets bind independently of test class, and a grant never
+  turns a class O run into one needing the gate.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.
@@ -588,6 +606,16 @@ spelling so an inbound link survives translation.
   reader's agent, not to this harness, and the memory bank must work with a
   different goal protocol or none at all. Do not route a built-in goal through
   the goal protocol unless its objective selects it.
+- The test policy `tabilet/memory-bank/test-policy.md` is stock payload. It sorts
+  checks into class O (offline, self-checking, PASS or FAIL, never UNKNOWN) and
+  class R (real effect, needing separate human authority), and it grants no
+  authority. `TEST_POLICY` resolves in one order, stated once as a shared block in
+  `GOAL.md` and Next's interactive controls: the human-approved request, else the
+  path the project's `AGENTS.md` declares, else the default file, else `none`; a
+  differing request value is surfaced as a conflict and a missing file pauses
+  verification. The Python API paths consume no `TEST_POLICY` field; their shared
+  prompt names the declared or default file. Existing projects adopt it, and the convergent
+  review gate, explicitly through `memory-bank-upgrade`.
 - `tabilet/memory-bank/suggested.txt` is project-specific, disposable launch input
   generated by `memory-bank-init` or refreshed by `memory-bank-propose`,
   `memory-bank-reconcile`, or an approved `memory-bank-upgrade`, not

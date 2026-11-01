@@ -170,7 +170,7 @@ class CheckHelperTests(unittest.TestCase):
                  "`auto` may weaken required outcomes and verification gates"),
                 ("GOAL.md", "cancel unmet obligations", "silently cancel unwanted tasks"),
                 ("GOAL.md", "named successor that retains every obligation", "successor that drops required evidence"),
-                ("GOAL.md", "review the originating milestone again using its existing iteration counter",
+                ("GOAL.md", "run that gate's next iteration using its existing iteration counter",
                  "reset the originating milestone counter after a repair milestone passes"),
                 ("GOAL.md", "At the approved review limit, unresolved findings stop further automatic repair cycles",
                  "At iteration 10 create a new repair milestone and continue"),
