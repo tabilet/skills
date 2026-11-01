@@ -47,6 +47,20 @@ class HistoryCorrectionsTests(unittest.TestCase):
         correction = entry(text, [dict(kind='expand-evidence-commit', recorded='abcdef0', resolved='abcdef0' + '1' * 33)])
         return text, correction
 
+    def test_literal_m152_review_is_readable_but_missing_closure_blocks_readiness(self):
+        name = 'status-M152.md'
+        raw = (FIXTURES / (name + '.literal')).read_text()
+        corrections = core.history_corrections((FIXTURES / 'correction-M152.json').read_text())
+        record = core.historical_record(raw, name, corrections['tabilet/docs/history/' + name])
+        self.assertEqual(record['metadata']['Review'], 'passed')
+        self.assertEqual(record['metadata']['Review iterations'], '2')
+        self.assertIn('missing historical closure evidence: Worktree', record['blockers'])
+        self.assertIn('missing historical closure evidence: Consolidated into', record['blockers'])
+        parsed = index.parse_document('tabilet/docs/history/' + name, 'history_status', raw, digest(raw), corrections)
+        self.assertEqual(len(parsed['index_tasks']), len(core.status_rows(record['status'])))
+        for task in parsed['index_tasks']:
+            self.assertIn(task['label'], raw.splitlines()[task['line'] - 1])
+
     def test_literal_fixtures_lookup_discovery_dependencies_and_runner_share_evidence(self):
         corrections_text = (FIXTURES / 'corrections.json').read_text()
         corrections = core.history_corrections(corrections_text)
@@ -155,6 +169,37 @@ class HistoryCorrectionsTests(unittest.TestCase):
         self.assertIn('retired status contains unfinished task rows', core.historical_record(text, 'status-M01.md')['blockers'])
         text = self.text.replace('| Task', 'Review gate iterations: 3\n\n| Task')
         self.assertIn('retained review counter conflicts with retirement metadata', core.historical_record(text, 'status-M01.md')['blockers'])
+
+    def test_numbered_whole_review_requires_a_matching_unambiguous_pass(self):
+        cases = [
+            ('Whole review 2/10 PASS with no P1/P2.', True),
+            ('Whole review 1/10 FAIL found an issue; fixes passed. Whole review 2/10 PASS with no P1/P2.', True),
+            ('Whole review 1/10 PASS with no P1/P2.', False),
+            ('Task review 2/10 PASS with no P1/P2.', False),
+            ('Whole review 2/10 PASS with no P1/P2. Review failed.', False),
+            ('Run whole review 2/10 PASS with no P1/P2.', False),
+            ('Whole review 2/10 PASS with no P1/P2 pending.', False),
+        ]
+        for quote, accepted in cases:
+            with self.subTest(quote=quote):
+                text = self.text.replace('**Review.** passed\n', '').replace('| Task |', quote + '\n\n| Task |')
+                line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+                correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                    evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                if accepted:
+                    self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['metadata']['Review'], 'passed')
+                else:
+                    with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+                        core.historical_record(text, 'status-M01.md', correction)
+
+        quote = 'Whole review 2/10 PASS with no P1/P2.'
+        text = self.text.replace('**Review.** passed\n', '').replace(
+            '| Task |', quote + '\nWhole review 2/10 FAIL.\n\n| Task |')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+            core.historical_record(text, 'status-M01.md', correction)
 
     def test_recovery_preserves_source_bytes_locations_and_refuses_modified_content(self):
         raw_status = '| Task | `[+]` | verified |\n'

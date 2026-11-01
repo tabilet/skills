@@ -1341,21 +1341,37 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 raise ValueError('status recovery must retain the complete frozen status evidence')
     if set(documents) != {'specification', 'status'}:
         raise ValueError('missing historical specification or status document')
+    numbered_review_counts = []
     for op in operations:
         if op['kind'] == 'supply-metadata':
             field, value = op['field'], op['value']
             old = metadata.get(field)
             if old and old != value and not (field == 'Review iterations' and re.match(re.escape(value) + r'\s+\(', old)):
                 raise ValueError('conflicting metadata correction: ' + field)
-            if field == 'Review' and value == 'passed' and not any(
-                    citation['start_line'] == citation['end_line']
-                    and citation['quote'].strip() == (citation['content'].strip() if 'content' in citation
-                        else lines[citation['start_line'] - 1].strip())
-                    and re.fullmatch(
-                        r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?|'
-                        r'\|\s*Review\s*\|\s*passed\s*\|', citation['quote'].strip(), re.I)
-                    for citation in op['evidence']):
-                raise ValueError('missing recorded passed-review result; a correction cannot supply acceptance')
+            if field == 'Review' and value == 'passed':
+                accepted = False
+                for citation in op['evidence']:
+                    quote = citation['quote'].strip()
+                    if (citation['start_line'] != citation['end_line'] or quote != (
+                            citation['content'].strip() if 'content' in citation
+                            else lines[citation['start_line'] - 1].strip())):
+                        continue
+                    if re.fullmatch(r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?|'
+                                    r'\|\s*Review\s*\|\s*passed\s*\|', quote, re.I):
+                        accepted = True
+                        break
+                    result = re.fullmatch(
+                        r'(?:Whole review ([1-9][0-9]*)/([1-9][0-9]*) FAIL [^.]+\. )?'
+                        r'Whole review ([1-9][0-9]*)/([1-9][0-9]*) PASS with no P1/P2\.', quote, re.I)
+                    if result:
+                        prior, prior_limit, count, limit = result.groups()
+                        if (int(count) <= int(limit) and (prior is None or
+                                (int(prior) < int(count) and prior_limit == limit))):
+                            numbered_review_counts.append(count)
+                            accepted = True
+                            break
+                if not accepted:
+                    raise ValueError('missing recorded passed-review result; a correction cannot supply acceptance')
             metadata[field] = value
         elif op['kind'] == 'expand-evidence-commit':
             if metadata.get('Evidence') != op['recorded']:
@@ -1366,6 +1382,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             if not recorded or any(not any(commit.startswith(prefix) for prefix in recorded) for commit in op['commits']):
                 raise ValueError('evidence set is unsupported by recorded provenance')
             metadata['Evidence'] = op['commits'][0]
+    if any(count != metadata.get('Review iterations') for count in numbered_review_counts):
+        raise ValueError('review iteration mismatch; a correction cannot supply acceptance')
+    for count in numbered_review_counts:
+        for number, outcome in re.findall(
+                r'\bwhole review\s+([1-9][0-9]*)\s*/\s*[1-9][0-9]*\s+(PASS|FAIL)\b',
+                documents['status'], re.I):
+            if int(number) > int(count) or (int(number) == int(count) and outcome.upper() == 'FAIL'):
+                raise ValueError('conflicting whole review result; a correction cannot supply acceptance')
     source_spec = metadata.get('Source specification', '')
     anchor = re.fullmatch(r'((?:tabilet/)?memory-bank/milestone\.md#\S+)(?: \([^\n]+\))?', source_spec)
     if anchor:

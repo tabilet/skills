@@ -50,7 +50,12 @@ Multiline metadata, arbitrary field patches, task-state changes and authorizatio
 fields are unsupported. A passed-review correction requires an explicit,
 standalone recorded result such as `Review: passed` or `| Review | passed |`;
 an instruction, a merely performed review, or a negative statement cannot
-support it.
+support it. A literal `Whole review N/L PASS with no P1/P2.` is also supported
+when its iteration matches the recorded counter and does not exceed its stated
+limit. One earlier numbered failure in the same literal line is allowed only
+when it has the same limit and a lower iteration. The complete line must be
+cited; a task review, prospective instruction, later conflicting text or an
+unmatched counter cannot supply a pass.
 
 Evidence normally names `start_line`, `end_line` (one-based, inclusive) and an
 exact `quote` from the hash-bound frozen record. External index or specification
