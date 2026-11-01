@@ -1484,6 +1484,29 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     return True
         return False
 
+    def approval_is_negated(text, *, source=False):
+        # "No P1/P2" describes review findings, not a denial of authority.
+        text = re.sub(r'\bno\s+P[0-9]+(?:\s*/\s*P[0-9]+)*\b', '', text, flags=re.I)
+        denied = (r'\b(?:no|none|not|never|declined|denied|refused|unapproved|'
+                  r'unauthorized|unauthorised|revoked|rescinded|withdrawn|without|unless|zero)\b')
+        prospective = r'\b(?:pending|proposed|conditional|if|but)\b'
+        return bool(re.search(denied, text, re.I) or (source and re.search(prospective, text, re.I)))
+
+    def recorded_extension_approval(citation):
+        if not provenance_citation(citation) or approval_is_negated(citation['quote'], source=True):
+            return False
+        quote = ' '.join(citation['quote'].split())
+        actor = r'\b(?:owner|user|operator|human)\s+(?:(?:subsequently|explicitly)\s+)*(?:(?:has|had)\s+)?'
+        verb = r'(?:approved|authorized|authorised)\s+(?:(?:the|an)\s+)?'
+        review = r'(?:whole(?:[- ]milestone)?\s+)?review(?:\s+limit)?'
+        direct = re.search(actor + verb + review + r'\s+(?:extension|increase|continuation)\b', quote, re.I)
+        reversed_order = re.search(actor + verb + r'(?:extension|increase|continuation)\s+of\s+'
+                                   r'(?:(?:the|an)\s+)?' + review + r'\b', quote, re.I)
+        answered = re.search(actor + r'(?:answered|said|replied)\s+(?P<yes_quote>["\'])yes(?P=yes_quote)\s+to\s+'
+                             r'continu(?:e|ing)\b[^.!?]{0,120}?\bbeyond\s+(?:ten|10)\s+'
+                             r'(?:whole(?:[- ]milestone)?\s+)?reviews?\b', quote, re.I)
+        return bool(direct or reversed_order or answered)
+
     index_outcomes = []
     for op in operations:
         if op['kind'] != 'supply-metadata':
@@ -1540,13 +1563,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         c['quote'], re.I) for c in evidence):
                 raise ValueError('unsupported review limit correction: missing recorded evidence')
         elif field == 'Review limit approval':
-            if not any(provenance_citation(c)
-                       and re.search(r'\b(?:owner|user|operator|human)\b', c['quote'], re.I)
-                       and re.search(r'\b(?:approved|authorized|authorised)\b|answered\s+["\']yes["\']',
-                                     c['quote'], re.I)
-                       and not re.search(r'\b(?:not|never|declined|denied|refused|pending|proposed|'
-                                         r'unapproved|unauthorized|unauthorised)\b', c['quote'], re.I)
-                       and re.search(r'\breview', c['quote'], re.I) for c in evidence):
+            if approval_is_negated(value) or not any(recorded_extension_approval(c) for c in evidence):
                 raise ValueError('unsupported review limit approval: missing recorded human approval')
         elif field == 'Evidence':
             def commit_support(citation):
@@ -1642,6 +1659,11 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     recorded_limit = metadata.get('Review limit', '10')
     if any(limit != recorded_limit for _, limit in numbered_review_results):
         raise ValueError('review limit mismatch; a correction cannot supply acceptance')
+    approval_conflicts = []
+    approval = metadata.get('Review limit approval', '')
+    if (re.fullmatch(r'[1-9][0-9]*', recorded_limit) and int(recorded_limit) > 10
+            and approval and approval_is_negated(approval)):
+        approval_conflicts.append('recorded review limit approval is explicitly negated')
     outcome_conflicts = []
     for line, trusted, _, preamble in status_lines.values():
         if not trusted or not preamble:
@@ -1735,6 +1757,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     # receives the complete literal documents and metadata as separate evidence.
     fence = '`' * (max([3] + [len(m[0]) for m in re.finditer(r'`+', validation_status)]) + 1)
     blockers = [op['message'] for op in operations if op['kind'] == 'blocker']
+    blockers.extend(approval_conflicts)
     blockers.extend(dict.fromkeys(outcome_conflicts))
     blockers.extend(dict.fromkeys(review_conflicts))
     validation_metadata = dict(metadata)

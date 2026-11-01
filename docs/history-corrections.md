@@ -69,7 +69,10 @@ prospective instructions and specification statements cannot supply a result.
 Corrected outcome and retirement date require a matching identity-bound index
 row or explicit retained status metadata. Corrected review counts require an
 explicit recorded counter; review-limit corrections require recorded evidence,
-and extended-limit approval must cite a recorded human approval. Corrected
+and extended-limit approval must cite an explicit, affirmative recorded human
+continuation or extension; negated or conditional approval is not evidence.
+Literal metadata that explicitly denies an extended-limit approval is also a
+blocker. Corrected
 commit provenance must cite the recorded commit prefix in a provenance context;
 worktree claims require an explicit worktree statement. Verification summaries
 must be drawn from literal recorded test or check results without contradictory
