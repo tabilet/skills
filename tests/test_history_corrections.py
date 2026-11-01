@@ -175,6 +175,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
             ('Whole review 2/10 PASS with no P1/P2.', True),
             ('Whole review 1/10 FAIL found an issue; fixes passed. Whole review 2/10 PASS with no P1/P2.', True),
             ('Whole review 1/10 PASS with no P1/P2.', False),
+            ('Whole review 2/999 PASS with no P1/P2.', False),
             ('Task review 2/10 PASS with no P1/P2.', False),
             ('Whole review 2/10 PASS with no P1/P2. Review failed.', False),
             ('Run whole review 2/10 PASS with no P1/P2.', False),
@@ -182,7 +183,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         ]
         for quote, accepted in cases:
             with self.subTest(quote=quote):
-                text = self.text.replace('**Review.** passed\n', '').replace('| Task |', quote + '\n\n| Task |')
+                text = self.text.replace('**Review.** passed\n', '').replace('| Task |', '## Review\n\n' + quote + '\n\n| Task |')
                 line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
                 correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
                     evidence=[dict(start_line=line, end_line=line, quote=quote)])])
@@ -194,7 +195,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
 
         quote = 'Whole review 2/10 PASS with no P1/P2.'
         text = self.text.replace('**Review.** passed\n', '').replace(
-            '| Task |', quote + '\nWhole review 2/10 FAIL.\n\n| Task |')
+            '| Task |', '## Review\n\n' + quote + '\nWhole review 2/10 FAIL.\n\n| Task |')
         line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
         correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
             evidence=[dict(start_line=line, end_line=line, quote=quote)])])
@@ -203,11 +204,20 @@ class HistoryCorrectionsTests(unittest.TestCase):
 
     def test_review_pass_citation_must_be_unfenced_status_or_envelope_evidence(self):
         for quote in ('Review: passed', 'Whole review 2/10 PASS with no P1/P2.'):
-            for source in ('status_example', 'specification'):
+            for source in ('status_example', 'example_section', 'nested_example',
+                           'nested_simulation', 'review_inside_simulation', 'specification'):
                 with self.subTest(quote=quote, source=source):
                     text = self.text.replace('**Review.** passed\n', '')
                     if source == 'status_example':
                         text = text.replace('| Task |', '```text\n' + quote + '\n```\n\n| Task |')
+                    elif source == 'example_section':
+                        text = text.replace('| Task |', '## Example template\n\n' + quote + '\n\n| Task |')
+                    elif source == 'nested_example':
+                        text = text.replace('| Task |', '## Review\n\n### Example\n\n' + quote + '\n\n| Task |')
+                    elif source == 'nested_simulation':
+                        text = text.replace('| Task |', '## Review\n\n### Simulation\n\n' + quote + '\n\n| Task |')
+                    elif source == 'review_inside_simulation':
+                        text = text.replace('| Task |', '## Simulation\n\n### Review\n\n' + quote + '\n\n| Task |')
                     else:
                         text = text.replace('**Acceptance.** Feature works.',
                                             '**Acceptance.** Feature works.\n\n' + quote)
@@ -222,6 +232,68 @@ class HistoryCorrectionsTests(unittest.TestCase):
         correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
             evidence=[dict(start_line=line, end_line=line, quote='Review: passed')])])
         self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['metadata']['Review'], 'passed')
+
+    def test_canonical_pass_refuses_conflicting_review_evidence(self):
+        quote = 'Review: passed'
+        for conflict in ('Whole review 2/10 FAIL.', 'Whole review 3/10 PASS.', 'Review: failed',
+                         'Review 2/10 FAILED.', 'Whole review 2/10 NOT PASSED.', 'Review 2/10 PENDING.'):
+            with self.subTest(conflict=conflict):
+                text = self.text.replace('**Review.** passed\n', '').replace(
+                    '| Task |', '## Review\n\n' + quote + '\n' + conflict + '\n\n| Task |')
+                line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+                correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                    evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+                    core.historical_record(text, 'status-M01.md', correction)
+        text = self.text.replace('| Task |', '## Review\n\nWhole review 2/10 FAIL.\n\n| Task |')
+        self.assertIn('conflicting whole review result', core.historical_record(text, 'status-M01.md')['blockers'])
+
+    def test_examples_do_not_create_conflicting_review_results(self):
+        quote = 'Whole review 2/10 PASS with no P1/P2.'
+        text = self.text.replace('**Review.** passed\n', '').replace(
+            '| Task |', '## Review\n\n' + quote + '\n\n### Example\n\nWhole review 2/10 FAIL.\n\n| Task |')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+
+        text = self.text.replace('**Review.** passed\n', '').replace(
+            '| Task |', '## Review\n\n' + quote + '\nTask review 2/10 FAIL.\n\n| Task |')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+
+    def test_review_section_and_source_binding_preserve_literal_evidence(self):
+        quote = 'Whole review 2/10 PASS with no P1/P2.'
+        for heading in ('## Review\n\n### Iteration 2', '## Milestone closure\n\n### Review'):
+            with self.subTest(heading=heading):
+                text = self.text.replace('**Review.** passed\n', '').replace('| Task |', heading + '\n\n' + quote + '\n\n| Task |')
+                line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+                correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                    evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['metadata']['Review'], 'passed')
+
+        # A quote from another embedded document is not the record's own
+        # status evidence, even when the embedded content checksum is correct.
+        text = self.text.replace('**Review.** passed\n', '')
+        external = 'Review: passed'
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed', evidence=[dict(
+            path='tabilet/docs/history/index.md', commit='a' * 40, content=external, sha256=digest(external),
+            start_line=1, end_line=1, quote=external)])])
+        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+    def test_explicit_retained_status_identity_must_match_record(self):
+        for prefix, row in (('# Status M02\n\n', '| Task |'),
+                            ('# Status m02\n\n', '| Task |'),
+                            ('**Milestone.** M02\n\n', '| Task |'),
+                            ('', '| M02.1 — other task |'),
+                            ('', '| m02.1 — other task |')):
+            with self.subTest(prefix=prefix, row=row):
+                text = self.text.replace('| Task |', prefix + row)
+                with self.assertRaisesRegex(ValueError, 'status.*identity'):
+                    core.historical_record(text, 'status-M01.md')
 
     def test_recovery_preserves_source_bytes_locations_and_refuses_modified_content(self):
         raw_status = '| Task | `[+]` | verified |\n'

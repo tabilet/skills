@@ -12,6 +12,9 @@ Markdown fences, level-three milestone headings, annotated source anchors and
 the retained `Related approved correction context` section. A milestone heading
 with another explicit ID is never a format variation. Shared or unnamed
 specifications require an explicit reviewed identification.
+When a retained status explicitly names a milestone in its heading, metadata or
+task rows, that identity must match the frozen record. A content hash binds
+bytes but does not reconcile conflicting milestone identities.
 
 ## Project manifest
 
@@ -57,8 +60,11 @@ when it has the same limit and a lower iteration. The complete line must be
 cited; a task review, prospective instruction, later conflicting text or an
 unmatched counter cannot supply a pass. For both canonical and numbered pass
 forms, the cited literal line must be unfenced and belong to the frozen record's
-retirement metadata or retained status. A fenced example or a specification
-statement cannot supply a review result.
+retirement metadata or retained status review section. A canonical standalone
+result in the status metadata preamble remains supported. Numbered results must
+occur in a review section, match the recorded iteration and limit, and not
+conflict with other recorded outcomes. Fenced or headed examples, templates,
+prospective instructions and specification statements cannot supply a result.
 
 Evidence normally names `start_line`, `end_line` (one-based, inclusive) and an
 exact `quote` from the hash-bound frozen record. External index or specification

@@ -1342,25 +1342,77 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     if set(documents) != {'specification', 'status'}:
         raise ValueError('missing historical specification or status document')
 
+    # When a retained status explicitly names its milestone or task IDs, they
+    # must agree with the record identity. A hash binds bytes, not their owner.
+    for _, line in unfenced_lines(documents['status']):
+        heading = re.match(r'^#\s+(?:Status\s+)?([A-Z][0-9]+(?:-[0-9]+)?)(?=\s|$|[—:–-])', line, re.I)
+        if heading and heading[1] != identity:
+            raise ValueError('historical status identity does not match the record')
+        declared = re.match(r'^(?:\*\*(?:Milestone|Status ID)\.\*\*|'
+                            r'\*\*(?:Milestone|Status ID):\*\*|(?:Milestone|Status ID):)\s*'
+                            r'`?([A-Z][0-9]+(?:-[0-9]+)?)`?(?=\s|$|[.,;—:–-])', line, re.I)
+        if declared and declared[1] != identity:
+            raise ValueError('historical status identity does not match the record')
+    for row in status_rows(documents['status']):
+        item = row['item'].lstrip('`*_ ')
+        task = re.match(r'^([A-Z][0-9]+(?:-[0-9]+)?)\.[0-9]+(?=\b|\s|[:—–-])', item, re.I)
+        if task and task[1] != identity:
+            raise ValueError('historical status task identity does not match the record')
+
+    # Track heading context in the literal retained status. Examples, templates
+    # and prospective instructions cannot become review evidence, even when
+    # they happen to contain a correctly spelled standalone result.
+    status_lines = {}
+    status_context = []
+    for number, line in unfenced_lines(documents['status']):
+        heading = re.fullmatch(r'(#{1,6})\s+(.+?)(?:\s+#+)?\s*', line)
+        if heading:
+            level, title = len(heading[1]), heading[2].strip()
+            while status_context and status_context[-1][0] >= level:
+                status_context.pop()
+            status_context.append((level, title))
+            continue
+        sections = [title for level, title in status_context if level >= 2]
+        example = any(re.search(r'\b(?:examples?|samples?|templates?|propos(?:ed|al)|'
+                                r'plan(?:ned)?|instructions?|guidance|draft|simulation|'
+                                r'hypothetical|illustration|fictional|unverified|pending)\b', title, re.I)
+                      for title in sections)
+        reviews = [i for i, title in enumerate(sections) if re.fullmatch(
+            r'(?:(?:whole[- ]milestone|whole|milestone)\s+)?'
+            r'review(?:\s+(?:notes|and\s+(?:closure|retirement)))?', title, re.I)]
+        in_review = (len(reviews) == 1 and all(re.fullmatch(
+            r'(?:milestone|closure|milestone closure|milestone status)', title, re.I)
+            for title in sections[:reviews[0]]) and all(re.fullmatch(
+            r'(?:(?:review\s+)?iteration\s+[1-9][0-9]*(?:\s*\([^)]*\))?|'
+            r'(?:review\s+)?(?:results?|outcome|conclusion))', title, re.I)
+            for title in sections[reviews[0] + 1:]))
+        status_lines[number] = (line, not example, in_review, not sections)
+
     def recorded_review_citation(citation):
-        # A literal quotation is not evidence of a review if it is an example
-        # inside a fenced block or appears only in the specification. Local
-        # line numbers must resolve into the retained status or its envelope.
+        # Bind the literal quote to the record's own unfenced metadata or
+        # retained status, never to a specification or an external excerpt.
         if 'content' in citation or citation['start_line'] != citation['end_line']:
-            return False
+            return None
         number = citation['start_line']
         quote = citation['quote'].strip()
         if number <= metadata_end:
-            return any(n == number and line.strip() == quote
-                       for n, line in unfenced_lines(''.join(lines[:metadata_end])))
+            envelope = list(unfenced_lines(''.join(lines[:metadata_end])))
+            if any(n < number and re.match(r'^#{2,6}\s', line) for n, line in envelope):
+                return None
+            return 'envelope' if any(n == number and line.strip() == quote
+                                     for n, line in envelope) else None
         source = sources.get('status')
         if source and source['path'] != 'tabilet/docs/history/' + name:
-            return False
-        relative = number - offsets['status']
-        return any(n == relative and line.strip() == quote
-                   for n, line in unfenced_lines(documents['status']))
+            return None
+        item = status_lines.get(number - offsets['status'])
+        if not item or item[0].strip() != quote or not item[1]:
+            return None
+        if item[2]:
+            return 'review'
+        return 'preamble' if item[3] else None
 
-    numbered_review_counts = []
+    numbered_review_results = []
+    corrected_pass = False
     for op in operations:
         if op['kind'] == 'supply-metadata':
             field, value = op['field'], op['value']
@@ -1371,8 +1423,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 accepted = False
                 for citation in op['evidence']:
                     quote = citation['quote'].strip()
-                    if (not recorded_review_citation(citation)
-                            or quote != lines[citation['start_line'] - 1].strip()):
+                    location = recorded_review_citation(citation)
+                    if not location or quote != lines[citation['start_line'] - 1].strip():
                         continue
                     if re.fullmatch(r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?|'
                                     r'\|\s*Review\s*\|\s*passed\s*\|', quote, re.I):
@@ -1381,15 +1433,16 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     result = re.fullmatch(
                         r'(?:Whole review ([1-9][0-9]*)/([1-9][0-9]*) FAIL [^.]+\. )?'
                         r'Whole review ([1-9][0-9]*)/([1-9][0-9]*) PASS with no P1/P2\.', quote, re.I)
-                    if result:
+                    if result and location == 'review':
                         prior, prior_limit, count, limit = result.groups()
                         if (int(count) <= int(limit) and (prior is None or
                                 (int(prior) < int(count) and prior_limit == limit))):
-                            numbered_review_counts.append(count)
+                            numbered_review_results.append((count, limit))
                             accepted = True
                             break
                 if not accepted:
                     raise ValueError('missing recorded passed-review result; a correction cannot supply acceptance')
+                corrected_pass = True
             metadata[field] = value
         elif op['kind'] == 'expand-evidence-commit':
             if metadata.get('Evidence') != op['recorded']:
@@ -1400,14 +1453,28 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             if not recorded or any(not any(commit.startswith(prefix) for prefix in recorded) for commit in op['commits']):
                 raise ValueError('evidence set is unsupported by recorded provenance')
             metadata['Evidence'] = op['commits'][0]
-    if any(count != metadata.get('Review iterations') for count in numbered_review_counts):
+    if any(count != metadata.get('Review iterations') for count, _ in numbered_review_results):
         raise ValueError('review iteration mismatch; a correction cannot supply acceptance')
-    for count in numbered_review_counts:
-        for number, outcome in re.findall(
-                r'\bwhole review\s+([1-9][0-9]*)\s*/\s*[1-9][0-9]*\s+(PASS|FAIL)\b',
-                documents['status'], re.I):
-            if int(number) > int(count) or (int(number) == int(count) and outcome.upper() == 'FAIL'):
-                raise ValueError('conflicting whole review result; a correction cannot supply acceptance')
+    recorded_limit = metadata.get('Review limit', '10')
+    if any(limit != recorded_limit for _, limit in numbered_review_results):
+        raise ValueError('review limit mismatch; a correction cannot supply acceptance')
+    review_conflicts = []
+    iterations = metadata.get('Review iterations', '')
+    if metadata.get('Review') == 'passed' and re.fullmatch(r'[1-9][0-9]*', iterations):
+        for line, trusted, _, _ in status_lines.values():
+            if not trusted:
+                continue
+            if re.match(r'^(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)'
+                        r'(?:failed|fail|not passed|pending|incomplete)\b', line, re.I):
+                review_conflicts.append('conflicting recorded review result')
+            for number, limit, outcome in re.findall(
+                    r'(?<!task )\b(?:whole\s+)?review\s+([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\s+'
+                    r'(PASS(?:ED)?|FAIL(?:ED)?|NOT\s+PASSED|PENDING|INCOMPLETE)\b', line, re.I):
+                if (int(number) > int(iterations) or (int(number) == int(iterations)
+                        and (outcome.upper() not in {'PASS', 'PASSED'} or limit != recorded_limit))):
+                    review_conflicts.append('conflicting whole review result')
+        if review_conflicts and corrected_pass:
+            raise ValueError('conflicting recorded review result; a correction cannot supply acceptance')
     source_spec = metadata.get('Source specification', '')
     anchor = re.fullmatch(r'((?:tabilet/)?memory-bank/milestone\.md#\S+)(?: \([^\n]+\))?', source_spec)
     if anchor:
@@ -1454,6 +1521,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     # receives the complete literal documents and metadata as separate evidence.
     fence = '`' * (max([3] + [len(m[0]) for m in re.finditer(r'`+', validation_status)]) + 1)
     blockers = [op['message'] for op in operations if op['kind'] == 'blocker']
+    blockers.extend(dict.fromkeys(review_conflicts))
     validation_metadata = dict(metadata)
     if correction:
         # Incomplete recovered records remain searchable, with explicit gaps.
