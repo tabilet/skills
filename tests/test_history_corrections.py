@@ -236,6 +236,8 @@ class HistoryCorrectionsTests(unittest.TestCase):
     def test_canonical_pass_refuses_conflicting_review_evidence(self):
         quote = 'Review: passed'
         for conflict in ('Whole review 2/10 FAIL.', 'Whole review 3/10 PASS.', 'Review: failed',
+                         'Whole review failed.', 'Whole review: not passed.',
+                         'Whole review was not passed.', 'Review: did not pass.', 'Review: in progress.',
                          'Review 2/10 FAILED.', 'Whole review 2/10 NOT PASSED.', 'Review 2/10 PENDING.'):
             with self.subTest(conflict=conflict):
                 text = self.text.replace('**Review.** passed\n', '').replace(

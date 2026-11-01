@@ -1464,8 +1464,9 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         for line, trusted, _, _ in status_lines.values():
             if not trusted:
                 continue
-            if re.match(r'^(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)'
-                        r'(?:failed|fail|not passed|pending|incomplete)\b', line, re.I):
+            if re.match(r'^(?:\*\*Review\.\*\*\s*|(?:Whole\s+)?Review\s*:\s*|(?:Whole\s+)?Review\s+)'
+                        r'(?:(?:was|has)\s+)?(?:failed|fail|did not pass|not passed|not completed|'
+                        r'pending|incomplete|in progress|blocked)\b', line, re.I):
                 review_conflicts.append('conflicting recorded review result')
             for number, limit, outcome in re.findall(
                     r'(?<!task )\b(?:whole\s+)?review\s+([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\s+'
