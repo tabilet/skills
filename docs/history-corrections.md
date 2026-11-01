@@ -75,6 +75,12 @@ worktree claims require an explicit worktree statement. Verification summaries
 must be drawn from literal recorded test or check results without contradictory
 failure wording; consolidation claims must appear in retained evidence. An
 unrelated completed task row cannot supply any of these closure facts.
+Corrected identity and source paths must agree with the retained status and
+specification; a specification anchor must be supported by a retained source
+declaration, explicit anchor or matching heading.
+Explicit status/outcome conflicts and ambiguous same-iteration review results
+remain blockers. A recorded legacy `not recorded` counter and a rowless
+withdrawal's recorded zero counter remain supported without inventing a pass.
 
 Evidence normally names `start_line`, `end_line` (one-based, inclusive) and an
 exact `quote` from the hash-bound frozen record. External index or specification

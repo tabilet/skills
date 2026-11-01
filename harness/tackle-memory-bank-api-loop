@@ -1454,13 +1454,50 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             return None
         return cells
 
+    def status_identifies_record():
+        for _, line in unfenced_lines(documents['status']):
+            if re.match(r'^#\s+(?:Status\s+)?' + re.escape(identity) + r'(?=\s|$|[—:–-])', line):
+                return True
+            if re.match(r'^(?:\*\*(?:Milestone|Status ID)\.\*\*|'
+                        r'\*\*(?:Milestone|Status ID):\*\*|(?:Milestone|Status ID):)\s*`?'
+                        + re.escape(identity) + r'`?(?=\s|$|[.,;—:–-])', line, re.I):
+                return True
+        return any(re.match(r'^(?:[`*_ ]*)' + re.escape(identity) + r'\.[0-9]+\b', row['item'])
+                   for row in status_rows(documents['status']))
+
+    def specification_anchor_recorded(value):
+        anchor = re.fullmatch(r'(?:tabilet/)?memory-bank/milestone\.md#([^\s]+)', value)
+        if not anchor:
+            return False
+        fragment = anchor[1]
+        for line, trusted, _, preamble in status_lines.values():
+            if trusted and preamble and re.match(r'^(?:\*\*Specification[.:]\*\*|Specification\s*:)', line, re.I):
+                if 'milestone.md#' + fragment in line:
+                    return True
+        for _, line in unfenced_lines(documents['specification']):
+            if re.search(r'<a\s+id=["\']' + re.escape(fragment) + r'["\']\s*>', line, re.I):
+                return True
+            heading = re.fullmatch(r'#{2,3}\s+(.+?)\s*', line)
+            if heading:
+                slug = re.sub(r'[^\w\s-]', '', heading[1].lower())
+                if re.sub(r'\s+', '-', slug.strip()) == fragment.lower():
+                    return True
+        return False
+
     index_outcomes = []
     for op in operations:
         if op['kind'] != 'supply-metadata':
             continue
         field, value = op['field'], op['value']
         evidence = op['evidence']
-        if field in {'Outcome', 'Retired'}:
+        if field in {'Milestone', 'Source status', 'Source specification'}:
+            if (not status_identifies_record() or not any(re.search(
+                    r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![A-Za-z0-9])', c['quote'])
+                    for c in evidence)):
+                raise ValueError('unsupported ' + field + ' correction: missing recorded identity')
+            if field == 'Source specification' and not specification_anchor_recorded(value):
+                raise ValueError('unsupported Source specification correction: unrecorded anchor')
+        elif field in {'Outcome', 'Retired'}:
             index_rows = [row for c in evidence if (row := cited_index_row(c))]
             supporting = [row for row in index_rows if row[1 if field == 'Outcome' else 2] == value]
             if not supporting:
@@ -1483,18 +1520,23 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         elif field == 'Review iterations':
             counter = (r'(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
                        r'(?:Review gate iterations|Review iterations)\s*:)\s*'
-                       r'([1-9][0-9]*)(?:\s+\([^\n()]*\))?\.?')
+                       r'(not recorded|0|[1-9][0-9]*)(?:\s+\([^\n()]*\))?\.?')
             if not any(recorded_review_citation(c) and
-                       (match := re.fullmatch(counter, c['quote'].strip(), re.I)) and match[1] == value
+                       (match := re.fullmatch(counter, c['quote'].strip(), re.I)) and match[1].lower() == value.lower()
                        for c in evidence):
                 raise ValueError('unsupported review counter correction: missing recorded evidence')
+        elif field == 'Review' and value in {'legacy', 'not applicable'}:
+            if not any(recorded_review_citation(c) and re.fullmatch(
+                    r'(?:\*\*Review\.\*\*|Review\s*:)\s*' + re.escape(value) + r'\.?',
+                    c['quote'].strip(), re.I) for c in evidence):
+                raise ValueError('unsupported Review correction: missing recorded disposition')
         elif field == 'Review limit':
             if not re.fullmatch(r'[1-9][0-9]*', value) or not any(
                     provenance_citation(c) and re.search(
-                        r'(?:\bwhole(?:[- ]milestone)?\s+review\s+|'
-                        r'\breview\s+gate\s+iterations?\s*:\s*|'
-                        r'(?:\*\*review limit\.\*\*|\breview limit\s*:)\s*)'
-                        + re.escape(value) + r'\b',
+                        r'(?:\bwhole(?:[- ]milestone)?\s+review\s+' + re.escape(value) +
+                        r'\s+(?:PASS|FAIL)\b|'
+                        r'\breview\s+gate\s+iterations?\s*:\s*' + re.escape(value) + r'\b|'
+                        r'(?:\*\*review limit\.\*\*|\breview limit\s*:)\s*' + re.escape(value) + r'\b)',
                         c['quote'], re.I) for c in evidence):
                 raise ValueError('unsupported review limit correction: missing recorded evidence')
         elif field == 'Review limit approval':
@@ -1502,6 +1544,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                        and re.search(r'\b(?:owner|user|operator|human)\b', c['quote'], re.I)
                        and re.search(r'\b(?:approved|authorized|authorised)\b|answered\s+["\']yes["\']',
                                      c['quote'], re.I)
+                       and not re.search(r'\b(?:not|never|declined|denied|refused|pending|proposed|'
+                                         r'unapproved|unauthorized|unauthorised)\b', c['quote'], re.I)
                        and re.search(r'\breview', c['quote'], re.I) for c in evidence):
                 raise ValueError('unsupported review limit approval: missing recorded human approval')
         elif field == 'Evidence':
@@ -1527,11 +1571,12 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             quotes = [c['quote'].strip() for c in evidence if literal_record_citation(c)]
             content = value.removeprefix('Recorded results: ').strip()
             def verification_source(quote):
-                return bool(re.search(r'\b(?:tests?|testing|checks?|build|vet|lint|audit|race|'
-                                      r'typecheck|smoke|regression|replay|suite)\b', quote, re.I)
-                            or re.search(r'\bgo\b.*\bpass(?:ed)?\b', quote, re.I)
-                            or re.fullmatch(r'(?:\*\*Verification\.\*\*|Verification\s*:)\s*'
-                                            r'(?:passed|pass|complete)\.?', quote, re.I))
+                subject = re.search(r'\b(?:tests?|testing|checks?|build|vet|lint|audit|race|'
+                                    r'typecheck|smoke|regression|replay|suite|go)\b', quote, re.I)
+                result = re.search(r'\b(?:pass(?:ed|ing)?|succeed(?:ed|s)?|verified|clean)\b', quote, re.I)
+                standalone = re.fullmatch(r'(?:\*\*Verification\.\*\*|Verification\s*:)\s*'
+                                          r'(?:passed|pass)\.?', quote, re.I)
+                return bool((subject and result) or standalone)
             direct = any(content == quote and verification_source(quote) for quote in quotes)
             clauses = [part.strip().rstrip('.') for part in content.split('; ')]
             excerpts = all(part and any(part in quote and verification_source(quote) for quote in quotes)
@@ -1597,6 +1642,24 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     recorded_limit = metadata.get('Review limit', '10')
     if any(limit != recorded_limit for _, limit in numbered_review_results):
         raise ValueError('review limit mismatch; a correction cannot supply acceptance')
+    outcome_conflicts = []
+    for line, trusted, _, preamble in status_lines.values():
+        if not trusted or not preamble:
+            continue
+        state = re.match(r'^(?:\*\*(?:Status|State)\.\*\*|\*\*(?:Status|State):\*\*|'
+                         r'(?:Status|State)\s*:)\s*'
+                         r'(completed|complete|accepted|pending|blocked|in progress|planned|not started|'
+                         r'unimplemented|incomplete|ongoing|open|draft|active|underway|failed|'
+                         r'cancelled|canceled|withdrawn|superseded)\b',
+                         line, re.I)
+        if not state:
+            continue
+        label = state[1].lower()
+        disposition = ('completed' if label in {'completed', 'complete', 'accepted'} else
+                       'cancelled' if label in {'cancelled', 'canceled', 'withdrawn'} else
+                       'superseded' if label == 'superseded' else 'unfinished')
+        if metadata.get('Outcome') and disposition != metadata['Outcome']:
+            outcome_conflicts.append('retained status conflicts with retirement outcome')
     review_conflicts = []
     iterations = metadata.get('Review iterations', '')
     if metadata.get('Review') == 'passed' and re.fullmatch(r'[1-9][0-9]*', iterations):
@@ -1672,6 +1735,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     # receives the complete literal documents and metadata as separate evidence.
     fence = '`' * (max([3] + [len(m[0]) for m in re.finditer(r'`+', validation_status)]) + 1)
     blockers = [op['message'] for op in operations if op['kind'] == 'blocker']
+    blockers.extend(dict.fromkeys(outcome_conflicts))
     blockers.extend(dict.fromkeys(review_conflicts))
     validation_metadata = dict(metadata)
     if correction:
@@ -1710,8 +1774,13 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         blockers.append('retired status contains unfinished task rows')
     if legacy:
         blockers.append('historical `[x]` markers are lookup only')
-    counts = re.findall(r'(?:Review gate iterations:|\*\*Review gate iterations\.\*\*)\s*(\d+)', status)
-    if counts and (len(set(counts)) != 1 or counts[0] != metadata['Review iterations']):
+    counts = []
+    for line, trusted, _, _ in status_lines.values():
+        if trusted and (match := re.match(
+                r'^(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
+                r'(?:Review gate iterations|Review iterations)\s*:)\s*(not recorded|[0-9]+)\b', line, re.I)):
+            counts.append(match[1].lower())
+    if counts and (len(set(counts)) != 1 or counts[0] != metadata['Review iterations'].lower()):
         blockers.append('retained review counter conflicts with retirement metadata')
     try:
         retired_record(text, name)

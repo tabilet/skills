@@ -123,11 +123,15 @@ class HistoryCorrectionsTests(unittest.TestCase):
 
     def test_metadata_corrections_cannot_derive_facts_from_unrelated_task_rows(self):
         for field, old, value in (
+                ('Milestone', 'M01', 'M01'),
                 ('Outcome', 'completed', 'completed'),
                 ('Retired', '2026-09-12', '2026-09-12'),
+                ('Source status', 'tabilet/memory-bank/status-M01.md', 'tabilet/memory-bank/status-M01.md'),
+                ('Source specification', 'tabilet/memory-bank/milestone.md#m01-delivery', 'tabilet/memory-bank/milestone.md#wrong-owner'),
                 ('Evidence', 'unversioned', 'a' * 40),
                 ('Worktree', 'unversioned', 'clean'),
                 ('Review iterations', '2', '2'),
+                ('Review', 'passed', 'legacy'),
                 ('Review limit', '10', '21'),
                 ('Review limit approval', 'not recorded', 'owner approved'),
                 ('Verification', 'tests passed; review found no blocking issues', 'Recorded results: tests passed'),
@@ -144,6 +148,29 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     evidence=[dict(start_line=line, end_line=line, quote=quote)])])
                 with self.assertRaisesRegex(ValueError, 'unsupported'):
                     core.historical_record(text, 'status-M01.md', correction)
+
+    def test_recorded_legacy_review_counter_remains_supported(self):
+        text = self.text.replace('**Review.** passed', '**Review.** legacy\n**Legacy closure.** Predates the gate')
+        text = text.replace('**Review iterations.** 2\n', '').replace(
+            '| Task |', 'Review iterations: not recorded\n\n| Task |')
+        quote = 'Review iterations: not recorded'
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review iterations', value='not recorded',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['metadata']['Review iterations'], 'not recorded')
+
+    def test_recorded_zero_counter_for_rowless_withdrawal_remains_supported(self):
+        quote = 'Review iterations: 0'
+        text = h.retirement_text(quote + '\n', 'M01-01', Outcome='cancelled',
+            Review='not applicable', Disposition='Owner withdrew the option')
+        text = text.replace('status-M01-01.md', 'option-M01-01.md').replace('**Review iterations.** 2\n', '')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = dict(milestone_id='M01-01', record_path='tabilet/docs/history/option-M01-01.md',
+            record_sha256=digest(text), corrections=[dict(kind='supply-metadata', field='Review iterations', value='0',
+                evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        record = core.historical_record(text, 'option-M01-01.md', correction)
+        self.assertEqual(record['metadata']['Review iterations'], '0')
+        self.assertEqual(record['blockers'], [])
 
     def test_metadata_evidence_refuses_mismatched_index_and_negative_verification(self):
         content = '| M02 | completed | 2026-09-12 | [M02](status-M02.md) | Delivery |'
@@ -182,12 +209,39 @@ class HistoryCorrectionsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'unsupported Evidence'):
             core.historical_record(text, 'status-M01.md', correction)
 
+        quote = '# Status M01'
+        text = self.text.replace('**Source specification.** tabilet/memory-bank/milestone.md#m01-delivery\n', '').replace(
+            '| Task |', quote + '\n\n| Task |')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Source specification',
+            value='tabilet/memory-bank/milestone.md#wrong-owner',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'unrecorded anchor'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        quote = 'Go tests are available.'
+        text = self.text.replace('**Verification.** tests passed; review found no blocking issues\n', '').replace(
+            '| Task |', quote + '\n\n| Task |')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Verification', value='Recorded results: ' + quote,
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported Verification'):
+            core.historical_record(text, 'status-M01.md', correction)
+
         quote = 'Task review 21 PASS.'
         text = self.text.replace('| Task |', '## Review\n\n' + quote + '\n\n| Task |')
         line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
         correction = entry(text, [dict(kind='supply-metadata', field='Review limit', value='21',
             evidence=[dict(start_line=line, end_line=line, quote=quote)])])
         with self.assertRaisesRegex(ValueError, 'unsupported review limit'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        quote = 'The owner did not approve continuing the review.'
+        text = self.text.replace('| Task |', '## Review\n\n' + quote + '\n\n| Task |')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review limit approval', value='owner approved',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported review limit approval'):
             core.historical_record(text, 'status-M01.md', correction)
 
     def test_metadata_corrections_accept_explicit_recorded_facts(self):
@@ -259,6 +313,17 @@ class HistoryCorrectionsTests(unittest.TestCase):
         self.assertIn('retired status contains unfinished task rows', core.historical_record(text, 'status-M01.md')['blockers'])
         text = self.text.replace('| Task', 'Review gate iterations: 3\n\n| Task')
         self.assertIn('retained review counter conflicts with retirement metadata', core.historical_record(text, 'status-M01.md')['blockers'])
+
+        text = self.text.replace('| Task', 'Review iterations: 2\nReview iterations: 3\n\n| Task')
+        self.assertIn('retained review counter conflicts with retirement metadata', core.historical_record(text, 'status-M01.md')['blockers'])
+
+        text = self.text.replace('| Task', '## Example\nReview iterations: 3\n\n## Tasks\n| Task')
+        self.assertNotIn('retained review counter conflicts with retirement metadata', core.historical_record(text, 'status-M01.md')['blockers'])
+
+        for state in ('pending', 'planned', 'not started', 'incomplete', 'failed'):
+            with self.subTest(state=state):
+                text = self.text.replace('| Task |', '**Status.** ' + state + '\n\n| Task |')
+                self.assertIn('retained status conflicts with retirement outcome', core.historical_record(text, 'status-M01.md')['blockers'])
 
     def test_numbered_whole_review_requires_a_matching_unambiguous_pass(self):
         cases = [
