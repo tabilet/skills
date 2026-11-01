@@ -1538,7 +1538,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 r'\|\s*' + re.escape(identity) + r' review iteration limit\s*\|\s*`\[\+\]`\s*\|\s*'
                 r'Owner explicitly directed continued ' + re.escape(identity) +
                 r' review beyond ten, without resetting the counter, until a clean review\.\s*\|', later, re.I)
-                or re.fullmatch(r'The refreshed .+ launch reference after the owner\'s '
+                or re.fullmatch(r'The refreshed [A-Za-z0-9_-]+ launch reference after the owner\'s '
                                 + re.escape(identity) + r' review continuation', later, re.I))
             reference = re.search(r'\b(?:approval|decision|authori[sz]ation|authority|permission|'
                                   r'consent|agreement|directive|direction|owner|user|human|operator|'
@@ -1806,7 +1806,11 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                       + re.escape(recorded_limit) + r'\s+PASS\s+with\s+no\s+P1/P2\.')
         def ambiguous_pass_continuation(source):
             after_final_pass = False
-            for line, trusted, relevant, envelope, _ in source:
+            previous_number = None
+            for line, trusted, relevant, envelope, _, number in source:
+                if previous_number is not None and number != previous_number + 1:
+                    after_final_pass = False
+                previous_number = number
                 if not relevant:
                     after_final_pass = False
                     continue
@@ -1830,7 +1834,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     reaffirmation = re.fullmatch(
                         r'Whole-milestone review\s+' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
                         + r',\s*passed\.', line.strip(), re.I)
-                    task_review = re.match(r'^Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.', line.strip(), re.I)
+                    task_review = re.fullmatch(r'Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.', line.strip(), re.I)
                     if (line.strip() != 'This is standalone intake, not a continuation of a retired closing gate.'
                             and not reaffirmation and not task_review):
                         return True
@@ -1843,27 +1847,58 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         return True
                     after_final_pass = True
             return False
-        envelope_context = [(line, True, True, True, False) for line, _ in envelope_lines]
-        status_context = [(line, trusted, in_review or preamble, False, preamble)
-                          for line, trusted, in_review, preamble in status_lines.values()]
+        envelope_context = [(line, True, True, True, False, number)
+                            for number, line in unfenced_lines(''.join(lines[:metadata_end]))]
+        status_context = [(line, trusted, in_review or preamble, False, preamble, number)
+                          for number, (line, trusted, in_review, preamble) in status_lines.items()]
         if ambiguous_pass_continuation(envelope_context) or ambiguous_pass_continuation(status_context):
             review_conflicts.append('unrecognized continuation after recorded review pass')
         # Other structured metadata can contain review-result claims too. Its
         # field name does not make those claims verification of acceptance.
         # Flag unrecognized result references even when another field says pass.
-        later_counter = any(trusted_status and in_review and re.match(
-            r'^Persisted iteration count:\s*' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
-            + r'(?=\b)', status_line, re.I)
+        later_counter = any(trusted_status and in_review and re.fullmatch(
+            r'Persisted iteration count:\s*' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
+            + r'(?:,\s*passed)?\.(?:\s+Task completion alone does not establish acceptance\.'
+              r'(?:\s+Record exact source, observed checks, findings and downstream handoff before completion\.)?)?',
+            status_line.strip(), re.I)
             for status_line, trusted_status, in_review, _ in status_lines.values())
-        for line, trusted, relevant, _, preamble in envelope_context + status_context:
-            if not trusted or not relevant:
-                continue
-            field = re.fullmatch(r'(?:\*\*([\w ]+)\.\*\*|\*\*([\w ]+):\*\*|'
-                                 r'([A-Za-z ]+):)\s*(.+)', line.strip())
-            if not field:
-                continue
-            field_name = next(name for name in field.group(1, 2, 3) if name).lower()
-            field_value = field[4]
+        field_pattern = re.compile(r'(?:\*\*([\w ]+)\.\*\*|\*\*([\w ]+):\*\*|'
+                                   r'([A-Za-z ]+):)\s*(.+)')
+        def structured_paragraphs(source, raw_lines):
+            # Combine a field's adjacent Markdown paragraph lines before
+            # interpreting its contents. Preserve the original bytes in the
+            # record; this normalized view is used only for validation.
+            index = 0
+            while index < len(source):
+                line, trusted, relevant, _, preamble, number = source[index]
+                field = field_pattern.fullmatch(line.strip()) if trusted and relevant else None
+                index += 1
+                if not field:
+                    continue
+                name = next(value for value in field.group(1, 2, 3) if value).lower()
+                parts = [field[4]]
+                while index < len(source):
+                    following, next_trusted, next_relevant, _, _, next_number = source[index]
+                    # A nested list marker can be indented four or more spaces
+                    # and omitted by unfenced_lines. Include it only after an
+                    # adjacent list item; standalone indented code stays out.
+                    while (number + 1 < next_number and number < len(raw_lines)
+                           and re.match(r'^[-*+]\s', parts[-1])
+                           and re.match(r'^ {4,}[-*+]\s', raw_lines[number])):
+                        parts.append(raw_lines[number].strip())
+                        number += 1
+                    stripped = following.strip()
+                    if (next_number != number + 1 or not next_trusted or not next_relevant or not stripped or
+                            field_pattern.fullmatch(stripped) or re.match(
+                                r'^(?:#{1,6}\s|\||`{3,}|~{3,})', stripped)):
+                        break
+                    parts.append(stripped)
+                    number = next_number
+                    index += 1
+                yield name, ' '.join(parts), preamble
+        for field_name, field_value, preamble in (
+                list(structured_paragraphs(envelope_context, lines[:metadata_end]))
+                + list(structured_paragraphs(status_context, documents['status'].splitlines()))):
             if field_name in {'review', 'review iterations', 'review limit', 'review limit approval'}:
                 continue
             earlier_pending = (preamble and field_name == 'state' and re.fullmatch(

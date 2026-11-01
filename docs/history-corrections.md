@@ -70,6 +70,13 @@ status preamble or retained review section blocks acceptance, even when the
 prose is harmless.
 Unrecognized review-result claims in other structured metadata also block
 acceptance; that conservative rule can flag benign historical summaries.
+Adjacent Markdown field continuation lines, including nested list or quote
+lines, are checked as one paragraph. Fenced and indented code remain examples;
+validation does not join source lines across those omitted blocks. Literal
+documents, recovered source identifiers and offsets are not rewritten.
+Recognition is limited to supported explicit historical forms and does not
+establish the meaning of arbitrary natural-language references. Ambiguous
+post-result prose in the same authoritative context remains a blocker.
 
 Corrected outcome and retirement date require a matching identity-bound index
 row or explicit retained status metadata. Corrected review counts require an

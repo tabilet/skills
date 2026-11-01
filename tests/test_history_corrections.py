@@ -251,6 +251,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
                        '\n\nThe decision was later changed.', '\n\nLater, the approval was withdrawn.',
                        '\n\nSubsequently, the owner changed their mind.',
                        '\n\nThat permission was canceled.',
+                       '\n\nThe refreshed approval was withdrawn and launch reference after the owner\'s M01 review continuation',
                        '; the decision was later changed.', '\nOnly if tests passed.'):
             with self.subTest(suffix=suffix):
                 text = self.text.replace('**Review iterations.** 2',
@@ -425,7 +426,8 @@ class HistoryCorrectionsTests(unittest.TestCase):
         for quote in ('Whole review 2/10 PASS with no P1/P2.', 'Review: passed'):
             for continuation in ('The review result was later invalidated.',
                                  'Later, the owner changed that decision.',
-                                 'The pass is contingent on further verification.'):
+                                 'The pass is contingent on further verification.',
+                                 'Task review 2/10 FAIL. The review result was later invalidated.'):
                 with self.subTest(quote=quote, continuation=continuation):
                     text = self.text.replace('**Review.** passed\n', '').replace(
                         '| Task |', '## Review\n\n' + quote + '\n' + continuation + '\n\n| Task |')
@@ -515,6 +517,57 @@ class HistoryCorrectionsTests(unittest.TestCase):
         result = core.historical_record(text, 'status-M01.md', entry(text, [operation]))
         self.assertIn('unrecognized continuation after recorded review pass', result['blockers'])
 
+    def test_wrapped_structured_review_claims_are_not_hidden(self):
+        for location in ('envelope', 'preamble', 'preamble_colon', 'preamble_bold_colon', 'review'):
+            for indentation in ('', '  ', '  - ', '> '):
+                with self.subTest(location=location, indentation=repr(indentation)):
+                    wrapped = 'Tests passed.\n' + indentation + 'The review result was later invalidated.'
+                    if location == 'envelope':
+                        text = self.text.replace('**Verification.** tests passed; review found no blocking issues',
+                                                 '**Verification.** ' + wrapped)
+                    elif location == 'review':
+                        text = self.text.replace('| Task |', '## Review\n\n**Verification.** '
+                                                 + wrapped + '\n\n| Task |')
+                    else:
+                        label = {'preamble': '**Verification.**', 'preamble_colon': 'Verification:',
+                                 'preamble_bold_colon': '**Verification:**'}[location]
+                        text = self.text.replace('| Task |', label + ' ' + wrapped + '\n\n| Task |')
+                    record = core.historical_record(text, 'status-M01.md')
+                    self.assertIn('ambiguous review-result claim in structured metadata', record['blockers'])
+                    if location != 'envelope':
+                        self.assertIn(wrapped, record['status'])
+
+    def test_wrapped_fields_do_not_join_across_fenced_or_code_blocks(self):
+        for example in ('```text\nThe review result was later invalidated.\n```',
+                        '    The review result was later invalidated.'):
+            with self.subTest(example=example):
+                text = self.text.replace('| Task |', '**Verification.** Tests passed.\n'
+                                         + example + '\n\n| Task |')
+                self.assertEqual(core.historical_record(text, 'status-M01.md')['blockers'], [])
+
+    def test_nested_list_in_structured_paragraph_preserves_status_bytes(self):
+        wrapped = ('**Verification.** Tests passed.\n  - Further details.\n'
+                   '    - The review result was later invalidated.\n')
+        text = self.text.replace('| Task |', wrapped + '\n| Task |')
+        record = core.historical_record(text, 'status-M01.md')
+        self.assertIn('ambiguous review-result claim in structured metadata', record['blockers'])
+        self.assertIn(wrapped, record['status'])
+
+    def test_wrapped_recovered_status_preserves_literal_source_and_offsets(self):
+        status = ('**Verification.** Tests passed.\n'
+                  '  - The review result was later invalidated.\n\n'
+                  '| Task | `[+]` | verified |\n')
+        text = self.text.replace('| Task | `[+]` | verified |\n', status)
+        source = dict(commit='a' * 40, path='tabilet/memory-bank/status-M01.md', start_line=11,
+                      end_line=10 + len(status.splitlines()), source_sha256=digest(status))
+        operation = dict(kind='recover-document', document='status', content=status,
+                         sha256=digest(status), source=source)
+        record = core.historical_record(text, 'status-M01.md', entry(text, [operation]))
+        self.assertIn('ambiguous review-result claim in structured metadata', record['blockers'])
+        self.assertEqual(record['status'], status)
+        self.assertEqual(record['sources']['status'], source)
+        self.assertEqual(record['offsets']['status'], 10)
+
     def test_review_claims_in_all_other_structured_status_fields_block(self):
         for field in ('State', 'Verification', 'Consolidated into', 'Evidence', 'Worktree',
                       'Disposition', 'Marker correction', 'Custom notes'):
@@ -543,6 +596,11 @@ class HistoryCorrectionsTests(unittest.TestCase):
         stale = text.replace('Persisted iteration count: 2/10', 'Persisted iteration count: 1/10')
         self.assertIn('ambiguous review-result claim in structured metadata',
                       core.historical_record(stale, 'status-M01.md')['blockers'])
+        for suffix in (', failed.', ', passed but later invalidated.'):
+            bad_counter = text.replace('Persisted iteration count: 2/10, passed.',
+                                       'Persisted iteration count: 2/10' + suffix)
+            self.assertIn('ambiguous review-result claim in structured metadata',
+                          core.historical_record(bad_counter, 'status-M01.md')['blockers'])
         later_state = self.text.replace('| Task |', '## Review\n\n'
             'Persisted iteration count: 2/10, passed.\n' + state + '\n\n| Task |')
         self.assertIn('ambiguous review-result claim in structured metadata',
