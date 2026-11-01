@@ -1341,6 +1341,25 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 raise ValueError('status recovery must retain the complete frozen status evidence')
     if set(documents) != {'specification', 'status'}:
         raise ValueError('missing historical specification or status document')
+
+    def recorded_review_citation(citation):
+        # A literal quotation is not evidence of a review if it is an example
+        # inside a fenced block or appears only in the specification. Local
+        # line numbers must resolve into the retained status or its envelope.
+        if 'content' in citation or citation['start_line'] != citation['end_line']:
+            return False
+        number = citation['start_line']
+        quote = citation['quote'].strip()
+        if number <= metadata_end:
+            return any(n == number and line.strip() == quote
+                       for n, line in unfenced_lines(''.join(lines[:metadata_end])))
+        source = sources.get('status')
+        if source and source['path'] != 'tabilet/docs/history/' + name:
+            return False
+        relative = number - offsets['status']
+        return any(n == relative and line.strip() == quote
+                   for n, line in unfenced_lines(documents['status']))
+
     numbered_review_counts = []
     for op in operations:
         if op['kind'] == 'supply-metadata':
@@ -1352,9 +1371,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 accepted = False
                 for citation in op['evidence']:
                     quote = citation['quote'].strip()
-                    if (citation['start_line'] != citation['end_line'] or quote != (
-                            citation['content'].strip() if 'content' in citation
-                            else lines[citation['start_line'] - 1].strip())):
+                    if (not recorded_review_citation(citation)
+                            or quote != lines[citation['start_line'] - 1].strip()):
                         continue
                     if re.fullmatch(r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?|'
                                     r'\|\s*Review\s*\|\s*passed\s*\|', quote, re.I):

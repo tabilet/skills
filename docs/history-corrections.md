@@ -55,7 +55,10 @@ when its iteration matches the recorded counter and does not exceed its stated
 limit. One earlier numbered failure in the same literal line is allowed only
 when it has the same limit and a lower iteration. The complete line must be
 cited; a task review, prospective instruction, later conflicting text or an
-unmatched counter cannot supply a pass.
+unmatched counter cannot supply a pass. For both canonical and numbered pass
+forms, the cited literal line must be unfenced and belong to the frozen record's
+retirement metadata or retained status. A fenced example or a specification
+statement cannot supply a review result.
 
 Evidence normally names `start_line`, `end_line` (one-based, inclusive) and an
 exact `quote` from the hash-bound frozen record. External index or specification

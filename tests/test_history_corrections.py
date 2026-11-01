@@ -201,6 +201,28 @@ class HistoryCorrectionsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
             core.historical_record(text, 'status-M01.md', correction)
 
+    def test_review_pass_citation_must_be_unfenced_status_or_envelope_evidence(self):
+        for quote in ('Review: passed', 'Whole review 2/10 PASS with no P1/P2.'):
+            for source in ('status_example', 'specification'):
+                with self.subTest(quote=quote, source=source):
+                    text = self.text.replace('**Review.** passed\n', '')
+                    if source == 'status_example':
+                        text = text.replace('| Task |', '```text\n' + quote + '\n```\n\n| Task |')
+                    else:
+                        text = text.replace('**Acceptance.** Feature works.',
+                                            '**Acceptance.** Feature works.\n\n' + quote)
+                    line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+                    correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                        evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                    with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+                        core.historical_record(text, 'status-M01.md', correction)
+
+        text = self.text.replace('**Review.** passed', 'Review: passed')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == 'Review: passed')
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote='Review: passed')])])
+        self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['metadata']['Review'], 'passed')
+
     def test_recovery_preserves_source_bytes_locations_and_refuses_modified_content(self):
         raw_status = '| Task | `[+]` | verified |\n'
         start = next(n for n, value in enumerate(self.text.splitlines(), 1) if value == raw_status.rstrip())
