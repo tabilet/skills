@@ -1,3 +1,37 @@
+# memory-bank v2.17.0
+
+Adds a stock test policy and a review gate that converges, so test failures stop
+turning into human dispositions and fresh reviewers stop re-sweeping an unchanged
+milestone.
+
+- Adds `tabilet/memory-bank/test-policy.md`. Checks are class O (offline,
+  self-checking, PASS or FAIL, never UNKNOWN) or class R (real effect, needing
+  separately named human authority). The policy grants no authority and never
+  removes a grant's limits. A new optional `TEST_POLICY` launch field and a
+  shared resolution order (approved request, then the path `AGENTS.md` declares,
+  then the default file, then `none`) are added to the goal protocol and to
+  Next's interactive controls.
+- Changes the stock `GOAL.md` protocol (new fingerprint). The bounded
+  review-fix gate now blocks on P1 and higher only. Iteration 1 reviews the whole
+  milestone; later iterations review the previous blocking findings, the change
+  since the recorded reviewed state and its direct consumers. P2 and Lower
+  findings are fixed now or carried in a new `Open review findings` register
+  (`FND-` IDs) in `milestone.md`; every review fix is itself reviewed and the
+  final allowed iteration makes no further review change. The verification-attempt
+  gate now covers class R checks, or every expensive or protected check when no
+  test policy applies.
+- Adoption is explicit through `memory-bank-upgrade`. Until a project adopts them,
+  its stricter text stays binding, including P2 blocking. New `memory-bank-init`
+  projects receive both by default.
+- The `tabilet` controller and the Python API runner code are unchanged. The
+  controller keeps its own deterministic gate: it runs its own full review, any
+  reported P0, P1 or P2 blocks retirement, and it does not read the register, so
+  milestones it runs keep P2 blocking.
+
+Updating the plugin does not update an installed API runner, controller or SQLite
+toolkit. The embedded task text of the runner gains the test-policy sentence; the
+installed runner needs a separate update to carry it.
+
 # memory-bank v2.16.2
 
 Improves compatibility with older retired milestone records across the API
