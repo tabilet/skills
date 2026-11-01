@@ -1872,6 +1872,34 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 field_value, re.I))
             if earlier_pending and later_counter:
                 continue
+            passing = re.search(r'\breview\s+(?:passed|completed|accepted|approved|succeeded|successful|clean)\b',
+                                field_value, re.I)
+            if passing:
+                suffix = field_value[passing.end():].strip()
+                accepted_suffix = (suffix in {'', '.', '. No publication is claimed.'} or re.fullmatch(
+                    r'\.\s*Persisted review count\s+' + re.escape(iterations) + r'/'
+                    + re.escape(recorded_limit) + r'\.', suffix, re.I))
+                if (not accepted_suffix or re.search(r'\b(?:not|no|never|unless|if|except|conditional)\b',
+                                                     field_value[:passing.start()], re.I)):
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
+            colon_result = re.search(r'(?:^|[.;]\s+)review\s*:\s*(.*)', field_value, re.I)
+            if colon_result and not re.fullmatch(r'passed\.?', colon_result[1].strip(), re.I):
+                review_conflicts.append('ambiguous review-result claim in structured metadata')
+            numbered = re.search(r'\breview\s+([1-9][0-9]*)/([1-9][0-9]*)\b(.*)', field_value, re.I)
+            if numbered:
+                result = numbered[3].strip()
+                supported = (numbered[1] == iterations and numbered[2] == recorded_limit and
+                    (re.fullmatch(r',?\s*passed(?:\s+with\s+no\s+P1/P2)?\.?', result, re.I) or
+                     re.fullmatch(r'passed\s+\(no\s+P1/P2\);\s+retired\s+[0-9]{4}-[0-9]{2}-[0-9]{2}\.\s+'
+                                  r'Goal run:\s+COMMIT_POLICY\s+none\s+\(owner choice\s+'
+                                  r'[0-9]{4}-[0-9]{2}-[0-9]{2}\),\s+no commits\.', result, re.I)))
+                stale_counter = (preamble and field_name == 'state' and later_counter and
+                    numbered[1] == iterations and numbered[2] == recorded_limit and re.fullmatch(
+                        r',\s*passed\.\s*Persisted review count 0/10\.', result, re.I))
+                if ((not supported and not stale_counter) or re.search(
+                        r'\b(?:not|no|never|unless|if|except|conditional)\b',
+                        field_value[:numbered.start()], re.I)):
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
             if re.search(r'\b(?:review\s+(?:result|verdict|outcome|decision|was|is|has|had|'
                          r'failed|fail|pending|not)|(?:result|verdict|outcome|decision)\s+of\s+'
                          r'(?:the\s+)?review)\b', field_value, re.I):

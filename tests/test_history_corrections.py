@@ -463,14 +463,41 @@ class HistoryCorrectionsTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
                             core.historical_record(text, 'status-M01.md', correction)
 
+    def test_pass_formats_reject_same_and_following_line_qualifications(self):
+        forms = ('Review: passed', 'Review passed', '**Review.** passed',
+                 'Whole review 2/10 PASS with no P1/P2.')
+        for location in ('envelope', 'preamble', 'review'):
+            for quote in forms:
+                for joiner in (' ', '\n', '\n\n'):
+                    with self.subTest(location=location, quote=quote, joiner=repr(joiner)):
+                        text = self.text.replace('**Review.** passed\n', '')
+                        statement = quote + joiner + 'The result was later invalidated.'
+                        if location == 'envelope':
+                            text = text.replace('## Milestone specification', statement + '\n\n## Milestone specification')
+                        elif location == 'preamble':
+                            text = text.replace('| Task |', statement + '\n\n| Task |')
+                        else:
+                            text = text.replace('| Task |', '## Review\n\n' + statement + '\n\n| Task |')
+                        line = next(n for n, value in enumerate(text.splitlines(), 1) if quote in value)
+                        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                        with self.assertRaises(ValueError):
+                            core.historical_record(text, 'status-M01.md', correction)
+
     def test_other_metadata_cannot_hide_review_result_conflicts(self):
-        for location in ('envelope', 'preamble', 'preamble_colon', 'preamble_bold_colon'):
+        for location in ('envelope', 'preamble', 'preamble_colon', 'preamble_bold_colon', 'review'):
             for claim in ('The review result was later invalidated.',
-                          'The review was not accepted.', 'The result of the review was withdrawn.'):
+                          'The review was not accepted.', 'The result of the review was withdrawn.',
+                          'The review passed, then was invalidated.', 'Not review passed.',
+                          'The review completed, then was invalidated.',
+                          'Review: passed, then invalidated.', 'Whole review 2/10 PASS, then invalidated.'):
                 with self.subTest(location=location, claim=claim):
                     if location == 'envelope':
                         text = self.text.replace('**Verification.** tests passed; review found no blocking issues',
                                                  '**Verification.** ' + claim)
+                    elif location == 'review':
+                        text = self.text.replace('| Task |', '## Review\n\n**Verification.** '
+                                                 + claim + '\n\n| Task |')
                     else:
                         label = {'preamble': '**Verification.**', 'preamble_colon': 'Verification:',
                                  'preamble_bold_colon': '**Verification:**'}[location]
@@ -487,6 +514,16 @@ class HistoryCorrectionsTests(unittest.TestCase):
                         end_line=len(status.splitlines()), source_sha256=digest(status)))
         result = core.historical_record(text, 'status-M01.md', entry(text, [operation]))
         self.assertIn('unrecognized continuation after recorded review pass', result['blockers'])
+
+    def test_review_claims_in_all_other_structured_status_fields_block(self):
+        for field in ('State', 'Verification', 'Consolidated into', 'Evidence', 'Worktree',
+                      'Disposition', 'Marker correction', 'Custom notes'):
+            for claim in ('The review result was later invalidated.',
+                          'Review: passed, then invalidated.', 'Whole review 2/10 PASS, then invalidated.'):
+                with self.subTest(field=field, claim=claim):
+                    text = self.text.replace('| Task |', '**' + field + '.** ' + claim + '\n\n| Task |')
+                    self.assertIn('ambiguous review-result claim in structured metadata',
+                                  core.historical_record(text, 'status-M01.md')['blockers'])
 
     def test_external_citation_cannot_supply_review_acceptance(self):
         text = self.text.replace('**Review.** passed\n', '')
