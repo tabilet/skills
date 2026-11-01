@@ -463,6 +463,54 @@ class HistoryCorrectionsTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
                             core.historical_record(text, 'status-M01.md', correction)
 
+    def test_other_metadata_cannot_hide_review_result_conflicts(self):
+        for location in ('envelope', 'preamble', 'preamble_colon', 'preamble_bold_colon'):
+            for claim in ('The review result was later invalidated.',
+                          'The review was not accepted.', 'The result of the review was withdrawn.'):
+                with self.subTest(location=location, claim=claim):
+                    if location == 'envelope':
+                        text = self.text.replace('**Verification.** tests passed; review found no blocking issues',
+                                                 '**Verification.** ' + claim)
+                    else:
+                        label = {'preamble': '**Verification.**', 'preamble_colon': 'Verification:',
+                                 'preamble_bold_colon': '**Verification:**'}[location]
+                        text = self.text.replace('| Task |', label + ' ' + claim + '\n\n| Task |')
+                    self.assertIn('ambiguous review-result claim in structured metadata',
+                                  core.historical_record(text, 'status-M01.md')['blockers'])
+
+    def test_recovered_status_retains_review_context_conflicts(self):
+        status = ('## Review\n\nReview: passed\nThe result was later invalidated.\n\n'
+                  '| Task | `[+]` | verified |\n')
+        text = self.text.replace('| Task | `[+]` | verified |\n', status)
+        operation = dict(kind='recover-document', document='status', content=status, sha256=digest(status),
+            source=dict(commit='a' * 40, path='tabilet/memory-bank/status-M01.md', start_line=1,
+                        end_line=len(status.splitlines()), source_sha256=digest(status)))
+        result = core.historical_record(text, 'status-M01.md', entry(text, [operation]))
+        self.assertIn('unrecognized continuation after recorded review pass', result['blockers'])
+
+    def test_external_citation_cannot_supply_review_acceptance(self):
+        text = self.text.replace('**Review.** passed\n', '')
+        quote = 'Review: passed'
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed', evidence=[dict(
+            path='tabilet/docs/history/index.md', commit='a' * 40, content=quote, sha256=digest(quote),
+            start_line=1, end_line=1, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+    def test_earlier_pending_state_requires_matching_later_review_counter(self):
+        state = ('**State.** Tasks complete; R1-R3 verified, whole-milestone review pending. '
+                 'Persisted review count 0/10.')
+        text = self.text.replace('| Task |', state + '\n\n## Review\n\n'
+            'Persisted iteration count: 2/10, passed.\n\n| Task |')
+        self.assertEqual(core.historical_record(text, 'status-M01.md')['blockers'], [])
+        stale = text.replace('Persisted iteration count: 2/10', 'Persisted iteration count: 1/10')
+        self.assertIn('ambiguous review-result claim in structured metadata',
+                      core.historical_record(stale, 'status-M01.md')['blockers'])
+        later_state = self.text.replace('| Task |', '## Review\n\n'
+            'Persisted iteration count: 2/10, passed.\n' + state + '\n\n| Task |')
+        self.assertIn('ambiguous review-result claim in structured metadata',
+                      core.historical_record(later_state, 'status-M01.md')['blockers'])
+
     def test_review_correction_requires_an_explicit_passed_result(self):
         for quote, accepted in (('review not passed', False),
                                 ('review failed, but tests passed', False),

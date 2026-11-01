@@ -68,6 +68,8 @@ prospective instructions and specification statements cannot supply a result.
 Unrecognized prose following an explicit final review pass in the envelope,
 status preamble or retained review section blocks acceptance, even when the
 prose is harmless.
+Unrecognized review-result claims in other structured metadata also block
+acceptance; that conservative rule can flag benign historical summaries.
 
 Corrected outcome and retirement date require a matching identity-bound index
 row or explicit retained status metadata. Corrected review counts require an

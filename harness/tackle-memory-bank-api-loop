@@ -1806,7 +1806,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                       + re.escape(recorded_limit) + r'\s+PASS\s+with\s+no\s+P1/P2\.')
         def ambiguous_pass_continuation(source):
             after_final_pass = False
-            for line, trusted, relevant, envelope in source:
+            for line, trusted, relevant, envelope, _ in source:
                 if not relevant:
                     after_final_pass = False
                     continue
@@ -1843,11 +1843,39 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         return True
                     after_final_pass = True
             return False
-        envelope_context = [(line, True, True, True) for line, _ in envelope_lines]
-        status_context = [(line, trusted, in_review or preamble, False)
+        envelope_context = [(line, True, True, True, False) for line, _ in envelope_lines]
+        status_context = [(line, trusted, in_review or preamble, False, preamble)
                           for line, trusted, in_review, preamble in status_lines.values()]
         if ambiguous_pass_continuation(envelope_context) or ambiguous_pass_continuation(status_context):
             review_conflicts.append('unrecognized continuation after recorded review pass')
+        # Other structured metadata can contain review-result claims too. Its
+        # field name does not make those claims verification of acceptance.
+        # Flag unrecognized result references even when another field says pass.
+        later_counter = any(trusted_status and in_review and re.match(
+            r'^Persisted iteration count:\s*' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
+            + r'(?=\b)', status_line, re.I)
+            for status_line, trusted_status, in_review, _ in status_lines.values())
+        for line, trusted, relevant, _, preamble in envelope_context + status_context:
+            if not trusted or not relevant:
+                continue
+            field = re.fullmatch(r'(?:\*\*([\w ]+)\.\*\*|\*\*([\w ]+):\*\*|'
+                                 r'([A-Za-z ]+):)\s*(.+)', line.strip())
+            if not field:
+                continue
+            field_name = next(name for name in field.group(1, 2, 3) if name).lower()
+            field_value = field[4]
+            if field_name in {'review', 'review iterations', 'review limit', 'review limit approval'}:
+                continue
+            earlier_pending = (preamble and field_name == 'state' and re.fullmatch(
+                r'Tasks complete; [A-Za-z0-9.,– -]+ verified, whole-milestone review pending\. '
+                r'Persisted review count 0/10(?: \(review intake does not start a gate\))?\.',
+                field_value, re.I))
+            if earlier_pending and later_counter:
+                continue
+            if re.search(r'\b(?:review\s+(?:result|verdict|outcome|decision|was|is|has|had|'
+                         r'failed|fail|pending|not)|(?:result|verdict|outcome|decision)\s+of\s+'
+                         r'(?:the\s+)?review)\b', field_value, re.I):
+                review_conflicts.append('ambiguous review-result claim in structured metadata')
         if review_conflicts and corrected_pass:
             raise ValueError('conflicting recorded review result; a correction cannot supply acceptance')
     source_spec = metadata.get('Source specification', '')
