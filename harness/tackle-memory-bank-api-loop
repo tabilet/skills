@@ -1493,7 +1493,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         prospective = r'\b(?:pending|proposed|conditional|if|but)\b'
         return bool(re.search(denied, text, re.I) or (source and re.search(prospective, text, re.I)))
 
-    def approval_statement(text):
+    def approval_statement(text, *, literal=False):
         if approval_is_negated(text, source=True):
             return False
         quote = ' '.join(text.split())
@@ -1505,6 +1505,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         # Recognize complete affirmative statements, not an affirmative
         # substring that later prose can qualify or reverse.
         direct = actor + verb + action + r'(?:\s+to\s+(?P<approved_limit>[1-9][0-9]*))?\.?'
+        interactive = actor + verb + r'interactive\s+launch\s+ceiling\s+(?P<launch_limit>[1-9][0-9]*)\.?'
         answer = (actor + r'(?:answered|said|replied)\s+(?P<yes_quote>["\'])yes(?P=yes_quote)\s+to\s+'
                   r'continu(?:e|ing)\s+' + re.escape(identity) + r'\s+beyond\s+(?:ten|10)\s+'
                   r'(?:whole(?:[- ]milestone)?\s+)?reviews?'
@@ -1515,12 +1516,37 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                   r'(?:\s+This\s+explicit\s+continuation\s+applies\s+to\s+'
                   + re.escape(identity) + r"'s\s+whole-review\s+limit;\s+other\s+scope,\s+"
                   r'verification\s+boundaries\s+and\s+action\s+grants\s+remain\s+unchanged\.)?')
-        match = re.fullmatch(prefix + '(?:' + direct + '|' + answer + ')' + suffix, quote, re.I)
+        match = re.fullmatch(prefix + '(?:' + direct + '|' + interactive + '|' + answer + ')' + suffix, quote, re.I)
         if not match:
+            return False
+        if match['launch_limit'] and not literal:
             return False
         limit = next((op['value'] for op in operations if op['kind'] == 'supply-metadata'
                       and op['field'] == 'Review limit'), metadata.get('Review limit', '10'))
-        return not match['approved_limit'] or match['approved_limit'] == limit
+        stated_limit = match['approved_limit'] or match['launch_limit']
+        return not stated_limit or stated_limit == limit
+
+    def later_approval_reference(after):
+        for number in range(after, len(lines)):
+            item = status_lines.get(number + 1 - offsets['status'])
+            if not item or not item[1] or not (item[2] or item[3]):
+                continue
+            later = item[0].strip()
+            # A retained progress row and a later launch-reference note
+            # explicitly restate, rather than qualify, the continuation.
+            restatement = (re.fullmatch(
+                r'\|\s*' + re.escape(identity) + r' review iteration limit\s*\|\s*`\[\+\]`\s*\|\s*'
+                r'Owner explicitly directed continued ' + re.escape(identity) +
+                r' review beyond ten, without resetting the counter, until a clean review\.\s*\|', later, re.I)
+                or re.fullmatch(r'The refreshed .+ launch reference after the owner\'s '
+                                + re.escape(identity) + r' review continuation', later, re.I))
+            reference = re.search(r'\b(?:approval|decision|authori[sz]ation|authority|permission|'
+                                  r'consent|agreement|directive|direction|owner|user|human|operator|'
+                                  r'withdrawn|revoked|rescinded|reversed|retracted|overturned)\b|'
+                                  r'\breview\b.{0,40}\b(?:continuation|extension|limit)\b', later, re.I)
+            if reference and not restatement:
+                return True
+        return False
 
     def recorded_extension_approval(citation):
         if not provenance_citation(citation):
@@ -1549,13 +1575,10 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             while after < len(lines) and lines[after].strip() and not re.match(
                     r'^\s*(?:#{1,6}\s|\||`{3,}|~{3,})', lines[after]):
                 after += 1
-            for number in range(after, len(lines)):
-                item = status_lines.get(number + 1 - offsets['status'])
-                if not item or not item[1] or item[0].lstrip().startswith('|'):
-                    continue
-                if re.match(r'^\s*(?:the|this|that)\s+(?:owner|approval|decision|'
-                            r'authori[sz]ation|extension|continuation)\b', item[0], re.I):
-                    return False
+            if later_approval_reference(after):
+                return False
+        elif later_approval_reference(metadata_end):
+            return False
         return approval_statement(context)
 
     index_outcomes = []
@@ -1729,7 +1752,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 break
             literal_approval += ' ' + line.strip()
     if (re.fullmatch(r'[1-9][0-9]*', recorded_limit) and int(recorded_limit) > 10
-            and literal_approval and not approval_statement(literal_approval)):
+            and literal_approval and (not approval_statement(literal_approval, literal=True)
+                or later_approval_reference(metadata_end))):
         approval_conflicts.append('recorded review limit approval is ambiguous or unsupported')
     outcome_conflicts = []
     for line, trusted, _, preamble in status_lines.values():

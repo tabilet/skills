@@ -74,9 +74,14 @@ continuation or extension; the citation must match a supported complete
 affirmative statement, and ambiguous, reversed or conditional language is not
 evidence. A named continuation must identify the same milestone, and a stated
 ceiling must match the recorded limit. Citations include the complete selected
-lines and the adjacent continuation of their paragraph. Literal approval
+lines and the adjacent continuation of their paragraph. Unrecognized later
+approval or decision references in the retained review context block the
+interpretation, including unrelated references that cannot safely be ruled out.
+Literal approval
 metadata and correction values must also use supported affirmative or recorded
-interpretation forms; ambiguous literal metadata remains a blocker. Corrected
+interpretation forms; an interactive launch ceiling is accepted only in the
+literal review-limit approval field, with a matching numeric limit. Ambiguous
+literal metadata remains a blocker. Corrected
 commit provenance must cite the recorded commit prefix in a provenance context;
 worktree claims require an explicit worktree statement. Verification summaries
 must be drawn from literal recorded test or check results without contradictory

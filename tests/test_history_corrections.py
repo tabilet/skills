@@ -172,6 +172,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
             'The owner answered "yes" to continuing M01 beyond ten whole reviews if tests passed.',
             'The owner answered "yes" to continuing M99 beyond ten whole reviews.',
             'The owner approved the review extension to 22.',
+            'The owner approved interactive launch ceiling 21.',
             'The owner approved the review extension; the decision was later changed.',
             'The owner approved the review extension. No P1/P2, but the approval was withdrawn.',
             'No P1/P2. The owner did not approve the review extension.',
@@ -224,15 +225,32 @@ class HistoryCorrectionsTests(unittest.TestCase):
                                            'status-M01.md')['blockers'])
         self.assertEqual(core.historical_record(literal.replace('No owner approved an extension',
             'The owner approved the review extension to 21'), 'status-M01.md')['blockers'], [])
+        thirty = literal.replace('**Review iterations.** 21', '**Review iterations.** 30').replace(
+            '**Review limit.** 21', '**Review limit.** 30').replace('No owner approved an extension',
+            'Owner approved interactive launch ceiling 30')
+        self.assertEqual(core.historical_record(thirty, 'status-M01.md')['blockers'], [])
+        for value in ('Owner did not approve interactive launch ceiling 30',
+                      'Owner approved interactive launch ceiling 31',
+                      'Owner approved interactive launch ceiling 30; the decision was changed'):
+            with self.subTest(literal=value):
+                self.assertIn('recorded review limit approval is ambiguous or unsupported',
+                    core.historical_record(thirty.replace('Owner approved interactive launch ceiling 30', value),
+                                           'status-M01.md')['blockers'])
         continued = literal.replace('No owner approved an extension',
             'The owner approved the review extension to 21.\nThe decision was later changed.')
         self.assertIn('recorded review limit approval is ambiguous or unsupported',
                       core.historical_record(continued, 'status-M01.md')['blockers'])
+        later = literal.replace('No owner approved an extension', 'The owner approved the review extension to 21')
+        later = later.replace('| Task |', '## Review\n\nLater, the approval was withdrawn.\n\n| Task |')
+        self.assertIn('recorded review limit approval is ambiguous or unsupported',
+                      core.historical_record(later, 'status-M01.md')['blockers'])
 
     def test_extension_citation_cannot_hide_source_context(self):
         quote = 'The owner approved the review extension.'
         for suffix in (' The decision was later changed.', '\nThe decision was later changed.',
-                       '\n\nThe decision was later changed.',
+                       '\n\nThe decision was later changed.', '\n\nLater, the approval was withdrawn.',
+                       '\n\nSubsequently, the owner changed their mind.',
+                       '\n\nThat permission was canceled.',
                        '; the decision was later changed.', '\nOnly if tests passed.'):
             with self.subTest(suffix=suffix):
                 text = self.text.replace('**Review iterations.** 2',
