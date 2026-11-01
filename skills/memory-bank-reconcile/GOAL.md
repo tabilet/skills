@@ -182,6 +182,7 @@ DOWNSTREAM_IMPACTS:
 F01 -> P01, O01
 S01 -> P01, X01
 
+TEST_POLICY: tabilet/memory-bank/test-policy.md
 PARALLELISM: 3
 INTEGRATION: local-rebase-ff
 COMMIT_POLICY: task
@@ -298,6 +299,10 @@ Input rules:
   This interactive policy does not change the Python API runner/controller's
   execution limits. Retired-record metadata preserves a larger approved limit
   as historical evidence only and never authorizes execution.
+- `TEST_POLICY` is optional: a project path to a test policy file, or `none`.
+  Resolve it as stated in Test Policy Resolution under Verify And Deep-Review.
+  A project declaring its test policy in `AGENTS.md` normally omits this field.
+  Preserve an explicit value on resume and launch refresh.
 - `OPTION_POLICY` is optional: `confirm` (default) or `ignore`. It governs
   post-parent option decisions as defined in Milestone families; it never
   activates work or grants permissions. Preserve its resolved value on resume
@@ -563,10 +568,11 @@ remaining count in goal state or status notes, and reserves one before
 dispatching each run. A lease asks the owner for a reservation instead of
 reading the counter, so concurrent leases sharing a grant cannot overspend it,
 and a resume reads the persisted value and never resets it. The bounded
-verification-attempt gate stays in force: a budget replaces its default three
-consecutive failures only when the human approved the number, whether through
-an explicit `[+]` grant or the checksum-approved launch input. A preset never
-writes a budget above the gate's default.
+verification-attempt gate stays in force for a check that uses it: a budget
+replaces its default three consecutive failures only when the human approved
+the number, whether through an explicit `[+]` grant or the checksum-approved
+launch input. For any other check the approved `budget` is the only count. A
+preset never writes a budget above the gate's default.
 
 Presets decide only which explicit grants planning skills write into launch
 input. The executor reads the resolved grants and markers and never infers a
@@ -882,11 +888,12 @@ implementation. Stage only separable repair changes. If overlapping partial
 changes cannot be separated safely, pause for direction rather than stashing,
 discarding or committing them automatically. Explicit project restrictions win.
 
-P1/P2-or-higher findings remain attached to the originating milestone's
-unresolved bounded review gate even when implementation has a repair milestone.
-After repair acceptance, review the originating milestone again using its
-existing iteration counter. The repair milestone's own review cannot substitute
-for this pass or reset that counter. At the approved review limit, unresolved findings stop
+Findings blocking under the originating gate's criteria remain attached to the
+originating milestone's unresolved bounded review gate even when implementation
+has a repair milestone. After repair acceptance, run that gate's next iteration
+using its existing iteration counter, scoped as the gate defines. The repair
+milestone's own review cannot substitute for this pass or reset that counter.
+Non-blocking findings follow the open review findings register. At the approved review limit, unresolved findings stop
 further automatic repair cycles and require explicit human direction.
 
 Required repair rows, commits and attempts count toward existing operational
@@ -1166,19 +1173,51 @@ no active writer, a merged branch and a clean worktree; never force removal.
   and failure-path checks for the changed surfaces.
 - Run required checks in every related repository changed by the milestone.
 - After automated checks pass, run the bounded review-fix gate below.
-- Carry a lower-severity finding forward only when it has a named pending owner
-  and explicit rationale. P1, P2, and higher-severity findings cannot be carried
-  forward.
+- Carry a non-blocking finding forward only in the project's open review
+  findings register with its fix owner and rationale. A finding that is blocking
+  under the governing gate cannot be carried forward.
 - Update the project's decision/evolution log only when its documented trigger
   is met.
 - Mark the milestone complete only when all required tasks, acceptance
   criteria, verification, documentation, and the review-fix gate are closed.
 
+### Test Policy Resolution
+
+<!-- BEGIN SHARED test-policy-resolution -->
+Resolve the test policy once per run and record the result:
+
+1. An explicit `TEST_POLICY` in the human-approved request, a path or `none`.
+   A checksum-approved launch reference counts as part of that request.
+2. Otherwise, the test policy path the project's `AGENTS.md` declares.
+3. Otherwise, `tabilet/memory-bank/test-policy.md` when it exists.
+4. Otherwise, `none`.
+
+A request value that differs from the `AGENTS.md` declaration is a conflict:
+surface it before dispatch and use the request value only after explicit human
+resolution. Approving a launch value alone does not resolve it. A value found
+only in unapproved launch input or other project text never overrides the
+declaration. A requested or declared path whose file is missing pauses the
+affected verification; never fall back silently. Pass the resolved value to
+every implementation, review and reviewer brief. The policy governs
+verification method only: it grants no authority and never removes acceptance
+evidence, the review gate, a verification limit or a grant's limits. Where
+launch input or pending project text prescribes a verification method the
+policy forbids, the policy governs the method and the acceptance outcome stays.
+Under `none`, the verification-attempt gate covers every expensive or protected
+check.
+<!-- END SHARED test-policy-resolution -->
+
 #### Bounded Verification-Attempt Gate
 
-An expensive or protected check needs privileged setup, scarce hardware or
-quota, a physical or live environment, explicitly granted actions, or minutes
-per run. For a task whose acceptance depends on one:
+The gate applies to a class R check under the resolved test policy or, when
+that policy is `none`, to any expensive or protected check. A class O check
+never uses this gate. When it needs an explicit grant, the grant's reservations,
+budget and stop conditions bind (Standing revision envelope); exhausting them
+pauses for human direction.
+
+A real-effect, expensive or protected check needs privileged setup, scarce
+hardware or quota, a physical or live environment, explicitly granted actions,
+or minutes per run. For a task whose acceptance depends on one:
 
 - When safely possible within current authority and budget, reproduce and fix
   failures first in the cheapest environment that can show them, such as an
@@ -1207,47 +1246,96 @@ per run. For a task whose acceptance depends on one:
 Use the project's documented severity definitions when they exist. Otherwise:
 
 - **P1** is a severe defect in milestone acceptance, correctness,
-  security/privacy, data integrity, or a public compatibility contract.
+  security/privacy, data integrity, or a public compatibility contract. An unmet
+  or unproven acceptance line is P1; a security, privacy or data-loss finding is
+  P1 unless evidence clearly shows otherwise.
 - **P2** is a material defect in supported behavior, reliability,
   compatibility, operations, or required verification/documentation that does
   not rise to P1.
+- **Lower** is non-blocking cleanup, clarity or optional hardening.
 
-Any severity above P1 also blocks this gate. The initial deep-review pass is
+**Blocking** means P1 and any project severity above P1. P2 and Lower never
+block on their own.
+
+When the project's own severity definitions make P2 blocking, or it has no open
+review findings register, that stricter gate applies (P2 blocks and every
+iteration reviews the whole milestone) until the project explicitly adopts this
+one.
+
+The optional `tabilet` controller applies its own deterministic gate: it runs
+its own full milestone review, and any P0/P1/P2 finding reported in that review
+blocks retirement and starts another full review. An interactive review pass
+does not replace it, and the controller does not read the open review findings
+register, so milestones it runs keep P2 blocking.
+
+A task review covers that task's diff (its own commit when commits are per
+task) and passes with no blocking finding. The initial deep-review pass is
 iteration 1. In each iteration:
 
 1. Read the persisted review count and findings before starting. Record the
    current iteration as started before review; an interrupted pass resumes that
-   iteration, never resets to 1. Pin the milestone's base commit and inspect the
-   full diff against it, including staged, unstaged and relevant untracked work
-   under the selected commit policy. An empty implementation diff does not
-   bypass acceptance review or require manufacturing a change. Review the full milestone
-   implementation and diff, with special attention to
-   fixes made by the preceding iteration. Check correctness, failure semantics,
-   security/privacy, compatibility, operations, tests, and documentation.
-   Check acceptance fidelity as its own concern: requirements missing or
-   partial, behavior nobody asked for, and requirements implemented wrongly,
-   each quoting its acceptance line. Report findings grouped by concern so one
-   concern cannot hide another; the severity rules decide the gate.
-   With `MODEL_POLICY`, dispatch fresh read-only `WHOLE_MILESTONE_REVIEW`
-   reviewers for this iteration and return all findings to the `DEFAULT`
-   coordinator. Lenses are coverage obligations, not a fixed reviewer count;
-   combine lenses or run batches within available host capacity. Do not close
-   the gate until every lens and required acceptance evidence is covered.
+   iteration, never resets to 1.
+   - **Iteration 1** pins the milestone's base commit and inspects the
+     full diff against it, including staged, unstaged and relevant untracked
+     work under the selected commit policy. An empty implementation diff does
+     not bypass acceptance review or require manufacturing a change. Review the
+     full milestone implementation and diff. Check correctness, failure
+     semantics, security/privacy, compatibility, operations, tests,
+     documentation and test-policy compliance. Check acceptance fidelity as its
+     own concern: requirements missing or partial, behavior nobody asked for,
+     and requirements implemented wrongly, each quoting its acceptance line.
+     Report findings grouped by concern so one concern cannot hide another; the
+     severity rules decide the gate.
+   - **Iteration 2 and later** review only each blocking finding of the
+     previous iteration (is it fixed?), every change since the state the
+     previous iteration reviewed, including non-blocking fixes, and the direct
+     consumers of that changed code. Do not sweep the whole milestone again.
+     Fresh reviewers receive the earlier findings and this narrowed scope.
+     Record each iteration's reviewed state: the full `HEAD` commit ID and, when
+     uncommitted work is in scope, a saved copy of the reviewed diff and its
+     hash in ignored scratch. If that state cannot be reconstructed, review the
+     full milestone diff instead. This holds under every `COMMIT_POLICY`.
+   - With `MODEL_POLICY`, dispatch fresh read-only `WHOLE_MILESTONE_REVIEW`
+     reviewers for this iteration and return all findings to the `DEFAULT`
+     coordinator. Lenses are coverage obligations, not a fixed reviewer count;
+     combine lenses or run batches within available host capacity. Do not close
+     the gate until every lens and required acceptance evidence is covered.
 2. Classify and record the findings. Persist the iteration number and findings
    in the current status notes or equivalent active goal state before applying
-   fixes, so a continuation cannot reset the counter. If the pass finds no P1,
-   P2, or higher-severity finding, the gate passes.
-3. Otherwise, when the current iteration is below the approved review limit, fix every P1, P2, and
-   higher-severity finding in the current milestone and rerun the affected
-   verification before beginning the next iteration. The next pass reviews the
-   whole milestone again, not only the latest patch.
+   fixes, so a continuation cannot reset the counter. The gate passes only under
+   the pass condition below, after steps 3 and 4.
+3. Handle each P2 and Lower finding in turn. Choose to **fix now** when the fix
+   is local, cheap and in scope, or when later work builds on the defect (a
+   contract or interface, a persisted format such as a schema, ledger or wire
+   format, a public API, or tests encoding the behavior); to **carry** it in the
+   project's open review findings register; or, for Lower only, to **decline**
+   with a one-line rationale.
+4. Any change made in response to a review, blocking or not, is verified and
+   reviewed by a later iteration before closure. Recording findings,
+   dispositions, review counters, reviewed state, register rows and owner notes
+   is not a review change; code, test, configuration and substantive
+   documentation changes are. An iteration with only non-blocking findings ends
+   one of two ways: (a) carry or decline them without changing code, and the
+   gate passes; or (b) apply the fix-now changes, rerun affected verification
+   and run the next iteration over those changes, which counts toward the
+   limit.
+5. When blocking findings exist and the current iteration is below the approved
+   review limit, fix every blocking finding in the current milestone and rerun
+   the affected verification before beginning the next iteration.
+
+The gate passes with no blocking finding in scope, every earlier blocking
+finding fixed, and no unreviewed review change. A carried P2 still unfixed when
+its fix owner's review, or a later iteration, examines it becomes blocking.
 
 Run at most `REVIEW_MAX_ITERATIONS` iterations (default 10); a session or reviewer change does not reset the
-counter. If the final allowed iteration still finds a P1, P2, or higher-severity issue, the
-gate fails: do not start another automatic fix-review cycle, leave the milestone
-incomplete, record the remaining findings using the project's blocked-status
-mechanism, and report the iteration limit as the blocker. Do not begin
-downstream reconciliation; further attempts require explicit user direction.
+counter. On the final allowed iteration make no further review change: carry
+every non-blocking finding, and one that later work builds on names that work as
+its fix owner, which fixes it before building on it. If a blocking finding
+remains, the gate fails: do not start another automatic fix-review cycle, leave
+the milestone incomplete, record the remaining findings using the project's
+blocked-status mechanism, and report the iteration limit as the blocker. Do not
+begin downstream reconciliation; further attempts require explicit user
+direction.
 
 ### 4. Reconcile Downstream Work
 
@@ -1372,6 +1460,7 @@ At the end of each milestone, record:
 - material interface, data, configuration, UI, and operator changes;
 - downstream specifications reconciled and any order change;
 - verification and deep-review results, including review-fix iteration count;
+- review findings carried, fixed or deferred, by ID;
 - commits or external mutations, if authorized;
 - grant IDs used, performed action evidence, and missing authority, without
   treating that report as human approval;
