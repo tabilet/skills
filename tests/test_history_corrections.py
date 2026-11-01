@@ -422,6 +422,22 @@ class HistoryCorrectionsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
             core.historical_record(text, 'status-M01.md', correction)
 
+        for quote in ('Whole review 2/10 PASS with no P1/P2.', 'Review: passed'):
+            for continuation in ('The review result was later invalidated.',
+                                 'Later, the owner changed that decision.',
+                                 'The pass is contingent on further verification.'):
+                with self.subTest(quote=quote, continuation=continuation):
+                    text = self.text.replace('**Review.** passed\n', '').replace(
+                        '| Task |', '## Review\n\n' + quote + '\n' + continuation + '\n\n| Task |')
+                    line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+                    correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                        evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                    with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+                        core.historical_record(text, 'status-M01.md', correction)
+                    literal = text.replace('**Outcome.** completed', '**Outcome.** completed\n**Review.** passed')
+                    self.assertIn('unrecognized continuation after recorded review pass',
+                                  core.historical_record(literal, 'status-M01.md')['blockers'])
+
     def test_review_correction_requires_an_explicit_passed_result(self):
         for quote, accepted in (('review not passed', False),
                                 ('review failed, but tests passed', False),

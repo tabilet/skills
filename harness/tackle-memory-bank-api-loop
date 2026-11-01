@@ -1800,6 +1800,33 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         and (not verdict or verdict[1].upper() not in {'PASS', 'PASSED'}
                              or limit != recorded_limit))):
                     review_conflicts.append('conflicting whole review result')
+        # After an explicit final pass in the retained review section, do not
+        # silently ignore additional prose that could qualify that result.
+        # Unknown continuation is a blocker, even when it is benign.
+        after_final_pass = False
+        final_pass = (r'\bwhole\s+review\s+' + re.escape(iterations) + r'\s*/\s*'
+                      + re.escape(recorded_limit) + r'\s+PASS\s+with\s+no\s+P1/P2\.')
+        for line, trusted, in_review, _ in status_lines.values():
+            if not in_review:
+                after_final_pass = False
+                continue
+            if not trusted or not line.strip():
+                continue
+            if after_final_pass:
+                if re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I):
+                    after_final_pass = False
+                    continue
+                reaffirmation = re.fullmatch(
+                    r'Whole-milestone review\s+' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
+                    + r',\s*passed\.', line.strip(), re.I)
+                task_review = re.match(r'^Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.', line.strip(), re.I)
+                if (line.strip() != 'This is standalone intake, not a continuation of a retired closing gate.'
+                        and not reaffirmation and not task_review):
+                    review_conflicts.append('unrecognized continuation after recorded review pass')
+                continue
+            if (re.search(final_pass, line, re.I) or re.fullmatch(
+                    r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?', line.strip(), re.I)):
+                after_final_pass = True
         if review_conflicts and corrected_pass:
             raise ValueError('conflicting recorded review result; a correction cannot supply acceptance')
     source_spec = metadata.get('Source specification', '')

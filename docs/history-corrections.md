@@ -65,6 +65,8 @@ result in the status metadata preamble remains supported. Numbered results must
 occur in a review section, match the recorded iteration and limit, and not
 conflict with other recorded outcomes. Fenced or headed examples, templates,
 prospective instructions and specification statements cannot supply a result.
+Unrecognized prose following an explicit final review pass within the retained
+review section blocks acceptance, even when the prose is harmless.
 
 Corrected outcome and retirement date require a matching identity-bound index
 row or explicit retained status metadata. Corrected review counts require an
