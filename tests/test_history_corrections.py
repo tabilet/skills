@@ -164,6 +164,13 @@ class HistoryCorrectionsTests(unittest.TestCase):
             'The owner approved no review extension.',
             'The owner did not approve the review extension.',
             'The owner approved the review extension but later revoked it.',
+            'The owner approved the review extension. The approval was later reversed.',
+            'The owner approved the review extension, then changed the decision.',
+            'The owner approved the review extension only if the operator agreed.',
+            'The owner subsequently answered "yes" to continuing M01 beyond ten whole reviews. '
+            'The owner later reversed that decision.',
+            'The owner answered "yes" to continuing M01 beyond ten whole reviews if tests passed.',
+            'The owner answered "yes" to continuing M99 beyond ten whole reviews.',
             'The owner approved zero review extension.',
             'The owner approved the UI review.',
             'The owner asked if review should continue.',
@@ -180,7 +187,10 @@ class HistoryCorrectionsTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'unsupported review limit approval'):
                     core.historical_record(text, 'status-M01.md', correction)
 
-        positives = ('The owner subsequently answered "yes" to continuing M01 beyond ten whole reviews.',
+        positives = ('Whole-milestone review 10/10 FAIL. The owner subsequently answered "yes" to '
+                     'continuing M01 beyond ten whole reviews, retaining the existing count and '
+                     'using fresh Sol/xhigh reviews until it passes, then resuming the ordered goal.',
+                     'The owner subsequently answered "yes" to continuing M01 beyond ten whole reviews.',
                      'The owner approved the review limit extension to 21.',
                      'The user authorized extension of the whole review limit to 21.',
                      'The owner approved the review extension. No P1/P2.')
@@ -197,6 +207,10 @@ class HistoryCorrectionsTests(unittest.TestCase):
             '**Review limit.** 21\n**Review limit approval.** No owner approved an extension')
         self.assertIn('recorded review limit approval is explicitly negated',
                       core.historical_record(literal, 'status-M01.md')['blockers'])
+        reversed_literal = literal.replace('No owner approved an extension',
+            'The owner approved the extension; the approval was later reversed')
+        self.assertIn('recorded review limit approval is explicitly negated',
+                      core.historical_record(reversed_literal, 'status-M01.md')['blockers'])
 
     def test_recorded_zero_counter_for_rowless_withdrawal_remains_supported(self):
         quote = 'Review iterations: 0'

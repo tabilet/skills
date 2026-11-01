@@ -1488,7 +1488,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         # "No P1/P2" describes review findings, not a denial of authority.
         text = re.sub(r'\bno\s+P[0-9]+(?:\s*/\s*P[0-9]+)*\b', '', text, flags=re.I)
         denied = (r'\b(?:no|none|not|never|declined|denied|refused|unapproved|'
-                  r'unauthorized|unauthorised|revoked|rescinded|withdrawn|without|unless|zero)\b')
+                  r'unauthorized|unauthorised|revoked|rescinded|withdrawn|reversed|'
+                  r'retracted|overturned|without|unless|zero)\b')
         prospective = r'\b(?:pending|proposed|conditional|if|but)\b'
         return bool(re.search(denied, text, re.I) or (source and re.search(prospective, text, re.I)))
 
@@ -1496,16 +1497,22 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         if not provenance_citation(citation) or approval_is_negated(citation['quote'], source=True):
             return False
         quote = ' '.join(citation['quote'].split())
-        actor = r'\b(?:owner|user|operator|human)\s+(?:(?:subsequently|explicitly)\s+)*(?:(?:has|had)\s+)?'
+        actor = r'(?:the\s+)?(?:owner|user|operator|human)\s+(?:(?:subsequently|explicitly)\s+)*(?:(?:has|had)\s+)?'
         verb = r'(?:approved|authorized|authorised)\s+(?:(?:the|an)\s+)?'
         review = r'(?:whole(?:[- ]milestone)?\s+)?review(?:\s+limit)?'
-        direct = re.search(actor + verb + review + r'\s+(?:extension|increase|continuation)\b', quote, re.I)
-        reversed_order = re.search(actor + verb + r'(?:extension|increase|continuation)\s+of\s+'
-                                   r'(?:(?:the|an)\s+)?' + review + r'\b', quote, re.I)
-        answered = re.search(actor + r'(?:answered|said|replied)\s+(?P<yes_quote>["\'])yes(?P=yes_quote)\s+to\s+'
-                             r'continu(?:e|ing)\b[^.!?]{0,120}?\bbeyond\s+(?:ten|10)\s+'
-                             r'(?:whole(?:[- ]milestone)?\s+)?reviews?\b', quote, re.I)
-        return bool(direct or reversed_order or answered)
+        action = (r'(?:' + review + r'\s+(?:extension|increase|continuation)|'
+                  r'(?:extension|increase|continuation)\s+of\s+(?:(?:the|an)\s+)?' + review + r')')
+        # Recognize complete affirmative statements, not an affirmative
+        # substring that later prose can qualify or reverse.
+        direct = actor + verb + action + r'(?:\s+to\s+[1-9][0-9]*)?\.?'
+        answer = (actor + r'(?:answered|said|replied)\s+(?P<yes_quote>["\'])yes(?P=yes_quote)\s+to\s+'
+                  r'continu(?:e|ing)\s+' + re.escape(identity) + r'\s+beyond\s+(?:ten|10)\s+'
+                  r'(?:whole(?:[- ]milestone)?\s+)?reviews?'
+                  r'(?:,\s*retaining\s+the\s+existing\s+count\s+and\s+using\s+fresh\s+'
+                  r'[A-Za-z0-9/ -]+\s+reviews\s+until\s+it\s+passes,\s*then\s+resuming\s+the\s+ordered\s+goal)?\.?')
+        prefix = r'(?:whole[- ]milestone\s+review\s+[0-9]+/[0-9]+\s+FAIL\.\s+)?'
+        suffix = r'(?:\s+No\s+P[0-9]+(?:\s*/\s*P[0-9]+)*\.?)?'
+        return bool(re.fullmatch(prefix + '(?:' + direct + '|' + answer + ')' + suffix, quote, re.I))
 
     index_outcomes = []
     for op in operations:

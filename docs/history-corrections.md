@@ -70,9 +70,11 @@ Corrected outcome and retirement date require a matching identity-bound index
 row or explicit retained status metadata. Corrected review counts require an
 explicit recorded counter; review-limit corrections require recorded evidence,
 and extended-limit approval must cite an explicit, affirmative recorded human
-continuation or extension; negated or conditional approval is not evidence.
-Literal metadata that explicitly denies an extended-limit approval is also a
-blocker. Corrected
+continuation or extension; the citation must match a supported complete
+affirmative statement, and ambiguous, reversed or conditional language is not
+evidence. A named continuation must identify the same milestone. Literal
+metadata that explicitly denies or reverses an extended-limit approval is also
+a blocker. Corrected
 commit provenance must cite the recorded commit prefix in a provenance context;
 worktree claims require an explicit worktree statement. Verification summaries
 must be drawn from literal recorded test or check results without contradictory
