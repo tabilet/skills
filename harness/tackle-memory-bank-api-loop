@@ -1851,6 +1851,28 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                             for number, line in unfenced_lines(''.join(lines[:metadata_end]))]
         status_context = [(line, trusted, in_review or preamble, False, preamble, number)
                           for number, (line, trusted, in_review, preamble) in status_lines.items()]
+        status_fields = [(line, trusted, True, False, preamble, number)
+                         for number, (line, trusted, _, preamble) in status_lines.items()]
+        def ambiguous_prose_reference(source):
+            parts = []
+            previous = None
+            def ambiguous():
+                return bool(re.search(r'\breview\s+(?:result|verdict|outcome|decision)\b',
+                                      ' '.join(parts), re.I))
+            for line, trusted, relevant, _, _, number in source:
+                stripped = line.strip()
+                boundary = (not trusted or not relevant or not stripped or
+                            re.match(r'^(?:#{1,6}\s|\||\*\*[\w ]+[.:]\*\*|[A-Za-z ]+:)', stripped))
+                if (previous is not None and number != previous + 1) or boundary:
+                    if ambiguous():
+                        return True
+                    parts.clear()
+                previous = number
+                if not boundary:
+                    parts.append(stripped)
+            return ambiguous()
+        if ambiguous_prose_reference(envelope_context) or ambiguous_prose_reference(status_fields):
+            review_conflicts.append('ambiguous recorded review-result reference')
         if ambiguous_pass_continuation(envelope_context) or ambiguous_pass_continuation(status_context):
             review_conflicts.append('unrecognized continuation after recorded review pass')
         # Other structured metadata can contain review-result claims too. Its
@@ -1863,7 +1885,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             status_line.strip(), re.I)
             for status_line, trusted_status, in_review, _ in status_lines.values())
         field_pattern = re.compile(r'(?:\*\*([\w ]+)\.\*\*|\*\*([\w ]+):\*\*|'
-                                   r'([A-Za-z ]+):)\s*(.+)')
+                                   r'([A-Za-z ]+):)\s*(.*)')
         def structured_paragraphs(source, raw_lines):
             # Combine a field's adjacent Markdown paragraph lines before
             # interpreting its contents. Preserve the original bytes in the
@@ -1895,11 +1917,15 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     parts.append(stripped)
                     number = next_number
                     index += 1
-                yield name, ' '.join(parts), preamble
+                yield name, ' '.join(part for part in parts if part).strip(), preamble
         for field_name, field_value, preamble in (
                 list(structured_paragraphs(envelope_context, lines[:metadata_end]))
-                + list(structured_paragraphs(status_context, documents['status'].splitlines()))):
+                + list(structured_paragraphs(status_fields, documents['status'].splitlines()))):
             if field_name in {'review', 'review iterations', 'review limit', 'review limit approval'}:
+                continue
+            if field_name in {'review result', 'review verdict', 'review outcome', 'review decision'}:
+                if not re.fullmatch(r'passed\.?', field_value, re.I):
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
                 continue
             earlier_pending = (preamble and field_name == 'state' and re.fullmatch(
                 r'Tasks complete; [A-Za-z0-9.,– -]+ verified, whole-milestone review pending\. '

@@ -71,7 +71,9 @@ prose is harmless.
 Unrecognized review-result claims in other structured metadata also block
 acceptance; that conservative rule can flag benign historical summaries.
 Adjacent Markdown field continuation lines, including nested list or quote
-lines, are checked as one paragraph. Fenced and indented code remain examples;
+lines and values beginning after the label, are checked as one paragraph.
+Explicit review-result references in standalone authoritative prose are also
+blocking when unsupported. Fenced and indented code remain examples;
 validation does not join source lines across those omitted blocks. Literal
 documents, recovered source identifiers and offsets are not rewritten.
 Recognition is limited to supported explicit historical forms and does not
