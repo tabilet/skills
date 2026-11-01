@@ -208,7 +208,7 @@ An interrupted or underway row needs its own recovery decision, not this
 pending-only rescope. An entire withdrawn milestone keeps its original active
 record until ordinary review, disposition, and retirement close it.
 
-For a milestone whose acceptance depends on an expensive or protected check, apply the milestone file's expensive-check rule: acceptance covers only behavior the milestone owns, proved with the smallest workload; real producer or consumer pairing belongs to the adopting milestone; needed host capabilities get a cheap readiness probe as the first row; and an uncounted local diagnostic loop is named. Review intake must not move downstream pairing evidence into such a milestone.
+For a milestone whose acceptance depends on a class R (real-effect) check, or on an expensive or protected check when no test policy applies, apply the milestone file's real-effect check rule: acceptance covers only behavior the milestone owns, proved with the smallest workload; real producer or consumer pairing belongs to the adopting milestone; needed host capabilities get a cheap readiness probe as the first row; and an uncounted local diagnostic loop is named. Review intake must not move downstream pairing evidence into such a milestone. When the project has a test policy, a new or amended milestone names its required whole-unit gates and their check class without restating a test method, and carries no controller, receipt or other-language method forward from earlier stages or milestones. Preserve an explicit `TEST_POLICY` on launch refresh and emit `TEST_POLICY: <resolved path or none>` in a new launch reference. Ordinary review intake is unchanged. When an intake is an adopted active gate's next pass, apply that gate's blocking criteria and iteration scope; approved file actions may add, update or deduplicate rows in the milestone file's Open review findings register, which is approved planning state and not a review copy.
 
 For a light profile, include these rules in the proposed verification
 standards and assign the required evidence to the relevant milestone owners.
@@ -227,7 +227,7 @@ standards and assign the required evidence to the relevant milestone owners.
   scope while independent authorized work continues. Keep deferred verification
   with its named owner and gate, preserving dependencies, intermediate acceptance
   and action limits. Use existing records. Run a fast preflight of fixtures,
-  schemas and launchers before each counted expensive attempt.
+  schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
 
 When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.
 

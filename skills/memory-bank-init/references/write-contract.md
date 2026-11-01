@@ -58,6 +58,7 @@ tabilet/stages.md                optional overview when multiple stages are appr
 tabilet/memory-bank/product.md           product, users, workflows, domain model, non-goals
 tabilet/memory-bank/architecture.md      layout, data flow, ownership, public contracts
 tabilet/memory-bank/tech-stack.md        stack, dependencies, harnesses, commands
+tabilet/memory-bank/test-policy.md       stock test policy plus project specifics
 tabilet/memory-bank/lessons.md           applicable reusable lessons and evidence
 tabilet/memory-bank/milestone.md         active index, acceptance, candidate directions
 tabilet/memory-bank/status-<LANE><NN>.md one per active milestone, one row per task
@@ -95,6 +96,14 @@ parent/child structure, cardinality, lifecycle, and state transitions when they
 matter. Keep technical storage and implementation details in `architecture.md`.
 Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
+Create `tabilet/memory-bank/test-policy.md` from the template. Keep the stock
+rules and fill only its `Project specifics` section from discovery: the
+toolchain and test entry points, the required whole-unit gates, any named class
+R checks with their owning milestones (or "none"), and approved other-language
+tools (or "none"). Never invent a class R check. Declare its path in the
+`AGENTS.md` Hard Rules bullet so standalone Next and the API runner find it, and
+emit `TEST_POLICY: <resolved path or none>` in launch references.
+
 In `tabilet/memory-bank/tech-stack.md`, define the language floor, tools, dependencies,
 commands, runtime assumptions, and execution harnesses.
 Accept `--test standard` (the default when omitted), `browserlight`, `golight`,
@@ -125,7 +134,7 @@ standards and assign the required evidence to the relevant milestone owners.
   scope while independent authorized work continues. Keep deferred verification
   with its named owner and gate, preserving dependencies, intermediate acceptance
   and action limits. Use existing records. Run a fast preflight of fixtures,
-  schemas and launchers before each counted expensive attempt.
+  schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
 
 When a non-standard profile is chosen, add a rule under `AGENTS.md` Hard Rules:
 `- Follow the verification and testing standards defined in tabilet/memory-bank/tech-stack.md.`
@@ -135,11 +144,15 @@ In `tabilet/memory-bank/milestone.md`:
 - index exactly the approved active milestones and link each to its one status
   file;
 - state their dependency order, acceptance, and downstream relationships;
-- for acceptance that depends on an expensive or protected check, cover only
+- for acceptance that depends on a class R (real-effect) check, cover only
   behavior the milestone owns, proved with the smallest workload; leave real
   producer or consumer pairing to the adopting milestone; give needed host
   capabilities a cheap readiness probe as the first row; and name an uncounted
-  local diagnostic loop;
+  local diagnostic loop (the class O loop);
+- when the project has a test policy, name each milestone's required
+  whole-unit gates and their check class without restating a test method, and
+  carry no controller, receipt or other-language method forward from earlier
+  stages or milestones;
 - define optional boundaries and parallel safety (depends on, downstream
   impacts, write set, contracts read, and parallel-safe defaulting to no);
   never prune downstream impacts to force parallel-safe status; and
@@ -156,9 +169,14 @@ active and retired records. Do not create empty history files during init.
 Include a `Review finding severity` section in `milestone.md`. Explain that P1
 and P2 are engineering review priorities rather than product-domain terms,
 milestone execution priority, or status markers. Define their default context,
-typical examples, and gate effect; let project-specific definitions in
+typical examples, and gate effect (P1 blocks; P2 does not block under the
+adopted gate and is fixed now or carried in `Open review findings`; Lower is
+fixed, carried or declined with rationale); let project-specific definitions in
 `AGENTS.md` or a linked review policy override those defaults. Classification
-must follow impact, likelihood, and affected scope rather than fix size.
+must follow impact, likelihood, and affected scope rather than fix size. Include
+the template's `Open review findings` register with `Last used ID: none`, and
+its execution-path note that the optional `tabilet` controller keeps P2
+blocking.
 
 Include a separate `New review intake` procedure for reviews received after the
 harness exists. It must require current-state revalidation, preserve both source
@@ -166,15 +184,21 @@ and local severity, and obtain approval for dispositions and file actions before
 writing. Confirmed work fits an open or pending owner when in scope; completed
 history is never reopened, so later defects get a remediation milestone with
 lineage. P1/P2-or-higher findings enter the dependency-closed active horizon;
-optional lower findings stay in Candidate Directions. Record portable review
+optional lower findings stay in Candidate Directions. Only when an intake was
+explicitly requested as the next pass of an already active adopted gate, apply
+that gate's blocking criteria and iteration scope, and dispose of non-blocking
+findings through the `Open review findings` register. Record portable review
 provenance in affected milestone/status notes without adding a review copy or
 ledger. An intake review counts as a bounded-gate iteration only when it was
 explicitly requested as the next pass of an already active persisted gate.
 
 Include a milestone review procedure with a bounded review-fix gate. The
-initial deep-review pass is iteration 1. After every P1, P2, or higher-severity
-fix, rerun affected verification and review the whole milestone again. The gate
-passes only when a review finds no such issue. Limit it to `REVIEW_MAX_ITERATIONS` iterations (default 10) without
+initial deep-review pass is iteration 1 and covers the full milestone diff.
+After every blocking fix, rerun affected verification and run the next
+iteration, which covers the prior blocking findings, the change since the
+recorded reviewed state and its direct consumers. Any review change is itself
+reviewed, and the gate passes only when no blocking finding remains and no
+unreviewed review change remains. Limit it to `REVIEW_MAX_ITERATIONS` iterations (default 10) without
 resetting across sessions or reviewers, and persist each iteration number in the
 current status notes or equivalent active goal state. If the final allowed iteration still
 finds a blocking issue, leave the milestone incomplete and record the findings
@@ -338,6 +362,7 @@ M02 = tabilet/memory-bank/status-M02.md
 DOWNSTREAM_IMPACTS:
 M01 -> M02
 
+TEST_POLICY: <resolved path or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm

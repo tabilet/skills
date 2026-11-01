@@ -10,7 +10,7 @@ changes an existing profile. These are planning defaults for generated
   commands and harnesses without adding these light-profile constraints.
 - `browserlight`, `golight`, `rustlight`, `tslight`, `jslight` and `pythonlight`
   share the defaults below. Use the actual project commands and applicable
-  checks; do not invent `make check`, race tests or UI checks for every project.
+  checks; do not invent a full-suite command, race tests or UI checks for every project.
 - Explicit user budgets and existing project constraints win. When Propose or
   Reconcile updates an existing project, an omitted selector preserves its
   current profile and budgets; it never silently resets them to `standard`.
@@ -31,26 +31,31 @@ and focused verification together for each coherent behavior change. When
 handoffs, repeated inspections, or fixture setup delay progress, consolidate
 related work and reuse still-valid verification. Additional delegation or
 repeated checks should resolve a concrete uncertainty or satisfy a required
-gate. Preserve mandatory reviews, acceptance coverage, attempt records,
-authority, and limits. This adds no per-edit reporting step.
+gate. Preserve mandatory reviews, acceptance coverage, grant budgets and class R
+attempt records, authority, and limits. This adds no per-edit reporting step.
+When the project has adopted a test policy (`test-policy.md`), it applies to
+every profile; a project without one keeps its existing expensive-check and
+attempt-gate rules unchanged.
 
 | Check | Target | Hard limit | Cadence |
 |---|---|---|---|
 | Focused uncached tests | 30 seconds of test execution | 2 minutes per focused test package/batch | After the owning behavior changes |
-| Full project regression command, such as `make check` | 15 minutes wall time | 20 minutes per invocation | Once per unchanged milestone closure candidate |
+| Full project regression command, such as the project's single check target | 15 minutes wall time | 20 minutes per invocation | Once per unchanged milestone closure candidate |
 | Applicable race/concurrency or offline UI checks | 2 minutes | 5 minutes per invocation | Changed concurrency/UI and required closure |
 
 The 30-second target is not a hard limit on the entire repository. Account for
 one-time compilation separately from uncached test execution. Declare a
 wall-clock bound for complete commands where the runner supports it; a native
 test timeout may cover only one test process, not compilation or a multi-package
-command. For Go, use `go test -count=1 -timeout=2m` for focused packages and
-`go test -race -count=1 -timeout=5m` for affected races, plus an appropriate
-existing command bound when needed. Do not build a supervisor daemon for that.
+command. Use the language's own timeout controls for focused packages and affected
+races, plus an appropriate existing command bound when needed. See the language
+fixtures below for examples. Under an adopted test policy, tests check
+themselves; add no external controllers or receipt readers for that.
 
-A target miss calls for diagnosis. A hard-limit failure is recorded; do not
-repeat unchanged input. Apply the project's bounded verification-attempt gate
-when a check is expensive or protected. Reuse valid results across interruptions;
+A target miss calls for diagnosis. A hard-limit miss is a FAIL: diagnose it and
+never repeat unchanged input. Under an adopted test policy, only a class R check
+uses the project's bounded verification-attempt gate; without one, apply that gate
+to every expensive or protected check as before. Reuse valid results across interruptions;
 repeat full regression only for changed code, failed checks or unresolved
 coverage. Required closure checks are not waived.
 
@@ -59,8 +64,8 @@ coverage. Required closure checks are not waived.
 - Intermediate browser/target interactions use offline synthetic loopback
   mocks, in-memory providers and mock interfaces. Mocked host witnesses prove
   contracts, never physical containment or real browser behavior.
-- No X11/Xvfb, custom Python/Bash/external supervisor daemon, kernel process
-  debugging or multi-GB disk snapshots in routine verification. This concerns
+- No X11/Xvfb, external controllers or receipt readers around tests, kernel
+  process debugging or multi-GB disk snapshots in routine verification. This concerns
   test harnesses, not required production isolation. Small automatically cleaned
   temporary files are allowed for real persistence/custody tests. Reuse existing
   compiler/module caches instead of copying repositories, images or caches per row.
@@ -80,7 +85,9 @@ coverage. Required closure checks are not waived.
 - `browserlight`: use the project's existing language and test framework.
 - `golight`: Go-native `net/http/httptest.Server` / `NewTLSServer`, in-memory
   interfaces, `t.TempDir()` and standard contexts/`os/exec.CommandContext` when
-  an offline CLI child is necessary. Prefer CGO off where the project permits;
+  an offline CLI child is necessary. Use `go test -count=1 -timeout=2m` for
+  focused packages and `go test -race -count=1 -timeout=5m` for affected races.
+  Prefer CGO off where the project permits;
   race tests may need CGO and the existing supported C toolchain. Do not disable
   required race coverage to keep CGO off.
 - `rustlight`: Rust-native mocks, such as existing `wiremock`/`mockito`,

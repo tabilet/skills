@@ -106,7 +106,9 @@ Prefer a scoped merge into `AGENTS.md` and the workflow sections of
 `tabilet/memory-bank/milestone.md`. Preserve project-specific scope, acceptance,
 dependencies, candidate directions, commands, and policies. Existing status
 files may receive approved rule/preamble updates; their task tables, row notes,
-markers, and persisted review evidence remain unchanged. Allocate no status ID.
+markers, and persisted review evidence remain unchanged, except an individually
+approved method-only rewrite of a pending row or pending specification under the
+test-policy adoption below. Allocate no status ID.
 
 Adapt optional runner, goal, and evolution instructions to the project's explicit
 exclusions. Do not import commands, reporting obligations, or implied requirements
@@ -199,6 +201,39 @@ explicit value. Apply the minimum of declared project/milestone caps; legacy fix
 prose remains binding until explicit human adoption resolves the conflict.
 <!-- END SHARED review-limit-planning -->
 
+Offer the stock test policy and convergent review gate as **explicit
+adoption** in the complete proposal, never as an automatic migration. Until a
+project adopts them, its stricter text stays binding. The proposal:
+
+- Creates `tabilet/memory-bank/test-policy.md` from the bundled asset. If an
+  equivalent project rule file exists, propose reducing it to `Project
+  specifics`, or declaring its path in `AGENTS.md`.
+- Merges into `milestone.md` the severity table, review procedure, attempt
+  gate, `Open review findings` register and execution-path note. Adds the
+  `tech-stack.md`, status-file preamble and `AGENTS.md` pointers, and adds
+  `TEST_POLICY` to an existing launch reference.
+- Includes a compatibility assessment: if the project runs milestones through
+  the optional `tabilet` controller, state that those milestones keep P2
+  blocking, because the controller's own full review reports P2 findings and
+  it does not consult the register.
+- Lists every place in pending milestone specifications, status rows,
+  `tech-stack.md` and launch input that prescribes a method the test policy
+  forbids, with a proposed rewrite that keeps the acceptance outcome and shows
+  it through self-checking tests. Each rewrite is method-only, touches only
+  pending rows and specifications, and is written only after its individual
+  approval; acceptance, authorization, scope, IDs, markers, counters, non-pending
+  evidence and frozen records stay as they are. It leaves
+  leftover sandbox resources alone unless a label or temp root shows the project's
+  own test runs created them, and reports the rest.
+- Preserves recorded review counters, effective limits, grant budgets and
+  reservations, class R attempt usage, frozen history and project restrictions.
+  Earlier UNKNOWN, aborted and failed class O records stay literal and do not
+  block new runs.
+- Keeps an in-flight gate's counter. Its next iteration narrows only if the
+  prior reviewed state is recorded; otherwise it is a full pass. Blocking P2
+  findings already recorded may be re-dispositioned (fix now or carry). A
+  register location declared in a linked review policy is preserved.
+
 Preserve explicit `MODEL_POLICY`; omission preserves host model settings.
 Propose the optional policy only when requested, without activating it on a
 paused run. A fresh legacy launch without `GOAL_IDENTITY` follows the protocol's
@@ -253,7 +288,9 @@ wholesale. When already compatible, report a no-op without touching files.
 Verify the resulting diff against the approval and original evidence:
 
 - active IDs, task tables/notes, specifications, acceptance, candidate directions,
-  and review counts are unchanged;
+  and review counts are unchanged, except individually approved method-only
+  rewrites of pending rows and specifications that keep their acceptance,
+  authorization, scope, IDs, markers and counters;
 - frozen archives, retired records/index entries, and knowledge history retain
   their original bytes, and an all-retired project stays initialized;
 - new rules point to existing project files, omitted optional features leave no

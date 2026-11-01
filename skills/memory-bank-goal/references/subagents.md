@@ -189,28 +189,36 @@ without violating ledger rules.
 ### Review-Fix Gate Fan-Out
 
 In each iteration of the bounded review-fix gate:
-1. The owner pins the milestone's base commit and inspects the full diff,
-   including staged, unstaged and relevant untracked work under the commit
-   policy. An empty implementation diff still needs acceptance review; do not
+1. The owner scopes the iteration as the governing gate in `GOAL.md` defines:
+   iteration 1 pins the milestone's base commit and covers the full milestone
+   diff, including staged, unstaged and relevant untracked work under the commit
+   policy; later iterations under the adopted gate cover the prior blocking
+   findings, the change since the recorded reviewed state, and its direct
+   consumers. An empty implementation diff still needs acceptance review; do not
    manufacture changes. With `MODEL_POLICY`, use fresh read-only reviewers
    under `WHOLE_MILESTONE_REVIEW` for each iteration. Lenses are coverage
    obligations: combine them or run batches within available host capacity.
-   Review the whole milestone through these lenses:
+   Each brief carries the resolved `TEST_POLICY`, the earlier findings and the
+   reviewed state. Cover the iteration scope through these lenses:
    - **Correctness & Reliability**: Logic errors, edge cases, failure semantics.
    - **Security & Privacy**: Access control, secret leaks, data validation.
    - **Compatibility & Contracts**: Public APIs, schema migrations, backwards
      compatibility.
-   - **Tests & Documentation**: Regression test coverage, documentation parity.
+   - **Tests & Documentation**: Regression test coverage, documentation parity,
+     and test-policy compliance.
    - **Acceptance & Scope**: Acceptance requirements missing or partial, behavior
      nobody asked for (scope creep), and requirements implemented wrongly, each
      quoting its acceptance line.
-2. Each reviewer produces classified findings (P1, P2, P3).
+2. Each reviewer produces classified findings (P1, P2, Lower).
 3. The owner records all findings in **one** iteration report in the milestone
    status notes, grouped by lens so one lens cannot hide another. Severity, not
    the lens, decides the gate.
 4. The counter advances by **exactly one** per iteration.
-5. If P1 or P2 findings exist and the iteration is below the approved review limit, the owner applies
-   fixes, verifies, and triggers the next iteration pass. With `MODEL_POLICY`,
+5. If blocking findings exist, or review changes remain unreviewed, and the
+   iteration is below the approved review limit, the owner applies the fixes,
+   verifies, and triggers the next iteration pass. Lease children return
+   register updates for carried findings; only the owner writes the open
+   review findings register. With `MODEL_POLICY`,
    consolidation and fixes use `DEFAULT`; each next whole review uses fresh
    review agents. Missing capability or lens coverage cannot yield a clean pass.
    An interrupted iteration resumes its persisted number, never resets it.

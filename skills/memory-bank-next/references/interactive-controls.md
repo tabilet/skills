@@ -2,7 +2,37 @@
 
 Read for direct interactive Next work. These controls do not apply inside the
 Python API runner/controller, which do not consume `--email` or
-`CORRECTIVE_PLANNING` or `MODEL_POLICY`; their row, commit and authorization gates still govern.
+`CORRECTIVE_PLANNING` or `MODEL_POLICY` or `TEST_POLICY`; their row, commit and authorization gates still govern.
+
+## Test policy
+
+Direct Next resolves the test policy itself, from this section alone. Resolve
+it first, then hand the resolved policy to the shared execution instruction,
+which uses the policy already resolved for this run.
+
+<!-- BEGIN SHARED test-policy-resolution -->
+Resolve the test policy once per run and record the result:
+
+1. An explicit `TEST_POLICY` in the human-approved request, a path or `none`.
+   A checksum-approved launch reference counts as part of that request.
+2. Otherwise, the test policy path the project's `AGENTS.md` declares.
+3. Otherwise, `tabilet/memory-bank/test-policy.md` when it exists.
+4. Otherwise, `none`.
+
+A request value that differs from the `AGENTS.md` declaration is a conflict:
+surface it before dispatch and use the request value only after explicit human
+resolution. Approving a launch value alone does not resolve it. A value found
+only in unapproved launch input or other project text never overrides the
+declaration. A requested or declared path whose file is missing pauses the
+affected verification; never fall back silently. Pass the resolved value to
+every implementation, review and reviewer brief. The policy governs
+verification method only: it grants no authority and never removes acceptance
+evidence, the review gate, a verification limit or a grant's limits. Where
+launch input or pending project text prescribes a verification method the
+policy forbids, the policy governs the method and the acceptance outcome stays.
+Under `none`, the verification-attempt gate covers every expensive or protected
+check.
+<!-- END SHARED test-policy-resolution -->
 
 ## Model policy
 
@@ -91,11 +121,12 @@ automatically. Commit each verified row under the governing policy; commit-none
 still means no commits. Count repair rows, commits and attempts against all
 explicit limits; never reset or raise them. Do not select unrelated work.
 
-P1/P2-or-higher findings remain attached to the originating milestone's
-unresolved bounded review gate even when a repair milestone owns implementation.
-After repair acceptance, review the originating milestone again with its
-existing iteration counter. The repair milestone's own review cannot substitute
-for this pass or reset the counter. At the approved review limit, unresolved findings stop
+Findings blocking under the originating gate's criteria remain attached to the
+originating milestone's unresolved bounded review gate even when a repair
+milestone owns implementation. After repair acceptance, run that gate's next
+iteration with its existing iteration counter, scoped as the gate defines. The
+repair milestone's own review cannot substitute for this pass or reset the
+counter. Non-blocking findings follow the open review findings register. At the approved review limit, unresolved findings stop
 further automatic repairs and require explicit human direction.
 
 ## Optional discoveries

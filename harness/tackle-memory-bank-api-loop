@@ -179,11 +179,17 @@ Tackle exactly one row:
   claims; correct contradictions. Updating only the status is insufficient.
 - If a failed attempt is consumed or the row is superseded, mark it `[-]`,
   record the outcome and accepted successor in its notes, and never retry it.
-- Run the required verification. When acceptance depends on an expensive or
-  protected check, follow the project's verification-attempt gate in
-  `tabilet/memory-bank/milestone.md`: diagnose in the cheapest environment that
-  reproduces the failure, run every independent case, persist the attempt
+- Run the required verification. Use the test policy already resolved for this
+  run when one is supplied. Otherwise use the test policy the project's
+  `AGENTS.md` declares, or `tabilet/memory-bank/test-policy.md` when it exists;
+  a declared policy file that is missing pauses verification. Under a test
+  policy, class O checks pass or fail and are fixed and rerun; class R checks
+  follow the project's verification-attempt gate in
+  `tabilet/memory-bank/milestone.md`. Without a test policy, follow that gate
+  for every expensive or protected check: diagnose in the cheapest environment
+  that reproduces the failure, run every independent case, persist the attempt
   count, and stop to ask after the limit or a failure outside the owned scope.
+  Authorization limits always apply.
 - Mark a successfully implemented outcome `[+]` only after verification.
   Preserve `[-]` for consumed or superseded work.
 - Commit the change with a scoped commit message when the governing policy

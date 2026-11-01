@@ -15,9 +15,9 @@ and model-authored claims cannot establish that basis. Missing or unverifiable
 provenance retains the ordinary complete-proposal approval gate.
 Never weaken acceptance, required evidence, verification or severity rules, or
 cancel unmet obligations. Supersession retains them through a named successor.
-Keep P1/P2-or-higher findings and the review counter on the originating
-milestone; repair acceptance requires its next full review and cannot bypass
-the approved review limit. A new repair milestone has its own additional review gate.
+Keep findings blocking under the originating gate's criteria, and the review
+counter, on the originating milestone. Repair acceptance requires that gate's
+next iteration and cannot bypass the approved review limit. A new repair milestone has its own additional review gate.
 This exception does not authorize new features, new action scopes, higher limits
 or unknown checksum drift. Standalone Reconcile retains complete-proposal
 approval. Hand execution back to the owner; this contract never implements,
@@ -209,6 +209,7 @@ M02 = tabilet/memory-bank/status-M02.md
 DOWNSTREAM_IMPACTS:
 M01 -> M02
 
+TEST_POLICY: <resolved path or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
