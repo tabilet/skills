@@ -382,12 +382,35 @@ scratch directory over requesting access to `/tmp`; resolve symlinks and preserv
 user files. None of these choices increases permissions or attempt/review limits.
 
 
-## Expensive checks and the attempt gate
+## Test policy and real-effect checks {#test-policy-and-real-effect-checks}
 
-Some acceptance depends on a check that is expensive or protected: privileged
-setup, scarce hardware or quota, a physical or live environment, explicitly
-granted actions, or minutes per run. The bounded verification-attempt gate in
-`GOAL.md` keeps such work converging:
+A new project carries a stock `tabilet/memory-bank/test-policy.md`. It sorts
+every check into two classes. A **class O** (offline) check uses fakes,
+scripted providers, disposable stores and isolated loopback fixtures. It checks
+itself and is simply PASS or FAIL: a timeout, crash or leak is a FAIL to fix
+and rerun, never an UNKNOWN that needs a human disposition. A **class R** (real
+effect) check touches a live service, real user data, credentials, a physical
+browser or the external network, and needs separately named human authority. The
+policy grants no authority and never removes a grant's limits. It governs test
+method: where a pending specification, status row or launch input prescribes a
+method it forbids, such as a controller or receipt reader around class O tests,
+the policy wins on method and the acceptance outcome stays. Using the project's
+language does not make a supervising controller acceptable.
+
+The goal request may carry `TEST_POLICY: <path or none>`. `GOAL.md` resolves it
+in a fixed order: an explicit value in the human-approved request, otherwise
+the path `AGENTS.md` declares, otherwise `tabilet/memory-bank/test-policy.md`
+when it exists, otherwise `none`. A request value that differs from the
+`AGENTS.md` declaration is a conflict for you to resolve. A declared or
+requested path whose file is missing pauses the affected verification. The
+resolved value goes to every implementation, review and reviewer brief.
+
+The bounded verification-attempt gate in `GOAL.md` covers class R checks, or
+every expensive or protected check when the policy is `none`. A class O check
+never uses it, although a grant's budget and stop conditions still bind. Some
+acceptance depends on such a check: privileged setup, scarce hardware or quota,
+a physical or live environment, explicitly granted actions, or minutes per run.
+The gate keeps that work converging:
 
 - **Diagnose cheaply when safe.** Reproduce only within current authority and
   budget, using the cheapest suitable environment, such as an unprivileged local
@@ -409,6 +432,21 @@ Planning keeps such milestones small. Acceptance covers only behavior the
 milestone owns, and real producer or consumer pairing belongs to the adopting
 milestone. Needed host capabilities get a cheap readiness probe as the first
 row.
+
+### Review convergence
+
+The bounded review-fix gate converges instead of re-sweeping. Iteration 1 reviews
+the whole milestone. Later iterations review only the previous blocking findings,
+every change since the reviewed state, and the direct consumers of that change,
+and each iteration records its reviewed state. Only P1 (and anything above it)
+blocks. P2 and Lower findings are fixed now when cheap or built upon, or carried
+in the milestone file's `Open review findings` register with a fix owner, and
+Lower findings may be declined with a rationale. Every review fix is itself
+reviewed, and the final allowed iteration changes nothing: it carries the
+non-blocking findings. A project that has not adopted the register keeps its
+stricter gate in which P2 also blocks. Milestones run by the optional `tabilet`
+controller keep P2 blocking, because the controller runs its own full review and
+does not read the register.
 
 A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may
@@ -459,8 +497,9 @@ standing approval. Valid standing approval needs no repeat confirmation.
 Corrections cannot weaken acceptance, required evidence, verification or severity
 rules, cancel unmet obligations, or erase them through a replacement. Blocking
 findings remain on the originating milestone's review gate even when a repair
-milestone owns implementation. Re-review the original using its persisted
-counter; a repair review cannot replace that pass or evade the approved review limit.
+milestone owns implementation. Run the original gate's next iteration using its
+persisted counter; a repair review cannot replace that pass or evade the approved
+review limit.
 
 Before another row starts, suspend the interrupted `[~]` row as `[!]` and record
 prerequisite IDs, approval source and resumption condition. After prerequisite

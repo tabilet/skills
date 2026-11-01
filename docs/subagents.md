@@ -210,15 +210,20 @@ resumes that lease after interruption.
 The slowest phases of a milestone are usually review and reconciliation. Both
 can fan out to read-only sub-agents without creating a second writer:
 
-- **Review.** In each review-fix iteration, read-only reviewers examine
-  the same full milestone diff through these lenses: correctness and
+- **Review.** In each review-fix iteration, read-only reviewers cover the scope
+  the governing gate defines (iteration 1: the full milestone diff; later
+  iterations under the adopted gate: the prior blocking findings, the change
+  since the recorded reviewed state and its direct consumers) through these
+  lenses: correctness and
   failure semantics; security and privacy; compatibility and operations; tests
   and documentation; and acceptance and scope (requirements missing, partial or
   implemented wrongly, and behavior nobody asked for). The owner first pins the
-  milestone's base commit and inspects the full diff, including uncommitted
+  milestone's base commit and inspects the diff in scope, including uncommitted
   work under the selected commit policy. An empty implementation diff still
   needs acceptance review. Lenses are coverage obligations: combine them or run
-  batches within host capacity. The owner records all findings in **one**
+  batches within host capacity. Each brief carries the resolved test policy,
+  the earlier findings and the reviewed state, and lease children return register
+  updates for carried findings that only the owner writes. The owner records all findings in **one**
   iteration report grouped by lens; an interrupted pass resumes its existing
   number and each completed iteration advances the counter exactly once.
 - **Downstream reconciliation.** For each impacted pending consumer, a read-only
@@ -399,7 +404,8 @@ Opt-in [MODEL_POLICY](goal.md#optional-model-policy) assigns ordinary work,
 coordination and fixes to `DEFAULT`, and every whole-milestone review iteration
 to fresh read-only `WHOLE_MILESTONE_REVIEW` agents. Each brief carries the full
 resolved policy, governing request, approval context, narrowed effective grants,
-assignment, pinned baseline, prior findings and persisted iteration. Reviewers
+assignment, pinned baseline, the iteration scope the governing gate defines,
+prior findings and persisted iteration. Reviewers
 have no mutation authority; the owner alone consolidates the report and writes
 the ledger. Missing model, effort or fresh-agent capability pauses affected
 work; omission preserves host settings. Parts A/B/C describe planning

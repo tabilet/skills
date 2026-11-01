@@ -120,6 +120,13 @@ fields are `**Review gate.** active|passed`, `**Review iterations.** N`, and
 `**Review findings.**` followed by a JSON array. Direct-agent sessions share
 this checkpoint; a new controller receipt continues an active gate's count.
 
+The controller applies its own deterministic review gate. It runs its own full
+milestone review, and any P0, P1 or P2 finding reported in that review blocks
+retirement and starts another full review. An interactive review pass does not
+replace it, and the controller does not read the project's open review findings
+register, so milestones it runs keep P2 blocking even in a project that adopted
+the convergent gate for interactive runs. The controller code is unchanged.
+
 Recovery records operation intent and usage before dispatch. It can continue a
 clean prepared checkpoint or record an exact candidate commit whose parent,
 tree, patch, message, paths, row transition, workflow snapshot, and verification

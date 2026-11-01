@@ -131,7 +131,8 @@ flowchart TD
     `REVIEW_MAX_ITERATIONS` defaults to 10 independently of commit policy. A higher positive integer requires explicit human approval; resumes and repairs preserve the consumed count.
 
     - Each milestone must pass its authoritative code review gate within the approved review limit (default 10).
-    - If the final allowed iteration still contains P1 (blocking) or P2 (material) defects, the gate
+    - If the final allowed iteration still contains a blocking defect (P1, or P2 in a project that keeps
+      the stricter gate), the gate
       exhausts its approved limit, the status is marked `[!]` (blocked), and execution pauses
       for human intervention rather than continuing to spend model resources.
 
@@ -566,7 +567,7 @@ checks; milestone-specific denials still win.
 | **Milestone Policies** | Monolithic inlined grants in `suggested.txt` | Milestone-attached policies in `milestone.md` override/narrow global defaults |
 | **Local Verification** | Unchecked if undeclared | `- [~] grant_id: global-local-verify` |
 | **Remote Git Push** | Pauses on `[ ]` or rejected | `- [+] grant_id: global-repo-push` |
-| **Defect Loops** | Loops up to 10 review iterations | Auto-fixes P1/P2; stops if unresolved at the approved review limit |
+| **Defect Loops** | Loops up to 10 review iterations | Auto-fixes blocking findings; stops if unresolved at the approved review limit |
 | **Secrets / Credentials** | Pauses for human input | Maintained as non-bypassable human boundary |
 | **Planning Stance** | `--environment sandbox` (Default) | `--environment dangerous [modifiers]` |
 

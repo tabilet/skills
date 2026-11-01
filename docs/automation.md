@@ -24,7 +24,7 @@ milestones into long-term history automatically.
 flowchart TD
     Launch["Goal Launch (Approved SHA256 + Grants)"] --> Milestone["Active Milestone Execution"]
     Milestone --> ReviewGate{"Review-Fix Gate (approved cap; default 10)"}
-    ReviewGate -- "P1/P2 Defects" --> Fix["Apply Fixes & Rerun Verification"]
+    ReviewGate -- "Blocking findings (P1)" --> Fix["Apply Fixes & Rerun Verification"]
     Fix --> ReviewGate
     ReviewGate -- "Passed" --> Reconcile["Reconcile Downstream Milestones"]
     Reconcile --> Retire["Retire Milestone to docs/history/"]
@@ -163,10 +163,12 @@ protocol enforces non-bypassable safety circuits that will pause execution:
 
 - When a milestone completes implementation, it must pass a rigorous
   verification and multi-perspective review gate.
-- If defects classified as **P1** (blocking acceptance/integrity) or **P2**
-  (material defect in supported behavior) are found, the agent must fix them
-  and re-verify.
-- If the final allowed iteration still contains P1/P2 issues, the gate **exhausts its approved limit**.
+- If defects classified as **P1** (blocking acceptance/integrity) are found, the
+  agent must fix them and re-verify. A **P2** (material defect in supported
+  behavior) is fixed now when cheap or built upon, or carried in the project's
+  open review findings register; a project that has not adopted the register
+  keeps P2 blocking. Later iterations review only what changed.
+- If the final allowed iteration still contains a blocking issue, the gate **exhausts its approved limit**.
   The milestone is marked `[!]` (blocked), downstream reconciliation is halted,
   and the agent must stop for human direction rather than looping indefinitely.
 

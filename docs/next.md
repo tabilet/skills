@@ -112,8 +112,13 @@ bank is not allowed to be wrong in the interval.
 
 ## Expensive checks
 
-Some rows have acceptance that depends on an expensive or protected check. For
-those rows, the run follows the project's verification-attempt gate:
+Next resolves the project's test policy first: an explicit `TEST_POLICY` in your
+request, otherwise the path `AGENTS.md` declares, otherwise
+`tabilet/memory-bank/test-policy.md` when it exists, otherwise none. Under a test
+policy, class O (offline) checks simply pass or fail and are fixed and rerun.
+Some rows have acceptance that depends on a class R (real-effect) check, or on an
+expensive or protected check when no test policy applies. For those rows, the run
+follows the project's verification-attempt gate:
 
 - it diagnoses in the cheapest environment that reproduces the failure;
 - it runs every independent case;
@@ -121,7 +126,7 @@ those rows, the run follows the project's verification-attempt gate:
 - it stops to ask after three consecutive same-stage failures, or after a
   failure outside the milestone's owned scope.
 
-See [the goal guide](goal.md#expensive-checks-and-the-attempt-gate).
+See [the goal guide](goal.md#test-policy-and-real-effect-checks).
 
 ## Corrective prerequisites and approval email
 
@@ -164,9 +169,14 @@ API-runner/controller invocation are outside this feature.
 
 When a row is the last unfinished item in its milestone, next runs the milestone
 review in `milestone.md` before continuing. The initial full review is iteration
-1; every P1, P2, or higher-severity fix is verified and followed by another full
-review of the whole milestone. A clean pass is required within the approved review limit (default ten),
-and the counter persists across sessions and reviewers.
+1. Under the adopted gate only P1 and higher block: every blocking fix, and any
+other review change, is verified and followed by a narrowed next iteration over
+the previous blocking findings, the change since the reviewed state and its
+direct consumers. P2 and Lower findings are fixed now when cheap or built upon,
+or carried in the `Open review findings` register. A clean pass is required
+within the approved review limit (default ten), and the counter persists across
+sessions and reviewers. A project that has not adopted the register keeps its
+stricter gate in which P2 also blocks.
 
 Closing a milestone also asks whether `tabilet/evolution/` needs a new version. Only a
 real change in product direction, architecture boundary, milestone target, or

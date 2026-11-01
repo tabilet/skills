@@ -62,6 +62,7 @@ your-project/
     │   ├── product.md         product scope, domain model, and non-goals
     │   ├── architecture.md    layout, data flow, boundaries
     │   ├── tech-stack.md      commands, dependencies, verification
+    │   ├── test-policy.md     stock offline-first test policy and project specifics
     │   ├── lessons.md         applicable lessons and their evidence
     │   ├── milestone.md       active milestones and later directions
     │   ├── status-M01.md      one file per active milestone
@@ -604,7 +605,10 @@ the **Execution harnesses** table in `tabilet/memory-bank/tech-stack.md`; a row
 reaches `[+]` only after required checks pass.
 
 At milestone closure, run the milestone's whole-milestone review and required
-verification. After each P1/P2-or-higher fix, review the milestone again. A
+verification. After each blocking (P1 or higher) fix or other review change, the
+next iteration reviews only the prior blocking findings, the change since the
+reviewed state and its direct consumers; P2 and Lower findings are fixed now or
+carried in the `Open review findings` register. A
 clean review is required within `REVIEW_MAX_ITERATIONS` (default 10); a higher
 interactive limit requires explicit approval, stricter project limits still apply,
 and the Python API ceiling remains 10. Unresolved blocking findings at the limit
@@ -879,6 +883,7 @@ root:
 - [template/tabilet/memory-bank/product.md](template/tabilet/memory-bank/product.md)
 - [template/tabilet/memory-bank/architecture.md](template/tabilet/memory-bank/architecture.md)
 - [template/tabilet/memory-bank/tech-stack.md](template/tabilet/memory-bank/tech-stack.md)
+- [template/tabilet/memory-bank/test-policy.md](template/tabilet/memory-bank/test-policy.md)
 - [template/tabilet/memory-bank/lessons.md](template/tabilet/memory-bank/lessons.md)
 - [template/tabilet/memory-bank/milestone.md](template/tabilet/memory-bank/milestone.md)
 - [template/tabilet/memory-bank/status-M01.md](template/tabilet/memory-bank/status-M01.md)
