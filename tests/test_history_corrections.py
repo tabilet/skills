@@ -171,6 +171,10 @@ class HistoryCorrectionsTests(unittest.TestCase):
             'The owner later reversed that decision.',
             'The owner answered "yes" to continuing M01 beyond ten whole reviews if tests passed.',
             'The owner answered "yes" to continuing M99 beyond ten whole reviews.',
+            'The owner approved the review extension to 22.',
+            'The owner approved the review extension; the decision was later changed.',
+            'The owner approved the review extension. No P1/P2, but the approval was withdrawn.',
+            'No P1/P2. The owner did not approve the review extension.',
             'The owner approved zero review extension.',
             'The owner approved the UI review.',
             'The owner asked if review should continue.',
@@ -186,7 +190,6 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     value='owner approved review extension', evidence=[dict(start_line=line, end_line=line, quote=quote)])])
                 with self.assertRaisesRegex(ValueError, 'unsupported review limit approval'):
                     core.historical_record(text, 'status-M01.md', correction)
-
         positives = ('Whole-milestone review 10/10 FAIL. The owner subsequently answered "yes" to '
                      'continuing M01 beyond ten whole reviews, retaining the existing count and '
                      'using fresh Sol/xhigh reviews until it passes, then resuming the ordered goal.',
@@ -205,12 +208,75 @@ class HistoryCorrectionsTests(unittest.TestCase):
 
         literal = self.text.replace('**Review iterations.** 2', '**Review iterations.** 21\n'
             '**Review limit.** 21\n**Review limit approval.** No owner approved an extension')
-        self.assertIn('recorded review limit approval is explicitly negated',
+        self.assertIn('recorded review limit approval is ambiguous or unsupported',
                       core.historical_record(literal, 'status-M01.md')['blockers'])
         reversed_literal = literal.replace('No owner approved an extension',
             'The owner approved the extension; the approval was later reversed')
-        self.assertIn('recorded review limit approval is explicitly negated',
+        self.assertIn('recorded review limit approval is ambiguous or unsupported',
                       core.historical_record(reversed_literal, 'status-M01.md')['blockers'])
+        for value in ('The owner approved the review extension; the decision was later changed',
+                      'The owner approved the review extension to 22',
+                      'The owner approved the review extension only if tests passed',
+                      'The owner answered "yes" to continuing M99 beyond ten whole reviews'):
+            with self.subTest(literal=value):
+                self.assertIn('recorded review limit approval is ambiguous or unsupported',
+                    core.historical_record(literal.replace('No owner approved an extension', value),
+                                           'status-M01.md')['blockers'])
+        self.assertEqual(core.historical_record(literal.replace('No owner approved an extension',
+            'The owner approved the review extension to 21'), 'status-M01.md')['blockers'], [])
+        continued = literal.replace('No owner approved an extension',
+            'The owner approved the review extension to 21.\nThe decision was later changed.')
+        self.assertIn('recorded review limit approval is ambiguous or unsupported',
+                      core.historical_record(continued, 'status-M01.md')['blockers'])
+
+    def test_extension_citation_cannot_hide_source_context(self):
+        quote = 'The owner approved the review extension.'
+        for suffix in (' The decision was later changed.', '\nThe decision was later changed.',
+                       '\n\nThe decision was later changed.',
+                       '; the decision was later changed.', '\nOnly if tests passed.'):
+            with self.subTest(suffix=suffix):
+                text = self.text.replace('**Review iterations.** 2',
+                    '**Review iterations.** 21\n**Review limit.** 21')
+                text = text.replace('| Task |', '## Review\n\n' + quote + suffix + '\n\n| Task |')
+                line = next(n for n, actual in enumerate(text.splitlines(), 1) if quote in actual)
+                correction = entry(text, [dict(kind='supply-metadata', field='Review limit approval',
+                    value='owner approved review extension',
+                    evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                with self.assertRaisesRegex(ValueError, 'unsupported review limit approval'):
+                    core.historical_record(text, 'status-M01.md', correction)
+        text = self.text.replace('**Review iterations.** 2',
+            '**Review iterations.** 21\n**Review limit.** 21')
+        text = text.replace('| Task |', '## Review\n\nOnly if tests passed.\n' + quote + '\n\n| Task |')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review limit approval',
+            value='owner approved review extension',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported review limit approval'):
+            core.historical_record(text, 'status-M01.md', correction)
+        prefixed = 'Whole-milestone review 10/10 FAIL. ' + quote
+        text = text.replace(quote, prefixed)
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == prefixed)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review limit approval',
+            value='owner approved review extension',
+            evidence=[dict(start_line=line, end_line=line, quote=prefixed)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported review limit approval'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+    def test_extension_correction_value_cannot_add_ambiguity(self):
+        quote = 'The owner approved the review extension.'
+        text = self.text.replace('**Review iterations.** 2',
+            '**Review iterations.** 21\n**Review limit.** 21')
+        text = text.replace('| Task |', '## Review\n\n' + quote + '\n\n| Task |')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        for value in ('owner approved review extension; the decision was later changed',
+                      'owner approved review extension to 22',
+                      f'Historical owner continuation recorded at frozen lines {line}-{line}; '
+                      'ceiling 22 is a proposed interpretation for this closed record only.'):
+            with self.subTest(value=value):
+                correction = entry(text, [dict(kind='supply-metadata', field='Review limit approval',
+                    value=value, evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                with self.assertRaisesRegex(ValueError, 'unsupported review limit approval'):
+                    core.historical_record(text, 'status-M01.md', correction)
 
     def test_recorded_zero_counter_for_rowless_withdrawal_remains_supported(self):
         quote = 'Review iterations: 0'

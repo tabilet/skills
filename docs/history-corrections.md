@@ -72,9 +72,11 @@ explicit recorded counter; review-limit corrections require recorded evidence,
 and extended-limit approval must cite an explicit, affirmative recorded human
 continuation or extension; the citation must match a supported complete
 affirmative statement, and ambiguous, reversed or conditional language is not
-evidence. A named continuation must identify the same milestone. Literal
-metadata that explicitly denies or reverses an extended-limit approval is also
-a blocker. Corrected
+evidence. A named continuation must identify the same milestone, and a stated
+ceiling must match the recorded limit. Citations include the complete selected
+lines and the adjacent continuation of their paragraph. Literal approval
+metadata and correction values must also use supported affirmative or recorded
+interpretation forms; ambiguous literal metadata remains a blocker. Corrected
 commit provenance must cite the recorded commit prefix in a provenance context;
 worktree claims require an explicit worktree statement. Verification summaries
 must be drawn from literal recorded test or check results without contradictory
