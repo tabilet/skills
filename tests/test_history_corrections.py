@@ -438,6 +438,31 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     self.assertIn('unrecognized continuation after recorded review pass',
                                   core.historical_record(literal, 'status-M01.md')['blockers'])
 
+    def test_pass_continuation_is_consistent_across_source_locations(self):
+        for location in ('literal_envelope', 'corrected_envelope', 'preamble', 'preamble_literal', 'review'):
+            for continuation in ('The result was later invalidated.',
+                                 'Later, the owner changed that decision.',
+                                 'The pass is contingent on further verification.'):
+                with self.subTest(location=location, continuation=continuation):
+                    quote = '**Review.** passed' if location in {'literal_envelope', 'preamble_literal'} else 'Review: passed'
+                    text = self.text.replace('**Review.** passed\n', '')
+                    if location in {'literal_envelope', 'corrected_envelope'}:
+                        text = text.replace('## Milestone specification',
+                            quote + '\n' + continuation + '\n\n## Milestone specification')
+                    elif location in {'preamble', 'preamble_literal'}:
+                        text = text.replace('| Task |', quote + '\n' + continuation + '\n\n| Task |')
+                    else:
+                        text = text.replace('| Task |', '## Review\n\n' + quote + '\n' + continuation + '\n\n| Task |')
+                    line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+                    if location == 'literal_envelope':
+                        self.assertIn('unrecognized continuation after recorded review pass',
+                                      core.historical_record(text, 'status-M01.md')['blockers'])
+                    else:
+                        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+                            core.historical_record(text, 'status-M01.md', correction)
+
     def test_review_correction_requires_an_explicit_passed_result(self):
         for quote, accepted in (('review not passed', False),
                                 ('review failed, but tests passed', False),

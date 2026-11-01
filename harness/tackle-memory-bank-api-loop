@@ -1800,33 +1800,54 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         and (not verdict or verdict[1].upper() not in {'PASS', 'PASSED'}
                              or limit != recorded_limit))):
                     review_conflicts.append('conflicting whole review result')
-        # After an explicit final pass in the retained review section, do not
-        # silently ignore additional prose that could qualify that result.
-        # Unknown continuation is a blocker, even when it is benign.
-        after_final_pass = False
+        # Apply the same conservative continuation rule to the envelope and
+        # retained status: unknown prose after a recognized pass is ambiguous.
         final_pass = (r'\bwhole\s+review\s+' + re.escape(iterations) + r'\s*/\s*'
                       + re.escape(recorded_limit) + r'\s+PASS\s+with\s+no\s+P1/P2\.')
-        for line, trusted, in_review, _ in status_lines.values():
-            if not in_review:
-                after_final_pass = False
-                continue
-            if not trusted or not line.strip():
-                continue
-            if after_final_pass:
-                if re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I):
+        def ambiguous_pass_continuation(source):
+            after_final_pass = False
+            for line, trusted, relevant, envelope in source:
+                if not relevant:
                     after_final_pass = False
                     continue
-                reaffirmation = re.fullmatch(
-                    r'Whole-milestone review\s+' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
-                    + r',\s*passed\.', line.strip(), re.I)
-                task_review = re.match(r'^Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.', line.strip(), re.I)
-                if (line.strip() != 'This is standalone intake, not a continuation of a retired closing gate.'
-                        and not reaffirmation and not task_review):
-                    review_conflicts.append('unrecognized continuation after recorded review pass')
-                continue
-            if (re.search(final_pass, line, re.I) or re.fullmatch(
-                    r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?', line.strip(), re.I)):
-                after_final_pass = True
+                if not trusted or not line.strip():
+                    continue
+                if after_final_pass:
+                    if re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I):
+                        after_final_pass = False
+                        continue
+                    field = re.fullmatch(r'\*\*(Milestone|Outcome|Retired|Source status|Source specification|'
+                                         r'Evidence|Worktree|Review iterations|Review limit|Review limit approval|'
+                                         r'Verification|Consolidated into|Disposition|Successor|Legacy closure|Marker correction)'
+                                         r'\.\*\* (.+)', line.strip(), re.I)
+                    if field:
+                        if (field[1].lower() == 'marker correction' and not re.fullmatch(
+                                r'[0-9]{4}-[0-9]{2}-[0-9]{2}: the task rows were recorded `\[X\]` '
+                                r'\(Cancelled\) by mistake; they were completed and now read `\[\+\]`\.',
+                                field[2])):
+                            return True
+                        continue
+                    reaffirmation = re.fullmatch(
+                        r'Whole-milestone review\s+' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
+                        + r',\s*passed\.', line.strip(), re.I)
+                    task_review = re.match(r'^Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.', line.strip(), re.I)
+                    if (line.strip() != 'This is standalone intake, not a continuation of a retired closing gate.'
+                            and not reaffirmation and not task_review):
+                        return True
+                    continue
+                numbered = re.search(final_pass, line, re.I)
+                plain = re.fullmatch(r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?',
+                                     line.strip(), re.I)
+                if numbered or plain:
+                    if numbered and line[numbered.end():].strip():
+                        return True
+                    after_final_pass = True
+            return False
+        envelope_context = [(line, True, True, True) for line, _ in envelope_lines]
+        status_context = [(line, trusted, in_review or preamble, False)
+                          for line, trusted, in_review, preamble in status_lines.values()]
+        if ambiguous_pass_continuation(envelope_context) or ambiguous_pass_continuation(status_context):
+            review_conflicts.append('unrecognized continuation after recorded review pass')
         if review_conflicts and corrected_pass:
             raise ValueError('conflicting recorded review result; a correction cannot supply acceptance')
     source_spec = metadata.get('Source specification', '')
