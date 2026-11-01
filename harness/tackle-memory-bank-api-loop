@@ -1411,6 +1411,143 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             return 'review'
         return 'preamble' if item[3] else None
 
+    def literal_record_citation(citation):
+        # Unlike a one-line review result, some provenance evidence is a
+        # multi-line quotation. Every cited line must be outside an inner fence
+        # and in this record's metadata or complete retained status.
+        if 'content' in citation:
+            return False
+        start, end = citation['start_line'], citation['end_line']
+        if end <= metadata_end:
+            envelope = list(unfenced_lines(''.join(lines[:metadata_end])))
+            if any(n < start and re.match(r'^#{2,6}\s', line) for n, line in envelope):
+                return False
+            allowed = {n for n, _ in envelope}
+            return all(n in allowed for n in range(start, end + 1))
+        source = sources.get('status')
+        if start <= metadata_end or (source and source['path'] != 'tabilet/docs/history/' + name):
+            return False
+        return all((item := status_lines.get(n - offsets['status'])) and item[1]
+                   for n in range(start, end + 1))
+
+    def provenance_citation(citation):
+        if not literal_record_citation(citation):
+            return False
+        if citation['end_line'] <= metadata_end:
+            return True
+        return all((item := status_lines.get(n - offsets['status'])) and (item[2] or item[3])
+                   and not item[0].lstrip().startswith('|')
+                   for n in range(citation['start_line'], citation['end_line'] + 1))
+
+    def cited_index_row(citation):
+        # The embedded historical index is an interpretation source, never
+        # authority; bind its identity, outcome, date and link together.
+        if (citation.get('path') != 'tabilet/docs/history/index.md'
+                or citation['start_line'] != citation['end_line']
+                or citation['quote'].strip() != citation['content'].strip()):
+            return None
+        rows = table_rows(citation['content'])
+        if len(rows) != 1:
+            return None
+        cells = historical_index_cells(rows[0]['cells'])
+        if len(cells) < 5 or cells[0] != identity or cells[3] != f'[{identity}]({name})':
+            return None
+        return cells
+
+    index_outcomes = []
+    for op in operations:
+        if op['kind'] != 'supply-metadata':
+            continue
+        field, value = op['field'], op['value']
+        evidence = op['evidence']
+        if field in {'Outcome', 'Retired'}:
+            index_rows = [row for c in evidence if (row := cited_index_row(c))]
+            supporting = [row for row in index_rows if row[1 if field == 'Outcome' else 2] == value]
+            if not supporting:
+                label = r'(?:Outcome|Status|State)' if field == 'Outcome' else r'Retired'
+                local = False
+                for c in evidence:
+                    location = recorded_review_citation(c)
+                    if location not in {'envelope', 'preamble'}:
+                        continue
+                    pattern = (r'(?:\*\*' + label + r'\.\*\*|\*\*' + label + r':\*\*|'
+                               + label + r'\s*:)\s*(.+?)\.?')
+                    match = re.fullmatch(pattern, c['quote'].strip(), re.I)
+                    if match and (match[1].lower() == value.lower() or
+                                  (field == 'Outcome' and value == 'completed' and match[1].lower() == 'complete')):
+                        local = True
+                        break
+                if not local:
+                    raise ValueError('unsupported ' + field + ' correction: missing recorded evidence')
+            index_outcomes.extend(row[1] for row in supporting)
+        elif field == 'Review iterations':
+            counter = (r'(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
+                       r'(?:Review gate iterations|Review iterations)\s*:)\s*'
+                       r'([1-9][0-9]*)(?:\s+\([^\n()]*\))?\.?')
+            if not any(recorded_review_citation(c) and
+                       (match := re.fullmatch(counter, c['quote'].strip(), re.I)) and match[1] == value
+                       for c in evidence):
+                raise ValueError('unsupported review counter correction: missing recorded evidence')
+        elif field == 'Review limit':
+            if not re.fullmatch(r'[1-9][0-9]*', value) or not any(
+                    provenance_citation(c) and re.search(
+                        r'(?:\bwhole(?:[- ]milestone)?\s+review\s+|'
+                        r'\breview\s+gate\s+iterations?\s*:\s*|'
+                        r'(?:\*\*review limit\.\*\*|\breview limit\s*:)\s*)'
+                        + re.escape(value) + r'\b',
+                        c['quote'], re.I) for c in evidence):
+                raise ValueError('unsupported review limit correction: missing recorded evidence')
+        elif field == 'Review limit approval':
+            if not any(provenance_citation(c)
+                       and re.search(r'\b(?:owner|user|operator|human)\b', c['quote'], re.I)
+                       and re.search(r'\b(?:approved|authorized|authorised)\b|answered\s+["\']yes["\']',
+                                     c['quote'], re.I)
+                       and re.search(r'\breview', c['quote'], re.I) for c in evidence):
+                raise ValueError('unsupported review limit approval: missing recorded human approval')
+        elif field == 'Evidence':
+            def commit_support(citation):
+                if not provenance_citation(citation):
+                    return False
+                quote = citation['quote']
+                if value == 'unversioned':
+                    return bool(re.fullmatch(r'(?:\*\*Evidence\.\*\*|Evidence\s*:)\s*unversioned\.?',
+                                             quote.strip(), re.I))
+                prefixes = re.findall(r'(?<![a-f0-9])([a-f0-9]{7,64})(?![a-f0-9])', quote)
+                return (bool(re.search(r'\b(?:evidence|worktree|observed\s+(?:head|commit)|'
+                                       r'reviewed\s+(?:commit|baseline|worktree))\b', quote, re.I))
+                        and any(value.startswith(prefix) for prefix in prefixes))
+            if not any(commit_support(c) for c in evidence):
+                raise ValueError('unsupported Evidence correction: missing recorded commit provenance')
+        elif field == 'Worktree':
+            if not any(recorded_review_citation(c) and re.fullmatch(
+                    r'(?:\*\*Worktree\.\*\*|Worktree\s*:)\s*' + re.escape(value) + r'\.?',
+                    c['quote'].strip(), re.I) for c in evidence):
+                raise ValueError('unsupported Worktree correction: missing recorded provenance')
+        elif field == 'Verification':
+            quotes = [c['quote'].strip() for c in evidence if literal_record_citation(c)]
+            content = value.removeprefix('Recorded results: ').strip()
+            def verification_source(quote):
+                return bool(re.search(r'\b(?:tests?|testing|checks?|build|vet|lint|audit|race|'
+                                      r'typecheck|smoke|regression|replay|suite)\b', quote, re.I)
+                            or re.search(r'\bgo\b.*\bpass(?:ed)?\b', quote, re.I)
+                            or re.fullmatch(r'(?:\*\*Verification\.\*\*|Verification\s*:)\s*'
+                                            r'(?:passed|pass|complete)\.?', quote, re.I))
+            direct = any(content == quote and verification_source(quote) for quote in quotes)
+            clauses = [part.strip().rstrip('.') for part in content.split('; ')]
+            excerpts = all(part and any(part in quote and verification_source(quote) for quote in quotes)
+                           for part in clauses)
+            negative = any(re.search(r'\b(?:fail(?:ed|ure|ures)?|not passed|not passing|not run|'
+                                     r'not executed|not verified|unverified|did not|no tests|pending|'
+                                     r'incomplete|in progress|unknown|cancelled|skipped|timed out)\b', quote, re.I)
+                           for quote in quotes)
+            if negative or not (direct or excerpts):
+                raise ValueError('unsupported Verification correction: missing recorded results')
+        elif field == 'Consolidated into':
+            if not any(recorded_review_citation(c) and re.fullmatch(
+                    r'(?:\*\*Consolidated into\.\*\*|Consolidated into\s*:)\s*' + re.escape(value) + r'\.?',
+                    c['quote'].strip(), re.I) for c in evidence):
+                raise ValueError('unsupported consolidation correction: missing recorded evidence')
+
     numbered_review_results = []
     corrected_pass = False
     for op in operations:
@@ -1453,6 +1590,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             if not recorded or any(not any(commit.startswith(prefix) for prefix in recorded) for commit in op['commits']):
                 raise ValueError('evidence set is unsupported by recorded provenance')
             metadata['Evidence'] = op['commits'][0]
+    if metadata.get('Outcome') and any(outcome != metadata['Outcome'] for outcome in index_outcomes):
+        raise ValueError('index outcome conflicts with recorded outcome')
     if any(count != metadata.get('Review iterations') for count, _ in numbered_review_results):
         raise ValueError('review iteration mismatch; a correction cannot supply acceptance')
     recorded_limit = metadata.get('Review limit', '10')
@@ -1461,18 +1600,29 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     review_conflicts = []
     iterations = metadata.get('Review iterations', '')
     if metadata.get('Review') == 'passed' and re.fullmatch(r'[1-9][0-9]*', iterations):
-        for line, trusted, _, _ in status_lines.values():
+        envelope_lines = [(line, True) for _, line in unfenced_lines(''.join(lines[:metadata_end]))]
+        review_lines = envelope_lines + [(line, trusted) for line, trusted, _, _ in status_lines.values()]
+        for line, trusted in review_lines:
             if not trusted:
                 continue
             if re.match(r'^(?:\*\*Review\.\*\*\s*|(?:Whole\s+)?Review\s*:\s*|(?:Whole\s+)?Review\s+)'
                         r'(?:(?:was|has)\s+)?(?:failed|fail|did not pass|not passed|not completed|'
                         r'pending|incomplete|in progress|blocked)\b', line, re.I):
                 review_conflicts.append('conflicting recorded review result')
-            for number, limit, outcome in re.findall(
-                    r'(?<!task )\b(?:whole\s+)?review\s+([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\s+'
-                    r'(PASS(?:ED)?|FAIL(?:ED)?|NOT\s+PASSED|PENDING|INCOMPLETE)\b', line, re.I):
+            declaration = re.match(r'^(?:\*\*Review\.\*\*|(?:Whole\s+)?Review\s*:)\s*(.+)$', line, re.I)
+            table_declaration = re.fullmatch(r'\|\s*Review\s*\|\s*(.*?)\s*\|', line, re.I)
+            for declared in (declaration, table_declaration):
+                if declared and not re.fullmatch(r'passed\.?', declared[1].strip(), re.I):
+                    review_conflicts.append('ambiguous recorded review result')
+            for claim in re.finditer(
+                    r'(?<!task )\b(?:whole\s+)?review\s+([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\b', line, re.I):
+                number, limit = claim.groups()
+                verdict = re.match(r'\s*(?:[,:;—–-]\s*)?(?:(?:was|is)\s+)?(?:\(\s*)?'
+                                   r'(PASS(?:ED)?|FAIL(?:ED)?|NOT\s+PASSED|PENDING|INCOMPLETE)\b',
+                                   line[claim.end():], re.I)
                 if (int(number) > int(iterations) or (int(number) == int(iterations)
-                        and (outcome.upper() not in {'PASS', 'PASSED'} or limit != recorded_limit))):
+                        and (not verdict or verdict[1].upper() not in {'PASS', 'PASSED'}
+                             or limit != recorded_limit))):
                     review_conflicts.append('conflicting whole review result')
         if review_conflicts and corrected_pass:
             raise ValueError('conflicting recorded review result; a correction cannot supply acceptance')

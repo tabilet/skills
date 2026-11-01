@@ -121,6 +121,96 @@ class HistoryCorrectionsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'conflicting'):
             core.history_corrections(manifest([bad]))
 
+    def test_metadata_corrections_cannot_derive_facts_from_unrelated_task_rows(self):
+        for field, old, value in (
+                ('Outcome', 'completed', 'completed'),
+                ('Retired', '2026-09-12', '2026-09-12'),
+                ('Evidence', 'unversioned', 'a' * 40),
+                ('Worktree', 'unversioned', 'clean'),
+                ('Review iterations', '2', '2'),
+                ('Review limit', '10', '21'),
+                ('Review limit approval', 'not recorded', 'owner approved'),
+                ('Verification', 'tests passed; review found no blocking issues', 'Recorded results: tests passed'),
+                ('Consolidated into', 'no current-truth change', 'no current-truth change')):
+            with self.subTest(field=field):
+                text = self.text.replace(f'**{field}.** {old}\n', '')
+                if field == 'Evidence':
+                    text = text.replace('**Worktree.** unversioned', '**Worktree.** clean')
+                if field == 'Worktree':
+                    text = text.replace('**Evidence.** unversioned', '**Evidence.** ' + 'a' * 40)
+                quote = '| Task | `[+]` | verified |'
+                line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+                correction = entry(text, [dict(kind='supply-metadata', field=field, value=value,
+                    evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                with self.assertRaisesRegex(ValueError, 'unsupported'):
+                    core.historical_record(text, 'status-M01.md', correction)
+
+    def test_metadata_evidence_refuses_mismatched_index_and_negative_verification(self):
+        content = '| M02 | completed | 2026-09-12 | [M02](status-M02.md) | Delivery |'
+        text = self.text.replace('**Outcome.** completed\n', '')
+        correction = entry(text, [dict(kind='supply-metadata', field='Outcome', value='completed', evidence=[dict(
+            path='tabilet/docs/history/index.md', commit='a' * 40, content=content, sha256=digest(content),
+            start_line=1, end_line=1, quote=content)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported Outcome'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        quote = 'Go tests passed but the full suite failed.'
+        text = self.text.replace('**Verification.** tests passed; review found no blocking issues\n', '').replace(
+            '| Task |', quote + '\n\n| Task |')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Verification', value='Recorded results: Go tests passed',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported Verification'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        text = self.text.replace('**Verification.** tests passed; review found no blocking issues\n', '').replace(
+            '| Task |', 'Go tests passed\nUnrelated claim\n\n| Task |')
+        locations = {value: n for n, value in enumerate(text.splitlines(), 1) if value in ('Go tests passed', 'Unrelated claim')}
+        correction = entry(text, [dict(kind='supply-metadata', field='Verification',
+            value='Recorded results: Go tests passed; Unrelated claim', evidence=[
+                dict(start_line=locations[q], end_line=locations[q], quote=q)
+                for q in ('Go tests passed', 'Unrelated claim')])])
+        with self.assertRaisesRegex(ValueError, 'unsupported Verification'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        quote = '| Task | `[+]` | worktree commit abcdef0 |'
+        text = self.text.replace('**Evidence.** unversioned\n', '').replace(
+            '**Worktree.** unversioned', '**Worktree.** clean').replace('| Task | `[+]` | verified |', quote)
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Evidence', value='abcdef0' + '1' * 33,
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported Evidence'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        quote = 'Task review 21 PASS.'
+        text = self.text.replace('| Task |', '## Review\n\n' + quote + '\n\n| Task |')
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review limit', value='21',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'unsupported review limit'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+    def test_metadata_corrections_accept_explicit_recorded_facts(self):
+        commit = 'abcdef0' + '1' * 33
+        for field, old, value, quote in (
+                ('Outcome', 'completed', 'completed', '**Status.** complete'),
+                ('Retired', '2026-09-12', '2026-09-12', 'Retired: 2026-09-12'),
+                ('Evidence', 'unversioned', commit, 'Evidence: commit abcdef0'),
+                ('Worktree', 'unversioned', 'clean', 'Worktree: clean'),
+                ('Review iterations', '2', '2', 'Review gate iterations: 2'),
+                ('Verification', 'tests passed; review found no blocking issues', 'Recorded results: Go tests passed', 'Go tests passed'),
+                ('Consolidated into', 'no current-truth change', 'no current-truth change', 'Consolidated into: no current-truth change')):
+            with self.subTest(field=field):
+                text = self.text.replace(f'**{field}.** {old}\n', '').replace('| Task |', quote + '\n\n| Task |')
+                if field == 'Evidence':
+                    text = text.replace('**Worktree.** unversioned', '**Worktree.** clean')
+                if field == 'Worktree':
+                    text = text.replace('**Evidence.** unversioned', '**Evidence.** ' + 'a' * 40)
+                line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+                correction = entry(text, [dict(kind='supply-metadata', field=field, value=value,
+                    evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['metadata'][field], value)
+
     def test_hashes_and_ids_are_bound_to_the_literal_bytes(self):
         text, correction = self.expansion()
         parsed = core.historical_record(text, 'status-M01.md', correction)
@@ -238,7 +328,10 @@ class HistoryCorrectionsTests(unittest.TestCase):
         for conflict in ('Whole review 2/10 FAIL.', 'Whole review 3/10 PASS.', 'Review: failed',
                          'Whole review failed.', 'Whole review: not passed.',
                          'Whole review was not passed.', 'Review: did not pass.', 'Review: in progress.',
-                         'Review 2/10 FAILED.', 'Whole review 2/10 NOT PASSED.', 'Review 2/10 PENDING.'):
+                         'Review 2/10 FAILED.', 'Whole review 2/10 NOT PASSED.', 'Review 2/10 PENDING.',
+                         'Whole review 2/10: FAIL.', 'Whole review 2/10 — FAIL.',
+                         'Whole review 2/10 was FAILED.', 'Whole review 2/10: unknown.',
+                         'Review: result unknown', '| Review | failed |'):
             with self.subTest(conflict=conflict):
                 text = self.text.replace('**Review.** passed\n', '').replace(
                     '| Task |', '## Review\n\n' + quote + '\n' + conflict + '\n\n| Task |')
@@ -247,6 +340,12 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     evidence=[dict(start_line=line, end_line=line, quote=quote)])])
                 with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
                     core.historical_record(text, 'status-M01.md', correction)
+        text = self.text.replace('**Review.** passed', 'Review: passed\nReview: failed')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+            core.historical_record(text, 'status-M01.md', correction)
         text = self.text.replace('| Task |', '## Review\n\nWhole review 2/10 FAIL.\n\n| Task |')
         self.assertIn('conflicting whole review result', core.historical_record(text, 'status-M01.md')['blockers'])
 
@@ -254,6 +353,13 @@ class HistoryCorrectionsTests(unittest.TestCase):
         quote = 'Whole review 2/10 PASS with no P1/P2.'
         text = self.text.replace('**Review.** passed\n', '').replace(
             '| Task |', '## Review\n\n' + quote + '\n\n### Example\n\nWhole review 2/10 FAIL.\n\n| Task |')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+
+        text = self.text.replace('**Review.** passed\n', '').replace(
+            '| Task |', '## Review\n\n' + quote + '\nWhole-milestone review 2/10, passed.\n\n| Task |')
         line = next(n for n, value in enumerate(text.splitlines(), 1) if value == quote)
         correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
             evidence=[dict(start_line=line, end_line=line, quote=quote)])])
