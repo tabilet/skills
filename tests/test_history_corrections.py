@@ -1392,7 +1392,9 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     'M02 confirms review 3/10 passed for this delivery.',
                     'Completed implementation; pending final checks by the designated owner.',
                     'Incomplete until the owner finishes all mandatory checks.',
-                    'Pending final checks now.', 'Pending all required checks by the designated owner.')
+                    'Pending final checks now.', 'Pending all required checks by the designated owner.',
+                    'Void until the owner completes all mandatory checks.',
+                    'Reopen until the owner completes all mandatory checks.')
         flagged = ('Later the review was deemed moot.', 'Later it was treated as never having happened.',
                    'Withheld.', 'Not granted.', 'Withheld; see notes.')
         # A correction-backed pass must also block these in a claim field with no positive sentence first.

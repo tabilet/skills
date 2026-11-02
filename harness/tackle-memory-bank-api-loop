@@ -2288,7 +2288,13 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                                         r'invalidate|rescind|retract|overturn|reopen|annul|nullify|strike|discard|'
                                         r'disregard|block|dispute|supersede|void)s?')
                         status_word = r'pending|incomplete|conditional|provisional|contingent|no\s+longer|subject\s+to'
-                        if lead and not short and (re.fullmatch(noun_or_verb, lead[1], re.I) or (
+                        # A predicate form (participle, adjective, multiword
+                        # verdict) stays a verdict even when it is spelled like a
+                        # verb ("Void until ...", "Reopen until ..."): the noun or
+                        # verb exclusion never removes one.
+                        predicate_form = re.fullmatch(r'\w+(?:ed|en|wn|ing|al|nt)|void|null|moot|\w+(?:\s+\w+)+',
+                                                      lead[1], re.I) if lead else None
+                        if lead and not short and ((re.fullmatch(noun_or_verb, lead[1], re.I) and not predicate_form) or (
                                 position > 0 and not re.fullmatch(status_word, lead[1], re.I))):
                             lead = None
                         if lead and not _negated(bare[:lead.start(1)]) and not own_subject:
