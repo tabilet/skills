@@ -413,15 +413,18 @@ Then edit the copied files in this order:
    concept relationships and business invariants, and non-goals.
 2. `tabilet/memory-bank/architecture.md`: define layout, data flow, and boundaries.
 3. `tabilet/memory-bank/tech-stack.md`: define commands, dependencies, and harnesses.
-4. `tabilet/memory-bank/milestone.md`: define the status ID lanes (see
+4. `tabilet/memory-bank/test-policy.md`: keep the stock text and fill its
+   *Project specifics* (toolchain, required gates, class R checks, approved
+   other-language tools).
+5. `tabilet/memory-bank/milestone.md`: define the status ID lanes (see
    [Status ID lanes](#status-id-lanes)) and the first milestone.
-5. `tabilet/memory-bank/status-M01.md`: define the first milestone's actionable rows.
+6. `tabilet/memory-bank/status-M01.md`: define the first milestone's actionable rows.
    See [what a filled-in memory bank looks
    like](#what-a-filled-in-memory-bank-looks-like), and note that the marker
    backticks matter.
-6. `tabilet/evolution/prompt-v1.md`: record the initial direction.
-7. `tabilet/evolution/result-v1.md`: record the current starting state.
-8. `AGENTS.md`: replace placeholders with project-specific commands and rules.
+7. `tabilet/evolution/prompt-v1.md`: record the initial direction.
+8. `tabilet/evolution/result-v1.md`: record the current starting state.
+9. `AGENTS.md`: replace placeholders with project-specific commands and rules.
 
 If the project needs multiple delivery stages, create `tabilet/stages.md` with
 a current `STG-` ID and brief entries for later stages, then associate the first
@@ -615,6 +618,24 @@ and the Python API ceiling remains 10. Unresolved blocking findings at the limit
 leave the milestone incomplete. Commit review changes under the applicable policy;
 do not make an empty review commit. See the [milestone contract](template/tabilet/memory-bank/milestone.md).
 
+Tests follow the stock [test policy](template/tabilet/memory-bank/test-policy.md),
+added in v2.17.0. It sorts every check into class O (offline: fakes, disposable
+stores and loopback fixtures, with no credentials or external network) or class R
+(a real effect: a live service, real data, credentials, a physical browser or a
+privileged operation). Class O is the default. A class O check checks itself and
+ends PASS or FAIL, never UNKNOWN; a class R check runs only with separately named
+human authority. The policy grants no authority and never removes an
+authorization grant's limits. Commands and budgets stay in `tech-stack.md`;
+project-specific choices go in the policy's *Project specifics* section.
+
+`memory-bank-init` gives every new project the stock policy, whatever the testing
+profile. An existing project keeps its current test rules until it adopts the
+policy: updating the skills changes no project file, and `memory-bank-upgrade`
+offers the adoption in its complete proposal and writes it only after you approve
+(see [Adopting the test policy and convergent review gate](docs/upgrade.md#adopting-the-test-policy-and-convergent-review-gate)).
+How a run resolves the policy is in the
+[Goal guide](docs/goal.md#test-policy-and-real-effect-checks).
+
 <a id="status-id-lanes"></a>
 <a id="61-status-id-lanes"></a>
 ### 5.1 Status ID lanes
@@ -673,7 +694,9 @@ After updating the skills, use `memory-bank-upgrade` to compare an existing
 project's workflow rules with the bundled contract. It presents a complete merge
 proposal and applies only approved changes, preserving project plans, custom
 policies, task states, IDs, review counters, and frozen history. Updating the
-skills alone does not change project files or migrate v1.5.0 projects.
+skills alone does not change project files or migrate v1.5.0 projects. Newer
+rules such as the test policy and the convergent review gate are adopted this
+way, never automatically.
 
 Invoke `/memory-bank:memory-bank-upgrade` in Claude Code,
 `$memory-bank:memory-bank-upgrade` in Codex, or `/memory-bank-upgrade` in DSH.
