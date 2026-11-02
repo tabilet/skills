@@ -2105,7 +2105,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
               for line, trusted, _, _ in status_lines.values() if trusted
               for match in re.finditer(
                   r'(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
-                  r'\b(?:Review gate iterations|Review iterations)\s*:)\s*(not recorded|[0-9]+)\b',
+                  r'(?<![\w-])(?:Review gate iterations|Review iterations)\s*:)\s*(not recorded|[0-9]+)\b',
                   line, re.I)]
     if counts and (len(set(counts)) != 1 or counts[0] != metadata['Review iterations'].lower()):
         blockers.append('retained review counter conflicts with retirement metadata')

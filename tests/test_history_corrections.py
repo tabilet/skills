@@ -970,8 +970,11 @@ class HistoryCorrectionsTests(unittest.TestCase):
                 text = self.text.replace('| Task |', line + '\n\n| Task |')
                 self.assertIn('retained review counter conflicts with retirement metadata',
                               core.historical_record(text, 'status-M01.md')['blockers'])
-        text = self.text.replace('| Task |', '- Review gate iterations: 2\n\n| Task |')
-        self.assertEqual(core.historical_record(text, 'status-M01.md')['blockers'], [])
+        for line in ('- Review gate iterations: 2', 'Prior closing-review iterations: 0',
+                     'The earlier non-review iterations: 5 were unrelated.'):
+            with self.subTest(benign=line):
+                text = self.text.replace('| Task |', line + '\n\n| Task |')
+                self.assertEqual(core.historical_record(text, 'status-M01.md')['blockers'], [])
 
     def test_trailing_nested_item_cannot_hide_a_review_claim(self):
         wrapped = ('**Verification.** Tests passed.\n  - Further details.\n'
