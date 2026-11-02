@@ -1274,6 +1274,38 @@ class HistoryCorrectionsTests(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(adverse(text, 2))
 
+    def test_tables_counters_and_grammar_cannot_hide_a_reversal(self):
+        payloads = (
+            ('after', '| Iteration | Result |\n| 1 | FAIL; the review result was withdrawn. |'),
+            ('after', '| Iteration | Result |\n| 2 | PASS; the review result was withdrawn. |'),
+            ('after', 'Review passed 9/10.'),
+            ('field', '**State.** Review passed 2/10. Iteration 3 passed.'),
+            ('field', '**State.** Review passed 2/10; passed 9/10.'),
+            ('after', 'The review result was not invalidated and was withdrawn.'),
+            ('after', 'After checking the release notes, the review result, after discussion with the entire '
+                      'engineering team at the meeting yesterday, was withdrawn.'),
+            ('after', 'Following further discussion yesterday it is conditional on final verification.'),
+            # Outside the adverse vocabulary: the conservative fallback still blocks it.
+            ('after', 'The review result was voided.'),
+        )
+        for where, payload in payloads:
+            with self.subTest(payload=payload):
+                uncorrected, corrected = self.review_variants(where, payload)
+                self.assertTrue(uncorrected, 'uncorrected record accepted ' + repr(payload))
+                self.assertTrue(corrected, 'correction-backed record accepted ' + repr(payload))
+
+    def test_dates_repeat_counts_and_task_reviews_are_not_review_counters(self):
+        for where, payload in (
+                ('field', '**Verification.** make check passed 2026-09-29; review passed 2/10.'),
+                ('field', '**Verification.** Race tests passed 20 times; review passed 2/10.'),
+                ('field', '**State.** M01.2 review 4 PASS; whole review 2/10 passed.'),
+                ('field', '**State.** Task-review 3 corrections applied; whole review 2/10 passed.'),
+                ('field', '**State.** No changes were required after review 2/10 passed.'),
+                ('field', '**State.** Iteration 1 failed; iteration 2 passed.'),
+                ('after', 'No extra code change followed the review.')):
+            with self.subTest(payload=payload):
+                self.assertEqual(self.review_variants(where, payload)[0], [])
+
 
 if __name__ == '__main__':
     unittest.main()
