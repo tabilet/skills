@@ -29,6 +29,7 @@ import functools
 import hashlib
 import json
 import math
+import unicodedata
 import os
 import pathlib
 import re
@@ -179,11 +180,17 @@ Tackle exactly one row:
   claims; correct contradictions. Updating only the status is insufficient.
 - If a failed attempt is consumed or the row is superseded, mark it `[-]`,
   record the outcome and accepted successor in its notes, and never retry it.
-- Run the required verification. When acceptance depends on an expensive or
-  protected check, follow the project's verification-attempt gate in
-  `tabilet/memory-bank/milestone.md`: diagnose in the cheapest environment that
-  reproduces the failure, run every independent case, persist the attempt
+- Run the required verification. Use the test policy already resolved for this
+  run when one is supplied. Otherwise use the test policy the project's
+  `AGENTS.md` declares, or `tabilet/memory-bank/test-policy.md` when it exists;
+  a declared policy file that is missing pauses verification. Under a test
+  policy, class O checks pass or fail and are fixed and rerun; class R checks
+  follow the project's verification-attempt gate in
+  `tabilet/memory-bank/milestone.md`. Without a test policy, follow that gate
+  for every expensive or protected check: diagnose in the cheapest environment
+  that reproduces the failure, run every independent case, persist the attempt
   count, and stop to ask after the limit or a failure outside the owned scope.
+  Authorization limits always apply.
 - Mark a successfully implemented outcome `[+]` only after verification.
   Preserve `[-]` for consumed or superseded work.
 - Commit the change with a scoped commit message when the governing policy
@@ -245,7 +252,7 @@ Rules:
 """
 
 
-STATUS_GLOB = "status-[A-Z][0-9][0-9].md"
+STATUS_GLOB = "status-[A-Z][0-9]*.md"
 STATE_MARKERS = {
     "`[ ]`": "pending",
     "`[+]`": "completed",
@@ -749,7 +756,7 @@ def shell_tool(
 
 
 # Root IDs remain compatible; children share one sequence across both kinds.
-ROOT_ID = r"[A-Z](?:0[1-9]|[1-9][0-9])"
+ROOT_ID = r"[A-Z](?:0[1-9]|[1-9][0-9]+)"
 MILESTONE_ID = ROOT_ID + r"(?:-(?:0[1-9]|[1-9][0-9]))?"
 STATUS_NAME = re.compile(
     r"(?:(?=status-" + ROOT_ID + r"\.md$)|"
@@ -891,8 +898,8 @@ def _table_cells(line: str) -> list[str]:
     return cells
 
 
-def unfenced_lines(text: str):
-    """Yield source lines outside fenced blocks, retaining their line numbers."""
+def _scan_fences(text: str):
+    """Yield (line number, de-indented line, indent, inside-or-marker) for each line."""
     fence_char = ""
     fence_length = 0
     for line_number, line in enumerate(text.splitlines(), 1):
@@ -908,9 +915,26 @@ def unfenced_lines(text: str):
                   and not stripped[len(token):].strip()):
                 fence_char = ""
                 fence_length = 0
+            yield line_number, stripped, indent, True
             continue
-        if not fence_char and indent <= 3:
+        yield line_number, stripped, indent, bool(fence_char)
+
+
+def unfenced_lines(text: str):
+    """Yield source lines outside fenced blocks, retaining their line numbers."""
+    for line_number, stripped, indent, fenced in _scan_fences(text):
+        if not fenced and indent <= 3:
             yield line_number, stripped
+
+
+def code_line_numbers(text: str) -> set[int]:
+    """Line numbers of fenced and indented code, which readers skip without ending a paragraph's context."""
+    return {line_number for line_number, _, indent, fenced in _scan_fences(text) if fenced or indent > 3}
+
+
+def fenced_line_numbers(text: str) -> set[int]:
+    """Line numbers of fence markers and fenced content, which readers ignore."""
+    return {line_number for line_number, _, _, fenced in _scan_fences(text) if fenced}
 
 
 def table_rows(text: str) -> list[dict]:
@@ -936,6 +960,8 @@ def status_table_rows(status: str):
         cells = row["cells"]
         if cells[1].lower() == "state":
             in_review_table = cells[0].lower() == "iteration"
+        elif [cell.lower() for cell in cells] == ['#', 'finding', 'severity', 'disposition']:
+            in_review_table = True
         if not in_review_table:
             yield row
 
@@ -1002,13 +1028,17 @@ def fenced_document(section: str) -> str:
     return "".join(lines[1:-1])
 
 
-def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> dict:
+def retired_record(text: str, name: str, *, allow_unfinished: bool = False,
+                   historical: bool = False) -> dict:
     """Validate the portable retirement envelope; original documents stay literal."""
     if not STATUS_NAME.fullmatch(name):
-        raise ValueError("invalid retired status ID; use 01 through 99")
+        raise ValueError("invalid retired status ID or child suffix")
     milestone_id = status_identity(name)
     lines = text.splitlines(keepends=True)
     headings = [(n, line[3:]) for n, line in unfenced_lines(text) if line.startswith("## ")]
+    if historical:
+        aliases = {"Status", "Status document", "Full status document", "Final status"}
+        headings = [(n, "Status record" if title in aliases else title) for n, title in headings]
     if [title for _, title in headings] != ["Milestone specification", "Status record"]:
         raise ValueError("expected Milestone specification and Status record sections")
     metadata = {}
@@ -1056,17 +1086,29 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
                 or metadata["Outcome"] != "completed"):
             raise ValueError("legacy retirement requires a completed outcome, "
                              "'not recorded' iterations, and a Legacy closure note")
-    elif metadata["Review"] != "passed" or not re.fullmatch(r"(?:[1-9]|10)", metadata["Review iterations"]):
-        raise ValueError("retirement requires a passed review within 10 iterations")
+    else:
+        # Historical interactive goals may have a human-approved review ceiling.
+        # This is record validation, never authority to extend API execution.
+        review_limit = metadata.get("Review limit", "10")
+        if not re.fullmatch(r"[1-9][0-9]*", review_limit):
+            raise ValueError("retirement review limit must be a positive integer")
+        if int(review_limit) > 10 and not metadata.get("Review limit approval", "").strip():
+            raise ValueError("retirement above the default review limit needs approval provenance")
+        if (metadata["Review"] != "passed"
+                or not re.fullmatch(r"[1-9][0-9]*", metadata["Review iterations"])
+                or int(metadata["Review iterations"]) > int(review_limit)):
+            raise ValueError("retirement requires a passed review within its recorded limit (default 10)")
     if metadata["Outcome"] != "completed" and not metadata.get("Disposition"):
         raise ValueError("cancellation or supersession needs its authorized disposition")
     if metadata["Outcome"] == "superseded" and not metadata.get("Successor"):
         raise ValueError("supersession needs its accepted successor")
     if not specification.strip() or not status.strip():
         raise ValueError("retired source documents are empty")
-    spec_headings = [line for _, line in unfenced_lines(specification) if line.startswith("## ")]
+    spec_headings = [line for _, line in unfenced_lines(specification)
+                     if re.match(r"^#{2,3} " if historical else r"^## ", line)]
+    spec_pattern = (r"#{2,3} " if historical else r"## ") + re.escape(milestone_id) + r"(?:\s|$)"
     if (not spec_headings or (name.startswith("status-") and len(spec_headings) != 1)) or not re.match(
-        r"## " + re.escape(milestone_id) + r"(?:\s|$)", spec_headings[0]
+        spec_pattern, spec_headings[0]
     ):
         raise ValueError("retired specification does not match its milestone ID")
     rows = status_rows(status)
@@ -1085,28 +1127,1741 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False) -> d
     return {"metadata": metadata, "specification": specification, "status": status}
 
 
+HISTORY_CORRECTIONS = "tabilet/docs/history/corrections.json"
+HISTORY_CORRECTIONS_SCHEMA = "tabilet.history-corrections/v1"
+HISTORY_INPUT_LIMIT = 4 * 1024 * 1024
+
+
+def _history_json_pairs(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate correction JSON key: " + key)
+        result[key] = value
+    return result
+
+
+def history_corrections(text: str) -> dict:
+    """Validate a declarative evidence manifest, never execution authority."""
+    if len(text.encode('utf-8')) > HISTORY_INPUT_LIMIT:
+        raise ValueError('history corrections exceed input limit')
+    value = json.loads(text, object_pairs_hook=_history_json_pairs)
+    if (not isinstance(value, dict) or set(value) != {'schema', 'records'}
+            or value['schema'] != HISTORY_CORRECTIONS_SCHEMA
+            or not isinstance(value['records'], list) or len(value['records']) > 10000):
+        raise ValueError('invalid history correction manifest')
+    found = {}
+    fields = {'Milestone', 'Outcome', 'Retired', 'Source status', 'Source specification',
+              'Evidence', 'Worktree', 'Review', 'Review iterations', 'Review limit',
+              'Review limit approval', 'Verification', 'Consolidated into'}
+    schemas = {
+        'expand-evidence-commit': {'recorded', 'resolved'},
+        'resolve-evidence-set': {'commits', 'evidence'},
+        'identify-specification': {'heading', 'evidence'},
+        'historical-successor': {'item', 'successor', 'evidence'},
+        'recover-document': {'document', 'content', 'sha256', 'source'},
+        'supply-metadata': {'field', 'value', 'evidence'},
+        'blocker': {'message', 'evidence'},
+    }
+    for entry in value['records']:
+        if not isinstance(entry, dict) or set(entry) != {'milestone_id', 'record_path', 'record_sha256', 'corrections'}:
+            raise ValueError('invalid history correction entry fields')
+        path = entry['record_path']
+        if (not isinstance(path, str) or pathlib.PurePosixPath(path).parent != pathlib.PurePosixPath('tabilet/docs/history')
+                or not STATUS_NAME.fullmatch(pathlib.PurePosixPath(path).name)
+                or entry['milestone_id'] != status_identity(pathlib.PurePosixPath(path).name)
+                or not isinstance(entry['record_sha256'], str)
+                or not re.fullmatch(r'[a-f0-9]{64}', entry['record_sha256'])
+                or not isinstance(entry['corrections'], list) or not entry['corrections']):
+            raise ValueError('invalid history correction identity or hash')
+        if path in found:
+            raise ValueError('duplicate history correction record: ' + path)
+        seen = set()
+        for correction in entry['corrections']:
+            if not isinstance(correction, dict):
+                raise ValueError('invalid history correction operation')
+            kind = correction.get('kind')
+            if not isinstance(kind, str) or kind not in schemas or set(correction) != schemas[kind] | {'kind'}:
+                raise ValueError('unsupported history correction: ' + str(kind))
+            if kind == 'supply-metadata' and (not isinstance(correction['field'], str) or correction['field'] not in fields
+                    or not isinstance(correction['value'], str) or not correction['value'].strip()
+                    or '\n' in correction['value'] or '\r' in correction['value']):
+                raise ValueError('unsupported metadata correction')
+            if any(field in correction and not isinstance(correction[field], str) for field in ('field', 'document', 'item')):
+                raise ValueError('invalid correction discriminator')
+            key = (kind, correction.get('field', correction.get('document', correction.get('item', ''))))
+            if key in seen:
+                raise ValueError('duplicate or conflicting history correction')
+            seen.add(key)
+            if kind == 'expand-evidence-commit':
+                if (not isinstance(correction['recorded'], str) or not re.fullmatch(r'[a-f0-9]{7,39}', correction['recorded'])
+                        or not isinstance(correction['resolved'], str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', correction['resolved'])
+                        or not correction['resolved'].startswith(correction['recorded'])):
+                    raise ValueError('invalid expanded evidence commit')
+            elif kind == 'resolve-evidence-set':
+                commits = correction['commits']
+                if (not isinstance(commits, list) or not commits
+                        or any(not isinstance(c, str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', c) for c in commits)
+                        or len(commits) != len(set(commits))):
+                    raise ValueError('invalid evidence commit set')
+            elif kind == 'recover-document':
+                source = correction['source']
+                if (correction['document'] not in {'specification', 'status'} or not isinstance(correction['content'], str)
+                        or not isinstance(source, dict) or set(source) != {'commit', 'path', 'start_line', 'end_line', 'source_sha256'}
+                        or not isinstance(source['commit'], str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', source['commit'])
+                        or not isinstance(source['path'], str)
+                        or source['path'] not in {path, 'tabilet/memory-bank/milestone.md', 'tabilet/memory-bank/' + pathlib.PurePosixPath(path).name}
+                        or type(source['start_line']) is not int or type(source['end_line']) is not int
+                        or not 1 <= source['start_line'] <= source['end_line']
+                        or not isinstance(source['source_sha256'], str) or not re.fullmatch(r'[a-f0-9]{64}', source['source_sha256'])
+                        or correction['sha256'] != hashlib.sha256(correction['content'].encode('utf-8')).hexdigest()
+                        or len(correction['content'].splitlines()) != source['end_line'] - source['start_line'] + 1):
+                    raise ValueError('invalid recovered document or source hash')
+            elif kind in {'identify-specification', 'historical-successor', 'blocker'}:
+                if any(not isinstance(correction[field], str) or not correction[field].strip()
+                       for field in schemas[kind] - {'evidence'}):
+                    raise ValueError('invalid correction text')
+            if 'evidence' in correction:
+                evidence = correction['evidence']
+                if not isinstance(evidence, list) or not evidence:
+                    raise ValueError('missing correction evidence')
+                for citation in evidence:
+                    if (not isinstance(citation, dict) or set(citation) not in (
+                            {'start_line', 'end_line', 'quote'},
+                            {'start_line', 'end_line', 'quote', 'path', 'commit', 'content', 'sha256'})
+                            or type(citation['start_line']) is not int or type(citation['end_line']) is not int
+                            or not 1 <= citation['start_line'] <= citation['end_line']
+                            or not isinstance(citation['quote'], str) or not citation['quote'].strip()):
+                        raise ValueError('invalid correction evidence location')
+                    if 'content' in citation:
+                        if (not isinstance(citation['path'], str) or citation['path'] not in {'tabilet/docs/history/index.md', 'tabilet/memory-bank/milestone.md'}
+                                or not isinstance(citation['commit'], str) or not re.fullmatch(r'[a-f0-9]{40}|[a-f0-9]{64}', citation['commit'])
+                                or not isinstance(citation['content'], str)
+                                or citation['sha256'] != hashlib.sha256(citation['content'].encode('utf-8')).hexdigest()
+                                or len(citation['content'].splitlines()) != citation['end_line'] - citation['start_line'] + 1
+                                or citation['quote'] not in citation['content']):
+                            raise ValueError('invalid embedded correction evidence')
+        if sum(key in seen for key in [('expand-evidence-commit', ''), ('resolve-evidence-set', ''),
+                                      ('supply-metadata', 'Evidence')]) > 1:
+            raise ValueError('conflicting evidence corrections')
+        found[path] = entry
+    return found
+
+
+def read_history_corrections(repo: pathlib.Path) -> tuple[dict, str | None]:
+    path = repo / HISTORY_CORRECTIONS
+    if not path.exists() and not path.is_symlink():
+        return {}, None
+    # Opening the bounded regular file without following links also rejects FIFOs.
+    for parent in (path, *path.parents):
+        if parent == repo:
+            break
+        if parent.is_symlink():
+            raise ValueError('symlink history corrections rejected')
+    fd = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        os.close(fd)
+        raise ValueError('history corrections must be a regular file')
+    with os.fdopen(fd, 'rb') as stream:
+        raw = stream.read(HISTORY_INPUT_LIMIT + 1)
+    return history_corrections(raw.decode('utf-8')), hashlib.sha256(raw).hexdigest()
+
+
+# Historical prose that the review-ambiguity scan reads as restating a recorded
+# decision rather than qualifying it. Recognition is limited to these exact
+# forms (see docs/history-corrections.md); any other free-form reference to a
+# review result or approval stays ambiguous and blocks acceptance. They are
+# collected here so the shared validator carries no unnamed one-record
+# exceptions. `{id}`, `{iterations}` and `{limit}` are filled with
+# re.escape()d values.
+RECOGNIZED_PROSE = {
+    'continuation_clause': (
+        r'(?:,\s*retaining\s+the\s+existing\s+count\s+and\s+using\s+fresh\s+'
+        r'[A-Za-z0-9/ -]+\s+reviews\s+until\s+it\s+passes,\s*then\s+resuming\s+the\s+ordered\s+goal)?'),
+    'progress_row': (
+        r'\|\s*{id} review iteration limit\s*\|\s*`\[\+\]`\s*\|\s*'
+        r'Owner explicitly directed continued {id} review beyond ten, without resetting the counter, '
+        r'until a clean review\.\s*\|'),
+    'launch_refresh_note': r"The refreshed [A-Za-z0-9_-]+ launch reference after the owner's {id} review continuation",
+    'marker_correction': (
+        r'[0-9]{4}-[0-9]{2}-[0-9]{2}: the task rows were recorded `\[X\]` '
+        r'\(Cancelled\) by mistake; they were completed and now read `\[\+\]`\.'),
+    'reaffirmation': r'Whole-milestone review\s+{iterations}/{limit},\s*passed\.',
+    'task_review_fail': r'Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.',
+    'standalone_intake': 'This is standalone intake, not a continuation of a retired closing gate.',
+    'earlier_pending': (
+        r'Tasks complete; [A-Za-z0-9.,– -]+ verified, whole-milestone review pending\. '
+        r'Persisted review count 0/10(?: \(review intake does not start a gate\))?\.'),
+    'retired_without_commits': (
+        r'passed\s+\(no\s+P1/P2\);\s+retired\s+[0-9]{4}-[0-9]{2}-[0-9]{2}\.\s+'
+        r'Goal run:\s+COMMIT_POLICY\s+none\s+\(owner choice\s+'
+        r'[0-9]{4}-[0-9]{2}-[0-9]{2}\),\s+no commits\.'),
+}
+
+
+# Wording that reverses, withdraws or conditions a recorded review result.
+# Mentioning a result establishes nothing about it, so a clause is adverse only
+# when it names a review-result subject near a predicate that is not negated
+# in its own clause and is not attached to an earlier iteration or to a failed
+# test. Text that directly continues a recorded pass ("context") also takes a
+# leading pronoun as that pass ("It is conditional on ..."). This is a
+# vocabulary, not a parser, and only uncorrected records rely on it: a
+# correction that supplies acceptance keeps the conservative rule that any
+# unrecognized continuation blocks. See docs/history-corrections.md.
+_ADVERSE_PHRASE = re.compile(
+    r'\b(?:did\s+not\s+pass|not\s+(?:accepted|passed|valid|approved|complete\w*)|not\s+(?:the\s+)?review\s+pass(?:ed)?|'
+    r'no\s+longer|rolled\s+back)\b', re.I)
+_ADVERSE_STRONG = re.compile(
+    r'\b(?:invalidat\w*|revok\w*|withdr(?:aw\w*|ew)|rescind\w*|overturn\w*|retract\w*|reopen\w*|'
+    r'void(?:ed|s|ing)?|annul\w*|nullif\w*|set\s+aside)\b', re.I)
+_TABLE_DELIMITER_CELL = re.compile(r':?-{2,}:?')
+# A reversal word that blocks anywhere in an unrecognized clause about the
+# review, however far it is from the subject.
+_REVERSAL_ANYWHERE = re.compile(
+    r'\b(?:invalidat\w*|revok\w*|withdr(?:aw\w*|ew)|rescind\w*|overturn\w*|retract\w*|reopen\w*|'
+    r'void\w*|annul\w*|nullif\w*|set\s+aside|disregard\w*|discard\w*|struck|strike\w*)\b', re.I)
+_ADVERSE_WEAK = re.compile(
+    r'\b(?:fail(?:ed|s|ure|ures)?|revers\w*|reject\w*|supersed\w*|cancel\w*|contingent|conditional\w*|'
+    r'provisional\w*|pending|subject\s+to|unresolved|disput\w*|incomplete|blocked|'
+    r'provided(?:\s+that)?|unless|only\s+if|on\s+condition|depending\s+on|assuming|as\s+long\s+as)\b', re.I)
+_ADVERSE_REVISED = re.compile(r'\b(?:changed|amended|revisit\w*)\b', re.I)
+# The complete adverse vocabulary: reversals, adverse phrases and conditions.
+_ANY_ADVERSE = re.compile('(?:' + '|'.join(p.pattern for p in (_REVERSAL_ANYWHERE, _ADVERSE_PHRASE, _ADVERSE_WEAK))
+                          + ')', re.I)
+# Words that take any complement: "Subject to further checks.", "Conditional on ...".
+_COMPLEMENT_TAKING = re.compile(
+    r'(?:subject\s+to|conditional\w*|contingent|provided(?:\s+that)?|unless|only\s+if|on\s+condition|'
+    r'depending\s+on|assuming|as\s+long\s+as)$', re.I)
+_RESULT_SUBJECT = re.compile(
+    r'\b(?:review\w*|result\w*|verdict|outcome|decision|pass(?:ed)?|acceptance|approval|sign-?off)\b', re.I)
+_REFERENCE_SUBJECT = re.compile(
+    r'\b(?:it|this|that|these|those|they)\s+(?:(?:since|now|later|then|also|already|subsequently|'
+    r'eventually|finally)\s+)?(?:has|have|had|was|were|is|are|been|got|became|'
+    r'will|would|must|should|may|might|can|could)\b|'
+    r'\b(?:this|that|these|those|its)\s+(?:review\s+)?(?:results?|verdicts?|outcomes?|decisions?|pass)\b|'
+    r'\b(?:above|earlier|previous|prior|preceding)\b', re.I)
+# A milestone-level review subject, after task-level reviews are set aside.
+_MILESTONE_REVIEW_SUBJECT = re.compile(
+    r'\breviews?\b|\b(?:the|this|that|its)\s+(?:review\s+)?(?:results?|verdicts?|outcomes?|decisions?|pass)\b', re.I)
+_TASK_REVIEW = re.compile(
+    r'\b(?:[A-Z][0-9]{2,}(?:\.[0-9]+)+\s+(?:task[- ]?)?|task[- ]?)reviews?\b(?:\s+[0-9]+)?', re.I)
+# A clause with no subject of its own: "Voided.", "Subsequently annulled.",
+# "Annulled by the owner." The reversal is the whole predicate, not an
+# adjective ("Revoked credentials are rejected.").
+_BARE_VERDICT = re.compile(
+    r'\W*(?:(?:later|subsequently|then|afterwards?|eventually|finally|since|now)\W+)*'
+    r'(?:(?:was|were|is|are|(?:has|had)\s+been|been)\s+)?(?=\w)', re.I)
+_NOUN_SUBJECT = re.compile(r'\b(?:results?|verdict|outcome|decision|acceptance|approval|sign-?off)\b', re.I)
+_NEGATION = re.compile(r'\b(?:no|not(?!\s+(?:only|just|merely|simply|solely)\b)|never|without|zero|0|none|'
+                       r'neither|nor)\s+(?:\w+\s+){0,3}$', re.I)
+_CLAUSE_BREAK = re.compile(r'\b(?:and|but|however|yet|although|though|instead|rather)\b|[,:]', re.I)
+_EARLIER_FAILURE = re.compile(
+    r'\b(?:(?:review|iteration)\s+(?:iteration\s+)?([1-9][0-9]*)(?:\s*/\s*[1-9][0-9]*)?\s*(?:[:,—–-]\s*|(?:was|is)\s+)?'
+    r'fail(?:ed|ure)?|fail(?:ed|ure)?\s+(?:in|at|on)\s+(?:review\s+)?iteration\s+([1-9][0-9]*))\b', re.I)
+_BENIGN_FAILURE = re.compile(
+    r'\b(?:(?:failed|failing|failure)\s+(?:\w+\s+)?(?:tests?|builds?|commands?|assertions?|fixtures?|jobs?)|'
+    r'(?:tests?|builds?|commands?|assertions?|fixtures?|jobs?)\s+(?:\w+\s+)?(?:failed|fails|failure|failing))\b', re.I)
+
+# Directly after a recorded pass, a sentence about the review must be one of
+# these restatements, references or findings summaries; anything else about it
+# blocks, because a vocabulary of adverse words cannot list every reversal.
+# Counters in them are checked separately against the record.
+_REVIEW = r'(?:the\s+)?(?:ordinary\s+)?(?:whole(?:[- ]milestone)?\s+|closing\s+|final\s+|deep\s+)?review'
+_COUNT = r'(?:\s+(?:iteration\s+)?[1-9][0-9]*(?:\s*/\s*[1-9][0-9]*)?)'
+_NO_FINDINGS_BODY = (r'no\s+(?:open\s+)?(?:P1/P2(?:/P3)?|blocking)'
+                     r'(?:\s+(?:or\s+higher(?:-severity)?\s+)?(?:findings?|issues?))?')
+_NO_FINDINGS = r'(?:\s+with\s+' + _NO_FINDINGS_BODY + r'|\s*\(\s*' + _NO_FINDINGS_BODY + r'\s*\))?'
+# Complete clauses about the review that restate, locate or summarize a pass.
+# Each is matched against a whole clause: there are no free-text tails, so a
+# qualification such as "but was annulled" can never ride inside one. Counters
+# are checked separately against the record.
+RECOGNIZED_REVIEW_SENTENCES = (
+    _REVIEW + _COUNT + r'?\s+(?:passed|PASS(?:ED)?)(?:\s+(?:(?:in|at)\s+)?iteration\s*[1-9][0-9]*)?'
+    + _COUNT + r'?' + _NO_FINDINGS,
+    _REVIEW + r'\s+passed\s+(?:all\s+)?[0-9]+(?:\s*/\s*[0-9]+)?\s+(?:checks?|tests?|cases?|assertions?)',
+    r'no\s+(?:further\s+)?(?:code\s+)?changes?\s+(?:was|were)\s+(?:required|needed|made)\s+after\s+'
+    + _REVIEW + _COUNT + r'?\s+passed',
+    r'no\s+(?:retired|earlier|prior|completed)\s+reviews?\s+(?:is|was|were|are)\s+reopened',
+    r'accepted\s+after\s+' + _REVIEW + _COUNT + r'?(?:\s+passed)?(?:\s+on\s+[0-9]{4}-[0-9]{2}-[0-9]{2})?',
+    _REVIEW + _COUNT,
+    r'(?:the\s+)?(?:review\s+)?(?:results?|verdicts?|outcomes?|decisions?|logs?|findings?|notes?|records?)'
+    r'\s+(?:is|are)\s+recorded\s+(?:below|above|here)',
+    r'see\s+(?:the\s+)?(?:review\s+(?:log|notes|record)|' + _REVIEW[len(r'(?:the\s+)?'):] + _COUNT + r')\s+for\s+details',
+    _REVIEW + r'\s+(?:found|reported)\s+no\s+(?:open\s+)?(?:P1/P2(?:/P3)?|P1|P2|blocking|defects?|issues?|findings?)'
+    r'(?:\s+(?:or\s+higher(?:-severity)?\s+)?(?:findings?|issues?|defects?))?(?:\s+remaining)?',
+    r'(?:review\s+)?findings?\s*:\s*none',
+    r'no\s+(?:further\s+|extra\s+|additional\s+)?(?:code|asset|code/asset|source|documentation|docs|test)?'
+    r'(?:\s+(?:or|and)\s+[a-z/]+)*\s*changes?(?:\s+or\s+expensive\s+runs?)?\s+followed\s+(?:the\s+)?review',
+)
+_OWN_REFERENCE = r'\b(?:our|ours|this|own|we|here|it|its)\b'
+_REVIEW_MENTION = re.compile(
+    r'\b(?:reviews?|results?|verdicts?|outcomes?|decisions?|acceptance|approval|sign-?off)\b|\bthe\s+pass\b', re.I)
+
+
+# A pronoun subject (followed by a verb, or set off by punctuation), or a
+# generic phrase. A conjunction ("tests verify that the grant was revoked") is
+# not a subject.
+_GENERIC_SUBJECT = re.compile(
+    r'\b(?:it|this|that|these|those|they)\b(?=\s*[,(\u2014\u2013-]|\s+(?:(?:since|now|later|then|also|already|'
+    r'subsequently|eventually|finally)\s+)?(?:has|have|had|was|were|is|are|been|got|became|will|would|must|'
+    r'should|may|might|can|could)\b)|\b(?:same|whole\s+thing|everything|all\s+of\s+(?:it|this|that))\b', re.I)
+
+
+def _without_format_characters(text: str) -> str:
+    """Drop invisible format characters (soft hyphen, zero-width space) before reading words."""
+    return ''.join(ch for ch in text if unicodedata.category(ch) != 'Cf')
+
+
+def _adverse_predicate(text: str, vocabulary: re.Pattern = _REVERSAL_ANYWHERE) -> str | None:
+    """'object' for "annulled this", 'subject' for "was annulled" or a clause-final verdict, else None."""
+    kind = None
+    for found in vocabulary.finditer(text):
+        if _negated(text[:found.start()]):
+            continue
+        if re.match(r'\s+(?:it|this|that|them|these|those)\b', text[found.end():], re.I):
+            return 'object'
+        if (re.search(r'\b(?:was|were|is|are|been|being|be|got|gets?)\s+(?:\w+\s+){0,2}$', text[:found.start()], re.I)
+                or re.fullmatch(r'\W*(?:(?:later|subsequently|again)|(?:by|on|after|at|in|following|per)\b.*)?\W*',
+                                text[found.end():], re.I)):
+            kind = 'subject'
+    return kind
+
+
+# A pronoun or result noun that is the subject of an adverse predicate: "it
+# was pending", "the review is conditional on ...", "this has since been
+# rejected". Weak words ("fails", "cancellation") elsewhere in technical prose
+# are not verdicts.
+_GOVERNED_ADVERSE = re.compile(
+    r'\b(?:it|this|that|these|those|they|reviews?|results?|verdicts?|outcomes?|decisions?|pass|acceptance|approval)'
+    r'(?:\s*,[^,;]{1,80},)?\s+(?:(?:since|now|still|later|then|also|already|subsequently|eventually|finally)\s+)?'
+    r'(?:is|was|were|are|remains?|remained|became|becomes|(?:has|had|have)\s+(?:since\s+)?been)(?:\s*,[^,;]{1,80},)?\s+'
+    r'(?:(?:now|still|later|then|also|already|subsequently|eventually|finally|deemed|considered|marked|found)\s+)?'
+    r'(?:' + _ANY_ADVERSE.pattern + r')', re.I)
+
+
+# Short claim values that state a positive result.
+_POSITIVE_CLAIM = (r'(?:(?:all\s+)?(?:tests?|checks?|gates?)\s+)?(?:passed|pass|PASS|complete[d]?|accepted|approved|clean|done|'
+                   r'ok|green|succeeded|verified|retired|closed|merged|completed\s+and\s+retired)')
+# A clause that opens with a noun phrase names its own subject.
+_NOUN_PHRASE_LEAD = re.compile(r'\W*(?:(?:the|a|an|all|every|each|no(?!\s+longer\b)|[A-Z][0-9]{2,})\b|`)', re.I)
+
+
+def _bare_verdict(clause: str) -> bool:
+    """A clause with no subject of its own, such as "Voided." or "Conditional on further checks."."""
+    found = re.match(_BARE_VERDICT.pattern + r'(' + _ANY_ADVERSE.pattern + r')', clause, re.I)
+    if not found:
+        return False
+    rest = clause[found.end():]
+    if re.fullmatch(r'\W*|\s+\w+\W*|\s+(?:later|subsequently|again)\W*', rest, re.I) or _COMPLEMENT_TAKING.search(found[1]):
+        return True
+    # Only a reversal takes a free prepositional tail ("Annulled by the owner on
+    # 2026-10-01."); "Cancellation at Git staging ..." is not a verdict.
+    return bool(_REVERSAL_ANYWHERE.fullmatch(found[1])
+                and re.match(r'\s+(?:by|on|upon|after|at|in|following|per|for|because|due)\b', rest, re.I))
+
+
+def _affirmed_reversal(text: str) -> bool:
+    """True when any reversal word in `text` is outside its own negation scope."""
+    return any(not _negated(text[:found.start()]) for found in _REVERSAL_ANYWHERE.finditer(text))
+
+
+def _printable_excerpt(text: str, limit: int = 160) -> str:
+    """Escape control and format characters from a record, then cap the length."""
+    escaped = ''.join(ch if ch.isprintable() else ascii(ch)[1:-1] for ch in text)
+    return escaped if len(escaped) <= limit else escaped[:limit - 3] + '...'
+
+
+def _negated(before: str) -> bool:
+    """A negation counts only inside the clause that holds the predicate."""
+    return bool(_NEGATION.search(_CLAUSE_BREAK.split(before)[-1]))
+
+
+def adverse_review_wording(text: str, final: int | None = None, context: bool = False,
+                           pronouns_near: bool = False) -> bool:
+    """True when `text` reverses, withdraws or conditions a recorded review result.
+
+    `context` marks text that follows a recorded pass, so a leading pronoun is
+    that pass. `pronouns_near` marks text in the pass's own continuation, where a
+    pronoun next to the predicate is the pass too. Wrapped lines are joined
+    first, so a sentence split by a line break keeps its subject.
+    """
+    inherited = 'strong' if context else None
+    text = _without_format_characters(text)
+    for sentence in re.split(r'(?<=[.!?])\s+', ' '.join(text.split())):
+        if final is not None:
+            # "Review 1/10 FAIL" is history; a failure at the final or a later
+            # iteration is a verdict on its own terms, whatever else is said.
+            if any(not _negated(sentence[:m.start()]) and int(m[1] or m[2]) >= final
+                   for m in _EARLIER_FAILURE.finditer(sentence)):
+                return True
+            sentence = _EARLIER_FAILURE.sub('', sentence)
+        sentence = _BENIGN_FAILURE.sub('', sentence)
+        for clause in sentence.split(';'):
+            words = clause.split()
+            if not words:
+                continue
+            lead = ' '.join(words[:5])
+            for pattern, subjects in ((_ADVERSE_PHRASE, (_RESULT_SUBJECT,)),
+                                      (_ADVERSE_STRONG, (_RESULT_SUBJECT, _REFERENCE_SUBJECT)),
+                                      (_ADVERSE_WEAK, (_RESULT_SUBJECT,)),
+                                      (_ADVERSE_REVISED, (_NOUN_SUBJECT,))):
+                for found in pattern.finditer(clause):
+                    before = clause[:found.start()]
+                    if pattern is not _ADVERSE_PHRASE and _negated(before):
+                        continue
+                    nearby = ' '.join(before.split()[-6:] + clause[found.start():found.end()].split()
+                                      + clause[found.end():].split()[:4])
+                    if (any(subject.search(nearby) or subject.search(lead) for subject in subjects)
+                            or (context and pattern is not _ADVERSE_REVISED
+                                and (_REFERENCE_SUBJECT.search(' '.join(words[:3]))
+                                     or (pronouns_near and _REFERENCE_SUBJECT.search(nearby))))
+                            or (inherited and len(words) <= 4
+                                and (inherited == 'any' or pattern is _ADVERSE_STRONG))):
+                        return True
+            # Only a bare subject phrase hands its subject to the next clause:
+            # "The review result; withdrawn.", not "review 2/10 passed; retirement pending."
+            inherited = ('any' if _RESULT_SUBJECT.search(lead) and len(words) <= 5 and not re.search(
+                r'\b(?:was|is|are|were|has|have|had|pass(?:ed)?|fail(?:ed)?|completed|accepted)\b', clause, re.I)
+                else None)
+    return False
+
+
+def historical_record(text: str, name: str, correction: dict | None = None) -> dict:
+    """Read frozen evidence; literal documents and interpreted task cells stay separate."""
+    if not STATUS_NAME.fullmatch(name):
+        raise ValueError('invalid retired status ID')
+    identity = status_identity(name)
+    lines = text.splitlines(keepends=True)
+    operations = correction['corrections'] if correction else []
+    if correction:
+        history_corrections(json.dumps({'schema': HISTORY_CORRECTIONS_SCHEMA, 'records': [correction]}))
+        if (correction['record_path'] != 'tabilet/docs/history/' + name
+                or correction['milestone_id'] != identity
+                or correction['record_sha256'] != hashlib.sha256(text.encode('utf-8')).hexdigest()):
+            raise ValueError('stale history correction hash or mismatched ID')
+        for operation in operations:
+            for citation in operation.get('evidence', []):
+                if 'content' in citation:
+                    continue
+                if (citation['end_line'] > len(lines) or citation['quote'] not in
+                        ''.join(lines[citation['start_line'] - 1:citation['end_line']])):
+                    raise ValueError('correction evidence does not match frozen source')
+    headings = [(n, line[3:]) for n, line in unfenced_lines(text) if line.startswith('## ')]
+    metadata_end = headings[0][0] - 1 if headings else len(lines)
+    envelope_unfenced = list(unfenced_lines(''.join(lines[:metadata_end])))
+    metadata = {}
+    for _, line in envelope_unfenced:
+        match = re.fullmatch(r'\*\*([\w ]+)\.\*\* (.+)', line)
+        if match:
+            if match[1] in metadata:
+                raise ValueError('duplicate retirement field: ' + match[1])
+            metadata[match[1]] = match[2]
+    literal_metadata = dict(metadata)
+    documents, offsets, sources = {}, {}, {}
+    aliases = {'Milestone specification': 'specification', 'Status record': 'status', 'Status': 'status',
+               'Status document': 'status', 'Full status document': 'status', 'Final status': 'status',
+               'Source status ledger': 'status'}
+    recovery = {op['document']: op for op in operations if op['kind'] == 'recover-document'}
+    for index, (number, title) in enumerate(headings):
+        key = aliases.get(title)
+        if key is None:
+            if title == 'Related approved correction context':
+                continue
+            if set(recovery) == {'specification', 'status'}:
+                continue
+            raise ValueError('unsupported historical section: ' + title)
+        if key in recovery:
+            continue
+        if key in documents:
+            raise ValueError('ambiguous historical document: ' + key)
+        end = headings[index + 1][0] - 1 if index + 1 < len(headings) else len(lines)
+        section_lines = lines[number:end]
+        opening = next((i for i, line in enumerate(section_lines) if line.strip()), None)
+        if opening is None:
+            raise ValueError('missing literal historical document')
+        adapted = list(section_lines)
+        if re.fullmatch(r'`{3,}|~{3,}', adapted[opening].strip()):
+            adapted[opening] = adapted[opening].rstrip('\r\n') + 'markdown\n'
+        documents[key] = fenced_document(''.join(adapted))
+        offsets[key] = number + opening + 1
+    for key, operation in recovery.items():
+        documents[key] = operation['content']
+        source = operation['source']
+        sources[key] = source
+        offsets[key] = source['start_line'] - 1
+        if source['path'] == 'tabilet/docs/history/' + name:
+            if (source['source_sha256'] != hashlib.sha256(text.encode('utf-8')).hexdigest()
+                    or operation['content'] != ''.join(lines[source['start_line'] - 1:source['end_line']])):
+                raise ValueError('recovered record excerpt differs from literal source')
+    if 'status' in recovery:
+        original_status = None
+        for index, (number, title) in enumerate(headings):
+            if aliases.get(title) != 'status':
+                continue
+            end = headings[index + 1][0] - 1 if index + 1 < len(headings) else len(lines)
+            section = ''.join(lines[number:end]).strip()
+            section = re.sub(r'\A(`{3,}|~{3,})\r?\n', r'\1markdown\n', section)
+            try:
+                original_status = fenced_document(section)
+            except ValueError:
+                continue
+        if original_status is not None:
+            if documents['status'] != original_status:
+                raise ValueError('status recovery cannot change or discard the retained task document')
+        else:
+            source = recovery['status']['source']
+            status_starts = [n for n, line in enumerate(lines, 1)
+                             if re.match(r'^# (?:Status )?' + re.escape(identity) + r'(?:\s|$)', line)]
+            start = status_starts[0] if len(status_starts) == 1 else 1
+            end = len(lines) - 1 if lines and re.fullmatch(r'`{3,}|~{3,}', lines[-1].strip()) else len(lines)
+            if (source['path'] != 'tabilet/docs/history/' + name or source['start_line'] != start
+                    or source['end_line'] not in {end, len(lines)}):
+                raise ValueError('status recovery must retain the complete frozen status evidence')
+    if set(documents) != {'specification', 'status'}:
+        raise ValueError('missing historical specification or status document')
+
+    # When a retained status explicitly names its milestone or task IDs, they
+    # must agree with the record identity. A hash binds bytes, not their owner.
+    # Only well-formed milestone IDs count: "# Q4 results" or a legacy "M1.1"
+    # row is not a claim about which milestone this record belongs to.
+    status_unfenced = list(unfenced_lines(documents['status']))
+    status_task_rows = status_rows(documents['status'])
+    declaration = re.compile(r'^(?:\*\*(?:Milestone|Status ID)\.\*\*|'
+                             r'\*\*(?:Milestone|Status ID):\*\*|(?:Milestone|Status ID):)\s*'
+                             r'`?([A-Z][0-9]+(?:-[0-9]+)?)`?(?=\s|$|[.,;—:–-])', re.I)
+
+    def other_identity(found):
+        return found.upper() != identity and bool(re.fullmatch(MILESTONE_ID, found.upper()))
+
+    for _, line in status_unfenced:
+        heading = (re.match(r'^#\s+Status\s+([A-Z][0-9]+(?:-[0-9]+)?)(?=\s|$|[—:–-])', line, re.I)
+                   or re.match(r'^#\s+([A-Z][0-9]+(?:-[0-9]+)?)(?=\s*$|\s*[—:–-])', line, re.I))
+        if heading and other_identity(heading[1]):
+            raise ValueError('historical status identity does not match the record')
+        declared = declaration.match(line)
+        if declared and declared[1].upper() != identity:
+            raise ValueError('historical status identity does not match the record')
+    for row in status_task_rows:
+        item = row['item'].lstrip('`*_ ')
+        task = re.match(r'^([A-Z][0-9]+(?:-[0-9]+)?)\.[0-9]+(?=\b|\s|[:—–-])', item, re.I)
+        if task and other_identity(task[1]):
+            raise ValueError('historical status task identity does not match the record')
+
+    # Track heading context in the literal retained status. Examples, templates
+    # and prospective instructions cannot become review evidence, even when
+    # they happen to contain a correctly spelled standalone result.
+    status_lines = {}
+    task_section_lines = set()
+    status_context = []
+    for number, line in status_unfenced:
+        heading = re.fullmatch(r'(#{1,6})\s+(.+?)(?:\s+#+)?\s*', line)
+        if heading:
+            level, title = len(heading[1]), heading[2].strip()
+            while status_context and status_context[-1][0] >= level:
+                status_context.pop()
+            status_context.append((level, title))
+            continue
+        sections = [title for level, title in status_context if level >= 2]
+        example = any(re.search(r'\b(?:examples?|samples?|templates?|propos(?:ed|al)|'
+                                r'plan(?:ned)?|instructions?|guidance|draft|simulation|'
+                                r'hypothetical|illustration|fictional|unverified|pending)\b', title, re.I)
+                      for title in sections)
+        reviews = [i for i, title in enumerate(sections) if re.fullmatch(
+            r'(?:(?:whole[- ]milestone|whole|milestone)\s+)?'
+            r'review(?:\s+(?:notes|and\s+(?:closure|retirement)))?', title, re.I)]
+        in_review = (len(reviews) == 1 and all(re.fullmatch(
+            r'(?:milestone|closure|milestone closure|milestone status)', title, re.I)
+            for title in sections[:reviews[0]]) and all(re.fullmatch(
+            r'(?:(?:review\s+)?iteration\s+[1-9][0-9]*(?:\s*\([^)]*\))?|'
+            r'(?:review\s+)?(?:results?|outcome|conclusion))', title, re.I)
+            for title in sections[reviews[0] + 1:]))
+        status_lines[number] = (line, not example, in_review, not sections)
+        if not example and len(sections) == 1 and sections[0].lower() == 'tasks':
+            task_section_lines.add(number)
+
+    def recorded_zero_defect_retirement_task(citation):
+        # Recognize only a complete, unqualified historical retirement row.
+        # Neither a completed task marker nor a generic review description is
+        # sufficient: the literal row must explicitly record zero defects.
+        if 'content' in citation or citation['start_line'] != citation['end_line']:
+            return False
+        source = sources.get('status')
+        if source and source['path'] != 'tabilet/docs/history/' + name:
+            return False
+        number = citation['start_line'] - offsets['status']
+        item = status_lines.get(number)
+        if (number not in task_section_lines or not item or not item[1]
+                or citation['quote'].strip() != item[0].strip()
+                or citation['quote'].strip() != lines[citation['start_line'] - 1].strip()):
+            return False
+        tasks = status_rows(documents['status'])
+        rows = [row for row in tasks if row['line'] == number]
+        if len(rows) != 1 or rows[0]['state'] != 'completed' or len(rows[0]['cells']) != 3:
+            return False
+        # This legacy form has no separate review narrative: the whole-review
+        # retirement row is the last substantive retained status evidence.
+        # Unknown later prose or another review section stays ambiguous.
+        if (not tasks or tasks[-1]['line'] != number
+                or any(n > number and line.strip() for n, (line, trusted, _, _) in status_lines.items() if trusted)
+                or any(in_review and trusted and line.strip()
+                       for line, trusted, in_review, _ in status_lines.values())):
+            return False
+        row = rows[0]
+        label = (re.escape(identity) + r'\.[1-9][0-9]*:\s*'
+                 r'Deep code review\s*&\s*milestone retirement')
+        gates = [task for task in tasks if task['line'] in task_section_lines
+                 and re.fullmatch(label, task['item'], re.I)]
+        if len(gates) != 1 or gates[0]['line'] != number:
+            return False
+        notes = row['cells'][2]
+        match = re.fullmatch(
+            r'Ran full verification suite \(([^\n()]+)\); deep code review performed with '
+            r'0 defects remaining; retired ' + re.escape(identity) +
+            r' to `tabilet/docs/history/' + re.escape(name) + r'`\.', notes, re.I)
+        if not match or re.search(r'\b(?:fail(?:ed|ure)?|pending|not|unverified|unknown|'
+                                  r'skipped|cancelled|incomplete)\b', match[1], re.I):
+            return False
+        return True
+
+    def recorded_review_citation(citation):
+        # Bind the literal quote to the record's own unfenced metadata or
+        # retained status, never to a specification or an external excerpt.
+        if 'content' in citation or citation['start_line'] != citation['end_line']:
+            return None
+        number = citation['start_line']
+        quote = citation['quote'].strip()
+        if number <= metadata_end:
+            envelope = envelope_unfenced
+            if any(n < number and re.match(r'^#{2,6}\s', line) for n, line in envelope):
+                return None
+            return 'envelope' if any(n == number and line.strip() == quote
+                                     for n, line in envelope) else None
+        source = sources.get('status')
+        if source and source['path'] != 'tabilet/docs/history/' + name:
+            return None
+        item = status_lines.get(number - offsets['status'])
+        if not item or item[0].strip() != quote or not item[1]:
+            return None
+        if item[2]:
+            return 'review'
+        return 'preamble' if item[3] else None
+
+    def literal_record_citation(citation):
+        # Unlike a one-line review result, some provenance evidence is a
+        # multi-line quotation. Every cited line must be outside an inner fence
+        # and in this record's metadata or complete retained status.
+        if 'content' in citation:
+            return False
+        start, end = citation['start_line'], citation['end_line']
+        if end <= metadata_end:
+            envelope = envelope_unfenced
+            if any(n < start and re.match(r'^#{2,6}\s', line) for n, line in envelope):
+                return False
+            allowed = {n for n, _ in envelope}
+            return all(n in allowed for n in range(start, end + 1))
+        source = sources.get('status')
+        if start <= metadata_end or (source and source['path'] != 'tabilet/docs/history/' + name):
+            return False
+        return all((item := status_lines.get(n - offsets['status'])) and item[1]
+                   for n in range(start, end + 1))
+
+    def provenance_citation(citation):
+        if not literal_record_citation(citation):
+            return False
+        if citation['end_line'] <= metadata_end:
+            return True
+        return all((item := status_lines.get(n - offsets['status'])) and (item[2] or item[3])
+                   and not item[0].lstrip().startswith('|')
+                   for n in range(citation['start_line'], citation['end_line'] + 1))
+
+    def cited_index_row(citation):
+        # The embedded historical index is an interpretation source, never
+        # authority; bind its identity, outcome, date and link together.
+        if (citation.get('path') != 'tabilet/docs/history/index.md'
+                or citation['start_line'] != citation['end_line']
+                or citation['quote'].strip() != citation['content'].strip()):
+            return None
+        rows = table_rows(citation['content'])
+        if len(rows) != 1:
+            return None
+        cells = historical_index_cells(rows[0]['cells'])
+        if len(cells) < 5 or cells[0] != identity or cells[3] != f'[{identity}]({name})':
+            return None
+        return cells
+
+    def status_identifies_record():
+        for _, line in status_unfenced:
+            if re.match(r'^#\s+(?:Status\s+)?' + re.escape(identity) + r'(?=\s|$|[—:–-])', line):
+                return True
+            found = declaration.match(line)
+            if found and found[1].upper() == identity:
+                return True
+        return any(re.match(r'^(?:[`*_ ]*)' + re.escape(identity) + r'\.[0-9]+\b', row['item'])
+                   for row in status_task_rows)
+
+    def specification_anchor_recorded(value):
+        anchor = re.fullmatch(r'(?:tabilet/)?memory-bank/milestone\.md#([^\s]+)', value)
+        if not anchor:
+            return False
+        fragment = anchor[1]
+        for line, trusted, _, preamble in status_lines.values():
+            if trusted and preamble and re.match(r'^(?:\*\*Specification[.:]\*\*|Specification\s*:)', line, re.I):
+                if 'milestone.md#' + fragment in line:
+                    return True
+        for _, line in unfenced_lines(documents['specification']):
+            if re.search(r'<a\s+id=["\']' + re.escape(fragment) + r'["\']\s*>', line, re.I):
+                return True
+            heading = re.fullmatch(r'#{2,3}\s+(.+?)\s*', line)
+            if heading:
+                slug = re.sub(r'[^\w\s-]', '', heading[1].lower())
+                if re.sub(r'\s+', '-', slug.strip()) == fragment.lower():
+                    return True
+        return False
+
+    def approval_is_negated(text, *, source=False):
+        # "No P1/P2" describes review findings, not a denial of authority.
+        text = re.sub(r'\bno\s+P[0-9]+(?:\s*/\s*P[0-9]+)*\b', '', text, flags=re.I)
+        denied = (r'\b(?:no|none|not|never|declined|denied|refused|unapproved|'
+                  r'unauthorized|unauthorised|revoked|rescinded|withdrawn|reversed|'
+                  r'retracted|overturned|without|unless|zero)\b')
+        prospective = r'\b(?:pending|proposed|conditional|if|but)\b'
+        return bool(re.search(denied, text, re.I) or (source and re.search(prospective, text, re.I)))
+
+    def approval_statement(text, *, literal=False):
+        if approval_is_negated(text, source=True):
+            return False
+        quote = ' '.join(text.split())
+        actor = r'(?:the\s+)?(?:owner|user|operator|human)\s+(?:(?:subsequently|explicitly)\s+)*(?:(?:has|had)\s+)?'
+        verb = r'(?:approved|authorized|authorised)\s+(?:(?:the|an)\s+)?'
+        review = r'(?:whole(?:[- ]milestone)?\s+)?review(?:\s+limit)?'
+        action = (r'(?:' + review + r'\s+(?:extension|increase|continuation)|'
+                  r'(?:extension|increase|continuation)\s+of\s+(?:(?:the|an)\s+)?' + review + r')')
+        # Recognize complete affirmative statements, not an affirmative
+        # substring that later prose can qualify or reverse.
+        direct = actor + verb + action + r'(?:\s+to\s+(?P<approved_limit>[1-9][0-9]*))?\.?'
+        interactive = actor + verb + r'interactive\s+launch\s+ceiling\s+(?P<launch_limit>[1-9][0-9]*)\.?'
+        answer = (actor + r'(?:answered|said|replied)\s+(?P<yes_quote>["\'])yes(?P=yes_quote)\s+to\s+'
+                  r'continu(?:e|ing)\s+' + re.escape(identity) + r'\s+beyond\s+(?:ten|10)\s+'
+                  r'(?:whole(?:[- ]milestone)?\s+)?reviews?' + RECOGNIZED_PROSE['continuation_clause'] + r'\.?')
+        prefix = r'(?:whole[- ]milestone\s+review\s+[0-9]+/[0-9]+\s+FAIL\.\s+)?'
+        suffix = (r'(?:\s+No\s+P[0-9]+(?:\s*/\s*P[0-9]+)*\.?)?'
+                  r'(?:\s+This\s+explicit\s+continuation\s+applies\s+to\s+'
+                  + re.escape(identity) + r"'s\s+whole-review\s+limit;\s+other\s+scope,\s+"
+                  r'verification\s+boundaries\s+and\s+action\s+grants\s+remain\s+unchanged\.)?')
+        match = re.fullmatch(prefix + '(?:' + direct + '|' + interactive + '|' + answer + ')' + suffix, quote, re.I)
+        if not match:
+            return False
+        if match['launch_limit'] and not literal:
+            return False
+        limit = next((op['value'] for op in operations if op['kind'] == 'supply-metadata'
+                      and op['field'] == 'Review limit'), metadata.get('Review limit', '10'))
+        stated_limit = match['approved_limit'] or match['launch_limit']
+        return not stated_limit or stated_limit == limit
+
+    def later_approval_reference(after):
+        # `after` is a line of this record. Status lines are keyed by their own
+        # document; an excerpt recovered from another document has no line
+        # correspondence with this record, so all of it counts as later than
+        # the envelope instead of being matched against this record's numbers.
+        status_source = sources.get('status')
+        foreign = bool(status_source and status_source['path'] != 'tabilet/docs/history/' + name)
+        for number, item in status_lines.items():
+            position = metadata_end + number if foreign else number + offsets['status']
+            if position <= after or not item[1] or not (item[2] or item[3]):
+                continue
+            later = item[0].strip()
+            # A retained progress row and a later launch-reference note
+            # explicitly restate, rather than qualify, the continuation.
+            restatement = (re.fullmatch(RECOGNIZED_PROSE['progress_row'].format(id=re.escape(identity)), later, re.I)
+                           or re.fullmatch(RECOGNIZED_PROSE['launch_refresh_note'].format(id=re.escape(identity)),
+                                           later, re.I))
+            reference = re.search(r'\b(?:approval|decision|authori[sz]ation|authority|permission|'
+                                  r'consent|agreement|directive|direction|owner|user|human|operator|'
+                                  r'withdrawn|revoked|rescinded|reversed|retracted|overturned)\b|'
+                                  r'\breview\b.{0,40}\b(?:continuation|extension|limit)\b', later, re.I)
+            if reference and not restatement:
+                return True
+        return False
+
+    def recorded_extension_approval(citation):
+        if not provenance_citation(citation):
+            return False
+        start, end = citation['start_line'], citation['end_line']
+        if citation['quote'].strip() != ''.join(lines[start - 1:end]).strip():
+            return False
+        if start > metadata_end + 1 and lines[start - 2].strip():
+            if (not re.match(r'^Whole[- ]milestone\s+review\s+[0-9]+/[0-9]+\s+FAIL\.',
+                             citation['quote'], re.I)
+                    or not lines[start - 2].rstrip().endswith('.')
+                    or approval_is_negated(lines[start - 2], source=True)):
+                return False
+        # Include subsequent lines of the same paragraph, so a citation cannot
+        # hide a qualification immediately following its selected range.
+        context = citation['quote']
+        if end > metadata_end:
+            for line in lines[end:]:
+                if not line.strip() or re.match(r'^\s*(?:#{1,6}\s|\||`{3,}|~{3,})', line):
+                    break
+                context += ' ' + line.strip()
+            # Later free-form references to this decision are ambiguous unless
+            # they are part of the recognized affirmative paragraph above.
+            # Do not infer their meaning from a list of denial synonyms.
+            after = end
+            while after < len(lines) and lines[after].strip() and not re.match(
+                    r'^\s*(?:#{1,6}\s|\||`{3,}|~{3,})', lines[after]):
+                after += 1
+            if later_approval_reference(after):
+                return False
+        elif later_approval_reference(metadata_end):
+            return False
+        return approval_statement(context)
+
+    index_outcomes = []
+    for op in operations:
+        if op['kind'] != 'supply-metadata':
+            continue
+        field, value = op['field'], op['value']
+        evidence = op['evidence']
+        if field in {'Milestone', 'Source status', 'Source specification'}:
+            if (not status_identifies_record() or not any(re.search(
+                    r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![A-Za-z0-9])', c['quote'])
+                    for c in evidence)):
+                raise ValueError('unsupported ' + field + ' correction: missing recorded identity')
+            if field == 'Source specification' and not specification_anchor_recorded(value):
+                raise ValueError('unsupported Source specification correction: unrecorded anchor')
+        elif field in {'Outcome', 'Retired'}:
+            index_rows = [row for c in evidence if (row := cited_index_row(c))]
+            supporting = [row for row in index_rows if row[1 if field == 'Outcome' else 2] == value]
+            if not supporting:
+                label = r'(?:Outcome|Status|State)' if field == 'Outcome' else r'Retired'
+                local = False
+                for c in evidence:
+                    location = recorded_review_citation(c)
+                    if location not in {'envelope', 'preamble'}:
+                        continue
+                    pattern = (r'(?:\*\*' + label + r'\.\*\*|\*\*' + label + r':\*\*|'
+                               + label + r'\s*:)\s*(.+?)\.?')
+                    match = re.fullmatch(pattern, c['quote'].strip(), re.I)
+                    if match and (match[1].lower() == value.lower() or
+                                  (field == 'Outcome' and value == 'completed' and match[1].lower() == 'complete')):
+                        local = True
+                        break
+                if not local:
+                    raise ValueError('unsupported ' + field + ' correction: missing recorded evidence')
+            index_outcomes.extend(row[1] for row in supporting)
+        elif field == 'Review iterations':
+            counter = (r'(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
+                       r'(?:Review gate iterations|Review iterations)\s*:)\s*'
+                       r'(not recorded|0|[1-9][0-9]*)(?:\s+\([^\n()]*\))?\.?')
+            if not any(recorded_review_citation(c) and
+                       (match := re.fullmatch(counter, c['quote'].strip(), re.I)) and match[1].lower() == value.lower()
+                       for c in evidence):
+                raise ValueError('unsupported review counter correction: missing recorded evidence')
+        elif field == 'Review' and value in {'legacy', 'not applicable'}:
+            if not any(recorded_review_citation(c) and re.fullmatch(
+                    r'(?:\*\*Review\.\*\*|Review\s*:)\s*' + re.escape(value) + r'\.?',
+                    c['quote'].strip(), re.I) for c in evidence):
+                raise ValueError('unsupported Review correction: missing recorded disposition')
+        elif field == 'Review limit':
+            if not re.fullmatch(r'[1-9][0-9]*', value) or not any(
+                    provenance_citation(c) and re.search(
+                        r'(?:\bwhole(?:[- ]milestone)?\s+review\s+' + re.escape(value) +
+                        r'\s+(?:PASS|FAIL)\b|'
+                        r'\breview\s+gate\s+iterations?\s*:\s*' + re.escape(value) + r'\b|'
+                        r'(?:\*\*review limit\.\*\*|\breview limit\s*:)\s*' + re.escape(value) + r'\b)',
+                        c['quote'], re.I) for c in evidence):
+                raise ValueError('unsupported review limit correction: missing recorded evidence')
+        elif field == 'Review limit approval':
+            interpretation = re.fullmatch(
+                r'Historical owner continuation recorded at frozen lines ([1-9][0-9]*)-([1-9][0-9]*); '
+                r'ceiling ([1-9][0-9]*) is a proposed interpretation for this closed record only\.', value)
+            recorded_limit = next((item['value'] for item in operations if item['kind'] == 'supply-metadata'
+                                   and item['field'] == 'Review limit'), metadata.get('Review limit', '10'))
+            supported_value = approval_statement(value) or (interpretation and
+                interpretation[3] == recorded_limit and int(interpretation[2]) <= len(lines) and any(
+                    int(interpretation[1]) <= c['start_line'] <= c['end_line'] <= int(interpretation[2])
+                    for c in evidence))
+            if not supported_value or not any(recorded_extension_approval(c) for c in evidence):
+                raise ValueError('unsupported review limit approval: missing recorded human approval')
+        elif field == 'Evidence':
+            def commit_support(citation):
+                if not provenance_citation(citation):
+                    return False
+                quote = citation['quote']
+                if value == 'unversioned':
+                    return bool(re.fullmatch(r'(?:\*\*Evidence\.\*\*|Evidence\s*:)\s*unversioned\.?',
+                                             quote.strip(), re.I))
+                prefixes = re.findall(r'(?<![a-f0-9])([a-f0-9]{7,64})(?![a-f0-9])', quote)
+                return (bool(re.search(r'\b(?:evidence|worktree|observed\s+(?:head|commit)|'
+                                       r'reviewed\s+(?:commit|baseline|worktree))\b', quote, re.I))
+                        and any(value.startswith(prefix) for prefix in prefixes))
+            if not any(commit_support(c) for c in evidence):
+                raise ValueError('unsupported Evidence correction: missing recorded commit provenance')
+        elif field == 'Worktree':
+            if not any(recorded_review_citation(c) and re.fullmatch(
+                    r'(?:\*\*Worktree\.\*\*|Worktree\s*:)\s*' + re.escape(value) + r'\.?',
+                    c['quote'].strip(), re.I) for c in evidence):
+                raise ValueError('unsupported Worktree correction: missing recorded provenance')
+        elif field == 'Verification':
+            quotes = [c['quote'].strip() for c in evidence if literal_record_citation(c)]
+            content = value.removeprefix('Recorded results: ').strip()
+            def verification_source(quote):
+                subject = re.search(r'\b(?:tests?|testing|checks?|build|vet|lint|audit|race|'
+                                    r'typecheck|smoke|regression|replay|suite|go)\b', quote, re.I)
+                result = re.search(r'\b(?:pass(?:ed|ing)?|succeed(?:ed|s)?|verified|clean)\b', quote, re.I)
+                standalone = re.fullmatch(r'(?:\*\*Verification\.\*\*|Verification\s*:)\s*'
+                                          r'(?:passed|pass)\.?', quote, re.I)
+                return bool((subject and result) or standalone)
+            direct = any(content == quote and verification_source(quote) for quote in quotes)
+            clauses = [part.strip().rstrip('.') for part in content.split('; ')]
+            excerpts = all(part and any(part in quote and verification_source(quote) for quote in quotes)
+                           for part in clauses)
+            negative = any(re.search(r'\b(?:fail(?:ed|ure|ures)?|not passed|not passing|not run|'
+                                     r'not executed|not verified|unverified|did not|no tests|pending|'
+                                     r'incomplete|in progress|unknown|cancelled|skipped|timed out)\b', quote, re.I)
+                           for quote in quotes)
+            if negative or not (direct or excerpts):
+                raise ValueError('unsupported Verification correction: missing recorded results')
+        elif field == 'Consolidated into':
+            if not any(recorded_review_citation(c) and re.fullmatch(
+                    r'(?:\*\*Consolidated into\.\*\*|Consolidated into\s*:)\s*' + re.escape(value) + r'\.?',
+                    c['quote'].strip(), re.I) for c in evidence):
+                raise ValueError('unsupported consolidation correction: missing recorded evidence')
+
+    numbered_review_results = []
+    zero_defect_task_pass = False
+    corrected_pass = False
+    for op in operations:
+        if op['kind'] == 'supply-metadata':
+            field, value = op['field'], op['value']
+            old = metadata.get(field)
+            if old and old != value and not (field == 'Review iterations' and re.match(re.escape(value) + r'\s+\(', old)):
+                raise ValueError('conflicting metadata correction: ' + field)
+            if field == 'Review' and value == 'passed':
+                accepted = False
+                for citation in op['evidence']:
+                    quote = citation['quote'].strip()
+                    if recorded_zero_defect_retirement_task(citation):
+                        zero_defect_task_pass = True
+                        accepted = True
+                        break
+                    location = recorded_review_citation(citation)
+                    if not location or quote != lines[citation['start_line'] - 1].strip():
+                        continue
+                    if re.fullmatch(r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?|'
+                                    r'\|\s*Review\s*\|\s*passed\s*\|', quote, re.I):
+                        accepted = True
+                        break
+                    result = re.fullmatch(
+                        r'(?:Whole review ([1-9][0-9]*)/([1-9][0-9]*) FAIL [^.]+\. )?'
+                        r'Whole review ([1-9][0-9]*)/([1-9][0-9]*) PASS with no P1/P2\.', quote, re.I)
+                    if result and location == 'review':
+                        prior, prior_limit, count, limit = result.groups()
+                        if (int(count) <= int(limit) and (prior is None or
+                                (int(prior) < int(count) and prior_limit == limit))):
+                            numbered_review_results.append((count, limit))
+                            accepted = True
+                            break
+                if not accepted:
+                    raise ValueError('missing recorded passed-review result; a correction cannot supply acceptance')
+                corrected_pass = True
+            metadata[field] = value
+        elif op['kind'] == 'expand-evidence-commit':
+            if metadata.get('Evidence') != op['recorded']:
+                raise ValueError('evidence expansion does not match recorded provenance')
+            metadata['Evidence'] = op['resolved']
+        elif op['kind'] == 'resolve-evidence-set':
+            recorded = re.findall(r'\b[a-f0-9]{7,64}\b', metadata.get('Evidence', ''))
+            if not recorded or any(not any(commit.startswith(prefix) for prefix in recorded) for commit in op['commits']):
+                raise ValueError('evidence set is unsupported by recorded provenance')
+            metadata['Evidence'] = op['commits'][0]
+    if metadata.get('Outcome') and any(outcome != metadata['Outcome'] for outcome in index_outcomes):
+        raise ValueError('index outcome conflicts with recorded outcome')
+    if zero_defect_task_pass:
+        counters = [m.group(1) for line, trusted, _, preamble in status_lines.values()
+                    if trusted and preamble and (m := re.fullmatch(
+                        r'\*\*Review gate iterations\.\*\*\s*([1-9][0-9]*)', line.strip()))]
+        if not counters:
+            raise ValueError('missing recorded review counter for retirement task pass')
+    if any(count != metadata.get('Review iterations') for count, _ in numbered_review_results):
+        raise ValueError('review iteration mismatch; a correction cannot supply acceptance')
+    recorded_limit = metadata.get('Review limit', '10')
+    if any(limit != recorded_limit for _, limit in numbered_review_results):
+        raise ValueError('review limit mismatch; a correction cannot supply acceptance')
+    approval_conflicts = []
+    literal_approval = literal_metadata.get('Review limit approval', '')
+    if literal_approval:
+        # Locate the field by the same unfenced, de-indented view that read it,
+        # so a field indented up to three spaces cannot make the lookup fail.
+        approval_line = next((n for n, line in envelope_unfenced
+                              if line == '**Review limit approval.** ' + literal_approval), None)
+        if approval_line is not None:
+            for line in lines[approval_line:metadata_end]:
+                if not line.strip() or re.match(r'^\s*\*\*[\w ]+\.\*\* ', line):
+                    break
+                literal_approval += ' ' + line.strip()
+    if (re.fullmatch(r'[1-9][0-9]*', recorded_limit) and int(recorded_limit) > 10
+            and literal_approval and (not approval_statement(literal_approval, literal=True)
+                or later_approval_reference(metadata_end))):
+        approval_conflicts.append('recorded review limit approval is ambiguous or unsupported')
+    outcome_conflicts = []
+    for line, trusted, _, preamble in status_lines.values():
+        if not trusted or not preamble:
+            continue
+        state = re.match(r'^(?:\*\*(?:Status|State)\.\*\*|\*\*(?:Status|State):\*\*|'
+                         r'(?:Status|State)\s*:)\s*'
+                         r'(completed|complete|accepted|pending|blocked|in progress|planned|not started|'
+                         r'unimplemented|incomplete|ongoing|open|draft|active|underway|failed|'
+                         r'cancelled|canceled|withdrawn|superseded)\b',
+                         line, re.I)
+        if not state:
+            continue
+        label = state[1].lower()
+        disposition = ('completed' if label in {'completed', 'complete', 'accepted'} else
+                       'cancelled' if label in {'cancelled', 'canceled', 'withdrawn'} else
+                       'superseded' if label == 'superseded' else 'unfinished')
+        if metadata.get('Outcome') and disposition != metadata['Outcome']:
+            outcome_conflicts.append('retained status conflicts with retirement outcome')
+    review_conflicts = []
+    review_warnings = []
+    iterations = metadata.get('Review iterations', '')
+    if metadata.get('Review') == 'passed' and re.fullmatch(r'[1-9][0-9]*', iterations):
+        final_iteration = int(iterations)
+        # A correction that supplies acceptance keeps the conservative rule:
+        # an unrecognized qualification there is never safe merely because the
+        # vocabulary in adverse_review_wording() did not match it.
+        lenient = not corrected_pass
+        unit_nouns = r'(?!\s*(?:checks?|tests?|items?|rows?|files?|cases?|tasks?|findings?|assertions?)\b)'
+        def consistent_counters(text):
+            # Every counter attached to a review or pass must be the recorded
+            # final one; an unrelated ratio such as "12/12 checks" is not one.
+            pairs = re.findall(r'\b(?:review|iteration|passed|pass)\s+(?:iteration\s+)?([1-9][0-9]*)\s*/\s*'
+                               r'([1-9][0-9]*)(?!\d)\b' + unit_nouns, text, re.I)
+            leading = re.match(r'^\W*([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\b' + unit_nouns, text)
+            if leading:
+                pairs.append(leading.groups())
+            return (all(pair == (iterations, recorded_limit) for pair in pairs)
+                    and all(count == iterations
+                            for count in re.findall(r'\biteration\s+([1-9][0-9]*)\b', text, re.I)))
+        def names_own_id(text):
+            # This record's own ID as a token, also inside "M01's" or "(M01)",
+            # but not as a prefix of a longer ID such as M010.
+            # A non-ASCII letter or an invisible format character could disguise
+            # it ("\u041c01", "M\u200b01"), so either counts as naming it.
+            return bool(re.search(r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![0-9])', text, re.I)
+                        or any(ch > '\x7f' and (ch.isalpha() or unicodedata.category(ch) == 'Cf') for ch in text))
+        def names_other_milestone(before, clause_text=''):
+            # "M17 accepted ..., review 3/10" cites another milestone's review.
+            # This record's own ID must not be in the clause: "Compared with
+            # M02, M01 review 2/999" still names this record's own counter.
+            # The foreign ID must lead the claim within a few words, with no
+            # "our", "this" or comparison between them.
+            clause = re.split(r'[.;]\s', before)[-1]
+            whole = clause_text or clause
+            if (names_own_id(clause) or names_own_id(whole)
+                    or re.search(r'\b(?:our|ours|own|we|us|here|this)\b'
+                                 r'|\b(?:compared|versus|vs|than|unlike)\b', whole, re.I)):
+                return False
+            if other_milestone_clause(clause):
+                return True
+            near = ' '.join(clause.split()[-6:])
+            return any(found[1].upper() != identity and re.fullmatch(MILESTONE_ID, found[1].upper())
+                       and not re.search(_OWN_REFERENCE, near[found.end():], re.I)
+                       and not re.search(r'\b(?:compared|versus|vs|than|unlike)\b', near, re.I)
+                       for found in re.finditer(r'\b([A-Z][0-9]{2,})\b', near))
+        def other_milestone_clause(clause):
+            # A clause led by another milestone's ID ("M02 review 3/10 passed")
+            # is about that milestone, unless it also points back at this one.
+            lead = re.match(r'\W*(?:the\s+)?(?:[A-Za-z][\w-]*:)?([A-Z][0-9]{2,})\b', clause)
+            return bool(lead and lead[1].upper() != identity and re.fullmatch(MILESTONE_ID, lead[1].upper())
+                        and not names_own_id(clause)
+                        and not re.search(_OWN_REFERENCE, clause, re.I)
+                        and not re.search(r'\b(?:compared|versus|vs|than|unlike)\b', clause, re.I))
+        def counter_conflict(text):
+            # Any review or iteration counter in the text, in either word order,
+            # must agree with the record: a pass at another iteration or limit,
+            # or an iteration beyond the final one, conflicts. An earlier
+            # iteration may be cited or may have failed. A ratio that is not
+            # attached to a review ("all 12/12 checks") is not a counter.
+            for found in re.finditer(r'\b(review|iteration|passed|pass)\s+(?:(?:iteration|passed)\s+)?([1-9][0-9]*)'
+                                     r'(?:\s*/\s*([1-9][0-9]*))?(?!\s*/|\d)\b' + unit_nouns, text, re.I):
+                before = text[:found.start()]
+                # The whole clause holding the counter, after it as well as before.
+                tail = re.split(r'[.;](?:\s|$)', text[found.end():], maxsplit=1)[0]
+                if names_other_milestone(before, re.split(r'[.;]\s', before)[-1] + found[0] + tail):
+                    continue
+                count, limit = int(found[2]), found[3]
+                # Without a ratio only "review N" or "iteration N" is a counter:
+                # "passed 2026-09-29" and "passed 20 times" are not, and neither
+                # is a task-level review ("W25.1 review 4", "task-review 3").
+                if not limit and (found[1].lower() in {'passed', 'pass'}
+                                  or re.match(r'[-\d]|\s*times\b', text[found.end():], re.I)):
+                    continue
+                if re.search(r'(?:\btask[- ]|\b[A-Z][0-9]+\.[0-9]+\s+(?:task\s+)?)$', before, re.I):
+                    continue
+                if (limit and limit != recorded_limit) or count > final_iteration:
+                    return True
+                if count < final_iteration and (
+                        found[1].lower() in {'passed', 'pass'} or re.search(r'\bpass', found[0], re.I)
+                        or re.match(r'\s*(?:[:,—–-]\s*)?(?:(?:was|is)\s+)?pass', text[found.end():], re.I)):
+                    return True
+            return False
+        def unrecognized_review_sentence(text, context=False, warn=True, claim=False, strict=False):
+            # Validator for a literal record's pass continuation and claim
+            # fields. Every clause's counters are checked first, and a conflict
+            # blocks. A clause about the review, or one that refers back to it,
+            # should be a recognized complete form; one that is not is reported
+            # as a warning for human review, because real history is phrased too
+            # variously for exact forms to be a gate. A correction-backed pass
+            # never reaches this function: it blocks on any unrecognized prose.
+            # In a pass's continuation the recorded pass is the subject from
+            # the start, so "Later it was annulled." refers to it; a mention
+            # stays the subject across later neutral sentences and paragraphs.
+            # A claim field states the milestone's result, so the pass is its
+            # implied subject for verdicts and predicates; loose pronouns there
+            # need a mention first.
+            mentioned = context
+            seeded = context or claim
+            text = _without_format_characters(text)
+            for sentence in re.split(r'(?<=[.!?])\s+', ' '.join(text.split())):
+                for position, clause in enumerate(sentence.split(';')):
+                    if counter_conflict(clause):
+                        return True
+                    bare = _EARLIER_FAILURE.sub(
+                        lambda m: '' if int(m[1] or m[2]) < final_iteration else m[0], clause)
+                    bare = _BENIGN_FAILURE.sub('', bare).strip(' ,;.')
+                    bare = _TASK_REVIEW.sub('task check', bare)
+                    if other_milestone_clause(bare):
+                        # Another milestone's clause is not this record's
+                        # claim, but a verdict field exists to state this
+                        # record's result: there it is never silent.
+                        if claim == 'verdict' and not re.fullmatch(_POSITIVE_CLAIM, bare, re.I):
+                            if strict:
+                                return True
+                            if warn:
+                                review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
+                        mentioned = context
+                        continue
+                    # While the pass is the subject, a reversal used as a
+                    # predicate is about it when its subject is a pronoun or a
+                    # generic phrase ("this, after discussion, was annulled",
+                    # "the same was voided", "the owner annulled this"); with any
+                    # other subject it still needs a human reading.
+                    recognized = any(re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES)
+                    # Only a whole sentence of a few words is a bare verdict;
+                    # a short clause inside a longer sentence is a fragment
+                    # ("audit disabled").
+                    short = (seeded and not recognized and len(bare.split()) <= 4
+                             and (len(sentence.split()) <= 4 or (position == 0 and len(sentence.split()) <= 8))
+                             and not _NOUN_PHRASE_LEAD.match(bare))
+                    if seeded and not recognized and not _NOUN_PHRASE_LEAD.match(bare):
+                        # A clause of any length with no subject of its own that
+                        # opens with an adverse word is a verdict ("Pending owner
+                        # sign-off.", "Rejected until the owner finishes all
+                        # checks."). Only a noun phrase of up to three words
+                        # directly followed by its own predicate gives the clause
+                        # another subject ("Failed preparation contexts retained.").
+                        lead = re.match(_BARE_VERDICT.pattern + r'(' + _ANY_ADVERSE.pattern + r')', bare, re.I)
+                        tail = bare[lead.end():] if lead else ''
+                        # The predicate needs positive evidence: a be-form,
+                        # auxiliary or modal; a participle that ends the clause or
+                        # takes a preposition or adverb, not a noun ("required
+                        # checks"); or a present-tense verb taking an object
+                        # ("permits a retry"), not a plural noun ("checks now").
+                        function = (r'(?:and|or|but|then|when|once|until|after|before|since|as|by|at|on|in|of|for|to|'
+                                    r'with|without|because|while|so|if|unless|pending|the|a|an|this|that|its|it|'
+                                    r'all|every|each|some|any|no|most|many|more|other|'
+                                    r'is|are|was|were|be|been|being|has|have|had)\b')
+                        follows = (r'(?=\s*$|\s*[,;:(]|\s+(?:to|by|from|in|on|at|for|with|as|after|before|during|under|'
+                                   r'into|and|or|but|again|already|now|later|cleanly|successfully|unchanged|intact)\b)')
+                        own_subject = re.match(r'(?:\s+(?!' + function + r')[\w/`-]+){1,3}?\s+'
+                                               r'(?:(?:is|are|was|were|has|have|had|can|cannot|could|will|would|must|may)\b'
+                                               r'|\w+(?:ed|en)' + follows +
+                                               r'|\w+s(?=\s+(?:a|an|the|no|its|their|every|all|each|nothing|only|one|\d)\b))',
+                                               tail, re.I)
+                        # Beyond a short sentence, only a predicate form that
+                        # opens the sentence's first clause is a verdict
+                        # ("Pending final checks by the designated owner.");
+                        # a noun or verb form leads ordinary prose
+                        # ("Cancellation at Git staging ...", "Reject writes nothing").
+                        noun_or_verb = (r'\w+(?:ions?|ures?)|withdrawals?|(?:reject|revoke|fail|cancel|withdraw|'
+                                        r'invalidate|rescind|retract|overturn|reopen|annul|nullify|strike|discard|'
+                                        r'disregard|block|dispute|supersede|void)s?')
+                        status_word = r'pending|incomplete|conditional|provisional|contingent|no\s+longer|subject\s+to'
+                        # A predicate form (participle, adjective, multiword
+                        # verdict) stays a verdict even when it is spelled like a
+                        # verb ("Void until ...", "Reopen until ..."): the noun or
+                        # verb exclusion never removes one.
+                        predicate_form = re.fullmatch(r'\w+(?:ed|en|wn|ing|al|nt)|void|null|moot|\w+(?:\s+\w+)+',
+                                                      lead[1], re.I) if lead else None
+                        if lead and not short and ((re.fullmatch(noun_or_verb, lead[1], re.I) and not predicate_form) or (
+                                position > 0 and not re.fullmatch(status_word, lead[1], re.I))):
+                            lead = None
+                        if lead and not _negated(bare[:lead.start(1)]) and not own_subject:
+                            return True
+                    if (seeded or mentioned) and not recognized:
+                        if _bare_verdict(bare) or _GOVERNED_ADVERSE.search(bare):
+                            if any(not _negated(bare[:found.start()]) for found in _ANY_ADVERSE.finditer(bare)):
+                                return True
+                        reversal = _adverse_predicate(bare)
+                        if reversal == 'object' or (reversal and (_GENERIC_SUBJECT.search(bare)
+                                                                  or _MILESTONE_REVIEW_SUBJECT.search(bare))):
+                            return True
+                        if reversal:
+                            # A reversal with another subject ("The token was
+                            # revoked.") still needs a human reading.
+                            if strict:
+                                return True
+                            if warn:
+                                review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
+                            continue
+                    nouns = bool(_REVIEW_MENTION.search(bare))
+                    refers = bool(re.match(r'\W*(?:it|this|that|these|those|they)\b', bare, re.I)
+                                  or (mentioned and re.search(r'\b(?:it|they|them)\b', bare, re.I))
+                                  or _REFERENCE_SUBJECT.search(bare)
+                                  or ((seeded or mentioned) and _bare_verdict(bare)))
+                    if (nouns or refers) and not recognized:
+                        # Only a clause naming the review itself, or referring
+                        # back to it, is reversed by a word such as "revoke";
+                        # "acceptance" or "results" alone often names a test.
+                        # Every reversal word is judged in its own negation
+                        # scope: "not voided but annulled" is an annulment.
+                        if (refers or _MILESTONE_REVIEW_SUBJECT.search(bare)) and _affirmed_reversal(bare):
+                            return True
+                        if strict:
+                            return True
+                        if warn:
+                            review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
+                    elif (short or claim == 'verdict') and not re.fullmatch(_POSITIVE_CLAIM, bare, re.I):
+                        # Otherwise a short clause with no subject of its own
+                        # still states the result ("Withheld.").
+                        if strict:
+                            return True
+                        if warn:
+                            review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
+                    mentioned = mentioned or nouns
+            return False
+        envelope_lines = [(line, True) for _, line in envelope_unfenced]
+        review_lines = envelope_lines + [(line, trusted) for line, trusted, _, _ in status_lines.values()]
+        for line, trusted in review_lines:
+            if not trusted:
+                continue
+            if re.match(r'^(?:\*\*Review\.\*\*\s*|(?:Whole\s+)?Review\s*:\s*|(?:Whole\s+)?Review\s+)'
+                        r'(?:(?:was|has)\s+)?(?:failed|fail|did not pass|not passed|not completed|'
+                        r'pending|incomplete|in progress|blocked)\b', line, re.I):
+                review_conflicts.append('conflicting recorded review result')
+            declaration = re.match(r'^(?:\*\*Review\.\*\*|(?:Whole\s+)?Review\s*:)\s*(.+)$', line, re.I)
+            table_declaration = re.fullmatch(r'\|\s*Review\s*\|\s*(.*?)\s*\|', line, re.I)
+            for declared in (declaration, table_declaration):
+                value = declared[1].strip() if declared else ''
+                if declared and not (re.fullmatch(r'passed\.?', value, re.I)
+                                     or (lenient and re.match(r'passed\b', value, re.I)
+                                         and consistent_counters(value)
+                                         and not adverse_review_wording(value, final_iteration, True))):
+                    review_conflicts.append('ambiguous recorded review result')
+            for claim in re.finditer(
+                    r'(?<!task )\b(?:whole\s+)?review\s+([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\b', line, re.I):
+                number, limit = claim.groups()
+                if lenient and names_other_milestone(line[:claim.start()]):
+                    continue
+                verdict = re.match(r'\s*(?:[,:;—–-]\s*)?(?:(?:was|is)\s+)?(?:\(\s*)?'
+                                   r'(PASS(?:ED)?|FAIL(?:ED)?|NOT\s+PASSED|PENDING|INCOMPLETE)\b',
+                                   line[claim.end():], re.I)
+                if (int(number) > int(iterations) or (int(number) == int(iterations)
+                        and ((verdict and verdict[1].upper() not in {'PASS', 'PASSED'})
+                             or limit != recorded_limit
+                             or (not verdict and (not lenient
+                                                  or re.match(r'\s*(?:[:,(—–-]|(?:was|is)\b)', line[claim.end():])
+                                                  or adverse_review_wording(line[claim.start():], int(iterations))))))):
+                    review_conflicts.append('conflicting whole review result')
+        # Apply the same conservative continuation rule to the envelope and
+        # retained status: unknown prose after a recognized pass is ambiguous.
+        final_pass = (r'\bwhole\s+review\s+' + re.escape(iterations) + r'\s*/\s*'
+                      + re.escape(recorded_limit) + r'\s+PASS\s+with\s+no\s+P1/P2\.')
+        def table_row_adverse(line, header=False):
+            # Iteration history is not a verdict, but a row for the final or a
+            # later iteration, or a cell that states a reversal, is. A header
+            # (the row before a delimiter row) holds labels: it is still checked
+            # for counters and reversals, but its labels raise no warning.
+            cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+            if all(not cell or _TABLE_DELIMITER_CELL.fullmatch(cell) for cell in cells):
+                return False
+            if header:
+                text = ' '.join(cells)
+                # A label is short and unpunctuated; a cell of four or more
+                # words, or one ending as a sentence ("Withheld."), states something.
+                sentence = any(len(cell.split()) >= 4 or re.search(r'\w[.!?]$', cell) for cell in cells)
+                return (counter_conflict(text) or adverse_review_wording(text, final_iteration, True, True)
+                        or unrecognized_review_sentence(text, True, warn=sentence))
+            if counter_conflict(' '.join(cells[1:])):
+                return True
+            rest = ' '.join(cells[1:])
+            first = re.fullmatch(r'(?:iteration\s+)?([1-9][0-9]*)', cells[0], re.I)
+            verdict = re.match(r'\s*(PASS(?:ED)?|FAIL\w*|pending|incomplete|blocked)\b\W*', rest, re.I)
+            if first and verdict:
+                number = int(first[1])
+                if number > final_iteration or (number == final_iteration
+                                                 and not verdict[1].upper().startswith('PASS')):
+                    return True
+                # Only the earlier or final iteration's own verdict word is
+                # history; whatever else the row says is still read.
+                rest = rest[verdict.end():]
+                cells = ['']
+            text = ' '.join(cells + [rest]).strip()
+            return bool(text) and (adverse_review_wording(text, final_iteration, True, True)
+                                   or unrecognized_review_sentence(text, True))
+        def task_row_conflict(line):
+            # A task row's notes are task evidence, but an explicit milestone
+            # review reversal or a conflicting review counter in them is not.
+            cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+            text = ' '.join(cell for cell in cells if not re.fullmatch(r'`?\[[ +~!xX-]\]`?', cell))
+            plain = _without_format_characters(_TASK_REVIEW.sub('task check', text))
+            if counter_conflict(text):
+                return True
+            if not _MILESTONE_REVIEW_SUBJECT.search(plain):
+                return False
+            if (adverse_review_wording(plain, final_iteration)
+                    or any(not _negated(plain[:found.start()]) for found in _ANY_ADVERSE.finditer(plain))):
+                return True
+            if not any(re.fullmatch(form, plain.strip(' .'), re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
+                if not lenient:
+                    return True
+                review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(plain)}"')
+            return False
+        def ambiguous_pass_continuation(source, ignored):
+            after_final_pass = False
+            task_table = False
+            previous_number = None
+            paragraph = []
+            def adverse_paragraph():
+                # Judge a wrapped paragraph as one unit, so a line break cannot
+                # separate a reversal from its subject.
+                joined = ' '.join(paragraph)
+                paragraph.clear()
+                return bool(joined) and (adverse_review_wording(joined, final_iteration, True, True)
+                                         or unrecognized_review_sentence(joined, True))
+            by_number = {entry[5]: entry[0] for entry in source}
+            def delimiter_row(number):
+                cells = by_number.get(number, '').strip().strip('|').split('|')
+                return by_number.get(number, '').lstrip().startswith('|') and all(
+                    _TABLE_DELIMITER_CELL.fullmatch(cell.strip()) for cell in cells)
+            for line, trusted, relevant, envelope, _, number in source:
+                # A fenced block is skipped, not a break: the prose after it still
+                # continues the same recorded result. Any other gap ends the context.
+                if (previous_number is not None and number != previous_number + 1
+                        and not all(n in ignored for n in range(previous_number + 1, number))):
+                    if after_final_pass and lenient and adverse_paragraph():
+                        return True
+                    after_final_pass = False
+                previous_number = number
+                if not relevant:
+                    if after_final_pass and lenient and adverse_paragraph():
+                        return True
+                    after_final_pass = False
+                    continue
+                if not trusted:
+                    continue
+                if not line.strip():
+                    task_table = False
+                    if after_final_pass and lenient and adverse_paragraph():
+                        return True
+                    continue
+                if after_final_pass:
+                    # Only the status task table ends the continuation: a task
+                    # row with a status marker cell, or its header followed by a
+                    # delimiter and such a row. Any other table is read row by row.
+                    marker_cell = r'\|\s*`?\[[ +~!xX-]\]`?\s*\|'
+                    task_start = re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I) and (
+                        re.search(marker_cell, line)
+                        or (delimiter_row(number + 1) and re.search(marker_cell, by_number.get(number + 2, ''))))
+                    task_header_delimiter = (task_table and delimiter_row(number)
+                                             and re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', by_number.get(number - 1, ''), re.I)
+                                             and not re.search(marker_cell, by_number.get(number - 1, '')))
+                    table_row = re.fullmatch(r'\s*\|.*\|\s*', line)
+                    if task_start or (task_table and table_row and (re.search(marker_cell, line) or task_header_delimiter)):
+                        # The task table does not end the continuation: its rows
+                        # are checked for milestone review reversals and counters
+                        # on both paths, and prose after it still continues the pass.
+                        if lenient and adverse_paragraph():
+                            return True
+                        task_table = True
+                        if task_row_conflict(line):
+                            return True
+                        continue
+                    task_table = False
+                    field = re.fullmatch(r'\*\*(Milestone|Outcome|Retired|Source status|Source specification|'
+                                         r'Evidence|Worktree|Review iterations|Review limit|Review limit approval|'
+                                         r'Verification|Consolidated into|Disposition|Successor|Legacy closure|Marker correction)'
+                                         r'\.\*\* (.+)', line.strip(), re.I)
+                    if field:
+                        if lenient and adverse_paragraph():
+                            return True
+                        if (field[1].lower() == 'marker correction'
+                                and not re.fullmatch(RECOGNIZED_PROSE['marker_correction'], field[2])):
+                            return True
+                        continue
+                    reaffirmation = re.fullmatch(RECOGNIZED_PROSE['reaffirmation'].format(
+                        iterations=re.escape(iterations), limit=re.escape(recorded_limit)), line.strip(), re.I)
+                    task_review = re.fullmatch(RECOGNIZED_PROSE['task_review_fail'], line.strip(), re.I)
+                    if (line.strip() == RECOGNIZED_PROSE['standalone_intake'] or reaffirmation or task_review):
+                        continue
+                    if not lenient:
+                        return True
+                    if line.lstrip().startswith('|'):
+                        if adverse_paragraph() or table_row_adverse(line, delimiter_row(number + 1)):
+                            return True
+                    elif re.match(r'^#{1,6}\s', line.lstrip()):
+                        if adverse_paragraph():
+                            return True
+                    else:
+                        # A bold field label names a section, not a result subject.
+                        paragraph.append(re.sub(r'^\*\*[\w ]+[.:]\*\*\s*', '', line.strip()))
+                    continue
+                numbered = re.search(final_pass, line, re.I)
+                plain = re.fullmatch(r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?',
+                                     line.strip(), re.I)
+                if numbered or plain:
+                    if numbered and line[numbered.end():].strip() and (
+                            not lenient or adverse_review_wording(line[numbered.end():], final_iteration, True, True)
+                            or unrecognized_review_sentence(line[numbered.end():], True)):
+                        return True
+                    after_final_pass = True
+            return bool(after_final_pass and lenient and adverse_paragraph())
+        envelope_context = [(line, True, True, True, False, number)
+                            for number, line in envelope_unfenced]
+        review_scan = [(line, trusted, in_review or preamble, False, preamble, number)
+                          for number, (line, trusted, in_review, preamble) in status_lines.items()]
+        status_fields = [(line, trusted, True, False, preamble, number)
+                         for number, (line, trusted, _, preamble) in status_lines.items()]
+        def ambiguous_prose_reference(source):
+            parts = []
+            previous = None
+            def ambiguous():
+                joined = ' '.join(parts)
+                return bool(re.search(r'\breview\s+(?:result|verdict|outcome|decision)\b', joined, re.I)
+                            and (not lenient or adverse_review_wording(joined, final_iteration)))
+            for line, trusted, relevant, _, _, number in source:
+                stripped = line.strip()
+                boundary = (not trusted or not relevant or not stripped or
+                            re.match(r'^(?:#{1,6}\s|\||\*\*[\w ]+[.:]\*\*|[A-Za-z ]+:)', stripped))
+                if (previous is not None and number != previous + 1) or boundary:
+                    if ambiguous():
+                        return True
+                    parts.clear()
+                previous = number
+                if not boundary:
+                    parts.append(stripped)
+            return ambiguous()
+        if ambiguous_prose_reference(envelope_context) or ambiguous_prose_reference(status_fields):
+            review_conflicts.append('ambiguous recorded review-result reference')
+        if (ambiguous_pass_continuation(envelope_context, code_line_numbers(''.join(lines[:metadata_end])))
+                or ambiguous_pass_continuation(review_scan, code_line_numbers(documents['status']))):
+            review_conflicts.append('unrecognized continuation after recorded review pass')
+        # Other structured metadata can contain review-result claims too. Its
+        # field name does not make those claims verification of acceptance.
+        # Flag unrecognized result references even when another field says pass.
+        later_counter = any(trusted_status and in_review and re.fullmatch(
+            r'Persisted iteration count:\s*' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
+            + r'(?:,\s*passed)?\.(?:\s+Task completion alone does not establish acceptance\.'
+              r'(?:\s+Record exact source, observed checks, findings and downstream handoff before completion\.)?)?',
+            status_line.strip(), re.I)
+            for status_line, trusted_status, in_review, _ in status_lines.values())
+        field_pattern = re.compile(r'(?:\*\*([\w ]+)\.\*\*|\*\*([\w ]+):\*\*|'
+                                   r'([A-Za-z ]+):)\s*(.*)')
+        def structured_paragraphs(source, raw_lines):
+            # Combine a field's adjacent Markdown paragraph lines before
+            # interpreting its contents. Preserve the original bytes in the
+            # record; this normalized view is used only for validation.
+            index = 0
+            while index < len(source):
+                line, trusted, relevant, _, preamble, number = source[index]
+                field = field_pattern.fullmatch(line.strip()) if trusted and relevant else None
+                index += 1
+                if not field:
+                    continue
+                name = next(value for value in field.group(1, 2, 3) if value).lower()
+                parts = [field[4]]
+                while index < len(source):
+                    following, next_trusted, next_relevant, _, _, next_number = source[index]
+                    # A nested list marker can be indented four or more spaces
+                    # and omitted by unfenced_lines. Include it only after an
+                    # adjacent list item; standalone indented code stays out.
+                    while (number + 1 < next_number and number < len(raw_lines)
+                           and re.match(r'^[-*+]\s', parts[-1])
+                           and re.match(r'^ {4,}[-*+]\s', raw_lines[number])):
+                        parts.append(raw_lines[number].strip())
+                        number += 1
+                    stripped = following.strip()
+                    if (next_number != number + 1 or not next_trusted or not next_relevant or not stripped or
+                            field_pattern.fullmatch(stripped) or re.match(
+                                r'^(?:#{1,6}\s|\||`{3,}|~{3,})', stripped)):
+                        break
+                    parts.append(stripped)
+                    number = next_number
+                    index += 1
+                else:
+                    # The field ended the kept lines. Indented nested items that
+                    # follow an adjacent list item are still part of it.
+                    while (number < len(raw_lines) and re.match(r'^[-*+]\s', parts[-1])
+                           and re.match(r'^ {4,}[-*+]\s', raw_lines[number])):
+                        parts.append(raw_lines[number].strip())
+                        number += 1
+                yield name, ' '.join(part for part in parts if part).strip(), preamble
+        for field_name, field_value, preamble in (
+                list(structured_paragraphs(envelope_context, lines[:metadata_end]))
+                + list(structured_paragraphs(status_fields, documents['status'].splitlines()))):
+            if field_name in {'review', 'review iterations', 'review limit', 'review limit approval'}:
+                continue
+            if field_name in {'review result', 'review verdict', 'review outcome', 'review decision'}:
+                if not re.fullmatch(r'passed\.?', field_value, re.I):
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
+                continue
+            earlier_pending = (preamble and field_name == 'state'
+                               and re.fullmatch(RECOGNIZED_PROSE['earlier_pending'], field_value, re.I))
+            if earlier_pending and later_counter:
+                continue
+            old_prefix_risk = r'\b(?:not|no|never|unless|if|except|conditional)\b'
+            for passing in re.finditer(
+                    r'\breview\s+(?:passed|completed|accepted|approved|succeeded|successful|clean)\b',
+                    field_value, re.I):
+                suffix = field_value[passing.end():].strip()
+                claim_sentence = re.split(r'(?<=[.;!?])\s', suffix, maxsplit=1)[0]
+                accepted_suffix = (suffix in {'', '.', '. No publication is claimed.'} or re.fullmatch(
+                    r'\.\s*Persisted review count\s+' + re.escape(iterations) + r'/'
+                    + re.escape(recorded_limit) + r'\.', suffix, re.I)
+                    or (lenient and consistent_counters(claim_sentence)
+                        and not adverse_review_wording(field_value[passing.start():], final_iteration, True)))
+                before = re.split(r'[.;]\s', field_value[:passing.start()])[-1]
+                risky_prefix = (
+                    _negated(before) or bool(re.search(
+                        r'\b(?:unless|except|if|conditional\w*|once|until)\b\s+(?:\w+\s+){0,5}$', before, re.I))
+                    if lenient else bool(re.search(old_prefix_risk, field_value[:passing.start()], re.I)))
+                if not accepted_suffix or risky_prefix:
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
+            if field_name in {'state', 'status', 'verification', 'outcome', 'result', 'acceptance',
+                              'closure', 'review gate', 'disposition'}:
+                # Claim fields are read on both paths; a literal record warns on
+                # wording a correction-backed one would never accept.
+                # The formal retirement outcome is metadata, not a review claim.
+                if field_name == 'outcome' and re.fullmatch(r'(?:completed|cancelled|superseded)\.?', field_value):
+                    continue
+                # Result, Review gate and Outcome exist to state the verdict:
+                # any value there that is neither recognized nor a plain
+                # positive result warns, or blocks a correction-backed record.
+                verdict_field = 'verdict' if field_name in {'result', 'review gate', 'outcome'} else True
+                if unrecognized_review_sentence(field_value, warn=lenient, claim=verdict_field, strict=not lenient):
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
+            elif lenient and counter_conflict(field_value):
+                review_conflicts.append('ambiguous review-result claim in structured metadata')
+            colon_result = re.search(r'(?:^|[.;]\s+)review\s*:\s*(.*)', field_value, re.I)
+            if colon_result and not (
+                    re.fullmatch(r'passed\.?', colon_result[1].strip(), re.I)
+                    or (lenient and re.match(r'passed\b', colon_result[1].strip(), re.I)
+                        and consistent_counters(colon_result[1])
+                        and not adverse_review_wording(colon_result[1], final_iteration, True))):
+                review_conflicts.append('ambiguous review-result claim in structured metadata')
+            claims = list(re.finditer(r'\breview\s+([1-9][0-9]*)/([1-9][0-9]*)\b', field_value, re.I))
+            for position, numbered in enumerate(claims):
+                end = claims[position + 1].start() if position + 1 < len(claims) else len(field_value)
+                if lenient and names_other_milestone(field_value[:numbered.start()]):
+                    continue
+                result = field_value[numbered.end():end].strip()
+                same = numbered[1] == iterations and numbered[2] == recorded_limit
+                verdict = re.match(r'[,:;(—–\s-]*(?:(?:was|is)\s+)?(PASS(?:ED)?|FAIL(?:ED)?|NOT\s+PASSED|PENDING|INCOMPLETE)\b',
+                                   result, re.I)
+                benign = lenient and not adverse_review_wording(field_value[numbered.start():end], final_iteration)
+                if same:
+                    supported = bool(
+                        re.fullmatch(r',?\s*passed(?:\s+with\s+no\s+P1/P2)?\.?', result, re.I)
+                        or re.fullmatch(RECOGNIZED_PROSE['retired_without_commits'], result, re.I)
+                        or (benign and ((not verdict and not re.match(r'\s*(?:[:,(—–-]|(?:was|is)\b)', result))
+                                        or (verdict and verdict[1].upper() in {'PASS', 'PASSED'}
+                                            and consistent_counters(result))))
+                    )
+                else:
+                    # An earlier iteration may have failed or be cited; a pass
+                    # recorded at another iteration or limit is inconsistent.
+                    supported = bool(benign and numbered[2] == recorded_limit
+                                     and int(numbered[1]) < final_iteration
+                                     and not (verdict and verdict[1].upper() in {'PASS', 'PASSED'}))
+                stale_counter = (preamble and field_name == 'state' and later_counter and same
+                    and re.fullmatch(r',\s*passed\.\s*Persisted review count 0/10\.', result, re.I))
+                prefix = field_value[:numbered.start()]
+                clause = re.split(r'[.;]\s', prefix)[-1]
+                risky_prefix = (
+                    _negated(clause) or bool(re.search(
+                        r'\b(?:unless|except|if|conditional\w*|once|until)\b\s+(?:\w+\s+){0,5}$', clause, re.I))
+                    if lenient else bool(re.search(old_prefix_risk, prefix, re.I)))
+                if (not supported and not stale_counter) or risky_prefix:
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
+            if re.search(r'\b(?:review\s+(?:result|verdict|outcome|decision|was|is|has|had|'
+                         r'failed|fail|pending|not)|(?:result|verdict|outcome|decision)\s+of\s+'
+                         r'(?:the\s+)?review)\b', field_value, re.I) and (
+                             not lenient or adverse_review_wording(field_value, final_iteration)):
+                review_conflicts.append('ambiguous review-result claim in structured metadata')
+        if review_conflicts and corrected_pass:
+            raise ValueError('conflicting recorded review result; a correction cannot supply acceptance')
+    source_spec = metadata.get('Source specification', '')
+    anchor = re.fullmatch(r'((?:tabilet/)?memory-bank/milestone\.md#\S+)(?: \([^\n]+\))?', source_spec)
+    if anchor:
+        metadata['Source specification'] = anchor[1]
+    specification, status = documents['specification'], documents['status']
+    spec_headings = [line for _, line in unfenced_lines(specification) if re.match(r'^#{2,3} ', line)]
+    explicit = [op for op in operations if op['kind'] == 'identify-specification']
+    first = spec_headings[0] if spec_headings else ''
+    if explicit and explicit[0]['heading'] != first:
+        raise ValueError('specification identification does not match its source heading')
+    own_heading = re.match(r'^#{2,3} ' + re.escape(identity) + r'(?:\s|$)', first)
+    if not own_heading:
+        if (len(explicit) != 1 or explicit[0]['heading'] != first
+                or re.match(r'^#{2,3} ' + ROOT_ID + r'(?:\s|$)', first)
+                or not re.search(r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![A-Za-z0-9])', specification)):
+            raise ValueError('historical specification identity is missing or ambiguous')
+    elif any(re.match(r'^#{' + str(first.index(' ')) + r'} ' + ROOT_ID + r'(?:\s|$)', heading)
+             for heading in spec_headings[1:]):
+        raise ValueError('ambiguous historical milestone specifications')
+    task_status = status
+    legacy = []
+    task_lines = task_status.splitlines(keepends=True)
+    for row in status_table_rows(status):
+        if row['cells'][1] == '`[x]`':
+            cells = re.split(r'(?<!\\)\|', task_lines[row['line'] - 1], maxsplit=3)
+            cells[2] = cells[2].replace('`[x]`', '`[+]`', 1)
+            task_lines[row['line'] - 1] = '|'.join(cells)
+            legacy.append(row['line'])
+    task_status = ''.join(task_lines)
+    validation_status = task_status
+    for op in operations:
+        if op['kind'] == 'historical-successor':
+            rows = status_rows(task_status)
+            matches = [row for row in rows if row['item'] == op['item'] and row['state'] == 'historical']
+            successors = [row for row in rows if row['item'] == op['successor'] and row['state'] == 'completed']
+            if len(matches) != 1 or len(successors) != 1:
+                raise ValueError('missing or ambiguous completed historical successor')
+            adapted = validation_status.splitlines(keepends=True)
+            n = matches[0]['line'] - 1
+            adapted[n] = adapted[n].rstrip('\r\n').rstrip('|').rstrip() + '; Accepted successor: ' + op['successor'] + ' |\n'
+            validation_status = ''.join(adapted)
+    task_status = validation_status
+    # Strict envelope checks are reused on an interpreted copy only. The caller
+    # receives the complete literal documents and metadata as separate evidence.
+    fence = '`' * (max([3] + [len(m[0]) for m in re.finditer(r'`+', validation_status)]) + 1)
+    blockers = [op['message'] for op in operations if op['kind'] == 'blocker']
+    blockers.extend(approval_conflicts)
+    blockers.extend(dict.fromkeys(outcome_conflicts))
+    blockers.extend(dict.fromkeys(review_conflicts))
+    validation_metadata = dict(metadata)
+    if correction:
+        # Incomplete recovered records remain searchable, with explicit gaps.
+        # Validation placeholders never become recorded facts or acceptance.
+        defaults = {'Milestone': identity, 'Outcome': 'completed', 'Retired': '1970-01-01',
+                    'Source status': 'tabilet/memory-bank/' + name,
+                    'Source specification': 'tabilet/memory-bank/milestone.md#' + identity.lower(),
+                    'Evidence': 'unversioned', 'Worktree': 'unversioned', 'Review': 'passed',
+                    'Review iterations': '1', 'Verification': 'not recorded', 'Consolidated into': 'not recorded'}
+        for key, value in defaults.items():
+            if not metadata.get(key):
+                blockers.append('missing historical closure evidence: ' + key)
+                metadata[key] = 'unverified' if key == 'Review' else 'not recorded'
+                validation_metadata[key] = value
+        if metadata['Review'] == 'unverified':
+            validation_metadata['Review'] = 'passed'
+        if metadata['Evidence'] == 'not recorded':
+            validation_metadata['Worktree'] = 'unversioned'
+        elif metadata['Worktree'] == 'not recorded':
+            validation_metadata['Worktree'] = 'clean'
+    normalized = '\n'.join('**' + key + '.** ' + value for key, value in validation_metadata.items())
+    normalized += '\n\n## Milestone specification\n\n' + fence + 'markdown\n## ' + identity + ' - Historical specification\n' + fence
+    normalized += '\n\n## Status record\n\n' + fence + 'markdown\n' + validation_status
+    if not validation_status.endswith('\n'):
+        normalized += '\n'
+    normalized += fence + '\n'
+    try:
+        retired_record(normalized, name, allow_unfinished=True)
+    except ValueError as exc:
+        message = re.sub(r'\bline (\d+):', lambda m: f'line {int(m[1]) + offsets["status"]}:', str(exc))
+        raise ValueError(message) from exc
+    if legacy and (metadata['Outcome'] != 'completed' or metadata['Review'] != 'passed'):
+        raise ValueError('historical `[x]` completion markers require a completed outcome and passed review')
+    if any(row['state'] in {'pending', 'in_progress', 'blocked'} for row in status_rows(task_status)):
+        blockers.append('retired status contains unfinished task rows')
+    if legacy:
+        blockers.append('historical `[x]` markers are lookup only')
+    # A retained counter is a conflict wherever it appears in a trusted line
+    # (bullet, table cell or prose), not only at the start of one.
+    counts = [match[1].lower()
+              for line, trusted, _, _ in status_lines.values() if trusted
+              for match in re.finditer(
+                  r'(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
+                  r'(?<![\w-])(?:Review gate iterations|Review iterations)\s*:)\s*(not recorded|[0-9]+)\b',
+                  line, re.I)]
+    if counts and (len(set(counts)) != 1 or counts[0] != metadata['Review iterations'].lower()):
+        blockers.append('retained review counter conflicts with retirement metadata')
+    try:
+        retired_record(text, name)
+        strict = True
+    except ValueError:
+        strict = False
+    return {'metadata': metadata, 'literal_metadata': literal_metadata, 'specification': specification,
+            'status': status, 'task_status': task_status, 'offsets': offsets, 'sources': sources,
+            'legacy_completion_lines': legacy, 'blockers': blockers, 'strict': strict,
+            'warnings': list(dict.fromkeys(review_warnings))}
+
+
+def historical_index_cells(cells: list[str]) -> list[str]:
+    """Recover pipes inside a legacy summary's inline code, never identity fields."""
+    if len(cells) <= 5:
+        return cells
+    prefix = cells[4]
+    for cell in cells[5:]:
+        # Only extra separators inside one-backtick code spans are demonstrated
+        # historical syntax. An actual sixth column remains invalid.
+        if prefix.count('`') % 2 != 1 or '``' in prefix:
+            return cells
+        prefix += '|' + cell
+    return cells[:4] + [prefix] if prefix.count('`') % 2 == 0 else cells
+
+
+HISTORY_WARNINGS_SHOWN = 10
+
+
 def history_snapshot(repo: pathlib.Path) -> dict:
     history = repo / "tabilet" / "docs" / "history"
-    records, digests, problems = {}, {}, []
+    records, digests, problems, warnings = {}, {}, [], []
     paths = declared_status_files(history)
+    corrections, correction_digest = {}, None
+    try:
+        corrections, correction_digest = read_history_corrections(repo)
+    except (ValueError, OSError) as exc:
+        problems.append(f'{HISTORY_CORRECTIONS}: {exc}')
     for path in paths:
         try:
             if path.is_symlink() or not STATUS_NAME.fullmatch(path.name):
                 raise ValueError("invalid retired filename or symlink")
             raw = path.read_bytes()
-            records[path.name] = retired_record(raw.decode("utf-8"), path.name)
+            if len(raw) > HISTORY_INPUT_LIMIT:
+                raise ValueError('history record exceeds input limit')
             digests[path.name] = hashlib.sha256(raw).hexdigest()
+            record = historical_record(raw.decode('utf-8'), path.name,
+                                       corrections.get('tabilet/docs/history/' + path.name))
+            records[path.name] = record
+            problems.extend(f'tabilet/docs/history/{path.name}: {problem}' for problem in record['blockers'])
+            warnings.extend(f'tabilet/docs/history/{path.name}: {warning}' for warning in record['warnings'])
         except (ValueError, OSError) as exc:
             problems.append(f"tabilet/docs/history/{path.name}: {exc}")
+    for missing in set(corrections) - {'tabilet/docs/history/' + path.name for path in paths}:
+        problems.append('correction record is missing: ' + missing)
     index_path = history / "index.md"
     index = index_path.read_text(encoding="utf-8") if index_path.is_file() else ""
-    entries = {}
+    entries, index_compatibility = {}, []
     for row in table_rows(index):
-        cells = row["cells"]
+        cells = historical_index_cells(row["cells"])
         if not re.fullmatch(MILESTONE_ID, cells[0]):
             continue
         name = next((p.name for p in paths if STATUS_NAME.fullmatch(p.name)
                      and status_identity(p.name) == cells[0]), f"status-{cells[0]}.md")
+        if cells != row['cells']:
+            index_compatibility.append(name)
         if name in entries:
             problems.append(f"duplicate history index ID: {cells[0]}")
         entries[name] = cells
@@ -1153,7 +2908,9 @@ def history_snapshot(repo: pathlib.Path) -> dict:
     journal = journal_path.read_bytes() if journal_path.is_file() else b""
     return {
         "records": records, "digests": digests, "entries": entries,
-        "journal": journal, "problems": problems,
+        "journal": journal, "problems": problems, "warnings": warnings, "corrections_sha256": correction_digest,
+        "corrections": corrections,
+        "index_compatibility": index_compatibility,
     }
 
 
@@ -1162,7 +2919,7 @@ def root_specifications(text: str) -> dict[str, str | None]:
     headings = [(n, line) for n, line in unfenced_lines(text) if line.startswith("## ")]
     specifications = {}
     for index, (start, heading) in enumerate(headings):
-        match = re.match(r"## ([A-Z][0-9]{2})(?:\s|$)", heading)
+        match = re.match(r"## (" + ROOT_ID + r")(?:\s|$)", heading)
         if match:
             end = headings[index + 1][0] - 1 if index + 1 < len(headings) else len(lines)
             name = f"status-{match.group(1)}.md"
@@ -1194,7 +2951,7 @@ def row_snapshot(repo: pathlib.Path) -> dict:
     for path in declared_status_files(repo / "tabilet" / "memory-bank"):
         if path.is_symlink() or not STATUS_NAME.fullmatch(path.name):
             history["problems"].append(f"invalid active status filename or symlink: {path.name}")
-    documents.update({name: record["status"] for name, record in history["records"].items()})
+    documents.update({name: record["task_status"] for name, record in history["records"].items()})
     active = {p.name for p in status_files(repo)}
     documents.update({p.name: p.read_text(encoding="utf-8") for p in status_files(repo)})
     families, problems = family_metadata(documents)
@@ -1262,6 +3019,8 @@ def validate_row_transition(
     problems = list(after.get("history", {}).get("problems", []))
     old_history = before.get("history", {})
     new_history = after.get("history", {})
+    if old_history.get('corrections_sha256') != new_history.get('corrections_sha256'):
+        problems.append('history corrections changed during execution')
     for name, digest in old_history.get("digests", {}).items():
         if new_history.get("digests", {}).get(name) != digest:
             problems.append(f"previously retired record was changed or removed: {name}")
@@ -1271,6 +3030,17 @@ def validate_row_transition(
     if not new_history.get("journal", b"").startswith(old_history.get("journal", b"")):
         problems.append("retired knowledge history was rewritten or removed")
     retired = set(new_history.get("records", {})) - set(old_history.get("records", {}))
+    # A current API run cannot manufacture authority by writing approval prose.
+    # Larger interactive ceilings are readable only as pre-existing history.
+    for name in retired:
+        metadata = new_history["records"][name]["metadata"]
+        if new_history['records'][name].get('strict') is False:
+            problems.append('new retirement does not meet the strict contract: ' + name)
+        if name in new_history.get('index_compatibility', []):
+            problems.append('new retirement index does not meet the strict contract: ' + name)
+        if any(value.isdecimal() and int(value) > 10 for value in (
+                metadata.get("Review iterations", ""), metadata.get("Review limit", "10"))):
+            problems.append(f"new API retirement exceeds the fixed review limit of 10: {name}")
     for name in retired - before["files"]:
         problems.append(f"new retired record has no pre-existing active owner: {name}")
     appended_knowledge = new_history.get("journal", b"")[len(old_history.get("journal", b"")):]
@@ -2561,6 +4331,15 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
             state_problems.append("no active status files or valid retired milestones")
         if state_problems:
             fail("Invalid memory-bank status/history state:\n  " + "\n  ".join(state_problems), 11)
+        review_warnings = before_rows["history"]["warnings"]
+        if run == 1 and review_warnings:
+            records = len({warning.split(":", 1)[0] for warning in review_warnings})
+            shown = review_warnings[:HISTORY_WARNINGS_SHOWN]
+            more = len(review_warnings) - len(shown)
+            print(f"Warning: {len(review_warnings)} review-wording warning(s) in {records} retired record(s) "
+                  "need human review (not blocking):\n  " + "\n  ".join(shown)
+                  + (f"\n  ... and {more} more; `tabilet-audit index status` and `tabilet status` list them all."
+                     if more else ""), file=sys.stderr)
         summary = lane_summary(repo)
         in_progress_rows = rows_in_state(repo, "in_progress")
         if len(in_progress_rows) > 1:

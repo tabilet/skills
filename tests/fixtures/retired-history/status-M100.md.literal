@@ -1,0 +1,149 @@
+# Retired milestone M100 - Artifact acquisition hardening
+
+**Milestone.** M100
+**Outcome.** completed
+**Retired.** 2026-10-19
+**Source status.** tabilet/memory-bank/status-M100.md
+**Source specification.** tabilet/memory-bank/milestone.md#approved-artifact-acquisition-hardening--2026-10-19
+**Evidence.** db192a648c36c63c1c8d8f6a7d68e2937ec17b43
+**Worktree.** includes uncommitted changes
+**Review.** passed
+**Review iterations.** 6
+**Verification.** GOWORK=off go vet ./... passed; GOWORK=off go test ./... passed (32 packages); git diff --check passed. Artifact tests are clean under go test -race (internal/gui artifact, crawler, download, search and kind tests; internal/apiservice). go test -race ./internal/gui fails in TestServerJobEndpoints (job runner race, outside M100, reported as an environment candidate). Every row was red first on the old code.
+**Consolidated into.** [lessons.md](../../memory-bank/lessons.md) (three lessons), [architecture.md](../../memory-bank/architecture.md) (artifacts library line), [docs/gui.md](../../../docs/gui.md), and the Candidate Directions in [milestone.md](../../memory-bank/milestone.md). Conditional M101 stays active.
+
+## Milestone specification
+
+````markdown
+## Approved Artifact acquisition hardening — 2026-10-19
+
+On 2026-10-19 the user approved Milestones M100 and M101 through `memory-bank-propose`. This is review intake: `/code-review high after 09956a9` reviewed the 28 commits of M96-M99 and U01. The review stated baseline `09956a9`; every finding was revalidated at `cc85184` on `catalog` with a clean worktree. The source review gave no severities. The completed milestones and their status files are not reopened.
+
+**Dispositions.**
+
+| # | Finding | Disposition | Local severity | Owner |
+|---|---|---|---|---|
+| 1 | `fetchHTTPBounded` uses `http.DefaultClient`, so the apitools host guard and timeouts no longer apply to downloads and companion fetches. | Confirmed | P2 | M101.1 |
+| 2 | `kind` and `id` are unvalidated and joined into paths; `MkdirAll` runs before containment; failures skip cleanup. | Confirmed | P2 | M100.1 |
+| 3 | Any manifest read error is treated as a new artifact and the manifest is overwritten. | Confirmed | P2 | M100.1 |
+| 4 | Non-OpenAPI kinds the UI offers (aws-smithy, google-discovery, graphql, grpc-protobuf, odata) are rejected by the OpenAPI root check. | Confirmed | P2 | M100.2 |
+| 5 | `BuildProjectAPISourceFlags` emits `--api-source` for companion fragments and human-docs. | Partially confirmed: the code is confirmed, the downstream failure is shown by the first test | P2 pending that test | M100.4 |
+| 6 | Nested `$ref`s in a companion resolve against the root instead of the companion. | Confirmed | P2 | M100.3 |
+| 7 | A companion's ID (its basename) can replace the root or another companion in the manifest. | Confirmed | Lower, kept with M100.3 | M100.3 |
+| 8 | `isHTMLDocument` treats `<body`, `<html` or a `<?xml` prefix as HTML. | Confirmed | Lower, kept with M100.2 | M100.2 |
+| 9 | Auto-source remote search hides the error when nothing was found. | Confirmed, partly deliberate (commit `4ca873c`) | Lower | M100.5 |
+| 10 | Helpers are duplicated between `apiservice` and `gui` and already differ. | Confirmed | Lower | Candidate Directions |
+
+The lower findings 7, 8 and 9 enter active work because the user asked for them in the approved plan, not because acceptance requires them.
+
+**Decisions (approved 2026-10-19).**
+1. The host guard is requested from `../apitools` as an exported method, rather than duplicated in Ramen or routed through `Import` per file. The apitools milestone is planned in that repository by its own proposal; this one writes nothing there.
+2. Guard adoption is a separate conditional milestone, M101, so M100 stays dependency-closed and executable now.
+3. Finding 10 stays a Candidate Direction with its evidence added; no deduplication row is planned.
+
+**Contract requested from `../apitools` (for M101).** An exported `Client` method that applies the unsafe-host guard at dial time and on every redirect; has a request timeout, gzip handling and a size bound; returns the bytes and the final URL; and honours the same test hook as `Import`.
+
+**Acceptance.**
+- M100: each row's acceptance in `status-M100.md` holds; `GOWORK=off go test ./...`, `go vet ./...` and `git diff --check` pass offline; the milestone review gate passes.
+- M101: loopback, private, `localhost` and redirect-into-private downloads are refused through the apitools method; httptest still works with the test hook.
+
+**Dependencies and downstream effects.** M100 depends on no open work (M96-M99 and U01 are completed). M101 depends on the apitools trigger above; M100 does not depend on M101. Rows run serially; parallel-safe is no, because all write `internal/gui/artifacts.go`. The artifact manifest gains one omit-empty field in M100.4, so older manifests load unchanged. No change to `product.md`, `architecture.md` or `tech-stack.md` is needed until implementation changes a fact they state, and no evolution record applies (no direction or boundary change).
+
+**Until M101 runs,** finding 1 stays open: the GUI listens on loopback only and only the operator can request downloads, but the download URL is user-supplied.
+
+**Outcome.** M100 completed and is retired (6 review iterations). M101 is conditional and remains active under its own section.
+````
+
+## Status record
+
+````markdown
+# Status M100 - Artifact acquisition hardening
+
+**Milestone.** M100
+**Status.** completed
+**Goal.** Fix the confirmed defects of the 2026-10-19 code review of the artifacts work (M96-M99, U01) that need no sibling-repository change: path confinement and manifest safety, per-kind validation, companion crawler correctness, project source flags, and search error visibility.
+**Specification.** [milestone.md#approved-artifact-acquisition-hardening--2026-10-19](milestone.md#approved-artifact-acquisition-hardening--2026-10-19)
+**Owner.** coordinator
+**Review gate iterations.** 6 (passed: no P1 or P2 finding)
+
+## Review lineage
+
+Source: `/code-review high after 09956a9` (baseline `09956a9`), revalidated at `cc85184` on `catalog` with a clean worktree. The source review gave no severities; the local classification is in the specification. Findings 1 to 10 map to rows as follows: 2 and 3 to M100.1; 4 and 8 to M100.2; 6 and 7 to M100.3; 5 to M100.4; 9 to M100.5; 1 to M101; 10 stays a Candidate Direction.
+
+## Tasks
+
+| Item | State | Notes |
+| --- | --- | --- |
+| M100.1: Confinement and manifest safety | `[+]` | `DownloadRemote` and `AddLocalFile` check `kind` against `artifactKinds` and `id` against a plain-label rule before any fetch, stat or directory creation; names and IDs of `.` or `..` are refused (the old charset allowed them); an ID derived from a file name is normalized, not refused; the kind directory is created through `makeKindDir` after a containment check, with cleanup on its failure; `loadOrNewArtifact` treats only `os.ErrNotExist` as a new artifact, so a corrupt or unreadable manifest is returned and left untouched. Red first: the new tests failed on the old code (a `../../escape` kind created a directory beside the library). Tests: `internal/gui/artifacts_confinement_test.go`. |
+| M100.2: Per-kind validation and HTML detection | `[+]` | `DownloadRemote` requires an OpenAPI root only for `openapi`; documentation kinds (`human-docs`, `html`) are stored as given; an OpenAPI request that returns an HTML page becomes documentation; any other kind refuses an HTML page and otherwise downloads. HTML is detected by `isHTMLContent`: an opening doctype or `<html` tag, or an HTML Content-Type with a body that opens with markup; a tag mentioned later in a YAML/JSON document and an XML prolog no longer count. `fetchHTTPBounded` now returns the Content-Type. `documentExtension` stores GraphQL, protobuf and OData documents with their own extensions. `ArtifactFile.Warning` (omit-empty, older manifests load unchanged) notes kinds that plan, apply and reconcile cannot load (decided through `lifecyclehelpers.NormalizeAPISourceKind`). Red first: the new tests failed on the old code with the review's symptoms. Tests: `internal/gui/artifacts_kinds_test.go`. |
+| M100.3: Companion crawler resolution | `[+]` | `resolveRelativeRef` resolves a `$ref` against the document that contains it and refuses anything that leaves the root directory; `findRefPathsFrom` feeds the crawler queue, whose entries are always relative to the root directory and fetched from `finalURL.ResolveReference`, so a nested `tag.yaml` in `schemas/pet.yaml` is fetched as `schemas/tag.yaml` and `../shared/owner.yaml` works. Companion IDs come from `companionID` (path-derived, unique against the root ID, earlier companions and the manifest); the manifest matches companions by path only, so a companion can no longer replace the root or a same-named companion. A referenced companion whose stored name equals the root file returns an error and cleans up; a speculative `common.*` probe is skipped instead. Red first: the old code stored `tag.yaml` at the wrong path and, with `id=api`, dropped the root from the manifest. Tests: `internal/gui/artifacts_crawler_test.go`. |
+| M100.4: Project source flags | `[+]` | Evidence first: with a companion fragment, a human-docs/html page or a GraphQL schema among the flags, the real `ramen validate` and `ramen plan` both fail for the whole project (`api_source_document_parse`, `api_source_invalid`, `api_source_kind_unsupported`), so one multi-file download broke every GUI command in that project. `ArtifactFile.Companion` (omit-empty) marks crawled fragments; `BuildProjectAPISourceFlags` emits a flag only for a non-companion entry whose kind `lifecyclehelpers.NormalizeAPISourceKind` accepts, which leaves human-docs/html out because the CLI rejects them. Manifests written before this change carry no marker, so an older companion stays listed until its artifact is downloaded again. Red first: `cmd/ramen/gui_artifact_sources_test.go` builds a project library of a multi-file OpenAPI download, an HTML page and a GraphQL schema, expects the OpenAPI root only, and runs `validate` and `plan` through the real CLI. |
+| M100.5: Search error visibility | `[+]` | In `SearchRemoteWithOptions` the error branch now returns catalog results only when the catalog found something (the fallback of commit `4ca873c`), and otherwise returns `remote API search failed: ...` in every source mode, so an auto search that failed no longer shows as "no results"; the handler already returns the error and the panel already shows it. Tests in `internal/gui/artifacts_test.go` pin all three cases: failure with no catalog hit is an error (red before), failure with a catalog hit keeps the results, and a successful empty search is an empty list. |
+| M100.6: Review iteration 1 fixes | `[+]` | Finding 1: `DownloadRemote` re-loads the manifest under the lock before merging (and treats the artifact as existing when another writer already added files), test `TestDownloadKeepsAWriteMadeDuringTheCrawl` was red first. Finding 2: `isHTMLContent` strips a UTF-8 byte-order mark, tests red first. Finding 4: `docs/gui.md` and the architecture line describe the new fields, the kind and ID rules and the flag rule. Finding 3 is carried as the Candidate Direction "Artifact downloads are not transactional". |
+| M100.7: Review iteration 2 fixes | `[+]` | Finding 1: the file ID is now checked by `normalizeArtifactFileID`: a path-like ID (`/`, `\`, NUL, `.`, `..`) is refused and every other character outside `[A-Za-z0-9._-]` becomes `-`, so the catalog's own IDs (`googleapis.com:drive`) download again; the free-text ID of an upload is normalized the same way. Finding 2: `canonicalArtifactKind` accepts the aliases of `lifecyclehelpers.NormalizeAPISourceKind` (`smithy-json`, `swagger`, ...) and stores the canonical kind. Tests `TestArtifactWritesNormalizeIDsAndKindAliases` were red first; the `html` kind the UI offers is now in the per-kind table. `docs/gui.md` updated. |
+| M100.8: Review iteration 3 fix | `[+]` | `internal/apiservice.ArtifactFile` gains the same optional `warning` and `companion` fields, so the CLI import path that rewrites the shared `artifact.json` keeps them; without them a CLI import erased the companion markers and the fragments became `--api-source` flags again. `TestManifestRewriteKeepsFieldsWrittenByTheGUI` was red first. |
+| M100.9: Review iteration 4 fix | `[+]` | `withinDir` (via `filepath.Rel`) replaces `containedpath.Rel` for the artifact, kind and file containment checks in `makeKindDir` and `DownloadRemote`; the old helper only looks for a leading `..` when both paths are relative, so a relative `RAMEN_HOME` passed `makeKindDir("home/artifacts", "home/artifacts/x", "../../escape")` and created `home/escape`. `TestMakeKindDirChecksContainmentForRelativePaths` was red first. |
+| M100.10: Review iteration 5 fix | `[+]` | The crawler skips an HTML response for a companion (`isHTMLContent` on the companion's Content-Type and body), so a site that serves its app shell for unknown paths stores no pages. `TestCrawlerSkipsAnHTMLPageServedForAMissingCompanion` was red first (it stored `common.yaml` and `schemas/missing.yaml` as HTML). `docs/gui.md` states the rule. |
+| M100.11: Review iteration 6 test | `[+]` | `TestEveryKindTheUIOffersIsAccepted` ties the panel's kind options to the server allow-list through the real source file (discrimination checked by removing `odata`). No production change. |
+
+## Review
+
+Base for the diff: `3b305b9` (planning commit); code commits `f548c0d`, `a7378a4`, `af25022`, `250a5da`, `01ef7b4`. Verification before review: `GOWORK=off go vet ./...` and `GOWORK=off go test ./...` passed.
+
+Iteration 1 findings:
+
+| # | Finding | Severity | Disposition |
+| --- | --- | --- | --- |
+| 1 | `DownloadRemote` now loads the manifest before the fetch (fail-fast) but still merges into that snapshot after a fetch and crawl that can take long, so a concurrent write to the same artifact (another download, an upload) is lost when the stale snapshot is saved. The window grew from the crawl to the whole download. | P2 (data integrity) | Fix: re-load the manifest under the lock before merging; test with a write during the crawl. |
+| 2 | `isHTMLContent` does not strip a UTF-8 byte-order mark, so an HTML page that starts with one is stored as a specification of its kind. | Lower | Fix with the row above (one line, tested). |
+| 3 | A referenced companion that collides with the root file name returns an error after the root and earlier companions are already on disk; for an artifact that already existed, `cleanupOnErr` removes nothing, leaving untracked files. Failed downloads into an existing artifact have always been non-transactional (a manifest save failure does the same). | Lower | Carried: Candidate Direction "Artifact downloads are not transactional", with trigger. |
+| 4 | `docs/gui.md` does not describe the new manifest fields, the kind and ID rules, or that only loadable root documents become `--api-source` flags. | Lower (documentation) | Fix: update `docs/gui.md` and the architecture line. |
+
+Iteration 2 findings (whole milestone, including the M100.6 fixes):
+
+| # | Finding | Severity | Disposition |
+| --- | --- | --- | --- |
+| 1 | The file-ID rule from M100.1 refuses an ID with a character outside `[A-Za-z0-9._-]`, but the catalog download sends the result's own ID (`item.id`), and APIs.guru IDs contain `:` (for example `googleapis.com:drive`), so catalog downloads of those entries regress. | P2 (supported scenario regresses) | Fix (M100.7): refuse only path-like IDs (`/`, `\`, NUL, `.`, `..`); normalize every other character to `-`. |
+| 2 | The kind allow-list is exact, so the catalog's `smithy-json` (and `swagger`, `google` and other aliases the shared normalizer knows) is refused. Not a regression: the old OpenAPI root check rejected them too. | Lower | Fix with 1: canonicalize through `lifecyclehelpers.NormalizeAPISourceKind` before the allow-list. |
+
+Iteration 3 findings (whole milestone, including the M100.7 fixes):
+
+| # | Finding | Severity | Disposition |
+| --- | --- | --- | --- |
+| 1 | `internal/apiservice` (the CLI import path) reads and rewrites the same `artifact.json` through its own `ArtifactFile`, which lacks `warning` and `companion`. A CLI import into a GUI-built artifact therefore erases the companion markers, and the companions become `--api-source` flags again, which fails `validate` and `plan` (M100.4). | P2 (cross-writer data loss, reintroduces the M100.4 defect) | Fix (M100.8): add both fields to the apiservice struct and test the round trip. |
+
+Iteration 4 findings (whole milestone, including the M100.8 fix; lens: other consumers and relative paths):
+
+| # | Finding | Severity | Disposition |
+| --- | --- | --- | --- |
+| 1 | `makeKindDir` checks containment with `containedpath.Rel`, which only looks for a leading `..` when both paths are relative, so with a relative `RAMEN_HOME` the check passes and `makeKindDir("home/artifacts", "home/artifacts/x", "../../escape")` creates `home/escape`. The allow-list makes it unreachable today, but M100.1 acceptance says containment is checked before any directory is created. | P2 (acceptance partly unmet) | Fix (M100.9): compare with `filepath.Rel`, which relates the two paths whatever their form. |
+
+W Flow (`internal/wflowservice`) iterates every manifest entry and skips documents that do not parse, so companions and the new kinds need no change there; unique companion IDs also stop its digest map from being overwritten.
+
+Iteration 5 findings (whole milestone, including the M100.9 fix; lenses: race detector, hostile and dull servers):
+
+| # | Finding | Severity | Disposition |
+| --- | --- | --- | --- |
+| 1 | The crawler stored whatever a companion URL returned with status 200. A site that answers unknown paths with its HTML app shell therefore filled the artifact with pages, starting with the speculative `common.yaml` probe. Marked as companions they no longer break project commands (M100.4), but they are junk in the library and the inventory. | Lower | Fix (M100.10): skip an HTML response for a companion. |
+| 2 | `cleanupOnErr` in `DownloadRemote` and `AddLocalFile` removes the whole directory of an artifact that did not exist when the call started, so two first-time creators of the same name can delete each other's in-flight files (`DownloadRemote` writes without holding the lock). Pre-existing structure, narrow window. | Lower | Carried in the Candidate Direction "Artifact downloads are not transactional" (extended). |
+| 3 | `go test -race ./internal/gui/` fails in `TestServerJobEndpoints`: `runner.go:539` writes the job status while `server.go:698` encodes the same job. Neither file is part of M100, and the race is not in the artifacts code. | Outside M100 | Environment candidate: the job runner race, and a documented race gate. |
+
+Iteration 6 findings (whole milestone, including the M100.10 fix; lens: producer and consumer contracts):
+
+| # | Finding | Severity | Disposition |
+| --- | --- | --- | --- |
+| 1 | The kinds the Artifacts panel offers and the server's allow-list are two lists with no check between them; M100.1 and M100.2 each had to be corrected once for a producer value the server did not expect. | Lower | Fixed by M100.11 (test only): `TestEveryKindTheUIOffersIsAccepted` reads the real panel source and runs each offered kind through `canonicalArtifactKind`; removing `odata` from the allow-list made it fail. |
+
+No P1 or P2 finding. The artifact tests are clean under `-race` (`go test -race ./internal/gui -run 'Artifact|Crawler|Download|...'` and `./internal/apiservice`); the only `-race` failure in the package is the job-runner race recorded under iteration 5.
+
+## Verification Plan
+
+```bash
+GOWORK=off go test ./internal/gui/... ./internal/apiservice/... ./cmd/ramen/...
+GOWORK=off go test ./...
+GOWORK=off go vet ./...
+git diff --check
+```
+
+No web change is planned; if one arises, run the UI gate in `tech-stack.md`. Offline only; no push.
+````

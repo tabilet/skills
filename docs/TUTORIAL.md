@@ -606,7 +606,7 @@ on an implicit choice.
 
 The [bounded review-fix gate](../GOAL.md#bounded-review-fix-gate) is not a single
 pass. It advances only after a clean review and stops with the milestone
-incomplete if iteration 10 still finds a blocking issue.
+incomplete if the final allowed iteration still finds a blocking issue.
 
 Because this example opts into goal use with the bundled protocol, init also writes
 a complete active-horizon `STATUS_ORDER`, `STATUS_FILE_MAP`, and

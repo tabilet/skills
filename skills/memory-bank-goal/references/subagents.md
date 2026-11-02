@@ -65,10 +65,15 @@ defaults:
   and limits. A nested Reconcile verifies provenance against the invoking
   conversation or supported trusted host state; missing provenance retains the
   ordinary approval gate. Repairs retain acceptance obligations and the
-  originating milestone's review counter and iteration-10 stop.
+  originating milestone's review counter and approved review-limit stop.
 - `NOTIFY_EMAIL` and notification run identity as context only. Children and
   reviewers send no email; they return approval needs to their owner, who
   preserves request identity for duplicate suppression.
+- The resolved `REVIEW_MAX_ITERATIONS`, effective milestone cap, approval source
+  and persisted review counter. Children cannot raise the cap or reset the counter.
+- The current verified launch hash and resolved request, with the original human
+  approval source and any authorized refresh provenance. Children cannot refresh
+  launch input or infer authority from hashes alone.
 - The full `AUTHORIZATION_GRANTS` context and human approval source, plus the
   child's effective authorization subset narrowed by exact milestone key
   (inheriting applicable `GLOBAL:` grants and milestone-attached policy overrides), assignment, executor role, scope,
@@ -98,8 +103,10 @@ owner for the resolved values. The focused project context also contains:
 - The concrete verification commands required for acceptance.
 
 When several children need the same exploration, run one read-only
-exploration pass first and have it write notes in a directory outside every
-repository. Briefs point to those notes and to existing specifications, status
+exploration pass first and have it write notes in an already authorized scratch
+location outside every active writer's owned files. Prefer an ignored workspace
+location with read-only access for consumers; use a location outside the workspace
+only if explicitly authorized. Briefs point to those notes and to existing specifications, status
 files, and commits instead of restating them.
 
 The full request is context only beyond the child's effective subset. Children
@@ -114,8 +121,9 @@ protocol's standing revision envelope lets an effective unprivileged local
 verification grant cover revised owned code or outputs across retries; a child
 asks the owner to reserve each attempt from the persisted budget and never
 reads or spends it directly. Under
-`SCOPE_POLICY: workspace-contained`, sibling repositories within the approved workspace root
-and organization operate within approved scope without re-prompting. Commit-none and
+`SCOPE_POLICY: workspace-contained`, approved local CLI work can bind to sibling
+repositories within the approved workspace root and organization. Push targets
+remain exact; new destinations need explicit approval even inside the workspace. Commit-none and
 external-mutation restrictions still govern, and local integration grants no
 push. Host/tool permission controls still apply.
 
@@ -181,28 +189,36 @@ without violating ledger rules.
 ### Review-Fix Gate Fan-Out
 
 In each iteration of the bounded review-fix gate:
-1. The owner pins the milestone's base commit and inspects the full diff,
-   including staged, unstaged and relevant untracked work under the commit
-   policy. An empty implementation diff still needs acceptance review; do not
+1. The owner scopes the iteration as the governing gate in `GOAL.md` defines:
+   iteration 1 pins the milestone's base commit and covers the full milestone
+   diff, including staged, unstaged and relevant untracked work under the commit
+   policy; later iterations under the adopted gate cover the prior blocking
+   findings, the change since the recorded reviewed state, and its direct
+   consumers. An empty implementation diff still needs acceptance review; do not
    manufacture changes. With `MODEL_POLICY`, use fresh read-only reviewers
    under `WHOLE_MILESTONE_REVIEW` for each iteration. Lenses are coverage
    obligations: combine them or run batches within available host capacity.
-   Review the whole milestone through these lenses:
+   Each brief carries the resolved `TEST_POLICY`, the earlier findings and the
+   reviewed state. Cover the iteration scope through these lenses:
    - **Correctness & Reliability**: Logic errors, edge cases, failure semantics.
    - **Security & Privacy**: Access control, secret leaks, data validation.
    - **Compatibility & Contracts**: Public APIs, schema migrations, backwards
      compatibility.
-   - **Tests & Documentation**: Regression test coverage, documentation parity.
+   - **Tests & Documentation**: Regression test coverage, documentation parity,
+     and test-policy compliance.
    - **Acceptance & Scope**: Acceptance requirements missing or partial, behavior
      nobody asked for (scope creep), and requirements implemented wrongly, each
      quoting its acceptance line.
-2. Each reviewer produces classified findings (P1, P2, P3).
+2. Each reviewer produces classified findings (P1, P2, Lower).
 3. The owner records all findings in **one** iteration report in the milestone
    status notes, grouped by lens so one lens cannot hide another. Severity, not
    the lens, decides the gate.
 4. The counter advances by **exactly one** per iteration.
-5. If P1 or P2 findings exist and the iteration is below 10, the owner applies
-   fixes, verifies, and triggers the next iteration pass. With `MODEL_POLICY`,
+5. If blocking findings exist, or review changes remain unreviewed, and the
+   iteration is below the approved review limit, the owner applies the fixes,
+   verifies, and triggers the next iteration pass. Lease children return
+   register updates for carried findings; only the owner writes the open
+   review findings register. With `MODEL_POLICY`,
    consolidation and fixes use `DEFAULT`; each next whole review uses fresh
    review agents. Missing capability or lens coverage cannot yield a clean pass.
    An interrupted iteration resumes its persisted number, never resets it.
@@ -389,7 +405,7 @@ All conditions must be satisfied, or execution automatically falls back to Tier 
   used at ordinary closure, including ignored artifacts. Retained evidence must
   be safe and references valid before removal. Preserve and report every
   uncertain lease, including when evidence retention is unresolved.
-- **Failure Isolation**: A blocked row, conflict, or iteration-10 review failure
+- **Failure Isolation**: A blocked row, conflict, or review-limit failure
   stops that lease only. Its worktree and branch are retained for inspection, its
   dependents stay unscheduled, independent siblings continue, and the owner
   reports the blocker.

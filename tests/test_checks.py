@@ -17,6 +17,73 @@ SPEC.loader.exec_module(repository_checks)
 
 
 class CheckHelperTests(unittest.TestCase):
+    def test_readme_links_check_outgoing_and_incoming_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            readme = root / "README.md"
+            guide = root / "guide.md"
+            readme.write_text("# Start\n[missing](absent.md)\n")
+            guide.write_text("[bad inbound](README.md#missing)\n[unrelated](elsewhere.md)\n")
+            with mock.patch.object(repository_checks, "ROOT", root), mock.patch.object(
+                repository_checks, "markdown_files", return_value=[readme, guide]
+            ):
+                problems = repository_checks.link_problems(readme_only=True)
+                self.assertTrue(any("absent.md" in problem for problem in problems))
+                self.assertTrue(any("#missing" in problem for problem in problems))
+                self.assertFalse(any("elsewhere.md" in problem for problem in problems))
+                readme.write_text("# Start\n## Missing\n")
+                self.assertEqual([], repository_checks.link_problems(readme_only=True))
+
+    def test_readme_mode_runs_no_behavioral_suite(self):
+        with mock.patch.object(repository_checks, "readme_contract_problems", return_value=[]), mock.patch.object(
+            repository_checks, "CHECKS", [("behavior", mock.Mock(side_effect=AssertionError))]
+        ):
+            self.assertEqual(0, repository_checks.main(readme_only=True))
+
+    def test_grant_phrase_guard_normalizes_case_and_wrapping_and_scans_docs(self):
+        phrase = "GRANTS MARKED `[ ]`, `[+]`, OR `[~]`\n\tBECOME EFFECTIVE"
+        self.assertTrue(repository_checks.pending_grant_phrase_problems("guide", phrase))
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in ("AGENTS.md", "GOAL.md", "skills/memory-bank-goal/SKILL.md"):
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            (fixture / "docs").mkdir()
+            (fixture / "docs/guide.md").write_text(phrase)
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertTrue(any("docs/guide.md" in p for p in repository_checks.goal_continuity_contract()))
+
+    def test_push_examples_require_explicit_policy_and_no_wildcards(self):
+        grant = "AUTHORIZATION_GRANTS:\n  GLOBAL:\n    - [+] grant_id: push-one\n      action: git.push\n"
+        for policy in ("", "external_mutations: NoNe\n", "EXTERNAL_MUTATIONS: 'none'\n", "EXTERNAL_MUTATIONS:\n"):
+            with self.subTest(policy=policy):
+                self.assertTrue(repository_checks.push_example_problems("guide", policy + grant))
+        approved = "EXTERNAL_MUTATIONS: {grant_ids: [push-one]}\n" + grant
+        self.assertEqual([], repository_checks.push_example_problems("guide", approved))
+        self.assertTrue(repository_checks.push_example_problems("guide", approved.replace("[+]", "[~]")))
+        self.assertTrue(repository_checks.push_example_problems("guide", approved + "      Remote: https://example.com/*\n"))
+
+    def test_shared_planning_blocks_reject_byte_drift_and_missing_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in set(path for paths in repository_checks.SHARED_PLANNING_BLOCKS.values() for path in paths):
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual([], repository_checks.shared_planning_blocks())
+                for name, paths in repository_checks.SHARED_PLANNING_BLOCKS.items():
+                    path = fixture / paths[-1]
+                    original = path.read_bytes()
+                    marker = f"<!-- BEGIN SHARED {name} -->".encode()
+                    for replacement in (marker + b" ", b"<!-- removed marker -->"):
+                        with self.subTest(name=name, replacement=replacement):
+                            path.write_bytes(original.replace(marker, replacement))
+                            self.assertTrue(repository_checks.shared_planning_blocks())
+                    path.write_bytes(original)
+                self.assertEqual([], repository_checks.shared_planning_blocks())
+
     def test_upgrade_removal_checks_references_without_rewriting_frozen_evidence(self) -> None:
         # Static contract coverage only: these fixtures do not run an agent
         # or establish that a project's references were actually inspected.
@@ -104,9 +171,9 @@ class CheckHelperTests(unittest.TestCase):
                  "`auto` may weaken required outcomes and verification gates"),
                 ("GOAL.md", "cancel unmet obligations", "silently cancel unwanted tasks"),
                 ("GOAL.md", "named successor that retains every obligation", "successor that drops required evidence"),
-                ("GOAL.md", "review the originating milestone again using its existing iteration counter",
+                ("GOAL.md", "run that gate's next iteration using its existing iteration counter",
                  "reset the originating milestone counter after a repair milestone passes"),
-                ("GOAL.md", "At iteration 10, unresolved findings stop further automatic repair cycles",
+                ("GOAL.md", "At the approved review limit, unresolved findings stop further automatic repair cycles",
                  "At iteration 10 create a new repair milestone and continue"),
                 ("template/tabilet/memory-bank/milestone.md", "move the interrupted `[~]` row to `[!]`",
                  "keep the interrupted `[~]` row while another row runs"),

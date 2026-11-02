@@ -26,6 +26,34 @@ class IndexTests(unittest.TestCase):
     def sync(self,**kwargs):return ix.sync(self.c,self.root,**kwargs)
     def hashes(self):return {str(p.relative_to(self.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (self.root/'tabilet').rglob('*.md')}
 
+    def test_extended_ids_are_reindexed_and_keep_full_dependency_targets(self):
+        bank = self.root / 'tabilet/memory-bank'
+        self.source.unlink()
+        roots = ('M99', 'M100', 'M130', 'M153')
+        (bank/'milestone.md').write_text('# Milestones\n' + ''.join(
+            f'\n## {root} - Delivery\n\n**Acceptance.** Feature works.\n' for root in roots))
+        for root in roots:
+            (bank/f'status-{root}.md').write_text(
+                '| ID | State | Notes |\n|---|---|---|\n'
+                f'| T01 | `[ ]` | Depends on: {root}-01/T01 |\n')
+            (bank/f'amend-{root}-01.md').write_text(
+                f'## {root}-01 - Repair\n\nParent: {root}\n\n'
+                '| ID | State | Notes |\n|---|---|---|\n| T01 | `[ ]` | Repair |\n')
+            (bank/f'option-{root}-02.md').write_text(
+                f'## {root}-02 - Option\n\nParent: {root}\n')
+        first = self.sync(); workspace = first['workspace_id']
+        ids = {row[0] for row in self.c.execute('SELECT milestone_id FROM index_milestones')}
+        for root in roots:
+            self.assertTrue({root, root + '-01', root + '-02'} <= ids)
+            self.assertEqual((root + '-01', 'T01'), ix.dependency_target(root + '-01/T01'))
+        with self.c:
+            self.c.execute('UPDATE schema_meta SET value=? WHERE key=?', ('v7', f'index_projection:{workspace}'))
+        with mock.patch.object(ix, 'parse_document', wraps=ix.parse_document) as parse:
+            self.sync()
+            self.assertGreater(parse.call_count, 0)
+        self.assertEqual((ix.INDEX_PROJECTION,), self.c.execute(
+            'SELECT value FROM schema_meta WHERE key=?', (f'index_projection:{workspace}',)).fetchone())
+
     def test_search_fallback_and_no_project_writes(self):
         before=self.hashes()
         first=self.sync();w=first['workspace_id']
@@ -267,7 +295,8 @@ class IndexTests(unittest.TestCase):
                   '| Cancelled | `[X]` | authorized cancellation |\n'
                   '| Historical | `[-]` | successor: M02 |\n')
         record, _ = ix.retired_record_for_index(h.retirement_text(status), 'status-M01.md')
-        self.assertEqual([row['state'] for row in ix.parser().status_rows(record['status'])],
+        self.assertEqual(record['status'], status)
+        self.assertEqual([row['state'] for row in ix.parser().status_rows(record['task_status'])],
                          ['completed', 'completed', 'pending', 'in_progress', 'blocked',
                           'cancelled', 'historical'])
         self.assertEqual(record['legacy_completion_lines'], [3])
@@ -330,11 +359,12 @@ class IndexTests(unittest.TestCase):
                 self.assertEqual(self.hashes(), before)
                 # Incremental reuse must retain the warning, not silently clear it.
                 self.assertIn(diagnostic, self.sync()['diagnostics'])
-        # Unrelated current work remains available despite inconsistent history.
+        # The shared runner gate rejects unresolved history even when the
+        # current task has no explicit dependency on that record.
         active.write_text(active.read_text() + '\n')
         (self.root/'tabilet/memory-bank/milestone.md').write_text('# Milestones\n\n## M02 - Next\n')
         synced = self.sync()
-        self.assertEqual(len(ix.readiness(self.c, synced['workspace_id'], self.root)['ready']), 1)
+        self.assertEqual(ix.readiness(self.c, synced['workspace_id'], self.root)['ready'], [])
         # Consistent closure still satisfies the dependency without warnings.
         retired.write_text(valid)
         (self.root/'tabilet/memory-bank/milestone.md').write_text(
@@ -671,6 +701,50 @@ class IndexTests(unittest.TestCase):
         milestone.write_text(milestone.read_text()+'\n**Dependencies.** [M01](status-M01.md)\n')
         state=ix.sync(self.c,copied)
         self.assertTrue(state['complete'])
+
+    def test_item_labels_with_milestone_task_ids_resolve_dependencies(self):
+        self.source.write_text(
+            '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
+            '| M01.1 — First | `[+]` | done |\n'
+            '| M01.2 — Second | `[ ]` | Depends on: M01.1; next |\n')
+        state = self.sync(); workspace = state['workspace_id']
+        tasks = a.records(self.c, 'SELECT label,explicit_id FROM index_tasks ORDER BY line')
+        self.assertEqual([task['explicit_id'] for task in tasks], ['M01.1', 'M01.2'])
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertEqual([row['task']['explicit_id'] for row in ready['ready']], ['M01.2'])
+        with self.c:
+            self.c.execute('UPDATE schema_meta SET value=? WHERE key=?',
+                           ('v9', f'index_projection:{workspace}'))
+        with mock.patch.object(ix, 'parse_document', wraps=ix.parse_document) as parse:
+            self.sync()
+            self.assertGreater(parse.call_count, 0)
+        self.assertEqual((ix.INDEX_PROJECTION,), self.c.execute(
+            'SELECT value FROM schema_meta WHERE key=?', (f'index_projection:{workspace}',)).fetchone())
+
+        self.source.write_text(self.source.read_text().replace('`[+]`', '`[ ]`'))
+        self.sync()
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertEqual([row['task']['explicit_id'] for row in ready['ready']], ['M01.1'])
+        self.assertTrue(any(row['task']['explicit_id'] == 'M01.2' for row in ready['waiting']))
+
+        self.source.write_text(
+            '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
+            '| M01.1 — First | `[+]` | done |\n'
+            '| M01.1 — Duplicate | `[+]` | duplicate |\n'
+            '| M01.2 — Second | `[ ]` | Depends on: M01.1; next |\n')
+        self.sync()
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertFalse(ready['ready'])
+        self.assertTrue(any('M01.1' in row['reason'] for row in ready['waiting']))
+
+        self.source.write_text(
+            '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
+            '| M02.1 — Wrong milestone | `[+]` | done |\n'
+            '| M01.2 — Second | `[ ]` | Depends on: M02.1; next |\n')
+        self.sync()
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertFalse(ready['ready'])
+        self.assertTrue(any('M02.1' in row['reason'] for row in ready['waiting']))
 
     def test_explorer_projection_and_readiness_explain_explicit_dependencies(self):
         self.source.write_text(

@@ -274,7 +274,7 @@ control back to a human.
 | `8` | The committed result violated the one-row transition or retirement preservation contract, or left required project instructions unavailable. |
 | `9` | The agent rewrote history or moved away from the original branch. |
 | `10` | No `AGENTS.md` in the target repository. |
-| `11` | Missing or invalid status/history state: unavailable required instructions, no memory bank, a milestone without its status record, no active or valid retired milestones, or inconsistent retirement records/index. Missing `AGENTS.md` at startup uses `10`. |
+| `11` | Missing or invalid status/history state: unavailable required instructions, no memory bank, a milestone without its status record, no active or valid retired milestones, or inconsistent retirement records/index. Missing `AGENTS.md` at startup uses `10`. Unrecognized review wording in a literal retired record is a printed warning, not this exit; see [historical record compatibility](history-corrections.md). |
 | `12` | The target is not a git worktree root. |
 | `13` | Git `HEAD` could not be read. |
 | `14` | Actionable work was not given unsandboxed-shell acknowledgment. |

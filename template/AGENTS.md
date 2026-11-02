@@ -18,7 +18,8 @@ Before substantial changes, read these in order:
 2. [tabilet/memory-bank/architecture.md](tabilet/memory-bank/architecture.md)
    Read a linked `tabilet/docs/archive-<LANE><NN>.md` only when historical baseline
    evidence for the current work is relevant.
-3. [tabilet/memory-bank/tech-stack.md](tabilet/memory-bank/tech-stack.md)
+3. [tabilet/memory-bank/tech-stack.md](tabilet/memory-bank/tech-stack.md) and
+   [tabilet/memory-bank/test-policy.md](tabilet/memory-bank/test-policy.md)
    Consult relevant topics in [tabilet/memory-bank/lessons.md](tabilet/memory-bank/lessons.md)
    for reusable lessons and their evidence.
 4. [tabilet/memory-bank/milestone.md](tabilet/memory-bank/milestone.md)
@@ -97,6 +98,8 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   frameworks, or dependencies. Keep trivial comparisons and transformations
   inline when that is clearer than introducing a local abstraction.
 - Run the required verification before claiming a change is done.
+- Every test follows the test policy in `tabilet/memory-bank/test-policy.md`; it
+  grants no authority.
 
 ## Work Cadence
 

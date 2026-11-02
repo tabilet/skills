@@ -167,6 +167,10 @@ the previous generation and expose diagnostics; callers must inspect freshness.
 Milestone identity is workspace plus permanent ID; archive IDs occupy a separate
 namespace. Tasks without explicit IDs are versioned observations at a source
 location. Do not infer permanent identity through renames, duplicates, or moves.
+In an `Item | State | Notes` ledger, an item starting with its owning milestone
+and numbered task ID, such as `M01.2 — Verify`, supplies that explicit ID.
+An item naming another milestone does not. Duplicate IDs remain ambiguous and
+cannot satisfy a prerequisite.
 Use established Markdown and retired-record parsing semantics, including escaped
 pipes and fences. Index explicit relationships only; retain unresolved references
 as diagnostics. Do not infer acceptance from completed or cancelled markers.

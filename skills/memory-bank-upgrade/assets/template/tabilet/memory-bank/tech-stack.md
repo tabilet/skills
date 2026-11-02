@@ -51,6 +51,7 @@
 
 ## Verification and testing standards
 
+- **Test policy**: every test follows [test-policy.md](test-policy.md); this section holds the commands and limits it refers to.
 - **Testing profile**: `[standard | browserlight | golight | rustlight | tslight | jslight | pythonlight]`.
 - **Focused tests**: [Command, target and hard limit; light-profile default: 30-second target / 2-minute cap].
 - **Full regression**: [Project command and wall-clock limit; light-profile default: 20-minute cap].
@@ -60,7 +61,7 @@
 - **Harness boundaries**: [e.g., Use in-memory/loopback mocks; no external supervisor daemons or multi-GB disk snapshots; defer physical/browser e2e to final release smoke tests].
 - **Execution cadence**: [Run focused package/module verification during task loops; run the full suite once per unchanged closure candidate and race/UI checks when the change touches concurrency or UI and at required closure; rerun the affected checks after every review fix].
 - **Replacement coverage**: [When retiring an implementation, preserve meaningful success and failure coverage for retained behavior through its successor; remove a test only once its behavior has moved or been removed].
-- **Acceptance readiness**: [Identify missing final-acceptance inputs, capabilities and authority early; run a fast preflight of fixtures, schemas and launchers before each counted expensive attempt].
+- **Acceptance readiness**: [Identify missing final-acceptance inputs, capabilities and authority early; run a fast preflight of fixtures, schemas and launchers before each counted attempt of a check that uses the verification-attempt gate].
 
 ## Model eval harnesses
 

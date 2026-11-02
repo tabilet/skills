@@ -54,6 +54,7 @@
 tabilet/memory-bank/product.md       产品是什么，以及它的领域不变量
 tabilet/memory-bank/architecture.md  系统现在是什么样
 tabilet/memory-bank/tech-stack.md    命令、依赖与验证
+tabilet/memory-bank/test-policy.md   标准的离线优先测试策略，外加项目特定内容
 tabilet/memory-bank/lessons.md       至今仍会改变决策的经验
 tabilet/memory-bank/milestone.md     活跃视野与后续方向
 tabilet/memory-bank/status-*.md      每个实现单元对应一行任务粒度的状态行

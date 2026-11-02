@@ -1,0 +1,41 @@
+{
+  "schema": "tabilet.history-corrections/v1",
+  "records": [
+    {
+      "milestone_id": "M99",
+      "record_path": "tabilet/docs/history/status-M99.md",
+      "record_sha256": "41deaf2fd0edc2c01de1e39e71b63f0e8bfdd4ae871e6f8227cfa84539c7e340",
+      "corrections": [
+        {
+          "kind": "identify-specification",
+          "heading": "## Approved UI Navigation & Project-Centric Structure Refactoring \u2014 2026-10-18",
+          "evidence": [
+            {
+              "start_line": 1,
+              "end_line": 1,
+              "quote": "# Retired milestone M99 - UI Navigation & Project-Centric Structure Refactoring"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "milestone_id": "M100",
+      "record_path": "tabilet/docs/history/status-M100.md",
+      "record_sha256": "d937085fa26e1b81559f7601aecba13f89c876e243e6caa4dc00ac20f2fb34be",
+      "corrections": [
+        {
+          "kind": "identify-specification",
+          "heading": "## Approved Artifact acquisition hardening \u2014 2026-10-19",
+          "evidence": [
+            {
+              "start_line": 1,
+              "end_line": 1,
+              "quote": "# Retired milestone M100 - Artifact acquisition hardening"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

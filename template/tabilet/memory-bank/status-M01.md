@@ -52,8 +52,13 @@ Link required amendments and deferred options here; keep their work in their own
 
 Keep this file a current-state record, not a log. Replace a superseded checkpoint
 instead of appending dated narrative, and link per-attempt detail in evidence
-files. A row whose acceptance depends on an expensive check records its attempt
-count here under the [verification-attempt gate](milestone.md#verification-attempt-gate).
+files. A row whose acceptance depends on a class R check, or on an explicit
+grant budget, records its attempt count here under the
+[verification-attempt gate](milestone.md#verification-attempt-gate). A class O
+gate under the [test policy](test-policy.md) records the command, the source
+revision (and artifact identity when one is qualified), PASS or FAIL, and one
+log link. A row that fixes a carried review finding says "fixes FND-nn" in its
+notes (see [Open review findings](milestone.md#open-review-findings)).
 
 After the milestone's review, consolidation, and downstream reconciliation
 pass, follow [the retirement procedure](milestone.md#long-term-memory-and-retirement).

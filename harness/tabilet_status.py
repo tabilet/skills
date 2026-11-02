@@ -148,6 +148,7 @@ def status_report(core, repo: pathlib.Path, receipt_store=None) -> dict:
         "receipt": receipt_records,
         "receipt_errors": receipt_errors,
         "state_problems": state_problems,
+        "history_warnings": list(snapshot.get("history", {}).get("warnings", [])),
     }
 
 

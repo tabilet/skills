@@ -117,7 +117,10 @@ is only worth anything if additions are argued against something:
 ## Essential Commands
 
 ```bash
-# Verify this repository. Run before claiming a change is done; CI runs it too.
+# For changes limited to README.md, verify its links and public contracts.
+python3 check.py --readme
+
+# For code, protocol, instruction, or other changes, run the full suite; CI does too.
 python3 check.py
 
 # Separate credential-free DSH compatibility suite (Linux, Node 24).
@@ -156,6 +159,11 @@ status-marker regexes, the shipped payload, the disposable goal-reference
 contract, the English-only documentation policy and its translated-site
 exception. Standard library only, like the harness.
 When you add a rule to this file, add the check that enforces it.
+The `--readme` mode checks README links, inbound anchors, and its public
+instruction and installation contracts; it does not run behavioral tests. Use
+it only when the changes being completed are limited to the root `README.md`.
+Code, protocols, repository instructions, and changes to other files require the
+full `python3 check.py`. Website changes also require `mkdocs build --strict`.
 
 The DSH suite is repository-only: `tests/dsh/` locks the runtime and its
 dependencies, and a separate CI job tests the seven shared bundles through DSH's
@@ -188,7 +196,7 @@ the whole point of the design:
 | Layer | Role |
 |---|---|
 | `AGENTS.md` | Short bootstrap pointer; read first by agents. Names commands, boundaries, hard rules. |
-| `tabilet/stages.md` and `tabilet/memory-bank/` | Optional stage direction, then active truth: product, architecture, stack, curated `lessons.md`, active milestone specifications and status files. |
+| `tabilet/stages.md` and `tabilet/memory-bank/` | Optional stage direction, then active truth: product, architecture, stack, the stock `test-policy.md`, curated `lessons.md`, active milestone specifications and status files. |
 | `tabilet/evolution/` | Versioned direction snapshots (`prompt-vN.md` / `result-vN.md`). New version only on a real direction, boundary, milestone, or contract change. |
 | `docs/` | Long-form reference, optional frozen context baselines, and on-demand retired milestone/knowledge history. `README.md` stays short and user-facing. |
 
@@ -209,10 +217,10 @@ or goal orders, and the API harness ignores them because it discovers only root 
 ### Status ID lanes
 
 Status files are `tabilet/memory-bank/status-<LANE><NN>.md`: one uppercase letter
-classifying the domain, then a zero-padded two-digit number. `A01`/`A02` for
+classifying the domain, then a positive number with at least two digits. `A01`/`A02` for
 accounting, `S01` for shopping, `M` as the default lane for anything that
-doesn't classify. A lane holds at most 99 files — when it fills, open a new
-letter rather than a third digit. IDs are never reused or renamed once their
+doesn't classify. After `M99` continue with `M100`; extra leading zeros are invalid.
+Child suffixes and archive IDs retain their separate two-digit limits. IDs are never reused or renamed once their
 file exists, and there is no aggregate `status.md`. The pattern, the lane
 meanings, and the index table live in `template/tabilet/memory-bank/milestone.md`.
 
@@ -243,6 +251,11 @@ Retirement is a storage lifecycle, not a seventh marker or a context archive.
 The record envelope preserves original documents as literal fenced Markdown;
 the parser reads task rows only from its Status record section. Legacy projects
 adopt this explicitly. Context snapshots remain optional and separate.
+
+The shared historical reader and optional project correction manifest are
+described in [historical record compatibility](docs/history-corrections.md).
+Corrections preserve literal sources, remain separate from execution approval,
+and do not relax the strict contract for newly retired records.
 
 ### The agent loop (`harness/tackle-memory-bank-api-loop`)
 
@@ -339,7 +352,7 @@ spelling so an inbound link survives translation.
   request, covered actions, grants and limits before using standing approval.
   Missing provenance retains the ordinary approval gate. Never weaken acceptance
   or cancel unmet obligations. Repair milestones preserve the originating
-  milestone's review gate and counter, including its iteration-10 stop.
+  milestone's review gate and counter, including its approved review-limit stop.
   Suspend `[~]` as `[!]` with prerequisite IDs and resumption conditions before
   another row starts; resume `[~]` only after prerequisite acceptance and all
   blockers clear. Preserve partial work; pause if changes cannot be separated.
@@ -395,14 +408,33 @@ spelling so an inbound link survives translation.
   Generated launch references always show `AUTHORIZATION_GRANTS`, with `{}` as
   the empty default. Proposed grants in launch input or `suggested.txt` carry
   decision markers: `[ ]` (need authorization), `[+]` (approve), `[-]` (deny),
-  and `[~]` (auto). High-level `GLOBAL:` grants declare common authorities across
+  and `[~]` (auto). A pending task `[ ]` never requires confirmation by itself;
+  checksum approval does not activate proposed grants. Reuse scoped approval
+  already given with the launch, and continue independent authorized work when
+  a protected action is blocked, subject to order and ownership.
+  Launch preflight resolves push grants against external-mutation prohibitions
+  before checksum approval; presets never override an explicit denial. Push
+  content distinguishes `exact-commit` from explicitly approved
+  `accepted-goal-commits`; verify the full outgoing range and never broaden
+  legacy grants, whose exact command/artifact pins remain binding. Approved
+  plan-only human commits may accompany accepted goal work only after their full
+  diff matches approved planning evidence. Prefer `EXTERNAL_MUTATIONS` grant-ID
+  references; legacy duplicate target lists are intersecting constraints, never
+  alternative authority. Authorized launch refreshes retain the original approval and
+  verified old/new hash transitions in trusted continuation context; a hash chain
+  alone grants nothing. Unexplained drift and uncertain external effects stop
+  affected work. Prefer authorized workspace scratch paths without broadening
+  filesystem authority. Continuous-run planning may propose option deferral and
+  dependency-ready priority, preserving explicit choices and strict ordering.
+  High-level `GLOBAL:` grants declare common authorities across
   tasks. When resuming from `suggested.txt`, matching its SHA256 checksum against
   human approval is required before activating grants (under default `SUGGESTED_UPDATE: confirm`;
   `SUGGESTED_UPDATE: auto` authorizes the orchestrator to refresh remaining milestones
   within the approved horizon and smoothly continue). Scope resolution defaults to
   `SCOPE_POLICY: strict` (exact string matches); `SCOPE_POLICY: workspace-contained`
-  authorizes binding `git.push` and `cli.local` to sibling repositories within the approved
-  workspace root and organization without re-prompting. The standing revision envelope
+  authorizes binding approved `cli.local` work to sibling repositories within the
+  approved workspace root and organization. Push targets always stay exact;
+  workspace containment grants no additional push destinations. The standing revision envelope
   for unprivileged workspace-local verification retries (with its optional `standing` block)
   is defined only in `GOAL.md`; it never covers `sudo`, `ssh`, live browser, or push grants,
   treats `/tmp` as outside the workspace unless listed, and has its budget reserved and
@@ -536,17 +568,47 @@ spelling so an inbound link survives translation.
   `references/model-policy.md`; planning preserves explicit policy and adds it
   only when requested. The Python API paths do not consume model policy.
 - `GOAL.md` and the template milestone review use the same bounded review-fix
-  gate. The initial deep-review pass is iteration 1; after every P1, P2, or
-  higher-severity fix, verify and review the whole milestone again. A clean pass
-  is required within 10 iterations, and the counter does not reset across
-  sessions or reviewers; persist the iteration count in the active status or
+  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1).
+  The initial deep-review pass is iteration 1 and covers the full milestone
+  diff; later iterations review only the prior blocking findings, the change
+  since the recorded reviewed state and its direct consumers, and each records
+  its reviewed state (the full `HEAD` commit ID, plus a saved diff and hash for
+  uncommitted work; if that cannot be reconstructed, review the full diff). P2
+  and Lower never block on their own: fix now when cheap or built upon, or carry
+  in the active `milestone.md` Open review findings register (`FND-` IDs); only
+  Lower may be declined with a rationale. Every review fix is itself verified and
+  reviewed by a later iteration; recording findings, dispositions, counters,
+  reviewed state and register rows is not a review change. On the final allowed
+  iteration make no further review change and carry non-blocking findings. A
+  carried P2 still unfixed when its fix owner or a later iteration examines it
+  becomes blocking. A clean pass is required within the approved review limit
+  (default 10), and the counter does not reset across sessions or reviewers. When
+  the project's own severity definitions make P2 blocking, or it has no register,
+  that stricter gate applies (P2 blocks and every iteration reviews the whole
+  milestone) until explicit adoption. The optional `tabilet` controller keeps its
+  own deterministic gate: it runs its own full review, any P0/P1/P2 it reports
+  blocks retirement, and it does not read the register. `REVIEW_MAX_ITERATIONS` is a positive integer, default
+  10, independent of commit policy; only explicit human approval can raise it.
+  Preserve stricter project caps, counters and limits through resumes and repairs.
+  Project/milestone caps use `REVIEW_MAX_ITERATIONS` in verification standards or
+  owning milestone specs; the minimum applicable cap governs. Legacy fixed-cap
+  prose remains binding until explicit adoption, never inferred from its origin.
+  Python API execution retains its existing limits; optional retired `Review limit`
+  and `Review limit approval` fields preserve historical evidence only. Newly
+  created API retirement records cannot exceed 10 or self-authorize a higher
+  ceiling. The controller pauses on larger interactive checkpoints before dispatch,
+  preserving their counters. Shared planning policy blocks are byte-identical
+  across their consumers and checked using their BEGIN/END SHARED markers.
+  Persist the iteration count in the active status or
   equivalent goal state. `milestone.md` owns the review-severity context and
-  project override rules; P1/P2 are not product-domain concepts. An expensive or
-  protected check also uses a bounded verification-attempt gate per stage: persist
+  project override rules; P1/P2 are not product-domain concepts. Only a
+  class R (real-effect) check, or every expensive or protected check when no test
+  policy applies, uses a bounded verification-attempt gate per stage: persist
   attempt counts in status notes, never repeat an unchanged failed attempt, run the
   acceptance-readiness preflight before each counted attempt, and stop after 3
   consecutive failed attempts (or a human-approved milestone or goal limit) by
-  marking `[!]`.
+  marking `[!]`. Grant budgets bind independently of test class, and a grant never
+  turns a class O run into one needing the gate.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.
@@ -564,6 +626,16 @@ spelling so an inbound link survives translation.
   reader's agent, not to this harness, and the memory bank must work with a
   different goal protocol or none at all. Do not route a built-in goal through
   the goal protocol unless its objective selects it.
+- The test policy `tabilet/memory-bank/test-policy.md` is stock payload. It sorts
+  checks into class O (offline, self-checking, PASS or FAIL, never UNKNOWN) and
+  class R (real effect, needing separate human authority), and it grants no
+  authority. `TEST_POLICY` resolves in one order, stated once as a shared block in
+  `GOAL.md` and Next's interactive controls: the human-approved request, else the
+  path the project's `AGENTS.md` declares, else the default file, else `none`; a
+  differing request value is surfaced as a conflict and a missing file pauses
+  verification. The Python API paths consume no `TEST_POLICY` field; their shared
+  prompt names the declared or default file. Existing projects adopt it, and the convergent
+  review gate, explicitly through `memory-bank-upgrade`.
 - `tabilet/memory-bank/suggested.txt` is project-specific, disposable launch input
   generated by `memory-bank-init` or refreshed by `memory-bank-propose`,
   `memory-bank-reconcile`, or an approved `memory-bank-upgrade`, not

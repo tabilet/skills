@@ -193,6 +193,7 @@ For a light profile, read [references/testing-profiles.md](references/testing-pr
 focused tests target 30 seconds with a two-minute cap; full regression has a
 20-minute cap and applicable race/UI checks five minutes. Preserve explicit
 project budgets; `standard` adds no extra constraints.
+Every new project also receives the stock `tabilet/memory-bank/test-policy.md`, whatever the profile.
 Any launch `AUTHORIZATION_GRANTS` in `suggested.txt` are proposed,
 carrying decision markers (`[ ]` need authorization, `[+]` approve, `[-]` deny, `[~]` auto)
 and optional `GLOBAL:` scope. Matching the SHA256 checksum against human approval

@@ -75,14 +75,17 @@ capacity is limited. Give each reviewer:
 - Its exact assignment and effective authorization subset: no mutation authority.
 - Governing protocol/addendum identities when applicable, project instructions,
   acceptance criteria, required evidence and the pinned milestone baseline.
-- The complete implementation to review, including uncommitted work under
-  `COMMIT_POLICY: none`, prior findings and persisted review iteration.
+- The iteration scope the governing gate defines (iteration 1: the complete
+  implementation, including uncommitted work under `COMMIT_POLICY: none`; later
+  iterations: the prior blocking findings, the change since the recorded
+  reviewed state and its direct consumers, including uncommitted work), prior
+  findings, the resolved `TEST_POLICY` and persisted review iteration.
 - Required lens coverage and the return condition: findings to the owner only.
 
 The `DEFAULT` coordinator remains the sole ledger writer, consolidates one
-iteration report and applies fixes under `DEFAULT`. Each later whole review
+iteration report and applies fixes under `DEFAULT`. Each later review iteration
 uses fresh review agents; an interrupted review resumes its existing iteration
-with fresh reviewers as needed. Preserve counters and the iteration-10 stop.
+with fresh reviewers as needed. Preserve counters and the approved review-limit stop.
 Missing configuration or incomplete lens coverage cannot yield a clean pass.
 An empty implementation diff still needs acceptance review; never manufacture
 a change just to satisfy review setup.

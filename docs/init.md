@@ -66,6 +66,7 @@ The output separates present facts, approved work, and optional stage direction:
 tabilet/memory-bank/product.md       what the product is and its domain invariants
 tabilet/memory-bank/architecture.md  what the system is now
 tabilet/memory-bank/tech-stack.md    commands, dependencies, and verification
+tabilet/memory-bank/test-policy.md   stock offline-first test policy, plus project specifics
 tabilet/memory-bank/lessons.md       learning that still changes decisions
 tabilet/memory-bank/milestone.md     the active horizon and later directions
 tabilet/memory-bank/status-*.md      one task-sized row per implementation unit

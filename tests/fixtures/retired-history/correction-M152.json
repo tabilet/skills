@@ -1,0 +1,164 @@
+{
+  "schema": "tabilet.history-corrections/v1",
+  "records": [
+    {
+      "milestone_id": "M152",
+      "record_path": "tabilet/docs/history/status-M152.md",
+      "record_sha256": "b2a01222350812323b63e0c5e056aedf778b3209e56caad47d19cd5f6bd4552f",
+      "corrections": [
+        {
+          "kind": "recover-document",
+          "document": "specification",
+          "content": "<a id=\"m152\"></a>\n\n### M152 — Explicit local-function authoring\n\n**Owner/state.** ramen; both tasks complete, whole review 2 PASS; see final status below. No active stage; **Parallel-safe: no**.\n**Depends on.** Ramen M151 accepted and Udon M60 exact local successor qualified.\n**Lineage.** M144's local formatting capability and M147.5's removal of the implicit formatting handler; M149's structure stays retained.\n\n**Review provenance.** Ramen / Udon commit review — 2026-10-28 (review.md), findings in source order F01–F15.\nSource/current revalidation: Ramen b21f71bf80500643baefde82c17d810d7af83342, Udon 81e62149d48ce17ee153d931af27143f0f30d304,\nOpenUdon 3ed803c8593b06f8cb1b6d8962afc058e6da057f; all relevant worktrees clean. The owner's\n“I approve” accepts the complete standalone reconciliation proposal; it is\nplanning approval only. This intake starts no task/whole review counter.\nF11 (source P2, local P2, confirmed) is owned by M152.1. Evidence: removed handleBindFormatting/action in M147.5 versus current web/src/WorkflowStepInspector.tsx, useStepBinding.ts and retained fnct lowering. This restores an explicit supported path, not the old fabricated defaults.\n\n**Outcome.** Let the operator explicitly author the already supported identity and gmail.render_raw steps with real metadata and editable mappings.\n\n**Write set.** web/src/ inspector/binding presentation and component tests, Ramen-owned explicit function metadata/binding adapters and focused backend tests, required internal/gui/static assets and owning memory-bank records. The owner subsequently directed the concrete local remediation: add and qualify a declared function catalog on a local Udon successor to `aff5c2c1e85141b80e407c130a689f7b5d625f3f`, then adopt that exact successor in Ramen. This exception permits the necessary Udon pin update and local commit; it does not authorize other pin changes, remote push or a generic runtime expansion.\n\n**Tasks.**\n\n- **M152.1 — Restore an explicit supported function choice.** Check current fixture/tool readiness, then expose explicit identity and gmail.render_raw selection. Tie function metadata to the retained runtime and compute evidence digests from its declared metadata; fabricate no fallback digest/source/function. Show the chosen function and editable input/output/upstream mappings before binding. Do not infer Gmail formatting from field names or silently supply personal destinations/templates. Validate the selected supported metadata at the backend and preserve exact plan/mapping semantics.\n- **M152.2 — Qualify the inspector and backend journey.** Add positive/refusal component and backend coverage for read -> selected formatter -> send using fake data/providers, including missing metadata, invalid function choice and edited mappings. Reuse unchanged retained-runtime evidence only with checked identities. Run full Go checks, required make ui-build and make ui-check with unchanged-lock offline restoration only when ready, relevant affected checks, and reviewed matching embedded assets. Complete docs, task/whole reviews and handoff.\n\n**Acceptance.** Both supported local functions can be explicitly selected and bound from the inspector; mappings remain inspectable/editable. No heuristic selection, fabricated identity, live send or new authority is introduced. Component/backend journey and required embedded-asset qualification pass.\n\n**Verification.** Keep golight budgets and Node>=22.12 policy. The owner separately authorized obtaining the exact locked Vite 8.3.5 and Vitest 5.0.5 packages; both were downloaded into workspace cache and verified against the unchanged lockfile. The owner subsequently approved acquisition of the 15 exact Linux x64 locked transitive tarballs listed in the M152 status manifest, with lockfile integrity verification; no other downloads are added. Subsequent npm ci uses verified existing cache, offline mode and disabled install hooks/audit/update traffic. Missing other payloads block UI gates. Qualify the exact local Udon successor and its catalog offline before Ramen adoption. Run focused DOM/backend tests, GOWORK=off make check, make ui-build, make ui-check and git diff --check; applicable race checks remain required. No physical browser or real provider/model. Required checks, task reviews, a passed\nwhole review within ten persisted iterations, documentation, downstream\nreconciliation and normal retirement precede acceptance. No old attempt or\naction quantity transfers. Cheap readiness/focused diagnostics precede each\ncounted expensive check; preserve the package verification-attempt gate and\nrecord reservations/results separately from review iterations.\n\n**Compatibility/downstream.** Existing saved fnct plans remain readable. This restores the authoring route with explicit evidence and a narrowly scoped declared catalog for the two already supported functions. Kinet W25/W26 follow only by serial priority and gain no dependency on this milestone.\n\n**Authorization requirements (conditions, not permission).** The proposed\ncombined launch is local only. No publication, push, download, live origin,\nsudo, SSH or deployment requirement is scheduled. Its named gates retain\nseparate bounded allowances only after a future checksum-approved launch.\n\n```yaml\nAUTHORIZATION_REQUIREMENTS:\n  git.commit:\n    via: goal-policy\n    executor: coordinator\n  cli.local:\n    via: goal-policy\n    executor: coordinator\n    scope:\n      repository: ramen\n      task: M152-implementation-and-offline-verification\n      gates: [go-full, ui-build, ui-check]\n```\n\n\n",
+          "sha256": "7af332be26f519e35489192a0d77f1e55506b4116b8d86a201ef148365e793cb",
+          "source": {
+            "commit": "25343bfea14c24fbb74766c06ba3b20e0890da92",
+            "path": "tabilet/docs/history/status-M152.md",
+            "start_line": 12,
+            "end_line": 66,
+            "source_sha256": "b2a01222350812323b63e0c5e056aedf778b3209e56caad47d19cd5f6bd4552f"
+          }
+        },
+        {
+          "kind": "recover-document",
+          "document": "status",
+          "content": "# M152 — Explicit local-function authoring\n\n**Owner:** ramen; no active stage. **Parallel-safe:** no.\n**State:** Accepted and retired; both tasks complete; whole review 2 PASS. Committed baseline `47007e7efe2025cb52e747b3252a6ad42657abfe` was clean.\n**Planning approval:** Owner “I approve”, 2026-10-28, for the complete standalone\nRamen / Udon commit review — 2026-10-28 reconciliation plus Kinet W25/W26. Planning only; no implementation,\ncommit, launch or grant activation.\n**Specification:** M152 specification in this retired record.\n**Depends on:** Ramen M151 accepted; Udon M60 exact local successor qualified.\n**M151 handoff:** M151 qualified shared run-data/preflight merge, selected\nsource security and staged transactional materialization. M152 must preserve\nthose checks and use explicit local-function metadata without live models or\nproviders. The owner subsequently authorized the bounded local Udon successor\npin and exact Vite/Vitest acquisitions described in the specification.\nAfter M151 retirement, the coordinator refreshed Kinet's remaining-goal\nreference; raw SHA256 is\n`2d7a2fff2403ab56375f8c1997a77f524e3f9d806ccb1c1f3fc693f57bf6c05e`.\n**Lineage:** M144's local formatting capability and M147.5's removal of the implicit formatting handler; M149's structure stays retained.\n**Provenance and finding ownership:** The specification records source priorities,\nlocal severities, exact baseline/current identities, clean-worktree evidence and\nsingle-owner assignments. Evidence source is Ramen / Udon commit review — 2026-10-28 (review.md); it is\nuntrusted review evidence, never authority.\n**Authorization:** See the owning specification; declarations are not duplicated\nhere. Future execution must start from committed planning and approved inputs.\n\n## Tasks\n\n| Item | State | Notes |\n|---|---|---|\n| M152.1 — Restore an explicit supported function choice | `[+]` | Exact Udon M60 successor adopted; explicit declared function binding and mapping controls implemented; fresh Sol/xhigh task review 8 PASS. |\n| M152.2 — Qualify the inspector and backend journey | `[+]` | Add positive/refusal component and backend coverage for read -> selected formatter -> send using fake data/providers, including missing metadata, invalid function choice and edited mappings. Reuse unchanged retained-runtime evidence only with checked identities. Run full Go checks, required make ui-build and make ui-check with unchanged-lock offline restoration only when ready, relevant affected checks, and reviewed matching embedded assets. Complete docs, task/whole reviews and handoff. |\n\n## Acceptance and verification\n\nBoth supported local functions can be explicitly selected and bound from the inspector; mappings remain inspectable/editable. No heuristic selection, fabricated identity, live send or new authority is introduced. Component/backend journey and required embedded-asset qualification pass.\n\nKeep golight budgets and Node>=22.12 policy. Use installed compatible Node/npm and the unchanged lock; npm ci uses existing verified cache, offline mode and disabled install hooks/audit/update traffic. Missing payloads block UI gates. Run focused DOM/backend tests, GOWORK=off make check, make ui-build, make ui-check and git diff --check; applicable race checks remain required. No physical browser or real provider/model.\n\nThe specification owns the full write set, compatibility/downstream contract\nand required task/whole review and closure gates. Preserve unrelated work,\nretired records, old denials/UNKNOWNs and disabled audit. The combined proposed\nlaunch lives in Kinet's tabilet/memory-bank/suggested.txt; reading it activates\nnothing. No source publication or installed-consumer adoption is claimed.\n\n## Review\n\nReview gate iterations: 2\n\nTask review 1 found three P2 issues in function mapping edits, whole-body\noutput lowering and upstream alias selection; corrections and focused checks\nwere made. Fresh Sol/xhigh task review 2 found three further P2 issues in\nnested input edits, literal whitespace and hyphenated response keys; these\nwere corrected with component diagnostics and an actual offline retained-runtime\nchain. Task review 3 found two further P2 issues in expression-like literals\nand hyphenated input names; both were corrected and their original retained-\nruntime reproductions now pass. Task review 4 found two further P2 issues:\nglobal literal decoding could alter native UWS values, and data input discovery\nmisread hyphenated inputs and expression-like literals. Decoding is now scoped\nto explicitly marked function operations; input derivation uses reviewed\nmappings. Task review 5 found runbook/preflight input discovery disagreed\nwith these semantics; both are aligned and an integrated generated-project\npreflight test passes. Task review 6 identified a caller-supplied-plan\ncatalog-validation bypass and function-editor state carrying between steps or\nprojects. Both were corrected and regression-tested. Task review 7 found\nthat required contract field names could not be edited independently and\nlegacy literal input discovery changed; both were corrected and tested. Task\nreview 8 PASS without P1/P2. M152.2 preliminary review 1 raised\ntest and race-gate gaps; those were addressed, and fresh task review 2 PASS.\nWhole review 1/10 FAIL found new function mappings could lose literal whitespace or input punctuation; corrections passed affected task review 10. Whole review 2/10 PASS with no P1/P2.\nThis is standalone intake, not a continuation of a retired closing gate.\n\n## Verification attempts and authority\n\nThe retained aff5c2c runtime had no public identity descriptor, so the owner\napproved Udon M60's exact local successor. M60 accepted and retired the\ncatalog; Ramen adopts `c7e360ddb48a271204ac4ecb5de7f552aafb3738`. Its\n[handoff](../../docs/m152-local-functions.md) records local-only provenance.\n\nInitial offline npm restoration failed ENOTCACHED: locked Vite/Vitest and\nthen 15 Linux x64 transitive payloads were absent. The owner explicitly\napproved the two named packages, and later answered “yes” to acquisition of\nthe 15 exact tarballs in `/home/peter/Workspace/.p16-local-pins/m152-missing-locked-npm.tsv`\n(SHA256 `2462c86114a42f5b732b3483eee4e295b24306692f4c0b5fffbff7ea77fd42a9`).\nAll seventeen were checked against lockfile SHA-512. A disposable offline npm\nci restored 179 packages; the unchanged lock, offline mode and disabled hooks,\naudit and update traffic governed subsequent UI gates. Earlier runs with\nVitest 5.0.0 were diagnostics, not acceptance evidence. No other network,\nlive provider/model, browser, sudo, SSH, push or deployment was authorized.\n\n- Full Go attempt 1 PASS, integration package 413.308s; log SHA256\n  `3a5ea4067f9da9dbb1bf5661d63a8699cb187e5db42a2405ac37096a8c2d024d`.\n- Focused race attempt 1 PASS; log SHA256\n  `676061d0d60d605fc20497fd88fe9e5046a333d5e16cf13adc64cadd5336256d`.\n- Required GUI/wflowservice/apiservice race attempt 2 PASS; log SHA256\n  `5d8fc4ee7b8d5d5e6153a0bc6e19bdf651c05f7ae97c0e05e22827829ab3397a`.\n- UI build attempt 1 PASS with Vite 8.3.5/Vitest 5.0.5 and 114 tests;\n  log SHA256 `a26c9ef0fff7b22806a20816089451de56848ac33e9e863f78eaf77865d283c6`.\n- UI check attempt 1 PASS with matching clean embedded assets; log SHA256\n  `0a32d3b95bab940d642eb7c3a732b12a608f2d1d9c8c8a7cd43964250ecbbabb`.\n- Full Go attempt 2 PASS on final assets and the integrated journey test;\n  log SHA256 `d02f58738ca494f6ab6ed31ddee366754a81e55da710d07ccef8ba87e8ef7e44`.\n\nThe synthetic journey binds a plan, materializes and preflights it, and runs\nread → Gmail formatter → fake send through the retained runtime without a\nprovider or network effect. Final journey log SHA256\n`8c49c2d5762c5f44ab1a71f3604a69b7398d9722a1dbadb83093e8790441e089`.\nThe Go gates used a 25-minute per-run limit; race limits were 8/12 minutes;\nUI gates used 12 minutes. Prior failed focused fixture/readiness attempts and\nall review findings remain described above and in their retained logs.\n\nThe current Kinet remaining-goal reference is SHA256\n`d16cccb3a856f51b5460b462b3323d0e1ba666f8a6e8aff45c6a74a0b91b49c8`.\n\nWhole review 1 FAIL found one P2: newly added function fields could trim\nliteral whitespace or sanitize input paths. The bound editor was corrected;\nfocused locked Vitest attempt 3 PASS (attempt 1 used the wrong working\ndirectory; attempt 2 had an assertion that did not account for JSON omission).\nUI build attempt 2 was reserved after the correction, with the same 12-minute\noffline/no-hook limit. Task and whole re-reviews remain required.\n\nUI build attempt 2 PASS after the correction; log SHA256\n`ca696dcc26688491641fcae7fc4ff74993ec5fafbdba15b4cb14f503770ad429`.\nUI check attempt 2 was reserved with the same 12-minute offline/no-hook limit.\n\nUI check attempt 2 PASS and final assets match; log SHA256\n`9f8c8b46679f319c8cefab9d8e521bccc9c2e66f82dbbf4b0ab9307491c9602d`.\nFull Go attempt 3 was reserved against the corrected final bundle, with the\nsame 25-minute offline limit.\n\nFull Go attempt 3 was deliberately terminated after the affected task reviewer\nidentified another mapping defect; the in-progress integration package did not\nfinish. Exit 124 here records coordinator interruption, not a test result; log\nSHA256 `a53eb6aaca24820e1c577498ac7a3743785294af8f6bde9ad72a6976e8a01250`.\nAffected task review 9 found bare added field names could lose their value\nafter normalization; the correction below passed affected task review 10.\n\nAffected task review 9 FAIL found bare field normalization could drop its\nvalue. The editor now retains each original input key through normalization;\nlocked focused attempt 5 PASS including bare and qualified field names.\nFresh affected task review 10 passed; whole review 2/10 PASS.\n\nAffected task review 10 PASS with no P1/P2. UI build attempt 3 was reserved\nfor the final correction, with the same 12-minute offline/no-hook limit.\n\nUI build attempt 3 PASS; log SHA256\n`24dd99671507e10a835ae5c09b7b64d08cd0049e9d83376a9b6b66bda9a0b906`.\nUI check attempt 3 was reserved with the same 12-minute offline/no-hook limit.\n\nUI check attempt 3 PASS; log SHA256\n`66235e7331edd9d61f55b9e81feefa2f127b6e3544b4866d9ad564f03dd84cab`.\nFull Go attempt 4 was reserved against the final bundle, same 25-minute limit.\n\nFull Go attempt 4 PASS on the corrected bundle, integration package 329.424s;\nlog SHA256 `74f1e6266e373008a40202a8dc496a8305068b7f6d3c2b699ced6fa795a74122`.\n",
+          "sha256": "f4e3d63cac907c84e7014dbfd084795bee54afd3ea2b5ee3d95ead518aa6bead",
+          "source": {
+            "commit": "25343bfea14c24fbb74766c06ba3b20e0890da92",
+            "path": "tabilet/docs/history/status-M152.md",
+            "start_line": 71,
+            "end_line": 224,
+            "source_sha256": "b2a01222350812323b63e0c5e056aedf778b3209e56caad47d19cd5f6bd4552f"
+          }
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Evidence",
+          "value": "9ad72dd240ccbb0333601aaf39dbf1b9ca1f0ed3",
+          "evidence": [
+            {
+              "start_line": 6,
+              "end_line": 6,
+              "quote": "worktree based on Ramen `9ad72dd`"
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Milestone",
+          "value": "M152",
+          "evidence": [
+            {
+              "start_line": 1,
+              "end_line": 1,
+              "quote": "# Retired milestone M152 — Explicit local-function authoring"
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Outcome",
+          "value": "completed",
+          "evidence": [
+            {
+              "path": "tabilet/docs/history/index.md",
+              "commit": "67046ac4929446a3ca1b3d5edf648e2aee9d011a",
+              "start_line": 11,
+              "end_line": 11,
+              "content": "| M152 | completed | 2026-10-29 | [M152](status-M152.md) | Explicit declared local-function authoring and offline qualification; whole review 2 PASS. |\n",
+              "sha256": "37b5dd714cdcf598ad2cedf854bca68ce77799abf3b46a27a0ef94f87540541c",
+              "quote": "| M152 | completed | 2026-10-29 | [M152](status-M152.md) | Explicit declared local-function authoring and offline qualification; whole review 2 PASS. |"
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Retired",
+          "value": "2026-10-29",
+          "evidence": [
+            {
+              "path": "tabilet/docs/history/index.md",
+              "commit": "67046ac4929446a3ca1b3d5edf648e2aee9d011a",
+              "start_line": 11,
+              "end_line": 11,
+              "content": "| M152 | completed | 2026-10-29 | [M152](status-M152.md) | Explicit declared local-function authoring and offline qualification; whole review 2 PASS. |\n",
+              "sha256": "37b5dd714cdcf598ad2cedf854bca68ce77799abf3b46a27a0ef94f87540541c",
+              "quote": "| M152 | completed | 2026-10-29 | [M152](status-M152.md) | Explicit declared local-function authoring and offline qualification; whole review 2 PASS. |"
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Source status",
+          "value": "tabilet/memory-bank/status-M152.md",
+          "evidence": [
+            {
+              "start_line": 1,
+              "end_line": 1,
+              "quote": "# Retired milestone M152 — Explicit local-function authoring"
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Source specification",
+          "value": "tabilet/memory-bank/milestone.md#m152",
+          "evidence": [
+            {
+              "start_line": 1,
+              "end_line": 1,
+              "quote": "# Retired milestone M152 — Explicit local-function authoring"
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Review iterations",
+          "value": "2",
+          "evidence": [
+            {
+              "start_line": 117,
+              "end_line": 117,
+              "quote": "Review gate iterations: 2"
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Review",
+          "value": "passed",
+          "evidence": [
+            {
+              "start_line": 139,
+              "end_line": 139,
+              "quote": "Whole review 1/10 FAIL found new function mappings could lose literal whitespace or input punctuation; corrections passed affected task review 10. Whole review 2/10 PASS with no P1/P2."
+            }
+          ]
+        },
+        {
+          "kind": "supply-metadata",
+          "field": "Verification",
+          "value": "Recorded results: UI build attempt 3 PASS; UI check attempt 3 PASS; Full Go attempt 4 PASS on the corrected bundle.",
+          "evidence": [
+            {
+              "start_line": 215,
+              "end_line": 215,
+              "quote": "UI build attempt 3 PASS; log SHA256"
+            },
+            {
+              "start_line": 219,
+              "end_line": 219,
+              "quote": "UI check attempt 3 PASS; log SHA256"
+            },
+            {
+              "start_line": 223,
+              "end_line": 223,
+              "quote": "Full Go attempt 4 PASS on the corrected bundle, integration package 329.424s;"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

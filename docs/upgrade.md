@@ -173,6 +173,32 @@ predates them.
 Existing projects require explicit adoption. There is no automatic bulk
 migration, and retirement respects every commit policy.
 
+## Adopting the test policy and convergent review gate
+
+Version 2.17.0 adds a stock `tabilet/memory-bank/test-policy.md` and a review
+gate that converges: only P1 blocks, later iterations review only what changed,
+and non-blocking findings are carried in an `Open review findings` register in
+`milestone.md`. Like the long-term memory rules, this is explicit adoption. Until
+a project adopts it, its stricter text (for example P2 blocking, or a
+verification-attempt gate on every expensive check) stays binding.
+
+Upgrade offers the adoption in its complete proposal: it creates the policy file
+(or reduces an equivalent project rule file to its project specifics), merges the
+severity table, review procedure, attempt gate, register and controller note into
+`milestone.md`, adds the pointers in `tech-stack.md`, the status preamble and
+`AGENTS.md`, and adds `TEST_POLICY` to an existing launch reference. If the
+project runs milestones through the optional `tabilet` controller, the proposal
+states that those milestones keep P2 blocking, because the controller's own
+review reports P2 findings and it does not read the register. Recorded review
+counters, limits, grant budgets, class R attempt usage and frozen history are
+preserved, and earlier UNKNOWN, aborted or failed class O records stay literal
+and do not block new runs. The proposal also lists every place in pending
+specifications, status rows, `tech-stack.md` and launch input that prescribes a
+method the policy forbids, with a rewrite that keeps the acceptance outcome.
+Each rewrite is method-only, limited to pending rows and specifications, and
+written only after your individual approval; frozen records stay literal. An in-flight gate keeps its counter and narrows its
+next iteration only when the prior reviewed state is recorded.
+
 ## If DSH reports compatibility warnings
 
 You can prepare an Upgrade request even when the dashboard cannot read all the

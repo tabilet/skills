@@ -58,6 +58,7 @@ tabilet/stages.md                optional overview when multiple stages are appr
 tabilet/memory-bank/product.md           product, users, workflows, domain model, non-goals
 tabilet/memory-bank/architecture.md      layout, data flow, ownership, public contracts
 tabilet/memory-bank/tech-stack.md        stack, dependencies, harnesses, commands
+tabilet/memory-bank/test-policy.md       stock test policy plus project specifics
 tabilet/memory-bank/lessons.md           applicable reusable lessons and evidence
 tabilet/memory-bank/milestone.md         active index, acceptance, candidate directions
 tabilet/memory-bank/status-<LANE><NN>.md one per active milestone, one row per task
@@ -95,6 +96,14 @@ parent/child structure, cardinality, lifecycle, and state transitions when they
 matter. Keep technical storage and implementation details in `architecture.md`.
 Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
+Create `tabilet/memory-bank/test-policy.md` from the template. Keep the stock
+rules and fill only its `Project specifics` section from discovery: the
+toolchain and test entry points, the required whole-unit gates, any named class
+R checks with their owning milestones (or "none"), and approved other-language
+tools (or "none"). Never invent a class R check. Declare its path in the
+`AGENTS.md` Hard Rules bullet so standalone Next and the API runner find it, and
+emit `TEST_POLICY: <resolved path or none>` in launch references.
+
 In `tabilet/memory-bank/tech-stack.md`, define the language floor, tools, dependencies,
 commands, runtime assumptions, and execution harnesses.
 Accept `--test standard` (the default when omitted), `browserlight`, `golight`,
@@ -125,7 +134,7 @@ standards and assign the required evidence to the relevant milestone owners.
   scope while independent authorized work continues. Keep deferred verification
   with its named owner and gate, preserving dependencies, intermediate acceptance
   and action limits. Use existing records. Run a fast preflight of fixtures,
-  schemas and launchers before each counted expensive attempt.
+  schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
 
 When a non-standard profile is chosen, add a rule under `AGENTS.md` Hard Rules:
 `- Follow the verification and testing standards defined in tabilet/memory-bank/tech-stack.md.`
@@ -135,11 +144,15 @@ In `tabilet/memory-bank/milestone.md`:
 - index exactly the approved active milestones and link each to its one status
   file;
 - state their dependency order, acceptance, and downstream relationships;
-- for acceptance that depends on an expensive or protected check, cover only
+- for acceptance that depends on a class R (real-effect) check, cover only
   behavior the milestone owns, proved with the smallest workload; leave real
   producer or consumer pairing to the adopting milestone; give needed host
   capabilities a cheap readiness probe as the first row; and name an uncounted
-  local diagnostic loop;
+  local diagnostic loop (the class O loop);
+- when the project has a test policy, name each milestone's required
+  whole-unit gates and their check class without restating a test method, and
+  carry no controller, receipt or other-language method forward from earlier
+  stages or milestones;
 - define optional boundaries and parallel safety (depends on, downstream
   impacts, write set, contracts read, and parallel-safe defaulting to no);
   never prune downstream impacts to force parallel-safe status; and
@@ -156,9 +169,14 @@ active and retired records. Do not create empty history files during init.
 Include a `Review finding severity` section in `milestone.md`. Explain that P1
 and P2 are engineering review priorities rather than product-domain terms,
 milestone execution priority, or status markers. Define their default context,
-typical examples, and gate effect; let project-specific definitions in
+typical examples, and gate effect (P1 blocks; P2 does not block under the
+adopted gate and is fixed now or carried in `Open review findings`; Lower is
+fixed, carried or declined with rationale); let project-specific definitions in
 `AGENTS.md` or a linked review policy override those defaults. Classification
-must follow impact, likelihood, and affected scope rather than fix size.
+must follow impact, likelihood, and affected scope rather than fix size. Include
+the template's `Open review findings` register with `Last used ID: none`, and
+its execution-path note that the optional `tabilet` controller keeps P2
+blocking.
 
 Include a separate `New review intake` procedure for reviews received after the
 harness exists. It must require current-state revalidation, preserve both source
@@ -166,17 +184,23 @@ and local severity, and obtain approval for dispositions and file actions before
 writing. Confirmed work fits an open or pending owner when in scope; completed
 history is never reopened, so later defects get a remediation milestone with
 lineage. P1/P2-or-higher findings enter the dependency-closed active horizon;
-optional lower findings stay in Candidate Directions. Record portable review
+optional lower findings stay in Candidate Directions. Only when an intake was
+explicitly requested as the next pass of an already active adopted gate, apply
+that gate's blocking criteria and iteration scope, and dispose of non-blocking
+findings through the `Open review findings` register. Record portable review
 provenance in affected milestone/status notes without adding a review copy or
 ledger. An intake review counts as a bounded-gate iteration only when it was
 explicitly requested as the next pass of an already active persisted gate.
 
 Include a milestone review procedure with a bounded review-fix gate. The
-initial deep-review pass is iteration 1. After every P1, P2, or higher-severity
-fix, rerun affected verification and review the whole milestone again. The gate
-passes only when a review finds no such issue. Limit it to 10 iterations without
+initial deep-review pass is iteration 1 and covers the full milestone diff.
+After every blocking fix, rerun affected verification and run the next
+iteration, which covers the prior blocking findings, the change since the
+recorded reviewed state and its direct consumers. Any review change is itself
+reviewed, and the gate passes only when no blocking finding remains and no
+unreviewed review change remains. Limit it to `REVIEW_MAX_ITERATIONS` iterations (default 10) without
 resetting across sessions or reviewers, and persist each iteration number in the
-current status notes or equivalent active goal state. If iteration 10 still
+current status notes or equivalent active goal state. If the final allowed iteration still
 finds a blocking issue, leave the milestone incomplete and record the findings
 with the project's blocked-status mechanism.
 
@@ -187,6 +211,19 @@ reason. It gets no ID, never promotes, and returns only through a new approved
 direction, so the same idea is not re-proposed as a candidate.
 When a trigger becomes true, reconsider the candidate and obtain approval
 before allocating the next unused permanent ID.
+
+<!-- BEGIN SHARED review-limit-planning -->
+Preserve explicit `REVIEW_MAX_ITERATIONS` in launch references; emit `10` when
+absent in a new launch. It is a positive integer independent of commit policy.
+A value above 10 requires explicit human approval of that ceiling at execution;
+planning approval alone does not activate it. Preserve stricter project caps and
+existing run limits/counters. Never raise this limit through a preset or an
+automatic repair. Existing projects adopt configurable caps explicitly; surface
+conflicts with an older fixed cap instead of silently rewriting restrictions.
+Use the resolved value in every launch template, never a literal default over an
+explicit value. Apply the minimum of declared project/milestone caps; legacy fixed
+prose remains binding until explicit human adoption resolves the conflict.
+<!-- END SHARED review-limit-planning -->
 
 ## Handle the stock goal protocol
 
@@ -325,9 +362,11 @@ M02 = tabilet/memory-bank/status-M02.md
 DOWNSTREAM_IMPACTS:
 M01 -> M02
 
+TEST_POLICY: <resolved path or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
+REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
 OPTION_POLICY: confirm
 OPTIMIZE_POLICY: none
 EXTERNAL_MUTATIONS: none
@@ -374,7 +413,7 @@ the user authorizes the orchestrator to refresh remaining milestones without
 prompting for fresh authorization. Under `--environment dangerous`, synthesize hands-free
 launch defaults from day one: `SUGGESTED_UPDATE: auto`, `SCOPE_POLICY: workspace-contained`,
 `COMMIT_POLICY: task`, and ambient `GLOBAL:` grants (`- [~] global-local-verify` for local
-verification and `- [+] global-repo-push` for workspace organization remotes). Under
+verification and one proposed `[+]` push grant per concrete repository/remote/ref needed by the goal). Under
 `--environment dangerous`, `SCOPE_POLICY: workspace-contained` and `global-local-verify` (`[~]`)
 enable the goal protocol's standing revision envelope for unprivileged workspace-local
 verification; write an explicit `standing` block (schema in `GOAL.md`) only for such local,
@@ -384,6 +423,33 @@ privileged operations (`sudo`, `ssh`, live browser, external pushes outside the 
 remain `[ ]` or omitted unless an explicit modifier authorizes them, and then as an exact-command
 grant without a `standing` block. Include recommended runner
 flags in launch comments (`# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`).
+<!-- BEGIN SHARED continuous-launch-planning -->
+Before calculating the launch checksum, check proposed grants against global and
+milestone-local policies. For dangerous mode's intended pushes, propose narrowly
+scoped `EXTERNAL_MUTATIONS: {grant_ids: [<push grant IDs>]}` references to the
+concrete per-repository grants, rather than duplicating their targets; never leave an effective push grant paired with
+`EXTERNAL_MUTATIONS: none`. Preserve an explicit prohibition: surface the conflict
+for human resolution or omit the conflicting effective grant, identifying a
+required push as pending approval while allowing authorized local work.
+For each proposed push, resolve the protocol's `scope.content`: `exact-commit`
+with a full `commit`, or explicitly proposed `accepted-goal-commits` with a full
+`baseline` captured before approval. Resolve each target separately, including
+sibling repositories; do not invent wildcard targets or a future baseline.
+The checksum-approved proposal must disclose successive-push intent, including
+plan-only human commits whose complete diff matches the approved planning evidence. Legacy or
+explicitly pinned grants are never silently broadened. These planning changes
+activate no grants and do not alter host/tool permission controls.
+
+When the user requests continuous or unattended work and has not explicitly
+chosen otherwise, propose `OPTION_POLICY: ignore` to defer optional discoveries,
+and `STATUS_PRIORITY` when dependencies alone define the required sequence.
+Preserve an explicit `confirm` or strict `STATUS_ORDER`; never change approved
+selection or policies merely because execution is blocked. The dangerous preset
+alone does not change option or ordering policy. Prefer an authorized ignored
+workspace scratch location over requesting permission for a default external
+temporary path; verify symlink containment and preserve unrelated files.
+<!-- END SHARED continuous-launch-planning -->
+
 Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
 grants, including any explicit `standing` block for local verification, marked `[ ]`). Under `--environment least`, synthesize strict least privilege:
@@ -447,7 +513,7 @@ topics before substantial changes; it does not read the whole history on boot.
 
 Generate these retirement rules in `tabilet/memory-bank/milestone.md`:
 
-- After the review gate passes within its persisted 10 iterations, verification
+- After the review gate passes within its persisted approved review limit, verification
   passes, current facts/lessons are consolidated, and downstream work is
   reconciled, automatically retire the milestone. Terminal markers alone are
   insufficient; unresolved or conditional pending work stays active.
@@ -513,7 +579,7 @@ Before reporting completion, verify all of the following:
 1. Every marker is wrapped in backticks.
 2. At most one general row is `[~]`; every `[-]` row names its accepted
    successor and is non-actionable.
-3. Every status filename is `status-<LANE><NN>.md` with a two-digit number.
+3. Every status filename is `status-<LANE><NN>.md` with a positive number of at least two digits, without extra leading zeros.
 4. The milestone index lists exactly the active status files that exist, and
    every link resolves.
 5. Candidate directions have no lane letters, IDs, status files, or launch

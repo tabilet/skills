@@ -19,7 +19,7 @@ STOCK_V2_GOAL_SHA256 = "b312ffc76c1727a2fc5403ae7de9ad5f2392cdfb3608ca6263b467bd
 STOCK_GOAL_OLD_LINE = b"Using GOAL.md, execute this loop."
 STOCK_GOAL_NEW_LINE = b"Using tabilet/GOAL.md, execute this loop."
 ARCHIVE = re.compile(r"archive-[A-Z](?:0[1-9]|[1-9][0-9])\.md$")
-STATUS = re.compile(r"status-[A-Z](?:0[1-9]|[1-9][0-9])\.md$")
+STATUS = re.compile(r"status-[A-Z](?:0[1-9]|[1-9][0-9]+)\.md$")
 MAINTAINED = {
     "AGENTS.md", "memory-bank/product.md", "memory-bank/architecture.md",
     "memory-bank/tech-stack.md", "memory-bank/lessons.md",
@@ -302,7 +302,7 @@ def apply(project, manifest):
             relative.as_posix() == "tabilet/GOAL.md" or
             relative.as_posix().startswith("tabilet/evolution/") or
             (relative.as_posix().startswith("tabilet/memory-bank/") and
-             re.fullmatch(r"status-[A-Z][0-9]{2}\.md", path.name))
+             re.fullmatch(r"status-[A-Z][0-9]{2,}\.md", path.name))
         ):
             continue
         try:

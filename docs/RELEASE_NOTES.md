@@ -1,3 +1,168 @@
+# memory-bank v2.18.0
+
+Makes the shared historical-record reader read older retired milestones with
+fewer false rejections, without accepting a review that the record itself later
+revokes, contradicts or never established. The reader serves the API runner,
+dependency checks, lookup and the SQLite index.
+
+- Reads retained status, envelope and review prose by subject and predicate
+  instead of rejecting every review-related sentence. Ordinary test notes and
+  matching restatements of the recorded pass stay accepted. Conflicting review
+  and iteration counters, a reversal of the pass in the reader's vocabulary
+  (voided, revoked, withdrawn, set aside, pending, conditional, and similar),
+  and unresolved claims in the `Result`, `Review gate` and `Outcome` fields
+  still block. Table, fence, indented-code, heading and task-row boundaries no
+  longer hide a reversal that follows a recorded pass.
+- Records that carry their own pass now **warn** on review wording the reader
+  does not recognize, instead of blocking. The API runner prints up to ten
+  warnings once before its first run and continues; the SQLite index adds
+  `warning:` diagnostics and `tabilet status` reports `history_warnings`.
+  Warnings never change an exit code, the record's review result, task
+  eligibility or dependency acceptance. A record whose pass is supplied by a
+  correction stays strict: any unrecognized prose after the pass blocks, and a
+  correction cannot supply acceptance past it.
+- Wording coverage is best effort. A reversal phrased outside the vocabulary
+  can still be accepted on a record that carries its own pass, with at most a
+  warning. The guarantees that do not depend on wording are structural:
+  counters, context boundaries, the correction-backed path, the three verdict
+  fields and warning/acceptance separation. See
+  [historical record compatibility](history-corrections.md).
+- An item in an `Item | State | Notes` ledger that starts with its milestone
+  and numbered task ID, such as `M01.2 — Verify`, now supplies that explicit
+  task ID for dependency resolution.
+- Frozen records are never rewritten, and newly retired records still use the
+  strict envelope.
+
+**Scope.** This release changes the account-level harness, not the skills.
+Skills, templates and the stock `GOAL.md` protocol are unchanged, so installing
+the 2.18.0 plugin alone changes nothing. The new behavior ships in the API
+runner (`tackle-memory-bank-api-loop`), the SQLite index and status helpers
+(`tabilet_index.py`, `tabilet_status.py`) and the `tabilet` controller, which
+loads the runner's reader from the file beside it. Install the updated harness
+files to get it.
+
+**Upgrade note.** A record that v2.17.0 accepted silently may now print review
+wording warnings, and a record containing a counter conflict or a reversal of
+its own pass (previously accepted unread) now stops with exit `11` until its
+evidence is reconciled or an approved correction is recorded. Correct such a
+record through the correction manifest rather than by editing frozen text.
+Update the installed runner, controller and SQLite toolkit separately, and
+rebuild the index on its next sync. The registry version moves with this
+release. The separately published DSH companion is not updated by this release.
+
+# memory-bank v2.17.0
+
+Adds a stock test policy and a review gate that converges, so test failures stop
+turning into human dispositions and fresh reviewers stop re-sweeping an unchanged
+milestone.
+
+- Adds `tabilet/memory-bank/test-policy.md`. Checks are class O (offline,
+  self-checking, PASS or FAIL, never UNKNOWN) or class R (real effect, needing
+  separately named human authority). The policy grants no authority and never
+  removes a grant's limits. A new optional `TEST_POLICY` launch field and a
+  shared resolution order (approved request, then the path `AGENTS.md` declares,
+  then the default file, then `none`) are added to the goal protocol and to
+  Next's interactive controls.
+- Changes the stock `GOAL.md` protocol (new fingerprint). The bounded
+  review-fix gate now blocks on P1 and higher only. Iteration 1 reviews the whole
+  milestone; later iterations review the previous blocking findings, the change
+  since the recorded reviewed state and its direct consumers. P2 and Lower
+  findings are fixed now or carried in a new `Open review findings` register
+  (`FND-` IDs) in `milestone.md`; every review fix is itself reviewed and the
+  final allowed iteration makes no further review change. The verification-attempt
+  gate now covers class R checks, or every expensive or protected check when no
+  test policy applies.
+- Adoption is explicit through `memory-bank-upgrade`. Until a project adopts them,
+  its stricter text stays binding, including P2 blocking. New `memory-bank-init`
+  projects receive both by default.
+- The `tabilet` controller and the Python API runner code are unchanged. The
+  controller keeps its own deterministic gate: it runs its own full review, any
+  reported P0, P1 or P2 blocks retirement, and it does not read the register, so
+  milestones it runs keep P2 blocking.
+
+Updating the plugin does not update an installed API runner, controller or SQLite
+toolkit. The embedded task text of the runner gains the test-policy sentence; the
+installed runner needs a separate update to carry it.
+
+# memory-bank v2.16.2
+
+Improves compatibility with older retired milestone records across the API
+runner, controller and SQLite index while preserving their original evidence.
+
+- Adds a shared historical reader and an optional, hash-bound correction
+  manifest for reviewed interpretations of historical evidence. Corrections
+  do not grant execution authority or rewrite frozen records; incomplete or
+  conflicting evidence remains blocking.
+- Keeps new retirements subject to the strict contract and preserves the API
+  review ceiling of 10. Correction changes are included in workflow snapshots
+  and cannot be made during task execution or closure.
+- Updates the SQLite index projection so the next sync rebuilds affected lookup
+  data. See [historical record compatibility](history-corrections.md) for the
+  supported formats, evidence requirements and approval boundaries.
+
+The stock `GOAL.md` protocol is unchanged. Updating the plugin does not update
+an installed API runner, controller or SQLite toolkit; update those separately.
+The separately published DSH companion is not updated by this release.
+
+# memory-bank v2.16.1
+
+Fixes discovery, indexing, execution selection and retirement for milestone root
+IDs above 99, such as `M100`, `M130` and `M153`. Root IDs use at least two digits;
+existing IDs remain unchanged. Amendment and option child suffixes, and context
+archive IDs, retain their separate two-digit limits.
+
+- Aligns runner, controller proposal validation, SQLite indexing and v1.5 migration
+  scanning with the root-ID grammar. The SQLite projection revision forces a
+  rebuild on the next index sync without rewriting project Markdown or audit records.
+- Adds coverage for `M99`, `M100`, `M130` and `M153`, their child records,
+  selection, indexing, retirement, migration, and the unchanged API review ceiling
+  of 10. The template and published guidance now describe the extended range.
+- Leaves frozen history untouched and preserves strict history validation. Recognizing
+  a longer filename does not make an existing nonconforming history record valid;
+  projects with such records still require separate reconciliation of the original
+  format and evidence without weakening review gates.
+
+The stock `GOAL.md` protocol bytes are unchanged from v2.16.0; the registry version
+moves with this release. Installing updated skills does not update account-level API
+runner or audit toolkit executables. Update those separately where installed.
+
+# memory-bank v2.16.0
+
+Makes approved Goal runs continue with fewer redundant confirmations while keeping
+explicit authority, bounded verification and review, and frozen history intact.
+
+- Adds interactive `REVIEW_MAX_ITERATIONS`, default 10 independently of commit
+  policy. Explicitly approved higher ceilings preserve consumed iterations across
+  resumes and repairs. Project and milestone caps intersect with the launch cap;
+  legacy fixed-cap prose stays binding until explicit adoption.
+- Distinguishes pending task rows from proposed grants, reuses existing scoped
+  approval, and skips confirmation for empty or model-free reflection results.
+  Continuous-run planning can propose option deferral and dependency-ready priority
+  while preserving explicit choices and strict ordering.
+- Records authorized launch refresh transitions so resumes can verify the current
+  approved state without treating expected checksum changes as unexplained drift.
+  Interrupted writes are inspected; a hash chain alone never grants authority.
+- Defines exact-commit and explicitly approved accepted-goal push scopes. Approved
+  plan-only human commits require full-diff evidence. Legacy grants remain pinned.
+  `EXTERNAL_MUTATIONS` can reference concrete grant IDs, and duplicate legacy
+  declarations are intersecting constraints. `workspace-contained` covers approved
+  local CLI work only; it no longer adds push destinations. Dangerous-mode planning
+  proposes separate concrete push grants rather than organization-wide authority.
+- Keeps Python API execution capped at 10 reviews. Existing extended interactive
+  history remains readable, but a new API retirement cannot claim a higher limit
+  using self-authored approval prose. The controller pauses before dispatch on
+  unsupported interactive counters without resetting them.
+- Adds regression coverage for retirement authorization, controller handoffs,
+  example-policy omissions, case-insensitive contract guards, and byte-identical
+  shared planning blocks. Updates the English and Chinese Goal guidance.
+
+The stock protocol fingerprint has changed. Existing paused goals require the
+normal identity-transition approval; installing this release does not approve new
+grants, migrate fixed project caps, or reset counters. Review the narrower push
+scope when adopting it. This release does not update the separately published DSH
+companion package; its documented v2.15.0 artifact and compatibility evidence remain
+unchanged.
+
 # memory-bank v2.15.0
 
 Adds required amendment milestones and deferred options so implementation discoveries

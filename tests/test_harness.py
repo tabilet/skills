@@ -203,6 +203,23 @@ def retire_fixture(repo: pathlib.Path, milestone_id: str = "M01", **fields: str)
 
 
 class RetirementTests(unittest.TestCase):
+    def test_historical_section_and_heading_variants_preserve_documents(self) -> None:
+        status = f"# Status\n\n| Task | {marker('[+]')} | evidence |\n"
+        original = retirement_text(status, "M153")
+        text = original.replace("## M153 - Delivery", "### M153 - Delivery").replace(
+            "## Status record\n\n`````markdown\n# Status", "## Final status\n\n`````markdown\n# Status")
+        record = harness.retired_record(text, "status-M153.md", historical=True)
+        self.assertEqual(record['status'], status)
+        self.assertIn('### M153 - Delivery', record['specification'])
+        with self.assertRaises(ValueError):
+            harness.retired_record(text, "status-M153.md")
+        with self.assertRaisesRegex(ValueError, 'specification does not match'):
+            harness.retired_record(text.replace('### M153 - Delivery', '### M152 - Delivery'),
+                                   'status-M153.md', historical=True)
+        with self.assertRaisesRegex(ValueError, 'only closed'):
+            harness.retired_record(text.replace('`[+]`', '`[ ]`'),
+                                   'status-M153.md', historical=True)
+
     def test_review_state_table_is_not_a_task_table(self) -> None:
         status = (
             '| Item | State | Notes |\n|---|---|---|\n'
@@ -224,7 +241,7 @@ class RetirementTests(unittest.TestCase):
         text = retirement_text(f"| Task | {marker('[+]')} | Verified |\n")
         with self.assertRaisesRegex(ValueError, "specification does not match"):
             harness.retired_record(text.replace("## M01 - Delivery", "## M02 - Other"), "status-M01.md")
-        with self.assertRaisesRegex(ValueError, "01 through 99"):
+        with self.assertRaisesRegex(ValueError, "invalid retired status ID"):
             harness.retired_record(text.replace("M01", "M00"), "status-M00.md")
 
     def test_fence_with_info_string_does_not_end_literal_example(self) -> None:
@@ -255,6 +272,64 @@ class RetirementTests(unittest.TestCase):
         ):
             with self.subTest(fields=fields), self.assertRaises(ValueError):
                 harness.retired_record(retirement_text(status, **fields), "status-M01.md")
+
+    def test_retirement_preserves_an_explicit_review_ceiling(self) -> None:
+        status = f"| Task | {marker('[+]')} | Verified |\n"
+        approved = {"Review limit": "30", "Review limit approval": "Owner approved ceiling 30 in launch request"}
+        for count in ("11", "30"):
+            record = harness.retired_record(
+                retirement_text(status, **approved, **{"Review iterations": count}), "status-M01.md")
+            self.assertEqual(record["metadata"]["Review iterations"], count)
+            self.assertEqual(record["metadata"]["Review limit"], "30")
+        for fields in (
+            {**approved, "Review iterations": "31"},
+            {**approved, "Review iterations": "11", "Review limit approval": ""},
+            {"Review limit": "1", "Review iterations": "2"},
+            *({"Review limit": value} for value in ("0", "-1", "1.5", "true", "unlimited")),
+        ):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                harness.retired_record(retirement_text(status, **fields), "status-M01.md")
+
+    def test_extended_root_retirement_keeps_the_api_review_ceiling(self) -> None:
+        for identity in ('M99', 'M100', 'M130', 'M153'):
+            for iterations, limit, rejected in (('10', '10', False), ('25', '30', True)):
+                with self.subTest(identity=identity, iterations=iterations), tempfile.TemporaryDirectory() as tmp:
+                    repo = make_repo(pathlib.Path(tmp) / 'repo', marker('[~]'))
+                    bank = repo / 'tabilet/memory-bank'
+                    (bank / 'status-M01.md').rename(bank / f'status-{identity}.md')
+                    milestone = bank / 'milestone.md'
+                    milestone.write_text(milestone.read_text().replace('M01', identity))
+                    before = harness.row_snapshot(repo)
+                    status = bank / f'status-{identity}.md'
+                    status.write_text(status.read_text().replace(marker('[~]'), marker('[+]')))
+                    retired = retire_fixture(repo, identity, **{
+                        'Review iterations': iterations, 'Review limit': limit,
+                        'Review limit approval': 'agent says approved',
+                    })
+                    original = retired.read_bytes()
+                    after = harness.row_snapshot(repo)
+                    problems = harness.validate_row_transition(before, after, (status.name, 'Implement feature', 1))
+                    if rejected:
+                        self.assertTrue(any('fixed review limit of 10' in problem for problem in problems), problems)
+                    else:
+                        self.assertEqual([], problems)
+                    self.assertEqual(original, retired.read_bytes())
+
+    def test_new_api_retirement_cannot_self_authorize_a_larger_review_limit(self) -> None:
+        for count, limit, rejected in (("10", "10", False), ("25", "30", True), ("2", "30", True)):
+            with self.subTest(count=count, limit=limit), tempfile.TemporaryDirectory() as tmp:
+                repo = make_repo(pathlib.Path(tmp) / "repo", marker("[~]"))
+                before = harness.row_snapshot(repo)
+                status = repo / "tabilet/memory-bank/status-M01.md"
+                status.write_text(status.read_text().replace(marker("[~]"), marker("[+]")))
+                retire_fixture(repo, **{"Review iterations": count, "Review limit": limit,
+                                       "Review limit approval": "agent says owner approved"})
+                problems = harness.validate_row_transition(
+                    before, harness.row_snapshot(repo), ("status-M01.md", "Implement feature", 1))
+                if rejected:
+                    self.assertTrue(any("fixed review limit of 10" in p for p in problems), problems)
+                else:
+                    self.assertEqual([], problems)
 
     def test_legacy_closure_records_no_invented_review_count(self) -> None:
         status = f"| Task | {marker('[+]')} | Closed under the earlier procedure |\n"
@@ -992,6 +1067,29 @@ class HarnessIntegrationTests(unittest.TestCase):
             proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertNotIn("LLM turn", proc.stdout)
+
+    def test_history_with_extended_review_limit_needs_no_api_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            retire_fixture(repo, **{"Review iterations": "30", "Review limit": "30",
+                                   "Review limit approval": "Owner approved interactive launch ceiling 30"})
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("LLM turn", proc.stdout)
+
+    def test_review_wording_warning_does_not_stop_an_all_retired_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            status = repo / "tabilet/memory-bank" / "status-M01.md"
+            status.write_text(status.read_text()
+                              + "\n## Review\n\nReview: passed\nThe review took two hours.\x1b[2J\n")
+            retire_fixture(repo)
+            proc = subprocess.run([sys.executable, str(HARNESS), str(repo)], cwd=ROOT,
+                                  env=self.harness_env(tmp), capture_output=True, check=False)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn(b"need human review (not blocking)", proc.stderr)
+        self.assertIn(b"The review took two hours.\\x1b[2J", proc.stderr)
+        self.assertNotIn(b"\x1b", proc.stderr)
 
     def test_empty_or_broken_history_does_not_claim_completion(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
