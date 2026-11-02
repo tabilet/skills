@@ -67,44 +67,63 @@ result in the status metadata preamble remains supported. Numbered results must
 occur in a review section, match the recorded iteration and limit, and not
 conflict with other recorded outcomes. Fenced or headed examples, templates,
 prospective instructions and specification statements cannot supply a result.
-Prose following an explicit final review pass in the envelope, status
-preamble or retained review section blocks acceptance only when it reverses,
-withdraws or conditions that result. A fenced block between the pass and that
-prose does not end the context: its contents are ignored, but prose after it
-is still read as a continuation of the same result. Ordinary notes, findings
-lines, iteration tables and a mere reference to a result ("the review outcome
-is recorded below") are not assertions about it and do not block. The same
-distinction applies to review-result claims in other structured metadata and
-to numbered references such as `review 2/10`. A positive summary is accepted
-in either word order ("review passed 2/10", "review 2/10 passed") when every
-counter it names is the recorded final iteration and limit; an earlier
-iteration may be cited or may have failed; a reference with no verdict
-("see review 2/10") is not a verdict; and a counter in a clause that names
-another milestone is that milestone's, not this record's.
+Two readings apply, and which one depends on whether a correction supplies the
+review pass.
 
-A sentence is adverse when a review-result subject (review, result, verdict,
-outcome, decision, pass, acceptance, approval) sits within a few words of a
-reversing or conditioning predicate such as invalidated, revoked, withdrawn,
-failed, contingent, provisional, pending or no longer valid, and the
-predicate is not negated ("not invalidated") or attached to an earlier
-iteration. Strong reversals (invalidated, revoked, withdrawn, rescinded,
-retracted, reopened) also count against a pronoun or "above"-style reference
-("It was later withdrawn."). This is a vocabulary, not a parser: it cannot
-prove arbitrary prose safe, so a wrong counter, an unrecognized verdict word
-after a counter, or a reversal in other words can still block, and wording
-that genuinely mixes a subject and predicate can block a harmless record. The
-check applies to every historical record, because the strict retirement
-contract does not read retained narrative: it accepts a record whose status
-later says the result was invalidated. Adjacent Markdown field continuation
-lines, including nested list or quote lines and values beginning after the
-label, are checked as one paragraph. Fenced and indented code remain
-examples; validation does not join source lines across those omitted blocks.
-Literal documents, recovered source identifiers and offsets are not rewritten.
-Recognition is limited to supported explicit historical forms and does not
-establish the meaning of arbitrary natural-language references. The few fixed
-sentences that restate, rather than qualify, a recorded decision are listed in
+When a correction supplies the pass, the conservative rule holds: unrecognized
+prose following an explicit final review pass in the envelope, status preamble
+or retained review section blocks acceptance, even when the prose is harmless.
+An unrecognized qualification is never made safe merely because a vocabulary
+did not match it.
+
+When the record carries its own pass, prose after it blocks only if it reverses,
+withdraws or conditions that result. Ordinary notes, findings lines, iteration
+history and a mere reference to a result ("the review outcome is recorded
+below") are not assertions about it. A fenced block between the pass and later
+prose does not end the context: its contents are ignored, but prose after it is
+still read as a continuation of the same result. The same distinction applies
+to review-result claims in other structured metadata and to numbered
+references such as `review 2/10`:
+
+- A wrapped paragraph is judged as one unit, so a line break cannot separate a
+  reversal from its subject. A table row after the pass is read cell by cell:
+  an earlier iteration may have failed, but a final-iteration failure, a later
+  iteration, or a cell that states a reversal blocks.
+- Every positive claim is checked, not only the first. A positive summary is
+  accepted in either word order ("review passed 2/10", "review 2/10 passed")
+  when the counter attached to that claim is the recorded final iteration and
+  limit. A ratio that is not attached to a review ("all 12/12 checks") is not a
+  counter. A reference with no verdict ("see review 2/10") is not a verdict.
+- A counter in a clause that names another milestone and not this record's own
+  ID is that milestone's. A clause that names this record's own ID is always
+  checked.
+
+A clause is adverse when a review-result subject (review, result, verdict,
+outcome, decision, pass, acceptance, approval) is near, or leads the clause
+that holds, a reversing or conditioning predicate such as invalidated, revoked,
+withdrawn, failed, contingent, provisional, pending, "provided that" or "no
+longer valid". A negation counts only inside its own clause ("was not
+invalidated but withdrawn" is a withdrawal). Strong reversals also count against
+a pronoun or "above"-style reference, and directly after a pass a leading
+pronoun stands for that pass ("It is conditional on ..."). A failed test or
+build, and a failure at an earlier iteration, is not a failed review; a
+failure at the final or a later iteration is. This is a vocabulary, not a
+parser: it cannot prove arbitrary prose safe, so a reversal in other words can
+still pass an uncorrected record, and wording that mixes a subject and a
+predicate by accident can block a harmless one. The check applies to every
+historical record, because the strict retirement contract does not read
+retained narrative: it accepts a record whose status later says the result was
+invalidated. Adjacent Markdown field continuation lines, including nested list
+or quote lines and values beginning after the label, are checked as one
+paragraph. Fenced and indented code remain examples; validation does not join
+source lines across those omitted blocks. Text after a heading that leaves the
+review section is no longer a continuation of the pass. Literal documents,
+recovered source identifiers and offsets are not rewritten. Recognition is
+limited to supported explicit historical forms and does not establish the
+meaning of arbitrary natural-language references. The few fixed sentences that
+restate, rather than qualify, a recorded decision are listed in
 `RECOGNIZED_PROSE` in the runner; wording outside that table is judged by the
-rule above, so the table is a deliberate, narrow allowance and not a general
+rules above, so the table is a deliberate, narrow allowance and not a general
 parser. A retained review counter that disagrees with the retirement metadata
 is a conflict wherever it appears in a trusted line, including bullets and
 table cells.

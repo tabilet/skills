@@ -1294,12 +1294,14 @@ RECOGNIZED_PROSE = {
 
 
 # Wording that reverses, withdraws or conditions a recorded review result.
-# Mentioning a result establishes nothing about it, so a sentence is adverse
-# only when it names a review-result subject and carries a predicate that
-# is not negated ("not invalidated") and is not attached to an earlier
-# iteration ("review 1/10 FAIL"). Strong predicates also count against a
-# pronoun or "above"-style reference ("It was later withdrawn."). This is a
-# vocabulary, not a parser: see docs/history-corrections.md.
+# Mentioning a result establishes nothing about it, so a clause is adverse only
+# when it names a review-result subject near a predicate that is not negated
+# in its own clause and is not attached to an earlier iteration or to a failed
+# test. Text that directly continues a recorded pass ("context") also takes a
+# leading pronoun as that pass ("It is conditional on ..."). This is a
+# vocabulary, not a parser, and only uncorrected records rely on it: a
+# correction that supplies acceptance keeps the conservative rule that any
+# unrecognized continuation blocks. See docs/history-corrections.md.
 _ADVERSE_PHRASE = re.compile(
     r'\b(?:did\s+not\s+pass|not\s+(?:accepted|passed|valid|approved|complete\w*)|not\s+(?:the\s+)?review\s+pass(?:ed)?|'
     r'no\s+longer|rolled\s+back)\b', re.I)
@@ -1307,42 +1309,73 @@ _ADVERSE_STRONG = re.compile(
     r'\b(?:invalidat\w*|revok\w*|withdr(?:aw\w*|ew)|rescind\w*|overturn\w*|retract\w*|reopen\w*)\b', re.I)
 _ADVERSE_WEAK = re.compile(
     r'\b(?:fail(?:ed|s|ure|ures)?|revers\w*|reject\w*|supersed\w*|cancel\w*|contingent|conditional\w*|'
-    r'provisional\w*|pending|subject\s+to|unresolved|disput\w*|incomplete)\b', re.I)
+    r'provisional\w*|pending|subject\s+to|unresolved|disput\w*|incomplete|blocked|'
+    r'provided(?:\s+that)?|unless|only\s+if|on\s+condition|depending\s+on|assuming|as\s+long\s+as)\b', re.I)
 _ADVERSE_REVISED = re.compile(r'\b(?:changed|amended|revisit\w*)\b', re.I)
 _RESULT_SUBJECT = re.compile(
     r'\b(?:review\w*|result\w*|verdict|outcome|decision|pass(?:ed)?|acceptance|approval|sign-?off)\b', re.I)
 _REFERENCE_SUBJECT = re.compile(
     r'\b(?:it|this|that|these|those|above|earlier|previous|prior|preceding)\b', re.I)
-_NEGATED = re.compile(r'\b(?:no|not|never|without|zero|0|none|neither|nor)\s+(?:\w+\s+){0,3}$', re.I)
 _NOUN_SUBJECT = re.compile(r'\b(?:results?|verdict|outcome|decision|acceptance|approval|sign-?off)\b', re.I)
+_NEGATION = re.compile(r'\b(?:no|not|never|without|zero|0|none|neither|nor)\s+(?:\w+\s+){0,3}$', re.I)
+_CLAUSE_BREAK = re.compile(r'\b(?:but|however|yet|although|though|instead|rather)\b|[,:]', re.I)
 _EARLIER_FAILURE = re.compile(
     r'\b(?:(?:review|iteration)\s+(?:iteration\s+)?([1-9][0-9]*)(?:\s*/\s*[1-9][0-9]*)?\s*(?:[:,—–-]\s*|(?:was|is)\s+)?'
     r'fail(?:ed|ure)?|fail(?:ed|ure)?\s+(?:in|at|on)\s+(?:review\s+)?iteration\s+([1-9][0-9]*))\b', re.I)
+_BENIGN_FAILURE = re.compile(
+    r'\b(?:(?:failed|failing|failure)\s+(?:\w+\s+)?(?:tests?|builds?|commands?|assertions?|fixtures?|jobs?)|'
+    r'(?:tests?|builds?|commands?|assertions?|fixtures?|jobs?)\s+(?:\w+\s+)?(?:failed|fails|failure|failing))\b', re.I)
 
 
-def adverse_review_wording(text: str, final: int | None = None) -> bool:
+def _negated(before: str) -> bool:
+    """A negation counts only inside the clause that holds the predicate."""
+    return bool(_NEGATION.search(_CLAUSE_BREAK.split(before)[-1]))
+
+
+def adverse_review_wording(text: str, final: int | None = None, context: bool = False) -> bool:
     """True when `text` reverses, withdraws or conditions a recorded review result.
 
-    The subject must sit within a few words of the predicate, so a long
-    paragraph that merely mentions both somewhere is not read as one claim.
+    `context` marks text that directly continues a recorded pass. Wrapped
+    lines are joined first, so a sentence split by a line break keeps its subject.
     """
-    for sentence in re.split(r'(?<=[.;!?])\s+', text):
+    inherited = 'strong' if context else None
+    for sentence in re.split(r'(?<=[.!?])\s+', ' '.join(text.split())):
         if final is not None:
-            sentence = _EARLIER_FAILURE.sub(
-                lambda m: '' if int(m[1] or m[2]) < final else m[0], sentence)
-        for pattern, subjects in ((_ADVERSE_PHRASE, (_RESULT_SUBJECT,)),
-                                  (_ADVERSE_STRONG, (_RESULT_SUBJECT, _REFERENCE_SUBJECT)),
-                                  (_ADVERSE_WEAK, (_RESULT_SUBJECT,)),
-                                  (_ADVERSE_REVISED, (_NOUN_SUBJECT,))):
-            for found in pattern.finditer(sentence):
-                before = sentence[:found.start()]
-                if pattern is not _ADVERSE_PHRASE and _NEGATED.search(before):
-                    continue
-                nearby = ' '.join(before.split()[-6:] + sentence[found.start():found.end()].split()
-                                  + sentence[found.end():].split()[:4])
-                if any(subject.search(nearby) for subject in subjects):
-                    return True
+            # "Review 1/10 FAIL" is history; a failure at the final or a later
+            # iteration is a verdict on its own terms, whatever else is said.
+            if any(not _negated(sentence[:m.start()]) and int(m[1] or m[2]) >= final
+                   for m in _EARLIER_FAILURE.finditer(sentence)):
+                return True
+            sentence = _EARLIER_FAILURE.sub('', sentence)
+        sentence = _BENIGN_FAILURE.sub('', sentence)
+        for clause in sentence.split(';'):
+            words = clause.split()
+            if not words:
+                continue
+            lead = ' '.join(words[:5])
+            for pattern, subjects in ((_ADVERSE_PHRASE, (_RESULT_SUBJECT,)),
+                                      (_ADVERSE_STRONG, (_RESULT_SUBJECT, _REFERENCE_SUBJECT)),
+                                      (_ADVERSE_WEAK, (_RESULT_SUBJECT,)),
+                                      (_ADVERSE_REVISED, (_NOUN_SUBJECT,))):
+                for found in pattern.finditer(clause):
+                    before = clause[:found.start()]
+                    if pattern is not _ADVERSE_PHRASE and _negated(before):
+                        continue
+                    nearby = ' '.join(before.split()[-6:] + clause[found.start():found.end()].split()
+                                      + clause[found.end():].split()[:4])
+                    if (any(subject.search(nearby) or subject.search(lead) for subject in subjects)
+                            or (context and pattern is not _ADVERSE_REVISED
+                                and _REFERENCE_SUBJECT.search(' '.join(words[:3])))
+                            or (inherited and len(words) <= 4
+                                and (inherited == 'any' or pattern is _ADVERSE_STRONG))):
+                        return True
+            # Only a bare subject phrase hands its subject to the next clause:
+            # "The review result; withdrawn.", not "review 2/10 passed; retirement pending."
+            inherited = ('any' if _RESULT_SUBJECT.search(lead) and len(words) <= 5 and not re.search(
+                r'\b(?:was|is|are|were|has|have|had|pass(?:ed)?|fail(?:ed)?|completed|accepted)\b', clause, re.I)
+                else None)
     return False
+
 
 def historical_record(text: str, name: str, correction: dict | None = None) -> dict:
     """Read frozen evidence; literal documents and interpreted task cells stay separate."""
@@ -1944,17 +1977,31 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     iterations = metadata.get('Review iterations', '')
     if metadata.get('Review') == 'passed' and re.fullmatch(r'[1-9][0-9]*', iterations):
         final_iteration = int(iterations)
+        # A correction that supplies acceptance keeps the conservative rule:
+        # an unrecognized qualification there is never safe merely because the
+        # vocabulary in adverse_review_wording() did not match it.
+        lenient = not corrected_pass
+        unit_nouns = r'(?!\s*(?:checks?|tests?|items?|rows?|files?|cases?|tasks?|findings?|assertions?)\b)'
         def consistent_counters(text):
-            # Every counter the text names must be the recorded final one.
-            return (all(pair == (iterations, recorded_limit)
-                        for pair in re.findall(r'\b([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\b', text))
+            # Every counter attached to a review or pass must be the recorded
+            # final one; an unrelated ratio such as "12/12 checks" is not one.
+            pairs = re.findall(r'\b(?:review|iteration|passed|pass)\s+(?:iteration\s+)?([1-9][0-9]*)\s*/\s*'
+                               r'([1-9][0-9]*)\b' + unit_nouns, text, re.I)
+            leading = re.match(r'^\W*([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\b' + unit_nouns, text)
+            if leading:
+                pairs.append(leading.groups())
+            return (all(pair == (iterations, recorded_limit) for pair in pairs)
                     and all(count == iterations
                             for count in re.findall(r'\biteration\s+([1-9][0-9]*)\b', text, re.I)))
         def names_other_milestone(before):
             # "M17 accepted ..., review 3/10" cites another milestone's review.
+            # This record's own ID must not be in the clause: "Compared with
+            # M02, M01 review 2/999" still names this record's own counter.
             clause = re.split(r'[.;]\s', before)[-1]
-            return any(found.upper() != identity and re.fullmatch(MILESTONE_ID, found.upper())
-                       for found in re.findall(r'\b[A-Z][0-9]{2,}\b', clause))
+            ids = re.findall(r'\b[A-Z][0-9]{2,}\b', clause)
+            return (identity.upper() not in {found.upper() for found in ids}
+                    and any(found.upper() != identity and re.fullmatch(MILESTONE_ID, found.upper())
+                            for found in ids))
         envelope_lines = [(line, True) for _, line in envelope_unfenced]
         review_lines = envelope_lines + [(line, trusted) for line, trusted, _, _ in status_lines.values()]
         for line, trusted in review_lines:
@@ -1969,13 +2016,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             for declared in (declaration, table_declaration):
                 value = declared[1].strip() if declared else ''
                 if declared and not (re.fullmatch(r'passed\.?', value, re.I)
-                                     or (re.match(r'passed\b', value, re.I) and consistent_counters(value)
-                                         and not adverse_review_wording(value, final_iteration))):
+                                     or (lenient and re.match(r'passed\b', value, re.I)
+                                         and consistent_counters(value)
+                                         and not adverse_review_wording(value, final_iteration, True))):
                     review_conflicts.append('ambiguous recorded review result')
             for claim in re.finditer(
                     r'(?<!task )\b(?:whole\s+)?review\s+([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\b', line, re.I):
                 number, limit = claim.groups()
-                if names_other_milestone(line[:claim.start()]):
+                if lenient and names_other_milestone(line[:claim.start()]):
                     continue
                 verdict = re.match(r'\s*(?:[,:;—–-]\s*)?(?:(?:was|is)\s+)?(?:\(\s*)?'
                                    r'(PASS(?:ED)?|FAIL(?:ED)?|NOT\s+PASSED|PENDING|INCOMPLETE)\b',
@@ -1983,30 +2031,63 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 if (int(number) > int(iterations) or (int(number) == int(iterations)
                         and ((verdict and verdict[1].upper() not in {'PASS', 'PASSED'})
                              or limit != recorded_limit
-                             or (not verdict and (re.match(r'\s*(?:[:,(—–-]|(?:was|is)\b)', line[claim.end():])
+                             or (not verdict and (not lenient
+                                                  or re.match(r'\s*(?:[:,(—–-]|(?:was|is)\b)', line[claim.end():])
                                                   or adverse_review_wording(line[claim.start():], int(iterations))))))):
                     review_conflicts.append('conflicting whole review result')
         # Apply the same conservative continuation rule to the envelope and
         # retained status: unknown prose after a recognized pass is ambiguous.
         final_pass = (r'\bwhole\s+review\s+' + re.escape(iterations) + r'\s*/\s*'
                       + re.escape(recorded_limit) + r'\s+PASS\s+with\s+no\s+P1/P2\.')
+        def table_row_adverse(line):
+            # Iteration history is not a verdict, but a row for the final or a
+            # later iteration, or a cell that states a reversal, is.
+            cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+            if all(not cell or re.fullmatch(r':?-{2,}:?', cell) for cell in cells):
+                return False
+            rest = ' '.join(cells[1:])
+            first = re.fullmatch(r'(?:iteration\s+)?([1-9][0-9]*)', cells[0], re.I)
+            if first and re.search(r'\b(?:PASS(?:ED)?|FAIL\w*|pending|incomplete|blocked)\b', rest, re.I):
+                number = int(first[1])
+                if number < final_iteration:
+                    return False
+                return (number > final_iteration
+                        or bool(re.search(r'\b(?:FAIL\w*|pending|incomplete|blocked)\b', rest, re.I)))
+            return adverse_review_wording(' '.join(cells), final_iteration, True)
         def ambiguous_pass_continuation(source, ignored):
             after_final_pass = False
             previous_number = None
+            paragraph = []
+            def adverse_paragraph():
+                # Judge a wrapped paragraph as one unit, so a line break cannot
+                # separate a reversal from its subject.
+                joined = ' '.join(paragraph)
+                paragraph.clear()
+                return bool(joined) and adverse_review_wording(joined, final_iteration, True)
             for line, trusted, relevant, envelope, _, number in source:
                 # A fenced block is skipped, not a break: the prose after it still
                 # continues the same recorded result. Any other gap ends the context.
                 if (previous_number is not None and number != previous_number + 1
                         and not all(n in ignored for n in range(previous_number + 1, number))):
+                    if after_final_pass and lenient and adverse_paragraph():
+                        return True
                     after_final_pass = False
                 previous_number = number
                 if not relevant:
+                    if after_final_pass and lenient and adverse_paragraph():
+                        return True
                     after_final_pass = False
                     continue
-                if not trusted or not line.strip():
+                if not trusted:
+                    continue
+                if not line.strip():
+                    if after_final_pass and lenient and adverse_paragraph():
+                        return True
                     continue
                 if after_final_pass:
                     if re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I):
+                        if lenient and adverse_paragraph():
+                            return True
                         after_final_pass = False
                         continue
                     field = re.fullmatch(r'\*\*(Milestone|Outcome|Retired|Source status|Source specification|'
@@ -2014,6 +2095,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                                          r'Verification|Consolidated into|Disposition|Successor|Legacy closure|Marker correction)'
                                          r'\.\*\* (.+)', line.strip(), re.I)
                     if field:
+                        if lenient and adverse_paragraph():
+                            return True
                         if (field[1].lower() == 'marker correction'
                                 and not re.fullmatch(RECOGNIZED_PROSE['marker_correction'], field[2])):
                             return True
@@ -2021,20 +2104,29 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     reaffirmation = re.fullmatch(RECOGNIZED_PROSE['reaffirmation'].format(
                         iterations=re.escape(iterations), limit=re.escape(recorded_limit)), line.strip(), re.I)
                     task_review = re.fullmatch(RECOGNIZED_PROSE['task_review_fail'], line.strip(), re.I)
-                    if (line.strip() != RECOGNIZED_PROSE['standalone_intake']
-                            and not reaffirmation and not task_review
-                            and not line.lstrip().startswith('|')
-                            and adverse_review_wording(line, final_iteration)):
+                    if (line.strip() == RECOGNIZED_PROSE['standalone_intake'] or reaffirmation or task_review):
+                        continue
+                    if not lenient:
                         return True
+                    if line.lstrip().startswith('|'):
+                        if adverse_paragraph() or table_row_adverse(line):
+                            return True
+                    elif re.match(r'^#{1,6}\s', line.lstrip()):
+                        if adverse_paragraph():
+                            return True
+                    else:
+                        # A bold field label names a section, not a result subject.
+                        paragraph.append(re.sub(r'^\*\*[\w ]+[.:]\*\*\s*', '', line.strip()))
                     continue
                 numbered = re.search(final_pass, line, re.I)
                 plain = re.fullmatch(r'(?:\*\*Review\.\*\*\s*|Review\s*:\s*|Review\s+)passed\.?',
                                      line.strip(), re.I)
                 if numbered or plain:
-                    if numbered and adverse_review_wording(line[numbered.end():], final_iteration):
+                    if numbered and line[numbered.end():].strip() and (
+                            not lenient or adverse_review_wording(line[numbered.end():], final_iteration, True)):
                         return True
                     after_final_pass = True
-            return False
+            return bool(after_final_pass and lenient and adverse_paragraph())
         envelope_context = [(line, True, True, True, False, number)
                             for number, line in envelope_unfenced]
         review_scan = [(line, trusted, in_review or preamble, False, preamble, number)
@@ -2047,7 +2139,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             def ambiguous():
                 joined = ' '.join(parts)
                 return bool(re.search(r'\breview\s+(?:result|verdict|outcome|decision)\b', joined, re.I)
-                            and adverse_review_wording(joined, final_iteration))
+                            and (not lenient or adverse_review_wording(joined, final_iteration)))
             for line, trusted, relevant, _, _, number in source:
                 stripped = line.strip()
                 boundary = (not trusted or not relevant or not stripped or
@@ -2128,57 +2220,65 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                                and re.fullmatch(RECOGNIZED_PROSE['earlier_pending'], field_value, re.I))
             if earlier_pending and later_counter:
                 continue
-            passing = re.search(r'\breview\s+(?:passed|completed|accepted|approved|succeeded|successful|clean)\b',
-                                field_value, re.I)
-            if passing:
+            old_prefix_risk = r'\b(?:not|no|never|unless|if|except|conditional)\b'
+            for passing in re.finditer(
+                    r'\breview\s+(?:passed|completed|accepted|approved|succeeded|successful|clean)\b',
+                    field_value, re.I):
                 suffix = field_value[passing.end():].strip()
                 claim_sentence = re.split(r'(?<=[.;!?])\s', suffix, maxsplit=1)[0]
                 accepted_suffix = (suffix in {'', '.', '. No publication is claimed.'} or re.fullmatch(
                     r'\.\s*Persisted review count\s+' + re.escape(iterations) + r'/'
                     + re.escape(recorded_limit) + r'\.', suffix, re.I)
-                    or (consistent_counters(claim_sentence)
-                        and not adverse_review_wording(field_value[passing.start():], final_iteration)))
-                if (not accepted_suffix or re.search(r'\b(?:not|no|never|unless|if|except|conditional)\b',
-                                                     re.split(r'[.;]\s', field_value[:passing.start()])[-1], re.I)):
+                    or (lenient and consistent_counters(claim_sentence)
+                        and not adverse_review_wording(field_value[passing.start():], final_iteration, True)))
+                before = re.split(r'[.;]\s', field_value[:passing.start()])[-1]
+                risky_prefix = (
+                    _negated(before) or bool(re.search(
+                        r'\b(?:unless|except|if|conditional\w*|once|until)\b\s+(?:\w+\s+){0,5}$', before, re.I))
+                    if lenient else bool(re.search(old_prefix_risk, field_value[:passing.start()], re.I)))
+                if not accepted_suffix or risky_prefix:
                     review_conflicts.append('ambiguous review-result claim in structured metadata')
             colon_result = re.search(r'(?:^|[.;]\s+)review\s*:\s*(.*)', field_value, re.I)
             if colon_result and not (
                     re.fullmatch(r'passed\.?', colon_result[1].strip(), re.I)
-                    or (re.match(r'passed\b', colon_result[1].strip(), re.I)
+                    or (lenient and re.match(r'passed\b', colon_result[1].strip(), re.I)
                         and consistent_counters(colon_result[1])
-                        and not adverse_review_wording(colon_result[1], final_iteration))):
+                        and not adverse_review_wording(colon_result[1], final_iteration, True))):
                 review_conflicts.append('ambiguous review-result claim in structured metadata')
             claims = list(re.finditer(r'\breview\s+([1-9][0-9]*)/([1-9][0-9]*)\b', field_value, re.I))
             for position, numbered in enumerate(claims):
                 end = claims[position + 1].start() if position + 1 < len(claims) else len(field_value)
-                if names_other_milestone(field_value[:numbered.start()]):
+                if lenient and names_other_milestone(field_value[:numbered.start()]):
                     continue
                 result = field_value[numbered.end():end].strip()
                 same = numbered[1] == iterations and numbered[2] == recorded_limit
                 verdict = re.match(r'[,:;(—–\s-]*(?:(?:was|is)\s+)?(PASS(?:ED)?|FAIL(?:ED)?|NOT\s+PASSED|PENDING|INCOMPLETE)\b',
                                    result, re.I)
-                benign = not adverse_review_wording(field_value[numbered.start():end], final_iteration)
+                benign = lenient and not adverse_review_wording(field_value[numbered.start():end], final_iteration)
                 if same:
-                    supported = (re.fullmatch(r',?\s*passed(?:\s+with\s+no\s+P1/P2)?\.?', result, re.I)
-                                 or re.fullmatch(RECOGNIZED_PROSE['retired_without_commits'], result, re.I)
-                                 or (benign and ((not verdict and not re.match(r'\s*(?:[:,(—–-]|(?:was|is)\b)', result))
-                                                 or (verdict and verdict[1].upper() in {'PASS', 'PASSED'}
-                                                     and consistent_counters(result)))))
+                    supported = bool(
+                        re.fullmatch(r',?\s*passed(?:\s+with\s+no\s+P1/P2)?\.?', result, re.I)
+                        or re.fullmatch(RECOGNIZED_PROSE['retired_without_commits'], result, re.I)
+                        or (benign and ((not verdict and not re.match(r'\s*(?:[:,(—–-]|(?:was|is)\b)', result))
+                                        or (verdict and verdict[1].upper() in {'PASS', 'PASSED'}
+                                            and consistent_counters(result))))
+                    )
                 else:
                     # An earlier iteration may have failed or be cited; a pass
                     # recorded at another iteration or limit is inconsistent.
-                    supported = (numbered[2] == recorded_limit and int(numbered[1]) < final_iteration
-                                 and benign and not (verdict and verdict[1].upper() in {'PASS', 'PASSED'}))
+                    supported = bool(benign and numbered[2] == recorded_limit
+                                     and int(numbered[1]) < final_iteration
+                                     and not (verdict and verdict[1].upper() in {'PASS', 'PASSED'}))
                 stale_counter = (preamble and field_name == 'state' and later_counter and same
                     and re.fullmatch(r',\s*passed\.\s*Persisted review count 0/10\.', result, re.I))
-                if ((not supported and not stale_counter) or re.search(
-                        r'\b(?:not|no|never|unless|if|except|conditional)\b',
-                        re.split(r'[.;]\s', field_value[:numbered.start()])[-1], re.I)):
+                prefix = field_value[:numbered.start()]
+                if ((not supported and not stale_counter)
+                        or re.search(old_prefix_risk, re.split(r'[.;]\s', prefix)[-1] if lenient else prefix, re.I)):
                     review_conflicts.append('ambiguous review-result claim in structured metadata')
             if re.search(r'\b(?:review\s+(?:result|verdict|outcome|decision|was|is|has|had|'
                          r'failed|fail|pending|not)|(?:result|verdict|outcome|decision)\s+of\s+'
-                         r'(?:the\s+)?review)\b', field_value, re.I) and adverse_review_wording(
-                             field_value, final_iteration):
+                         r'(?:the\s+)?review)\b', field_value, re.I) and (
+                             not lenient or adverse_review_wording(field_value, final_iteration)):
                 review_conflicts.append('ambiguous review-result claim in structured metadata')
         if review_conflicts and corrected_pass:
             raise ValueError('conflicting recorded review result; a correction cannot supply acceptance')

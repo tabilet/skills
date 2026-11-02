@@ -1181,6 +1181,99 @@ class HistoryCorrectionsTests(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(adverse(text, 2))
 
+    def review_variants(self, where, payload):
+        """The same retained text read uncorrected and with a correction supplying `Review: passed`."""
+        task = '| Task | `[+]` | verified |\n'
+        if where == 'after':
+            status = task + '\n## Review\n\nReview: passed\n' + payload + '\n'
+        else:
+            status = payload + '\n\n' + task + '\n## Review\n\nReview: passed\n'
+        uncorrected = core.historical_record(h.retirement_text(status), 'status-M01.md')['blockers']
+        text = h.retirement_text(status).replace('**Review.** passed\n', '')
+        quote = 'Review: passed'
+        line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+        try:
+            corrected = core.historical_record(text, 'status-M01.md', correction)['blockers']
+        except ValueError as error:
+            corrected = [str(error)]
+        return uncorrected, corrected
+
+    def test_adverse_review_prose_blocks_on_both_paths(self):
+        payloads = (
+            ('after', 'The review result was not invalidated but withdrawn.'),
+            ('after', 'It is conditional on further verification.'),
+            ('after', 'The review result; withdrawn.'),
+            ('after', 'The result was later\nwithdrawn.'),
+            ('after', 'The review result, after checking every item in the original document carefully, was withdrawn.'),
+            ('after', 'Review 1/10 FAIL; iteration 2 failed.'),
+            ('after', 'Review: passed provided that remaining checks succeed.'),
+            ('after', '| Finding | Disposition |\n| Closure | The review result was invalidated. |'),
+            ('after', '| Iteration | State |\n|---|---|\n| 1 | FAIL |\n| 2 | FAIL |'),
+            ('after', 'Compared with M02, M01 whole review 2/999 PASS.'),
+            ('field', '**State.** Review passed 2/10. Review passed 9/10.'),
+            ('after', '```text\nx\n```\n\nIt was later withdrawn.'),
+            ('after', '> The review was later rescinded.'),
+        )
+        for where, payload in payloads:
+            with self.subTest(payload=payload):
+                uncorrected, corrected = self.review_variants(where, payload)
+                self.assertTrue(uncorrected, 'uncorrected record accepted ' + repr(payload))
+                self.assertTrue(corrected, 'correction-backed record accepted ' + repr(payload))
+
+    def test_every_subject_connector_and_predicate_combination_still_blocks(self):
+        subjects = ('The review result', 'The pass', 'It', 'The result')
+        connectors = (' was ', ' was later ', ' was, after checking every required acceptance condition again, ',
+                      ' was not invalidated but ')
+        predicates = ('invalidated', 'withdrawn', 'reversed', 'conditional on further verification',
+                      'pending further verification', 'not accepted')
+        for subject in subjects:
+            for connector in connectors:
+                for predicate in predicates:
+                    payload = subject + connector + predicate + '.'
+                    with self.subTest(payload=payload):
+                        uncorrected, corrected = self.review_variants('after', payload)
+                        self.assertTrue(uncorrected)
+                        self.assertTrue(corrected)
+
+    def test_a_correction_that_supplies_acceptance_keeps_the_conservative_rule(self):
+        # Uncorrected, these are ordinary prose. When a correction supplies the
+        # pass, an unrecognized continuation is not made safe by a vocabulary
+        # miss, so the record is refused.
+        for where, payload in (('after', 'Findings: none'), ('after', 'The review outcome is recorded below.'),
+                               ('after', 'Logs are in ignored scratch.')):
+            with self.subTest(payload=payload):
+                uncorrected, corrected = self.review_variants(where, payload)
+                self.assertEqual(uncorrected, [])
+                self.assertTrue(corrected)
+
+    def test_ordinary_english_next_to_a_review_pass_is_not_a_blocker(self):
+        for where, payload in (
+                ('after', 'The review passed after the failed test was fixed.'),
+                ('field', '**State.** No changes were required after review passed.'),
+                ('field', '**Verification.** Review passed all 12/12 checks.'),
+                ('field', '**State.** Review passed 2/10; retirement pending.'),
+                ('after', 'The build was cancelled by the user and rerun.'),
+                ('after', '| Iteration | State |\n|---|---|\n| 1 | FAIL |\n| 2 | PASS |')):
+            with self.subTest(payload=payload):
+                self.assertEqual(self.review_variants(where, payload)[0], [])
+
+    def test_adverse_wording_binds_negation_to_its_clause_and_the_subject_to_the_sentence(self):
+        adverse = core.adverse_review_wording
+        for text, context in (('The review result was not invalidated but withdrawn.', False),
+                              ('It is conditional on further verification.', True),
+                              ('The review result; withdrawn.', False),
+                              ('The result was later\nwithdrawn.', False),
+                              ('Review 1/10 FAIL; iteration 2 failed.', False),
+                              ('Withdrawn.', True)):
+            with self.subTest(text):
+                self.assertTrue(adverse(text, 2, context))
+        for text in ('The review passed after the failed test was fixed.', 'No changes were required after review passed.',
+                     'Whole review 2/10 passed; retirement pending.', 'Tests failed in the build job.'):
+            with self.subTest(text):
+                self.assertFalse(adverse(text, 2))
+
 
 if __name__ == '__main__':
     unittest.main()
