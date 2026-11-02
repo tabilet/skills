@@ -85,14 +85,25 @@ free-text tails, so "Review found no defects but was annulled." is not a
 findings summary. The same rule covers a clause that refers back to the review.
 In the text that continues a pass, the pass is the subject from the start and
 stays the subject across neutral sentences and blank lines, so "Later it was
-annulled." refers to it however many paragraphs follow; in a claim field, a
-clause that named the review stays the subject in the same way.
+annulled." refers to it however many paragraphs follow, and so does a clause with
+no subject of its own ("Subsequently annulled."). In a claim field, a clause that
+named the review stays the subject in the same way. A pronoun is a subject when
+a verb follows it ("this was", "those were", "this has since been") or it
+determines a result ("this result"); a conjunction ("tests confirm that revoked
+tokens are rejected") is not, and neither is a reversal word used as an
+adjective ("Revoked credentials are rejected."). While the pass is the subject, a reversal used as
+a predicate ("was annulled", "annulled this") blocks when its subject is a
+pronoun or a generic phrase, even one set off by punctuation ("this, after
+discussion, was annulled", "the same was voided"), and warns with any other
+subject. Invisible format characters such as a soft hyphen are removed before
+words are read.
 
 A clause about the review that is not a recognized form blocks when it names the
 review, or refers back to it, together with a reversal word such as voided,
 annulled, revoked, withdrawn, reopened, rescinded or set aside, however far that
 word is from the subject. Each reversal word is judged in its own negation
-scope, so "not voided but annulled" blocks. Otherwise it is a **warning**, not a blocker: real
+scope, so "not voided but annulled" blocks, and "not only" or "not just" affirms
+rather than negates. Otherwise it is a **warning**, not a blocker: real
 history is phrased too variously for exact forms to be a gate, and the strict
 retirement contract never reads this prose. Warnings name the record and the
 clause, with control and format characters escaped (`\x1b`) and the clause cut
@@ -118,9 +129,13 @@ about this review. The same distinction applies to numbered references such as
   only an earlier or final iteration's own verdict word is history, and the rest
   of the row is still read, counters first; a final-iteration failure or a later
   iteration blocks. A header row (one followed by a delimiter row) raises no
-  warning for its labels but is still checked for counters and reversals. Only
-  the status task table ends the continuation: a `Task` or `Item` row with a
-  status marker cell, or its header followed by a delimiter and such a row. Any
+  warning for its labels, but a sentence in a header warns like prose, and every
+  header is checked for counters and reversals. The status task table (a `Task`
+  or `Item` row with a status marker cell, or its header followed by a
+  delimiter and such a row) is task evidence, but it does not end the
+  continuation: on both paths, its rows block on an explicit milestone review
+  reversal or a conflicting review counter, and prose after it still continues
+  the pass. Ordinary task notes and task-level review counters are exempt. Any
   other table, whatever its header, is read row by row.
 - Every review or iteration counter in a paragraph is checked against the
   record before anything else, whether or not the clause names the review, in
@@ -133,6 +148,7 @@ about this review. The same distinction applies to numbered references such as
   ("see review 2/10") is not a verdict.
 - A counter is another milestone's only when that milestone's ID leads the
   claim within a few words, with no "our", "this" or comparison between them,
+  no non-ASCII letter or invisible format character that could disguise an ID,
   and the clause does not name this record's own ID ("M02 review 3/10 passed").
   "Compared with M02, our review 3/10 passed." is this record's counter.
 

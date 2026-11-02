@@ -1344,6 +1344,65 @@ class HistoryCorrectionsTests(unittest.TestCase):
         self.assertNotRegex(warnings[0], '[\x00-\x1f\x7f\u202e]')
         self.assertIn('\\x1b[2J', warnings[0])
 
+    def test_no_review_reversal_or_counter_conflict_passes_silently(self):
+        # Property check over every place a pass can be continued or claimed:
+        # a reversal in the vocabulary or a conflicting counter blocks on both
+        # paths; other wording about the review at least warns on a literal
+        # record; ordinary test prose does not block.
+        task, review = '| Task | `[+]` | verified |\n', '\n## Review\n\nReview: passed\n'
+        places = {
+            'after': lambda p: task + review + p + '\n',
+            'after a blank line': lambda p: task + review + '\n' + p + '\n',
+            'after a neutral sentence': lambda p: task + review + 'No errors remained.\n\n' + p + '\n',
+            'after a fence': lambda p: task + review + '```text\nexample\n```\n' + p + '\n',
+            'table body': lambda p: task + review + '| Item | Notes |\n|:---|---:|\n| Closure | ' + p + ' |\n',
+            'table header': lambda p: task + review + '| ' + p + ' |\n|---|\n',
+            'after the task table': lambda p: (task + review + '| Item | State | Notes |\n|---|---|---|\n'
+                                               '| Closure | `[+]` | done |\n\n' + p + '\n'),
+            'State field': lambda p: '**State.** Review passed 2/10. ' + p + '\n\n' + task + review,
+            'Verification field': lambda p: '**Verification.** Review passed 2/10. ' + p + '\n\n' + task + review,
+        }
+        blocking = ('The review was voided.', 'Later this was annulled.', 'Later those were set aside.',
+                    'After the release, following discussion, the verdict was subsequently voided.',
+                    'Subsequently annulled.', 'The pass was revoked.', 'The review was not only voided.',
+                    'The review was never voided and was annulled.', 'This has since been rejected.',
+                    'Later, this, after discussion, was annulled.', 'Later the same was annulled.',
+                    'Later the owner annulled this.', 'Later it was ann\u00adulled.',
+                    'Whole-milestone review passed 3/10.', 'Passed 9/10.', "M02 confirmed M01's review 3/10 passed.",
+                    'M02 confirmed \u041c01 review 3/10 passed.', 'M02 confirmed M\u200b01 review 3/10 passed.')
+        flagged = ('Later the review was deemed moot.', 'Later it was treated as never having happened.')
+        benign = ('Tests confirm that revoked tokens are rejected.', 'Revoked credentials are rejected by the broker.',
+                  'Tests verify that this path is cancelled cleanly.', 'The review result is recorded below.')
+        for place, build in places.items():
+            for payload in blocking + flagged + benign:
+                status = build(payload if '|' not in build('') else payload.replace('|', '/'))
+                with self.subTest(place=place, payload=payload):
+                    record = core.historical_record(h.retirement_text(status), 'status-M01.md')
+                    if payload in benign:
+                        self.assertEqual(record['blockers'], [])
+                        continue
+                    if payload in blocking:
+                        self.assertTrue(record['blockers'])
+                    else:
+                        self.assertTrue(record['blockers'] or record['warnings'])
+                    if payload not in benign:
+                        self.assertTrue(self.review_variants('after', payload)[1])
+
+    def test_task_rows_after_a_pass_are_checked_on_both_paths(self):
+        for row in ('| Item | `[+]` | The review was voided |', '| Item | `[+]` | Whole-milestone review passed 3/10. |',
+                    '| M01.3 | `[+]` | The milestone review was annulled |'):
+            with self.subTest(row=row):
+                uncorrected, corrected = self.review_variants('after', row)
+                self.assertTrue(uncorrected)
+                self.assertTrue(corrected)
+        uncorrected, corrected = self.review_variants('after', '| Item | `[+]` | done |\nThe review was withdrawn.')
+        self.assertTrue(uncorrected)
+        self.assertTrue(corrected)
+        # Ordinary task notes and task-level review counters stay task evidence.
+        for row in ('| Item | `[+]` | Tests revoke stale tokens |', '| Item | `[+]` | M01.2 review 4 fixed |'):
+            with self.subTest(row=row):
+                self.assertEqual(self.review_variants('after', row)[0], [])
+
     def test_review_warnings_reach_the_snapshot_and_index_without_blocking(self):
         history = self.root / 'tabilet/docs/history'
         history.mkdir(parents=True)

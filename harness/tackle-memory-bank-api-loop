@@ -29,6 +29,7 @@ import functools
 import hashlib
 import json
 import math
+import unicodedata
 import os
 import pathlib
 import re
@@ -1306,7 +1307,8 @@ _ADVERSE_PHRASE = re.compile(
     r'\b(?:did\s+not\s+pass|not\s+(?:accepted|passed|valid|approved|complete\w*)|not\s+(?:the\s+)?review\s+pass(?:ed)?|'
     r'no\s+longer|rolled\s+back)\b', re.I)
 _ADVERSE_STRONG = re.compile(
-    r'\b(?:invalidat\w*|revok\w*|withdr(?:aw\w*|ew)|rescind\w*|overturn\w*|retract\w*|reopen\w*)\b', re.I)
+    r'\b(?:invalidat\w*|revok\w*|withdr(?:aw\w*|ew)|rescind\w*|overturn\w*|retract\w*|reopen\w*|'
+    r'void(?:ed|s|ing)?|annul\w*|nullif\w*|set\s+aside)\b', re.I)
 _TABLE_DELIMITER_CELL = re.compile(r':?-{2,}:?')
 # A reversal word that blocks anywhere in an unrecognized clause about the
 # review, however far it is from the subject.
@@ -1321,9 +1323,25 @@ _ADVERSE_REVISED = re.compile(r'\b(?:changed|amended|revisit\w*)\b', re.I)
 _RESULT_SUBJECT = re.compile(
     r'\b(?:review\w*|result\w*|verdict|outcome|decision|pass(?:ed)?|acceptance|approval|sign-?off)\b', re.I)
 _REFERENCE_SUBJECT = re.compile(
-    r'\b(?:it|this|that|these|those|above|earlier|previous|prior|preceding)\b', re.I)
+    r'\b(?:it|this|that|these|those|they)\s+(?:(?:since|now|later|then|also|already|subsequently|'
+    r'eventually|finally)\s+)?(?:has|have|had|was|were|is|are|been|got|became|'
+    r'will|would|must|should|may|might|can|could)\b|'
+    r'\b(?:this|that|these|those|its)\s+(?:review\s+)?(?:results?|verdicts?|outcomes?|decisions?|pass)\b|'
+    r'\b(?:above|earlier|previous|prior|preceding)\b', re.I)
+# A milestone-level review subject, after task-level reviews are set aside.
+_MILESTONE_REVIEW_SUBJECT = re.compile(
+    r'\breviews?\b|\b(?:the|this|that|its)\s+(?:review\s+)?(?:results?|verdicts?|outcomes?|decisions?|pass)\b', re.I)
+_TASK_REVIEW = re.compile(
+    r'\b(?:[A-Z][0-9]{2,}(?:\.[0-9]+)+\s+(?:task[- ]?)?|task[- ]?)reviews?\b(?:\s+[0-9]+)?', re.I)
+# A clause with no subject of its own: "Voided.", "Subsequently annulled.",
+# "Annulled by the owner." The reversal is the whole predicate, not an
+# adjective ("Revoked credentials are rejected.").
+_BARE_VERDICT = re.compile(
+    r'\W*(?:(?:later|subsequently|then|afterwards?|eventually|finally|since|now)\W+)*'
+    r'(?:(?:was|were|is|are|(?:has|had)\s+been|been)\s+)?(?=\w)', re.I)
 _NOUN_SUBJECT = re.compile(r'\b(?:results?|verdict|outcome|decision|acceptance|approval|sign-?off)\b', re.I)
-_NEGATION = re.compile(r'\b(?:no|not|never|without|zero|0|none|neither|nor)\s+(?:\w+\s+){0,3}$', re.I)
+_NEGATION = re.compile(r'\b(?:no|not(?!\s+(?:only|just|merely|simply|solely)\b)|never|without|zero|0|none|'
+                       r'neither|nor)\s+(?:\w+\s+){0,3}$', re.I)
 _CLAUSE_BREAK = re.compile(r'\b(?:and|but|however|yet|although|though|instead|rather)\b|[,:]', re.I)
 _EARLIER_FAILURE = re.compile(
     r'\b(?:(?:review|iteration)\s+(?:iteration\s+)?([1-9][0-9]*)(?:\s*/\s*[1-9][0-9]*)?\s*(?:[:,—–-]\s*|(?:was|is)\s+)?'
@@ -1368,6 +1386,33 @@ _REVIEW_MENTION = re.compile(
     r'\b(?:reviews?|results?|verdicts?|outcomes?|decisions?|acceptance|approval|sign-?off)\b|\bthe\s+pass\b', re.I)
 
 
+_GENERIC_SUBJECT = re.compile(
+    r'\b(?:it|this|that|these|those|they|them|same|whole\s+thing|everything|all\s+of\s+(?:it|this|that))\b', re.I)
+
+
+def _without_format_characters(text: str) -> str:
+    """Drop invisible format characters (soft hyphen, zero-width space) before reading words."""
+    return ''.join(ch for ch in text if unicodedata.category(ch) != 'Cf')
+
+
+def _reversal_predicate(text: str) -> bool:
+    """True when an affirmed reversal word is a predicate ("was annulled", "annulled this")."""
+    for found in _REVERSAL_ANYWHERE.finditer(text):
+        if _negated(text[:found.start()]):
+            continue
+        if (re.search(r'\b(?:was|were|is|are|been|being|be|got|gets?)\s+(?:\w+\s+){0,2}$', text[:found.start()], re.I)
+                or re.match(r'\s+(?:it|this|that|them|these|those)\b', text[found.end():], re.I)
+                or re.fullmatch(r'\W*(?:(?:later|subsequently|again)|(?:by|on|after|at|in|following|per)\b.*)?\W*',
+                                text[found.end():], re.I)):
+            return True
+    return False
+
+
+def _affirmed_reversal(text: str) -> bool:
+    """True when any reversal word in `text` is outside its own negation scope."""
+    return any(not _negated(text[:found.start()]) for found in _REVERSAL_ANYWHERE.finditer(text))
+
+
 def _printable_excerpt(text: str, limit: int = 160) -> str:
     """Escape control and format characters from a record, then cap the length."""
     escaped = ''.join(ch if ch.isprintable() else ascii(ch)[1:-1] for ch in text)
@@ -1389,6 +1434,7 @@ def adverse_review_wording(text: str, final: int | None = None, context: bool = 
     first, so a sentence split by a line break keeps its subject.
     """
     inherited = 'strong' if context else None
+    text = _without_format_characters(text)
     for sentence in re.split(r'(?<=[.!?])\s+', ' '.join(text.split())):
         if final is not None:
             # "Review 1/10 FAIL" is history; a failure at the final or a later
@@ -2048,7 +2094,10 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         def names_own_id(text):
             # This record's own ID as a token, also inside "M01's" or "(M01)",
             # but not as a prefix of a longer ID such as M010.
-            return bool(re.search(r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![0-9])', text, re.I))
+            # A non-ASCII letter or an invisible format character could disguise
+            # it ("\u041c01", "M\u200b01"), so either counts as naming it.
+            return bool(re.search(r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![0-9])', text, re.I)
+                        or any(ch > '\x7f' and (ch.isalpha() or unicodedata.category(ch) == 'Cf') for ch in text))
         def names_other_milestone(before, clause_text=''):
             # "M17 accepted ..., review 3/10" cites another milestone's review.
             # This record's own ID must not be in the clause: "Compared with
@@ -2102,6 +2151,11 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         or re.match(r'\s*(?:[:,—–-]\s*)?(?:(?:was|is)\s+)?pass', text[found.end():], re.I)):
                     return True
             return False
+        def bare_verdict(clause):
+            return bool(re.fullmatch(
+                _BARE_VERDICT.pattern + r'(?:' + _REVERSAL_ANYWHERE.pattern + r')'
+                + r'(?:\s+(?:later|subsequently|again)|\s+(?:by|on|after|at|in|following|per)\b.*)?',
+                clause, re.I))
         def unrecognized_review_sentence(text, context=False, warn=True):
             # Validator for a literal record's pass continuation and claim
             # fields. Every clause's counters are checked first, and a conflict
@@ -2114,6 +2168,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             # the start, so "Later it was annulled." refers to it; a mention
             # stays the subject across later neutral sentences and paragraphs.
             mentioned = context
+            text = _without_format_characters(text)
             for sentence in re.split(r'(?<=[.!?])\s+', ' '.join(text.split())):
                 for clause in sentence.split(';'):
                     if counter_conflict(clause):
@@ -2121,16 +2176,28 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     bare = _EARLIER_FAILURE.sub(
                         lambda m: '' if int(m[1] or m[2]) < final_iteration else m[0], clause)
                     bare = _BENIGN_FAILURE.sub('', bare).strip(' ,;.')
-                    bare = re.sub(r'\b(?:[A-Z][0-9]{2,}(?:\.[0-9]+)+\s+(?:task[- ]?)?|task[- ]?)reviews?\b'
-                                  r'(?:\s+[0-9]+)?', 'task check', bare, flags=re.I)
+                    bare = _TASK_REVIEW.sub('task check', bare)
                     if other_milestone_clause(bare):
                         mentioned = context
+                        continue
+                    # While the pass is the subject, a reversal used as a
+                    # predicate is about it when its subject is a pronoun or a
+                    # generic phrase ("this, after discussion, was annulled",
+                    # "the same was voided", "the owner annulled this"); with any
+                    # other subject it still needs a human reading.
+                    if mentioned and _reversal_predicate(bare) and not any(
+                            re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
+                        if (_GENERIC_SUBJECT.search(bare) or _MILESTONE_REVIEW_SUBJECT.search(bare)
+                                or bare_verdict(bare)):
+                            return True
+                        if warn:
+                            review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
                         continue
                     nouns = bool(_REVIEW_MENTION.search(bare))
                     refers = bool(re.match(r'\W*(?:it|this|that|these|those|they)\b', bare, re.I)
                                   or (mentioned and re.search(r'\b(?:it|they|them)\b', bare, re.I))
-                                  or re.search(r'\b(?:this|that|these|those|its)\s+(?:review\s+)?'
-                                               r'(?:results?|verdicts?|outcomes?|decisions?|pass)\b', bare, re.I))
+                                  or _REFERENCE_SUBJECT.search(bare)
+                                  or (mentioned and bare_verdict(bare)))
                     if (nouns or refers) and not any(
                             re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
                         # Only a clause naming the review itself, or referring
@@ -2138,9 +2205,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         # "acceptance" or "results" alone often names a test.
                         # Every reversal word is judged in its own negation
                         # scope: "not voided but annulled" is an annulment.
-                        if (refers or re.search(r'\breviews?\b', bare, re.I)) and any(
-                                not _negated(bare[:reversal.start()])
-                                for reversal in _REVERSAL_ANYWHERE.finditer(bare)):
+                        if (refers or _MILESTONE_REVIEW_SUBJECT.search(bare)) and _affirmed_reversal(bare):
                             return True
                         if warn:
                             review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
@@ -2193,8 +2258,9 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 return False
             if header:
                 text = ' '.join(cells)
+                sentence = any(len(cell.split()) >= 4 for cell in cells)
                 return (counter_conflict(text) or adverse_review_wording(text, final_iteration, True, True)
-                        or unrecognized_review_sentence(text, True, warn=False))
+                        or unrecognized_review_sentence(text, True, warn=sentence))
             if counter_conflict(' '.join(cells[1:])):
                 return True
             rest = ' '.join(cells[1:])
@@ -2212,8 +2278,17 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             text = ' '.join(cells + [rest]).strip()
             return bool(text) and (adverse_review_wording(text, final_iteration, True, True)
                                    or unrecognized_review_sentence(text, True))
+        def task_row_conflict(line):
+            # A task row's notes are task evidence, but an explicit milestone
+            # review reversal or a conflicting review counter in them is not.
+            cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+            text = ' '.join(cell for cell in cells if not re.fullmatch(r'`?\[[ +~!xX-]\]`?', cell))
+            plain = _TASK_REVIEW.sub('task check', text)
+            return bool(counter_conflict(text)
+                        or (_MILESTONE_REVIEW_SUBJECT.search(plain) and _affirmed_reversal(plain)))
         def ambiguous_pass_continuation(source, ignored):
             after_final_pass = False
+            task_table = False
             previous_number = None
             paragraph = []
             def adverse_paragraph():
@@ -2245,6 +2320,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 if not trusted:
                     continue
                 if not line.strip():
+                    task_table = False
                     if after_final_pass and lenient and adverse_paragraph():
                         return True
                     continue
@@ -2253,13 +2329,20 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     # row with a status marker cell, or its header followed by a
                     # delimiter and such a row. Any other table is read row by row.
                     marker_cell = r'\|\s*`?\[[ +~!xX-]\]`?\s*\|'
-                    if re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I) and (
-                            re.search(marker_cell, line)
-                            or (delimiter_row(number + 1) and re.search(marker_cell, by_number.get(number + 2, '')))):
+                    task_start = re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I) and (
+                        re.search(marker_cell, line)
+                        or (delimiter_row(number + 1) and re.search(marker_cell, by_number.get(number + 2, ''))))
+                    if task_start or (task_table and line.lstrip().startswith('|')):
+                        # The task table does not end the continuation: its rows
+                        # are checked for milestone review reversals and counters
+                        # on both paths, and prose after it still continues the pass.
                         if lenient and adverse_paragraph():
                             return True
-                        after_final_pass = False
+                        task_table = True
+                        if task_row_conflict(line):
+                            return True
                         continue
+                    task_table = False
                     field = re.fullmatch(r'\*\*(Milestone|Outcome|Retired|Source status|Source specification|'
                                          r'Evidence|Worktree|Review iterations|Review limit|Review limit approval|'
                                          r'Verification|Consolidated into|Disposition|Successor|Legacy closure|Marker correction)'
