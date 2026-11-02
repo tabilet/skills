@@ -671,6 +671,108 @@ class HistoryCorrectionsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
             core.historical_record(text, 'status-M01.md', correction)
 
+    def test_completed_retirement_row_explicitly_records_zero_review_defects(self):
+        def inspect(row, *, heading='Tasks', iteration='2', evidence_quote=None):
+            status = ('# Status M01 - Delivery\n\n**Milestone.** M01\n'
+                      '**Review gate iterations.** ' + iteration + '\n\n## ' + heading +
+                      '\n\n| Item | State | Notes |\n|---|---|---|\n' + row + '\n')
+            text = h.retirement_text(status).replace('**Review.** passed\n', '')
+            line = next(n for n, value in enumerate(text.splitlines(), 1) if value == row)
+            correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                evidence=[dict(start_line=line, end_line=line, quote=evidence_quote or row)])])
+            return core.historical_record(text, 'status-M01.md', correction)
+
+        valid = ('| M01.5: Deep code review & milestone retirement | `[+]` | '
+                 'Ran full verification suite (`check`); deep code review performed with '
+                 '0 defects remaining; retired M01 to `tabilet/docs/history/status-M01.md`. |')
+        self.assertEqual(inspect(valid)['metadata']['Review'], 'passed')
+        for row, heading, iteration in (
+            (valid.replace('performed with 0', 'will be performed with 0'), 'Tasks', '2'),
+            (valid.replace('0 defects remaining;', '0 defects remaining if fixed;'), 'Tasks', '2'),
+            (valid.replace('0 defects remaining;', '0 defects remaining; review later failed;'), 'Tasks', '2'),
+            (valid.replace('`check`', '`check failed`'), 'Tasks', '2'),
+            (valid.replace('`[+]`', '`[ ]`'), 'Tasks', '2'),
+            (valid.replace('retired M01', 'retired M02'), 'Tasks', '2'),
+            (valid, 'Example tasks', '2'),
+        ):
+            with self.subTest(row=row, heading=heading):
+                with self.assertRaises(ValueError):
+                    inspect(row, heading=heading, iteration=iteration)
+        self.assertIn('retained review counter conflicts with retirement metadata',
+                      inspect(valid, iteration='1')['blockers'])
+        with self.assertRaises(ValueError):
+            inspect(valid, evidence_quote='deep code review performed with 0 defects remaining')
+
+        no_counter = ('# Status M01 - Delivery\n\n**Milestone.** M01\n\n## Tasks\n\n'
+                      '| Item | State | Notes |\n|---|---|---|\n' + valid + '\n')
+        text = h.retirement_text(no_counter).replace('**Review.** passed\n', '')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == valid)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=valid)])])
+        with self.assertRaisesRegex(ValueError, 'recorded review counter'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        conflict = ('# Status M01 - Delivery\n\n**Milestone.** M01\n'
+                    '**Review gate iterations.** 2\n\n## Tasks\n\n'
+                    '| Item | State | Notes |\n|---|---|---|\n' + valid + '\n\n'
+                    '## Review\n\nReview: failed\n')
+        text = h.retirement_text(conflict).replace('**Review.** passed\n', '')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == valid)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=valid)])])
+        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        later = no_counter.replace('**Milestone.** M01\n',
+            '**Milestone.** M01\n**Review gate iterations.** 2\n') + '\nIt was later withdrawn.\n'
+        text = h.retirement_text(later).replace('**Review.** passed\n', '')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == valid)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=valid)])])
+        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+        duplicate = valid.replace('M01.5:', 'M01.6:')
+        text = h.retirement_text(no_counter.replace('**Milestone.** M01\n',
+            '**Milestone.** M01\n**Review gate iterations.** 2\n').replace(valid, valid + '\n' + duplicate))
+        text = text.replace('**Review.** passed\n', '')
+        line = next(n for n, value in enumerate(text.splitlines(), 1) if value == valid)
+        correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=line, end_line=line, quote=valid)])])
+        with self.assertRaisesRegex(ValueError, 'cannot supply acceptance'):
+            core.historical_record(text, 'status-M01.md', correction)
+
+    def test_zero_defect_retirement_row_is_shared_by_lookup_and_dependencies(self):
+        row = ('| M144.5: Deep code review & milestone retirement | `[+]` | '
+               'Ran full verification suite (`check`); deep code review performed with '
+               '0 defects remaining; retired M144 to `tabilet/docs/history/status-M144.md`. |')
+        status = ('# Status M144 - Delivery\n\n**Milestone.** M144\n'
+                  '**Review gate iterations.** 2\n\n## Tasks\n\n'
+                  '| Item | State | Notes |\n|---|---|---|\n' + row + '\n')
+        raw = h.retirement_text(status, milestone_id='M144').replace('**Review.** passed\n', '')
+        number = next(n for n, value in enumerate(raw.splitlines(), 1) if value == row)
+        correction = entry(raw, [dict(kind='supply-metadata', field='Review', value='passed',
+            evidence=[dict(start_line=number, end_line=number, quote=row)])], identity='M144')
+        history = self.root / 'tabilet/docs/history'
+        history.mkdir(parents=True)
+        (history / 'status-M144.md').write_text(raw)
+        (history / 'corrections.json').write_text(manifest([correction]))
+        (history / 'index.md').write_text('| Milestone | Outcome | Retired | Record | Summary |\n'
+            '|---|---|---|---|---|\n| M144 | completed | 2026-09-12 | [M144](status-M144.md) | Fixture |\n')
+        bank = self.root / 'tabilet/memory-bank'
+        (bank / 'milestone.md').write_text('# Milestones\n\n[History](../docs/history/index.md)\n\n'
+                                          '## M01 - Delivery\n\n**Depends on.** M144\n')
+        snapshot = core.row_snapshot(self.root)
+        self.assertEqual(snapshot['history']['problems'], [])
+        self.assertIn('M144', horizon._live_projection(core, self.root)['milestones'])
+        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+            state = index.sync(connection, self.root)
+            ready = index.readiness(connection, state['workspace_id'], self.root)
+            self.assertEqual(len(ready['ready']), 1)
+        record = snapshot['history']['records']['status-M144.md']
+        self.assertEqual(record['blockers'], [])
+        self.assertEqual(raw.splitlines()[number - 1], row)
+
     def test_unfinished_rows_and_inconsistent_counters_remain_blocking(self):
         text = self.text.replace('`[+]`', '`[ ]`')
         self.assertIn('retired status contains unfinished task rows', core.historical_record(text, 'status-M01.md')['blockers'])

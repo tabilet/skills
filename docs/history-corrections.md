@@ -88,6 +88,17 @@ retained review counter that disagrees with the retirement metadata is a
 conflict wherever it appears in a trusted line, including bullets and table
 cells.
 
+A unique completed `Deep code review & milestone retirement` task under the
+status `Tasks` heading is also supported when its full cited row records that
+the review was performed with zero defects remaining and the same milestone was
+retired to its matching history path. The retained status must record its own
+positive review counter. The task identity, complete row and literal source
+location are checked, and the row must be the last substantive status evidence
+without a separate review narrative. A task marker alone, partial quotation, prospective or
+qualified result, another retirement-review task, conflicting review evidence
+or mismatched counter cannot establish a pass. Saying a verification suite was
+run does not establish that its tests passed; missing closure fields block.
+
 Corrected outcome and retirement date require a matching identity-bound index
 row or explicit retained status metadata. Corrected review counts require an
 explicit recorded counter; review-limit corrections require recorded evidence,

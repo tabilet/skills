@@ -1406,6 +1406,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     # and prospective instructions cannot become review evidence, even when
     # they happen to contain a correctly spelled standalone result.
     status_lines = {}
+    task_section_lines = set()
     status_context = []
     for number, line in status_unfenced:
         heading = re.fullmatch(r'(#{1,6})\s+(.+?)(?:\s+#+)?\s*', line)
@@ -1430,6 +1431,52 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             r'(?:review\s+)?(?:results?|outcome|conclusion))', title, re.I)
             for title in sections[reviews[0] + 1:]))
         status_lines[number] = (line, not example, in_review, not sections)
+        if not example and len(sections) == 1 and sections[0].lower() == 'tasks':
+            task_section_lines.add(number)
+
+    def recorded_zero_defect_retirement_task(citation):
+        # Recognize only a complete, unqualified historical retirement row.
+        # Neither a completed task marker nor a generic review description is
+        # sufficient: the literal row must explicitly record zero defects.
+        if 'content' in citation or citation['start_line'] != citation['end_line']:
+            return False
+        source = sources.get('status')
+        if source and source['path'] != 'tabilet/docs/history/' + name:
+            return False
+        number = citation['start_line'] - offsets['status']
+        item = status_lines.get(number)
+        if (number not in task_section_lines or not item or not item[1]
+                or citation['quote'].strip() != item[0].strip()
+                or citation['quote'].strip() != lines[citation['start_line'] - 1].strip()):
+            return False
+        tasks = status_rows(documents['status'])
+        rows = [row for row in tasks if row['line'] == number]
+        if len(rows) != 1 or rows[0]['state'] != 'completed' or len(rows[0]['cells']) != 3:
+            return False
+        # This legacy form has no separate review narrative: the whole-review
+        # retirement row is the last substantive retained status evidence.
+        # Unknown later prose or another review section stays ambiguous.
+        if (not tasks or tasks[-1]['line'] != number
+                or any(n > number and line.strip() for n, (line, trusted, _, _) in status_lines.items() if trusted)
+                or any(in_review and trusted and line.strip()
+                       for line, trusted, in_review, _ in status_lines.values())):
+            return False
+        row = rows[0]
+        label = (re.escape(identity) + r'\.[1-9][0-9]*:\s*'
+                 r'Deep code review\s*&\s*milestone retirement')
+        gates = [task for task in tasks if task['line'] in task_section_lines
+                 and re.fullmatch(label, task['item'], re.I)]
+        if len(gates) != 1 or gates[0]['line'] != number:
+            return False
+        notes = row['cells'][2]
+        match = re.fullmatch(
+            r'Ran full verification suite \(([^\n()]+)\); deep code review performed with '
+            r'0 defects remaining; retired ' + re.escape(identity) +
+            r' to `tabilet/docs/history/' + re.escape(name) + r'`\.', notes, re.I)
+        if not match or re.search(r'\b(?:fail(?:ed|ure)?|pending|not|unverified|unknown|'
+                                  r'skipped|cancelled|incomplete)\b', match[1], re.I):
+            return False
+        return True
 
     def recorded_review_citation(citation):
         # Bind the literal quote to the record's own unfenced metadata or
@@ -1737,6 +1784,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 raise ValueError('unsupported consolidation correction: missing recorded evidence')
 
     numbered_review_results = []
+    zero_defect_task_pass = False
     corrected_pass = False
     for op in operations:
         if op['kind'] == 'supply-metadata':
@@ -1748,6 +1796,10 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 accepted = False
                 for citation in op['evidence']:
                     quote = citation['quote'].strip()
+                    if recorded_zero_defect_retirement_task(citation):
+                        zero_defect_task_pass = True
+                        accepted = True
+                        break
                     location = recorded_review_citation(citation)
                     if not location or quote != lines[citation['start_line'] - 1].strip():
                         continue
@@ -1780,6 +1832,12 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             metadata['Evidence'] = op['commits'][0]
     if metadata.get('Outcome') and any(outcome != metadata['Outcome'] for outcome in index_outcomes):
         raise ValueError('index outcome conflicts with recorded outcome')
+    if zero_defect_task_pass:
+        counters = [m.group(1) for line, trusted, _, preamble in status_lines.values()
+                    if trusted and preamble and (m := re.fullmatch(
+                        r'\*\*Review gate iterations\.\*\*\s*([1-9][0-9]*)', line.strip()))]
+        if not counters:
+            raise ValueError('missing recorded review counter for retirement task pass')
     if any(count != metadata.get('Review iterations') for count, _ in numbered_review_results):
         raise ValueError('review iteration mismatch; a correction cannot supply acceptance')
     recorded_limit = metadata.get('Review limit', '10')
