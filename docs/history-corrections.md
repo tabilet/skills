@@ -67,28 +67,47 @@ result in the status metadata preamble remains supported. Numbered results must
 occur in a review section, match the recorded iteration and limit, and not
 conflict with other recorded outcomes. Fenced or headed examples, templates,
 prospective instructions and specification statements cannot supply a result.
-Unrecognized prose following an explicit final review pass in the envelope,
-status preamble or retained review section blocks acceptance, even when the
-prose is harmless. A fenced block between the pass and that prose does not
-end the context: the block's contents are ignored, but prose after it is still
-read as a continuation of the same result.
-Unrecognized review-result claims in other structured metadata also block
-acceptance; that conservative rule can flag benign historical summaries.
-Adjacent Markdown field continuation lines, including nested list or quote
-lines and values beginning after the label, are checked as one paragraph.
-Explicit review-result references in standalone authoritative prose are also
-blocking when unsupported. Fenced and indented code remain examples;
-validation does not join source lines across those omitted blocks. Literal
-documents, recovered source identifiers and offsets are not rewritten.
+Prose following an explicit final review pass in the envelope, status
+preamble or retained review section blocks acceptance only when it reverses,
+withdraws or conditions that result. A fenced block between the pass and that
+prose does not end the context: its contents are ignored, but prose after it
+is still read as a continuation of the same result. Ordinary notes, findings
+lines, iteration tables and a mere reference to a result ("the review outcome
+is recorded below") are not assertions about it and do not block. The same
+distinction applies to review-result claims in other structured metadata and
+to numbered references such as `review 2/10`. A positive summary is accepted
+in either word order ("review passed 2/10", "review 2/10 passed") when every
+counter it names is the recorded final iteration and limit; an earlier
+iteration may be cited or may have failed; a reference with no verdict
+("see review 2/10") is not a verdict; and a counter in a clause that names
+another milestone is that milestone's, not this record's.
+
+A sentence is adverse when a review-result subject (review, result, verdict,
+outcome, decision, pass, acceptance, approval) sits within a few words of a
+reversing or conditioning predicate such as invalidated, revoked, withdrawn,
+failed, contingent, provisional, pending or no longer valid, and the
+predicate is not negated ("not invalidated") or attached to an earlier
+iteration. Strong reversals (invalidated, revoked, withdrawn, rescinded,
+retracted, reopened) also count against a pronoun or "above"-style reference
+("It was later withdrawn."). This is a vocabulary, not a parser: it cannot
+prove arbitrary prose safe, so a wrong counter, an unrecognized verdict word
+after a counter, or a reversal in other words can still block, and wording
+that genuinely mixes a subject and predicate can block a harmless record. The
+check applies to every historical record, because the strict retirement
+contract does not read retained narrative: it accepts a record whose status
+later says the result was invalidated. Adjacent Markdown field continuation
+lines, including nested list or quote lines and values beginning after the
+label, are checked as one paragraph. Fenced and indented code remain
+examples; validation does not join source lines across those omitted blocks.
+Literal documents, recovered source identifiers and offsets are not rewritten.
 Recognition is limited to supported explicit historical forms and does not
-establish the meaning of arbitrary natural-language references. Ambiguous
-post-result prose in the same authoritative context remains a blocker. The few
-fixed sentences that restate, rather than qualify, a recorded decision are
-listed in `RECOGNIZED_PROSE` in the runner; wording outside that table stays
-ambiguous, so it is a deliberate, narrow allowance and not a general parser. A
-retained review counter that disagrees with the retirement metadata is a
-conflict wherever it appears in a trusted line, including bullets and table
-cells.
+establish the meaning of arbitrary natural-language references. The few fixed
+sentences that restate, rather than qualify, a recorded decision are listed in
+`RECOGNIZED_PROSE` in the runner; wording outside that table is judged by the
+rule above, so the table is a deliberate, narrow allowance and not a general
+parser. A retained review counter that disagrees with the retirement metadata
+is a conflict wherever it appears in a trusted line, including bullets and
+table cells.
 
 A unique completed `Deep code review & milestone retirement` task under the
 status `Tasks` heading is also supported when its full cited row records that

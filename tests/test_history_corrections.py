@@ -1120,6 +1120,67 @@ class HistoryCorrectionsTests(unittest.TestCase):
         status = '| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\n```text\nlog\n```\n'
         self.assertEqual(core.historical_record(h.retirement_text(status), 'status-M01.md')['blockers'], [])
 
+    def test_ordinary_review_prose_in_a_strict_record_is_not_a_blocker(self):
+        task = '| Task | `[+]` | verified |\n'
+        benign = {
+            'retirement progress after a pass': '**State.** Manifest verified; whole-milestone review passed 2/10. '
+                                                'Normal retirement is in progress.\n\n' + task,
+            'findings line after a pass': '## Review\n\nWhole review 2/10 PASS with no P1/P2.\n- Findings: none\n\n' + task,
+            'iteration table after a pass': '## Review\n\nReview: passed\n| Iteration | State |\n|---|---|\n'
+                                            '| 1 | FAIL |\n| 2 | PASS |\n\n' + task,
+            'ordinary note after a pass': '## Review\n\nReview: passed\n\nLogs are in ignored scratch.\n\n' + task,
+            'reference to a result': '## Review\n\nThe review outcome is recorded below.\n\nReview: passed\n\n' + task,
+            'numbered reference': '**Verification.** Tests passed; see review 2/10 for details.\n\n' + task,
+            'pass in the recorded iteration': '**Verification.** Whole-milestone review passed in iteration 2.\n\n' + task,
+            'earlier iteration failure': '**Verification.** Review 1/10 FAIL, fixed; review 2/10 passed.\n\n' + task,
+            'clause break after a counter': '**State.** Accepted after closing review 2/10; consolidation next.\n\n' + task,
+            'another milestone cited': '**Dependency.** M17 accepted at abc1234, review 3/10, retired.\n\n' + task,
+            'negated reopening': '**Verification.** Review passed 2/10; no retired review is reopened.\n\n' + task,
+            'annotated review declaration': '**Review.** Passed in iteration 2/10; no open P1/P2 findings.\n\n' + task,
+        }
+        for name, status in benign.items():
+            with self.subTest(name):
+                record = core.historical_record(h.retirement_text(status), 'status-M01.md')
+                self.assertEqual(record['blockers'], [])
+
+    def test_reversed_conditional_or_inconsistent_review_prose_still_blocks(self):
+        task = '| Task | `[+]` | verified |\n'
+        adverse = {
+            'later invalidated': '## Review\n\nReview: passed\n\nThe result was later invalidated.\n\n' + task,
+            'pronoun withdrawn': '## Review\n\nReview: passed\n\nIt was later withdrawn.\n\n' + task,
+            'conditional pass': '## Review\n\nReview: passed\n\nThe pass is contingent on further verification.\n\n' + task,
+            'wrong iteration': '**Verification.** Whole-milestone review passed in iteration 3.\n\n' + task,
+            'pass at an earlier iteration': '**Verification.** Review 1/10 passed.\n\n' + task,
+            'final iteration failed': '**Verification.** Review 2/10 FAIL.\n\n' + task,
+            'unknown verdict': '**Verification.** Whole review 2/10: unknown.\n\n' + task,
+            'second claim hidden behind the first': '**Verification.** Review 1/10 FAIL; review 2/10 pending.\n\n' + task,
+            'reversal after a structured pass': '**Verification.** Review passed in iteration 2. '
+                                                'The result was later invalidated.\n\n' + task,
+            'reversal in the same sentence': '**Verification.** The review passed, then was invalidated.\n\n' + task,
+            'declaration with a qualification': '**Review.** Passed in iteration 2/10, later withdrawn.\n\n' + task,
+        }
+        for name, status in adverse.items():
+            with self.subTest(name):
+                record = core.historical_record(h.retirement_text(status), 'status-M01.md')
+                self.assertTrue(record['blockers'], name)
+
+    def test_adverse_review_wording_needs_a_subject_a_predicate_and_no_negation(self):
+        adverse = core.adverse_review_wording
+        for text in ('The review result was later invalidated.', 'Later, the owner changed that decision.',
+                     'The pass is contingent on further verification.', 'It was later withdrawn.',
+                     'The review was not accepted.', 'The result of the review was withdrawn.',
+                     'Not review passed.', 'The review is pending further verification.'):
+            with self.subTest(text):
+                self.assertTrue(adverse(text, 2))
+        for text in ('The review outcome is recorded below.', 'Findings: none', 'The tests were changed.',
+                     'The review was not invalidated.', 'No failures were found in the review.',
+                     'Review 1/10 FAIL, fixed.', 'Iteration 1 failed; iteration 2 passed.',
+                     'The root must review the exact changed verification input.',
+                     'A long paragraph mentions the review at the start and, many words later in an unrelated '
+                     'clause about disk space, that a build was cancelled.'):
+            with self.subTest(text):
+                self.assertFalse(adverse(text, 2))
+
 
 if __name__ == '__main__':
     unittest.main()
