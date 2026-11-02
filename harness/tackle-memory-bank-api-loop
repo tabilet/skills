@@ -1249,6 +1249,38 @@ def read_history_corrections(repo: pathlib.Path) -> tuple[dict, str | None]:
     return history_corrections(raw.decode('utf-8')), hashlib.sha256(raw).hexdigest()
 
 
+# Historical prose that the review-ambiguity scan reads as restating a recorded
+# decision rather than qualifying it. Recognition is limited to these exact
+# forms (see docs/history-corrections.md); any other free-form reference to a
+# review result or approval stays ambiguous and blocks acceptance. They are
+# collected here so the shared validator carries no unnamed one-record
+# exceptions. `{id}`, `{iterations}` and `{limit}` are filled with
+# re.escape()d values.
+RECOGNIZED_PROSE = {
+    'continuation_clause': (
+        r'(?:,\s*retaining\s+the\s+existing\s+count\s+and\s+using\s+fresh\s+'
+        r'[A-Za-z0-9/ -]+\s+reviews\s+until\s+it\s+passes,\s*then\s+resuming\s+the\s+ordered\s+goal)?'),
+    'progress_row': (
+        r'\|\s*{id} review iteration limit\s*\|\s*`\[\+\]`\s*\|\s*'
+        r'Owner explicitly directed continued {id} review beyond ten, without resetting the counter, '
+        r'until a clean review\.\s*\|'),
+    'launch_refresh_note': r"The refreshed [A-Za-z0-9_-]+ launch reference after the owner's {id} review continuation",
+    'marker_correction': (
+        r'[0-9]{4}-[0-9]{2}-[0-9]{2}: the task rows were recorded `\[X\]` '
+        r'\(Cancelled\) by mistake; they were completed and now read `\[\+\]`\.'),
+    'reaffirmation': r'Whole-milestone review\s+{iterations}/{limit},\s*passed\.',
+    'task_review_fail': r'Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.',
+    'standalone_intake': 'This is standalone intake, not a continuation of a retired closing gate.',
+    'earlier_pending': (
+        r'Tasks complete; [A-Za-z0-9.,– -]+ verified, whole-milestone review pending\. '
+        r'Persisted review count 0/10(?: \(review intake does not start a gate\))?\.'),
+    'retired_without_commits': (
+        r'passed\s+\(no\s+P1/P2\);\s+retired\s+[0-9]{4}-[0-9]{2}-[0-9]{2}\.\s+'
+        r'Goal run:\s+COMMIT_POLICY\s+none\s+\(owner choice\s+'
+        r'[0-9]{4}-[0-9]{2}-[0-9]{2}\),\s+no commits\.'),
+}
+
+
 def historical_record(text: str, name: str, correction: dict | None = None) -> dict:
     """Read frozen evidence; literal documents and interpreted task cells stay separate."""
     if not STATUS_NAME.fullmatch(name):
@@ -1271,8 +1303,9 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     raise ValueError('correction evidence does not match frozen source')
     headings = [(n, line[3:]) for n, line in unfenced_lines(text) if line.startswith('## ')]
     metadata_end = headings[0][0] - 1 if headings else len(lines)
+    envelope_unfenced = list(unfenced_lines(''.join(lines[:metadata_end])))
     metadata = {}
-    for _, line in unfenced_lines(''.join(lines[:metadata_end])):
+    for _, line in envelope_unfenced:
         match = re.fullmatch(r'\*\*([\w ]+)\.\*\* (.+)', line)
         if match:
             if match[1] in metadata:
@@ -1344,19 +1377,29 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
 
     # When a retained status explicitly names its milestone or task IDs, they
     # must agree with the record identity. A hash binds bytes, not their owner.
-    for _, line in unfenced_lines(documents['status']):
-        heading = re.match(r'^#\s+(?:Status\s+)?([A-Z][0-9]+(?:-[0-9]+)?)(?=\s|$|[—:–-])', line, re.I)
-        if heading and heading[1] != identity:
+    # Only well-formed milestone IDs count: "# Q4 results" or a legacy "M1.1"
+    # row is not a claim about which milestone this record belongs to.
+    status_unfenced = list(unfenced_lines(documents['status']))
+    status_task_rows = status_rows(documents['status'])
+    declaration = re.compile(r'^(?:\*\*(?:Milestone|Status ID)\.\*\*|'
+                             r'\*\*(?:Milestone|Status ID):\*\*|(?:Milestone|Status ID):)\s*'
+                             r'`?([A-Z][0-9]+(?:-[0-9]+)?)`?(?=\s|$|[.,;—:–-])', re.I)
+
+    def other_identity(found):
+        return found.upper() != identity and bool(re.fullmatch(MILESTONE_ID, found.upper()))
+
+    for _, line in status_unfenced:
+        heading = (re.match(r'^#\s+Status\s+([A-Z][0-9]+(?:-[0-9]+)?)(?=\s|$|[—:–-])', line, re.I)
+                   or re.match(r'^#\s+([A-Z][0-9]+(?:-[0-9]+)?)(?=\s*$|\s*[—:–-])', line, re.I))
+        if heading and other_identity(heading[1]):
             raise ValueError('historical status identity does not match the record')
-        declared = re.match(r'^(?:\*\*(?:Milestone|Status ID)\.\*\*|'
-                            r'\*\*(?:Milestone|Status ID):\*\*|(?:Milestone|Status ID):)\s*'
-                            r'`?([A-Z][0-9]+(?:-[0-9]+)?)`?(?=\s|$|[.,;—:–-])', line, re.I)
-        if declared and declared[1] != identity:
+        declared = declaration.match(line)
+        if declared and declared[1].upper() != identity:
             raise ValueError('historical status identity does not match the record')
-    for row in status_rows(documents['status']):
+    for row in status_task_rows:
         item = row['item'].lstrip('`*_ ')
         task = re.match(r'^([A-Z][0-9]+(?:-[0-9]+)?)\.[0-9]+(?=\b|\s|[:—–-])', item, re.I)
-        if task and task[1] != identity:
+        if task and other_identity(task[1]):
             raise ValueError('historical status task identity does not match the record')
 
     # Track heading context in the literal retained status. Examples, templates
@@ -1364,7 +1407,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     # they happen to contain a correctly spelled standalone result.
     status_lines = {}
     status_context = []
-    for number, line in unfenced_lines(documents['status']):
+    for number, line in status_unfenced:
         heading = re.fullmatch(r'(#{1,6})\s+(.+?)(?:\s+#+)?\s*', line)
         if heading:
             level, title = len(heading[1]), heading[2].strip()
@@ -1396,7 +1439,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         number = citation['start_line']
         quote = citation['quote'].strip()
         if number <= metadata_end:
-            envelope = list(unfenced_lines(''.join(lines[:metadata_end])))
+            envelope = envelope_unfenced
             if any(n < number and re.match(r'^#{2,6}\s', line) for n, line in envelope):
                 return None
             return 'envelope' if any(n == number and line.strip() == quote
@@ -1419,7 +1462,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             return False
         start, end = citation['start_line'], citation['end_line']
         if end <= metadata_end:
-            envelope = list(unfenced_lines(''.join(lines[:metadata_end])))
+            envelope = envelope_unfenced
             if any(n < start and re.match(r'^#{2,6}\s', line) for n, line in envelope):
                 return False
             allowed = {n for n, _ in envelope}
@@ -1455,15 +1498,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         return cells
 
     def status_identifies_record():
-        for _, line in unfenced_lines(documents['status']):
+        for _, line in status_unfenced:
             if re.match(r'^#\s+(?:Status\s+)?' + re.escape(identity) + r'(?=\s|$|[—:–-])', line):
                 return True
-            if re.match(r'^(?:\*\*(?:Milestone|Status ID)\.\*\*|'
-                        r'\*\*(?:Milestone|Status ID):\*\*|(?:Milestone|Status ID):)\s*`?'
-                        + re.escape(identity) + r'`?(?=\s|$|[.,;—:–-])', line, re.I):
+            found = declaration.match(line)
+            if found and found[1].upper() == identity:
                 return True
         return any(re.match(r'^(?:[`*_ ]*)' + re.escape(identity) + r'\.[0-9]+\b', row['item'])
-                   for row in status_rows(documents['status']))
+                   for row in status_task_rows)
 
     def specification_anchor_recorded(value):
         anchor = re.fullmatch(r'(?:tabilet/)?memory-bank/milestone\.md#([^\s]+)', value)
@@ -1508,9 +1550,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         interactive = actor + verb + r'interactive\s+launch\s+ceiling\s+(?P<launch_limit>[1-9][0-9]*)\.?'
         answer = (actor + r'(?:answered|said|replied)\s+(?P<yes_quote>["\'])yes(?P=yes_quote)\s+to\s+'
                   r'continu(?:e|ing)\s+' + re.escape(identity) + r'\s+beyond\s+(?:ten|10)\s+'
-                  r'(?:whole(?:[- ]milestone)?\s+)?reviews?'
-                  r'(?:,\s*retaining\s+the\s+existing\s+count\s+and\s+using\s+fresh\s+'
-                  r'[A-Za-z0-9/ -]+\s+reviews\s+until\s+it\s+passes,\s*then\s+resuming\s+the\s+ordered\s+goal)?\.?')
+                  r'(?:whole(?:[- ]milestone)?\s+)?reviews?' + RECOGNIZED_PROSE['continuation_clause'] + r'\.?')
         prefix = r'(?:whole[- ]milestone\s+review\s+[0-9]+/[0-9]+\s+FAIL\.\s+)?'
         suffix = (r'(?:\s+No\s+P[0-9]+(?:\s*/\s*P[0-9]+)*\.?)?'
                   r'(?:\s+This\s+explicit\s+continuation\s+applies\s+to\s+'
@@ -1527,19 +1567,22 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         return not stated_limit or stated_limit == limit
 
     def later_approval_reference(after):
-        for number in range(after, len(lines)):
-            item = status_lines.get(number + 1 - offsets['status'])
-            if not item or not item[1] or not (item[2] or item[3]):
+        # `after` is a line of this record. Status lines are keyed by their own
+        # document; an excerpt recovered from another document has no line
+        # correspondence with this record, so all of it counts as later than
+        # the envelope instead of being matched against this record's numbers.
+        status_source = sources.get('status')
+        foreign = bool(status_source and status_source['path'] != 'tabilet/docs/history/' + name)
+        for number, item in status_lines.items():
+            position = metadata_end + number if foreign else number + offsets['status']
+            if position <= after or not item[1] or not (item[2] or item[3]):
                 continue
             later = item[0].strip()
             # A retained progress row and a later launch-reference note
             # explicitly restate, rather than qualify, the continuation.
-            restatement = (re.fullmatch(
-                r'\|\s*' + re.escape(identity) + r' review iteration limit\s*\|\s*`\[\+\]`\s*\|\s*'
-                r'Owner explicitly directed continued ' + re.escape(identity) +
-                r' review beyond ten, without resetting the counter, until a clean review\.\s*\|', later, re.I)
-                or re.fullmatch(r'The refreshed [A-Za-z0-9_-]+ launch reference after the owner\'s '
-                                + re.escape(identity) + r' review continuation', later, re.I))
+            restatement = (re.fullmatch(RECOGNIZED_PROSE['progress_row'].format(id=re.escape(identity)), later, re.I)
+                           or re.fullmatch(RECOGNIZED_PROSE['launch_refresh_note'].format(id=re.escape(identity)),
+                                           later, re.I))
             reference = re.search(r'\b(?:approval|decision|authori[sz]ation|authority|permission|'
                                   r'consent|agreement|directive|direction|owner|user|human|operator|'
                                   r'withdrawn|revoked|rescinded|reversed|retracted|overturned)\b|'
@@ -1745,12 +1788,15 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     approval_conflicts = []
     literal_approval = literal_metadata.get('Review limit approval', '')
     if literal_approval:
-        approval_line = next(n for n, line in enumerate(lines[:metadata_end])
-                             if line.rstrip('\r\n') == '**Review limit approval.** ' + literal_approval)
-        for line in lines[approval_line + 1:metadata_end]:
-            if not line.strip() or re.match(r'^\*\*[\w ]+\.\*\* ', line):
-                break
-            literal_approval += ' ' + line.strip()
+        # Locate the field by the same unfenced, de-indented view that read it,
+        # so a field indented up to three spaces cannot make the lookup fail.
+        approval_line = next((n for n, line in envelope_unfenced
+                              if line == '**Review limit approval.** ' + literal_approval), None)
+        if approval_line is not None:
+            for line in lines[approval_line:metadata_end]:
+                if not line.strip() or re.match(r'^\s*\*\*[\w ]+\.\*\* ', line):
+                    break
+                literal_approval += ' ' + line.strip()
     if (re.fullmatch(r'[1-9][0-9]*', recorded_limit) and int(recorded_limit) > 10
             and literal_approval and (not approval_statement(literal_approval, literal=True)
                 or later_approval_reference(metadata_end))):
@@ -1776,7 +1822,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     review_conflicts = []
     iterations = metadata.get('Review iterations', '')
     if metadata.get('Review') == 'passed' and re.fullmatch(r'[1-9][0-9]*', iterations):
-        envelope_lines = [(line, True) for _, line in unfenced_lines(''.join(lines[:metadata_end]))]
+        envelope_lines = [(line, True) for _, line in envelope_unfenced]
         review_lines = envelope_lines + [(line, trusted) for line, trusted, _, _ in status_lines.values()]
         for line, trusted in review_lines:
             if not trusted:
@@ -1825,17 +1871,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                                          r'Verification|Consolidated into|Disposition|Successor|Legacy closure|Marker correction)'
                                          r'\.\*\* (.+)', line.strip(), re.I)
                     if field:
-                        if (field[1].lower() == 'marker correction' and not re.fullmatch(
-                                r'[0-9]{4}-[0-9]{2}-[0-9]{2}: the task rows were recorded `\[X\]` '
-                                r'\(Cancelled\) by mistake; they were completed and now read `\[\+\]`\.',
-                                field[2])):
+                        if (field[1].lower() == 'marker correction'
+                                and not re.fullmatch(RECOGNIZED_PROSE['marker_correction'], field[2])):
                             return True
                         continue
-                    reaffirmation = re.fullmatch(
-                        r'Whole-milestone review\s+' + re.escape(iterations) + r'/' + re.escape(recorded_limit)
-                        + r',\s*passed\.', line.strip(), re.I)
-                    task_review = re.fullmatch(r'Task review\s+[1-9][0-9]*/[1-9][0-9]*\s+FAIL\.', line.strip(), re.I)
-                    if (line.strip() != 'This is standalone intake, not a continuation of a retired closing gate.'
+                    reaffirmation = re.fullmatch(RECOGNIZED_PROSE['reaffirmation'].format(
+                        iterations=re.escape(iterations), limit=re.escape(recorded_limit)), line.strip(), re.I)
+                    task_review = re.fullmatch(RECOGNIZED_PROSE['task_review_fail'], line.strip(), re.I)
+                    if (line.strip() != RECOGNIZED_PROSE['standalone_intake']
                             and not reaffirmation and not task_review):
                         return True
                     continue
@@ -1848,8 +1891,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     after_final_pass = True
             return False
         envelope_context = [(line, True, True, True, False, number)
-                            for number, line in unfenced_lines(''.join(lines[:metadata_end]))]
-        status_context = [(line, trusted, in_review or preamble, False, preamble, number)
+                            for number, line in envelope_unfenced]
+        review_scan = [(line, trusted, in_review or preamble, False, preamble, number)
                           for number, (line, trusted, in_review, preamble) in status_lines.items()]
         status_fields = [(line, trusted, True, False, preamble, number)
                          for number, (line, trusted, _, preamble) in status_lines.items()]
@@ -1873,7 +1916,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             return ambiguous()
         if ambiguous_prose_reference(envelope_context) or ambiguous_prose_reference(status_fields):
             review_conflicts.append('ambiguous recorded review-result reference')
-        if ambiguous_pass_continuation(envelope_context) or ambiguous_pass_continuation(status_context):
+        if ambiguous_pass_continuation(envelope_context) or ambiguous_pass_continuation(review_scan):
             review_conflicts.append('unrecognized continuation after recorded review pass')
         # Other structured metadata can contain review-result claims too. Its
         # field name does not make those claims verification of acceptance.
@@ -1917,6 +1960,13 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     parts.append(stripped)
                     number = next_number
                     index += 1
+                else:
+                    # The field ended the kept lines. Indented nested items that
+                    # follow an adjacent list item are still part of it.
+                    while (number < len(raw_lines) and re.match(r'^[-*+]\s', parts[-1])
+                           and re.match(r'^ {4,}[-*+]\s', raw_lines[number])):
+                        parts.append(raw_lines[number].strip())
+                        number += 1
                 yield name, ' '.join(part for part in parts if part).strip(), preamble
         for field_name, field_value, preamble in (
                 list(structured_paragraphs(envelope_context, lines[:metadata_end]))
@@ -1927,10 +1977,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 if not re.fullmatch(r'passed\.?', field_value, re.I):
                     review_conflicts.append('ambiguous review-result claim in structured metadata')
                 continue
-            earlier_pending = (preamble and field_name == 'state' and re.fullmatch(
-                r'Tasks complete; [A-Za-z0-9.,– -]+ verified, whole-milestone review pending\. '
-                r'Persisted review count 0/10(?: \(review intake does not start a gate\))?\.',
-                field_value, re.I))
+            earlier_pending = (preamble and field_name == 'state'
+                               and re.fullmatch(RECOGNIZED_PROSE['earlier_pending'], field_value, re.I))
             if earlier_pending and later_counter:
                 continue
             passing = re.search(r'\breview\s+(?:passed|completed|accepted|approved|succeeded|successful|clean)\b',
@@ -1951,9 +1999,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 result = numbered[3].strip()
                 supported = (numbered[1] == iterations and numbered[2] == recorded_limit and
                     (re.fullmatch(r',?\s*passed(?:\s+with\s+no\s+P1/P2)?\.?', result, re.I) or
-                     re.fullmatch(r'passed\s+\(no\s+P1/P2\);\s+retired\s+[0-9]{4}-[0-9]{2}-[0-9]{2}\.\s+'
-                                  r'Goal run:\s+COMMIT_POLICY\s+none\s+\(owner choice\s+'
-                                  r'[0-9]{4}-[0-9]{2}-[0-9]{2}\),\s+no commits\.', result, re.I)))
+                     re.fullmatch(RECOGNIZED_PROSE['retired_without_commits'], result, re.I)))
                 stale_counter = (preamble and field_name == 'state' and later_counter and
                     numbered[1] == iterations and numbered[2] == recorded_limit and re.fullmatch(
                         r',\s*passed\.\s*Persisted review count 0/10\.', result, re.I))
@@ -2053,12 +2099,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         blockers.append('retired status contains unfinished task rows')
     if legacy:
         blockers.append('historical `[x]` markers are lookup only')
-    counts = []
-    for line, trusted, _, _ in status_lines.values():
-        if trusted and (match := re.match(
-                r'^(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
-                r'(?:Review gate iterations|Review iterations)\s*:)\s*(not recorded|[0-9]+)\b', line, re.I)):
-            counts.append(match[1].lower())
+    # A retained counter is a conflict wherever it appears in a trusted line
+    # (bullet, table cell or prose), not only at the start of one.
+    counts = [match[1].lower()
+              for line, trusted, _, _ in status_lines.values() if trusted
+              for match in re.finditer(
+                  r'(?:\*\*(?:Review gate iterations|Review iterations)\.\*\*|'
+                  r'\b(?:Review gate iterations|Review iterations)\s*:)\s*(not recorded|[0-9]+)\b',
+                  line, re.I)]
     if counts and (len(set(counts)) != 1 or counts[0] != metadata['Review iterations'].lower()):
         blockers.append('retained review counter conflicts with retirement metadata')
     try:

@@ -14,7 +14,9 @@ with another explicit ID is never a format variation. Shared or unnamed
 specifications require an explicit reviewed identification.
 When a retained status explicitly names a milestone in its heading, metadata or
 task rows, that identity must match the frozen record. A content hash binds
-bytes but does not reconcile conflicting milestone identities.
+bytes but does not reconcile conflicting milestone identities. Only a
+well-formed milestone ID counts: a heading such as `# Q4 results` or a legacy
+`M1.1` task prefix names no milestone, and an ID compares case-insensitively.
 
 ## Project manifest
 
@@ -78,7 +80,13 @@ validation does not join source lines across those omitted blocks. Literal
 documents, recovered source identifiers and offsets are not rewritten.
 Recognition is limited to supported explicit historical forms and does not
 establish the meaning of arbitrary natural-language references. Ambiguous
-post-result prose in the same authoritative context remains a blocker.
+post-result prose in the same authoritative context remains a blocker. The few
+fixed sentences that restate, rather than qualify, a recorded decision are
+listed in `RECOGNIZED_PROSE` in the runner; wording outside that table stays
+ambiguous, so it is a deliberate, narrow allowance and not a general parser. A
+retained review counter that disagrees with the retirement metadata is a
+conflict wherever it appears in a trusted line, including bullets and table
+cells.
 
 Corrected outcome and retirement date require a matching identity-bound index
 row or explicit retained status metadata. Corrected review counts require an

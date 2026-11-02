@@ -941,6 +941,58 @@ class HistoryCorrectionsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'input limit'):
             core.history_corrections(' ' * (core.HISTORY_INPUT_LIMIT + 1))
 
+    def test_indented_review_limit_approval_field_is_located(self):
+        approval = 'The owner approved review extension to 12.'
+        base = h.retirement_text('| Task | `[+]` | verified |\n', **{
+            'Review limit': '12', 'Review iterations': '12', 'Review limit approval': approval})
+        for indentation in ('', ' ', '   '):
+            with self.subTest(indentation=repr(indentation)):
+                text = base.replace('**Review limit approval.**', indentation + '**Review limit approval.**')
+                record = core.historical_record(text, 'status-M01.md')
+                self.assertEqual(record['literal_metadata']['Review limit approval'], approval)
+                self.assertNotIn('recorded review limit approval is ambiguous or unsupported', record['blockers'])
+
+    def test_status_identity_guard_ignores_unrelated_headings_and_malformed_ids(self):
+        for prefix, row in (('# Q4 results\n\n', '| Task |'),
+                            ('# V8 notes\n\n', '| Task |'),
+                            ('# Q40 results\n\n', '| Task |'),
+                            ('', '| M1.1 - legacy task |'),
+                            ('', '| m01.1 - own task, lowercase |'),
+                            ('# Status m01\n\n', '| Task |')):
+            with self.subTest(prefix=prefix, row=row):
+                text = self.text.replace('| Task |', prefix + row)
+                self.assertEqual(core.historical_record(text, 'status-M01.md')['blockers'], [])
+
+    def test_conflicting_retained_counter_is_found_in_bullets_tables_and_prose(self):
+        for line in ('- Review gate iterations: 3', 'Notes - Review gate iterations: 3',
+                     '| Review gate iterations: 3 | note |', '* **Review gate iterations.** 3'):
+            with self.subTest(line=line):
+                text = self.text.replace('| Task |', line + '\n\n| Task |')
+                self.assertIn('retained review counter conflicts with retirement metadata',
+                              core.historical_record(text, 'status-M01.md')['blockers'])
+        text = self.text.replace('| Task |', '- Review gate iterations: 2\n\n| Task |')
+        self.assertEqual(core.historical_record(text, 'status-M01.md')['blockers'], [])
+
+    def test_trailing_nested_item_cannot_hide_a_review_claim(self):
+        wrapped = ('**Verification.** Tests passed.\n  - Further details.\n'
+                   '    - The review result was later invalidated.\n')
+        for tail in ('', '\n| Other | `[+]` | verified |\n'):
+            with self.subTest(tail=tail):
+                text = h.retirement_text('| Task | `[+]` | verified |\n\n' + wrapped + tail)
+                record = core.historical_record(text, 'status-M01.md')
+                self.assertIn('ambiguous review-result claim in structured metadata', record['blockers'])
+
+    def test_later_approval_reference_in_a_foreign_status_excerpt_is_found(self):
+        status = 'Later, the owner revoked that approval.\n\n| Task | `[+]` | verified |\n'
+        text = h.retirement_text(status, **{
+            'Review limit': '12', 'Review iterations': '12',
+            'Review limit approval': 'The owner approved review extension to 12.'})
+        operation = dict(kind='recover-document', document='status', content=status, sha256=digest(status),
+                         source=dict(commit='a' * 40, path='tabilet/memory-bank/status-M01.md',
+                                     start_line=1, end_line=3, source_sha256=digest(status)))
+        record = core.historical_record(text, 'status-M01.md', entry(text, [operation]))
+        self.assertIn('recorded review limit approval is ambiguous or unsupported', record['blockers'])
+
 
 if __name__ == '__main__':
     unittest.main()
