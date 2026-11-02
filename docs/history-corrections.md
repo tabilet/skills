@@ -128,13 +128,23 @@ envelope and retained status (`State`, `Status`, `Verification`, `Outcome`,
 whether or not the field first says the review passed: a claim field states the
 result, so the pass is its implied subject ("**Result.** Annulled." blocks). A
 correction-backed record blocks where a literal one would warn. In a claim
-field and in a continuation, a sentence of four words or fewer, or the first
-clause of a sentence of up to eight words before a semicolon, that has no
-subject of its own is a verdict on the pass: one that opens with an adverse word
-blocks ("Pending owner sign-off.", "Rejected when reviewed.", "Voided; see
-notes."), and one that is neither a recognized form nor a plain positive result
-warns ("Withheld."). An adverse word that leads a noun phrase with its own
-predicate is not a verdict ("Failed preparation contexts retained."). The formal
+field and in a continuation, a clause with no subject of its own that opens with
+an adverse word is a verdict on the pass and blocks, whatever its length
+("Pending owner sign-off.", "Rejected until the owner finishes all mandatory
+checks.", "No longer valid because the evidence was wrong.", "Voided; see
+notes."). Beyond a short sentence this applies to the predicate form that opens
+a sentence's first clause; a noun or verb form leads ordinary prose
+("Cancellation at Git staging ...", "Rejection leaves the ledger unchanged."),
+and so does an adverse word leading a noun phrase with its own predicate
+("Failed preparation contexts retained.", "Failed delivery permits a retry.").
+A short subjectless sentence (four words or fewer, or a first clause before a
+semicolon in a sentence of up to eight words) that is neither a recognized form
+nor a plain positive result warns ("Withheld."). `Result`, `Review gate` and
+`Outcome` exist to state the verdict: any value there that is neither
+recognized nor a plain positive result warns on a literal record and blocks a
+correction-backed one, whatever its length. A subjectless verdict outside the
+vocabulary inside longer narrative elsewhere ("Withheld until the owner returns
+from leave next week.") names no review and is not reported. The formal
 retirement outcome (`**Outcome.** completed`, `cancelled` or `superseded`) is
 metadata, not a review claim. Provenance and dependency fields are not claims
 about this review. The same distinction applies to numbered references such as
@@ -156,7 +166,8 @@ about this review. The same distinction applies to numbered references such as
   blocks a correction-backed one; prose after the table still continues the
   pass. Ordinary task notes and task-level review counters are exempt. Task
   evidence is only the marker rows and the task table's own header and
-  delimiter: another table, even one directly below, is read row by row.
+  delimiter: another table, even one directly below, is read row by row, and a
+  line that is not a table row is prose even when it quotes a marker.
 - Every review or iteration counter in a paragraph is checked against the
   record before anything else, whether or not the clause names the review, in
   either word order ("review passed 2/10", "review 2/10 passed", "iteration 3
@@ -168,7 +179,7 @@ about this review. The same distinction applies to numbered references such as
   ("see review 2/10") is not a verdict.
 - A counter is another milestone's only when that milestone's ID leads the
   claim within a few words, and the whole clause, before or after the counter,
-  has no ownership word ("our", "this milestone", "here") or comparison, no
+  has no ownership word ("our", "this", "here") or comparison, no
   non-ASCII letter or invisible format character that could disguise an ID, and
   no mention of this record's own ID ("M02 review 3/10 passed").
   "Compared with M02, our review 3/10 passed." is this record's counter.

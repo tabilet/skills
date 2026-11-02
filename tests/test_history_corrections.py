@@ -1356,6 +1356,8 @@ class HistoryCorrectionsTests(unittest.TestCase):
             'after a neutral sentence': lambda p: task + review + 'No errors remained.\n\n' + p + '\n',
             'after a fence': lambda p: task + review + '```text\nexample\n```\n' + p + '\n',
             'after indented code': lambda p: task + review + '    example output\n' + p + '\n',
+            'prose with an inline marker after a task row': lambda p: (task + review + '| Item | `[+]` | done |\n'
+                                                                       + p + ' (recorded as | `[+]` |)\n'),
             'table after a task row': lambda p: (task + review + '| Item | `[+]` | done |\n| Verdict | Details |\n'
                                                  '|---|---|\n| Closure | ' + p + ' |\n'),
             'table body': lambda p: task + review + '| Item | Notes |\n|:---|---:|\n| Closure | ' + p + ' |\n',
@@ -1381,7 +1383,13 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     'Whole-milestone review passed 3/10.', 'Passed 9/10.', "M02 confirmed M01's review 3/10 passed.",
                     'M02 confirmed \u041c01 review 3/10 passed.', 'M02 confirmed M\u200b01 review 3/10 passed.',
                     'Pending owner sign-off.', 'Rejected when reviewed.', 'Failed and reverted.',
-                    'Rejected, then rewritten.', 'Voided; see notes.')
+                    'Rejected, then rewritten.', 'Voided; see notes.',
+                    'Pending final checks by the designated owner.',
+                    'Rejected until the owner finishes all mandatory checks.',
+                    'No longer valid because the evidence was wrong.',
+                    'Withdrawn until the owner finishes all mandatory checks.',
+                    'M02 confirms review 3/10 passed for this project.',
+                    'M02 confirms review 3/10 passed for this delivery.')
         flagged = ('Later the review was deemed moot.', 'Later it was treated as never having happened.',
                    'Withheld.', 'Not granted.', 'Withheld; see notes.')
         # A correction-backed pass must also block these in a claim field with no positive sentence first.
@@ -1397,7 +1405,8 @@ class HistoryCorrectionsTests(unittest.TestCase):
         # A State or Status value opening with Failed, Pending or Blocked is an
         # outcome statement; elsewhere an adverse word leading a noun phrase that
         # has its own predicate is not a verdict.
-        benign_elsewhere = ('Failed preparation contexts retained.',)
+        benign_elsewhere = ('Failed preparation contexts retained.', 'Failed delivery permits a bounded explicit retry.',
+                            'Rejection leaves the ledger and authorization receipts unchanged.')
         for place, build in places.items():
             if not place.startswith(('State', 'Status')):
                 for payload in benign_elsewhere:
@@ -1405,6 +1414,8 @@ class HistoryCorrectionsTests(unittest.TestCase):
                         record = core.historical_record(h.retirement_text(build(payload)), 'status-M01.md')
                         self.assertEqual(record['blockers'], [])
             for payload in blocking + flagged + benign:
+                if place.startswith('prose with') and payload in flagged:
+                    continue  # the added words make an out-of-vocabulary verdict long narrative
                 status = build(payload if '|' not in build('') else payload.replace('|', '/'))
                 with self.subTest(place=place, payload=payload):
                     record = core.historical_record(h.retirement_text(status), 'status-M01.md')
@@ -1417,6 +1428,20 @@ class HistoryCorrectionsTests(unittest.TestCase):
                         self.assertTrue(record['blockers'] or record['warnings'])
                     if payload not in benign:
                         self.assertTrue(self.review_variants('after', payload)[1])
+
+    def test_an_explicit_verdict_field_is_never_silent(self):
+        # Result, Review gate and Outcome exist to state the verdict: wording
+        # outside the vocabulary there warns on a literal record and blocks a
+        # correction-backed one, whatever its length.
+        task, review = '| Task | `[+]` | verified |\n', '\n## Review\n\nReview: passed\n'
+        for field in ('Result', 'Review gate', 'Outcome'):
+            for value in ('Undone by the owner after the release went out.',
+                          'Withheld until the owner returns from leave next week.'):
+                with self.subTest(field=field, value=value):
+                    record = core.historical_record(
+                        h.retirement_text(f'**{field}.** {value}\n\n' + task + review), 'status-M01.md')
+                    self.assertTrue(record['blockers'] or record['warnings'])
+                    self.assertTrue(self.review_variants('field', f'**{field}.** {value}')[1])
 
     def test_a_formal_outcome_value_is_metadata_not_a_review_claim(self):
         task, review = '| Task | `[+]` | verified |\n', '\n## Review\n\nReview: passed\n'
