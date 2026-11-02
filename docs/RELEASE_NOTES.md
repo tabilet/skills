@@ -1,3 +1,55 @@
+# memory-bank v2.18.0
+
+Makes the shared historical-record reader read older retired milestones with
+fewer false rejections, without accepting a review that the record itself later
+revokes, contradicts or never established. The reader serves the API runner,
+dependency checks, lookup and the SQLite index.
+
+- Reads retained status, envelope and review prose by subject and predicate
+  instead of rejecting every review-related sentence. Ordinary test notes and
+  matching restatements of the recorded pass stay accepted. Conflicting review
+  and iteration counters, a reversal of the pass in the reader's vocabulary
+  (voided, revoked, withdrawn, set aside, pending, conditional, and similar),
+  and unresolved claims in the `Result`, `Review gate` and `Outcome` fields
+  still block. Table, fence, indented-code, heading and task-row boundaries no
+  longer hide a reversal that follows a recorded pass.
+- Records that carry their own pass now **warn** on review wording the reader
+  does not recognize, instead of blocking. The API runner prints up to ten
+  warnings once before its first run and continues; the SQLite index adds
+  `warning:` diagnostics and `tabilet status` reports `history_warnings`.
+  Warnings never change an exit code, the record's review result, task
+  eligibility or dependency acceptance. A record whose pass is supplied by a
+  correction stays strict: any unrecognized prose after the pass blocks, and a
+  correction cannot supply acceptance past it.
+- Wording coverage is best effort. A reversal phrased outside the vocabulary
+  can still be accepted on a record that carries its own pass, with at most a
+  warning. The guarantees that do not depend on wording are structural:
+  counters, context boundaries, the correction-backed path, the three verdict
+  fields and warning/acceptance separation. See
+  [historical record compatibility](history-corrections.md).
+- An item in an `Item | State | Notes` ledger that starts with its milestone
+  and numbered task ID, such as `M01.2 — Verify`, now supplies that explicit
+  task ID for dependency resolution.
+- Frozen records are never rewritten, and newly retired records still use the
+  strict envelope.
+
+**Scope.** This release changes the account-level harness, not the skills.
+Skills, templates and the stock `GOAL.md` protocol are unchanged, so installing
+the 2.18.0 plugin alone changes nothing. The new behavior ships in the API
+runner (`tackle-memory-bank-api-loop`), the SQLite index and status helpers
+(`tabilet_index.py`, `tabilet_status.py`) and the `tabilet` controller, which
+loads the runner's reader from the file beside it. Install the updated harness
+files to get it.
+
+**Upgrade note.** A record that v2.17.0 accepted silently may now print review
+wording warnings, and a record containing a counter conflict or a reversal of
+its own pass (previously accepted unread) now stops with exit `11` until its
+evidence is reconciled or an approved correction is recorded. Correct such a
+record through the correction manifest rather than by editing frozen text.
+Update the installed runner, controller and SQLite toolkit separately, and
+rebuild the index on its next sync. The registry version moves with this
+release. The separately published DSH companion is not updated by this release.
+
 # memory-bank v2.17.0
 
 Adds a stock test policy and a review gate that converges, so test failures stop
