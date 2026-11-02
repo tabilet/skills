@@ -702,6 +702,50 @@ class IndexTests(unittest.TestCase):
         state=ix.sync(self.c,copied)
         self.assertTrue(state['complete'])
 
+    def test_item_labels_with_milestone_task_ids_resolve_dependencies(self):
+        self.source.write_text(
+            '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
+            '| M01.1 — First | `[+]` | done |\n'
+            '| M01.2 — Second | `[ ]` | Depends on: M01.1; next |\n')
+        state = self.sync(); workspace = state['workspace_id']
+        tasks = a.records(self.c, 'SELECT label,explicit_id FROM index_tasks ORDER BY line')
+        self.assertEqual([task['explicit_id'] for task in tasks], ['M01.1', 'M01.2'])
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertEqual([row['task']['explicit_id'] for row in ready['ready']], ['M01.2'])
+        with self.c:
+            self.c.execute('UPDATE schema_meta SET value=? WHERE key=?',
+                           ('v9', f'index_projection:{workspace}'))
+        with mock.patch.object(ix, 'parse_document', wraps=ix.parse_document) as parse:
+            self.sync()
+            self.assertGreater(parse.call_count, 0)
+        self.assertEqual((ix.INDEX_PROJECTION,), self.c.execute(
+            'SELECT value FROM schema_meta WHERE key=?', (f'index_projection:{workspace}',)).fetchone())
+
+        self.source.write_text(self.source.read_text().replace('`[+]`', '`[ ]`'))
+        self.sync()
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertEqual([row['task']['explicit_id'] for row in ready['ready']], ['M01.1'])
+        self.assertTrue(any(row['task']['explicit_id'] == 'M01.2' for row in ready['waiting']))
+
+        self.source.write_text(
+            '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
+            '| M01.1 — First | `[+]` | done |\n'
+            '| M01.1 — Duplicate | `[+]` | duplicate |\n'
+            '| M01.2 — Second | `[ ]` | Depends on: M01.1; next |\n')
+        self.sync()
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertFalse(ready['ready'])
+        self.assertTrue(any('M01.1' in row['reason'] for row in ready['waiting']))
+
+        self.source.write_text(
+            '# Tasks\n\n| Item | State | Notes |\n|---|---|---|\n'
+            '| M02.1 — Wrong milestone | `[+]` | done |\n'
+            '| M01.2 — Second | `[ ]` | Depends on: M02.1; next |\n')
+        self.sync()
+        ready = ix.readiness(self.c, workspace, self.root)
+        self.assertFalse(ready['ready'])
+        self.assertTrue(any('M02.1' in row['reason'] for row in ready['waiting']))
+
     def test_explorer_projection_and_readiness_explain_explicit_dependencies(self):
         self.source.write_text(
             '# Tasks\n\n'

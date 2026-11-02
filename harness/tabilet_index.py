@@ -25,7 +25,7 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 4
-INDEX_PROJECTION = 'v9'
+INDEX_PROJECTION = 'v10'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -312,6 +312,13 @@ def parse_document(path,kind,text,digest,corrections=None):
             explicit=None
             for i,header in enumerate(headers):
                 if header.lower() in ('id','task id') and i<len(row['cells']):explicit=row['cells'][i]
+            # Ramen-style Item/State/Notes ledgers keep the permanent task ID
+            # at the beginning of the item label instead of a separate ID
+            # column. Never assign a label naming a different milestone.
+            if explicit is None and headers and headers[0].strip().lower() == 'item':
+                embedded = re.match(r'^('+p.MILESTONE_ID+r')\.([1-9][0-9]*)(?=\s|:|—|–|-|$)', row['item'])
+                if embedded and embedded[1] == identity:
+                    explicit = embedded[0]
             parsed['index_tasks'].append(dict(sha256=digest,line=row['line']+offset,milestone_id=identity,
                 label=row['item'],state=row['state'],notes=' | '.join(row['cells'][2:]),explicit_id=explicit))
             literal_cells = row['cells']
@@ -409,6 +416,8 @@ def dependency_target(value):
     value=value.strip().strip('`[]()')
     match=re.fullmatch(r'('+parser().MILESTONE_ID+r')/([A-Za-z0-9][A-Za-z0-9_.:-]*)',value)
     if match:return match[1],match[2]
+    match=re.fullmatch(r'('+parser().MILESTONE_ID+r')\.([1-9][0-9]*)',value)
+    if match:return match[1],match[0]
     return None,value
 
 
