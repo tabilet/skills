@@ -485,6 +485,7 @@ def validate_projection(documents, parsed, corrections=None):
             meta = record['metadata']
             diagnostics.extend(f'{path}: {problem}' for problem in record['blockers']
                                if problem != 'historical `[x]` markers are lookup only')
+            diagnostics.extend(f'{path}: warning: {warning}' for warning in record.get('warnings', []))
             if len(cells)!=5 or cells[1:3]!=[meta['Outcome'],meta['Retired']] or not re.fullmatch(r'\[[^\]]+\]\('+re.escape(pathlib.Path(path).name)+r'\)',cells[3]):
                 raise AuditError(f'missing or inconsistent history index entry: {identity}')
             for legacy_line in record['legacy_completion_lines']:

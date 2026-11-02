@@ -1077,6 +1077,17 @@ class HarnessIntegrationTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertNotIn("LLM turn", proc.stdout)
 
+    def test_review_wording_warning_does_not_stop_an_all_retired_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
+            status = repo / "tabilet/memory-bank" / "status-M01.md"
+            status.write_text(status.read_text() + "\n## Review\n\nReview: passed\nThe review took two hours.\n")
+            retire_fixture(repo)
+            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("need human review (not blocking)", proc.stderr)
+        self.assertIn("The review took two hours", proc.stderr)
+
     def test_empty_or_broken_history_does_not_claim_completion(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))

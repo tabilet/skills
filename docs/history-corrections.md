@@ -77,35 +77,56 @@ An unrecognized qualification is never made safe merely because a vocabulary
 did not match it.
 
 When the record carries its own pass, prose after it blocks if it reverses,
-withdraws or conditions that result, and a sentence there about the review
-must also take a recognized form: a restatement of the pass with matching
+withdraws or conditions that result. Every clause there about the review should
+also be one complete recognized form: a restatement of the pass with matching
 counters, a reference to where the result is recorded, or a findings summary
-(listed in `RECOGNIZED_REVIEW_SENTENCES` in the runner). Anything else about the
-review, or led by a pronoun, blocks, because a vocabulary of adverse words
-cannot list every reversal ("the review result was voided"). Ordinary notes
-that do not mention the review, findings lines and iteration history are not
-assertions about it. A fenced block between the pass and later
-prose does not end the context: its contents are ignored, but prose after it is
-still read as a continuation of the same result. The same distinction applies
-to review-result claims in other structured metadata and to numbered
-references such as `review 2/10`:
+(listed in `RECOGNIZED_REVIEW_SENTENCES` in the runner). The forms have no
+free-text tails, so "Review found no defects but was annulled." is not a
+findings summary. The same rule covers a clause led by a pronoun, or one with a
+pronoun after a clause that named the review ("Review passed. Later it was
+annulled.").
+
+A clause about the review that is not a recognized form blocks when it names the
+review, or refers back to it, together with a reversal word such as voided,
+annulled, revoked, withdrawn, reopened, rescinded or set aside, however far that
+word is from the subject. Otherwise it is a **warning**, not a blocker: real
+history is phrased too variously for exact forms to be a gate, and the strict
+retirement contract never reads this prose. Warnings name the record and the
+clause. The API runner prints them before its first run, the first ten in full
+with a count of the rest, and continues; the SQLite index records them as
+`warning:` diagnostics without marking the review unverified; `tabilet status`
+reports them as `history_warnings`. A person should read each one, because a
+reversal phrased outside the vocabulary ("the review result was later deemed
+moot") is reported here and nowhere else.
+
+Ordinary notes that do not mention the review, task-level reviews, findings
+lines and iteration history are not assertions about it. A fenced block between
+the pass and later prose does not end the context: its contents are ignored, but
+prose after it is still read as a continuation of the same result. The same validator
+applies to the claim fields of the envelope and retained status (`State`,
+`Status`, `Verification`, `Outcome`, `Result`, `Acceptance`, `Closure`,
+`Review gate`, `Disposition`); provenance and dependency fields are not claims
+about this review. The same distinction applies to numbered references such as
+`review 2/10`:
 
 - A wrapped paragraph is judged as one unit, so a line break cannot separate a
   reversal from its subject. A table row after the pass is read cell by cell:
   only an earlier or final iteration's own verdict word is history, and the rest
-  of the row is still read; a final-iteration failure or a later iteration
-  blocks.
+  of the row is still read, counters first; a final-iteration failure or a later
+  iteration blocks. A header row of plain labels is structure, not a verdict.
 - Every review or iteration counter in a paragraph is checked against the
-  record, in either word order ("review passed 2/10", "review 2/10 passed",
-  "iteration 3 passed"): a pass at another iteration or limit, or an iteration
+  record before anything else, whether or not the clause names the review, in
+  either word order ("review passed 2/10", "review 2/10 passed", "iteration 3
+  passed", "Passed 9/10."): a pass at another iteration or limit, or an iteration
   beyond the final one, blocks. An earlier iteration may be cited or may have
   failed. A ratio that is not attached to a review ("all 12/12 checks"), a date
   or repeat count ("passed 2026-09-29", "passed 20 times") and a task-level
   review ("M01.2 review 4") are not counters. A reference with no verdict
   ("see review 2/10") is not a verdict.
-- A counter in a clause that names another milestone and not this record's own
-  ID is that milestone's. A clause that names this record's own ID is always
-  checked.
+- A counter is another milestone's only when that milestone's ID leads the
+  claim within a few words, with no "our", "this" or comparison between them,
+  and the clause does not name this record's own ID ("M02 review 3/10 passed").
+  "Compared with M02, our review 3/10 passed." is this record's counter.
 
 A clause is adverse when a review-result subject (review, result, verdict,
 outcome, decision, pass, acceptance, approval) is near, or leads the clause
@@ -118,10 +139,9 @@ a pronoun or "above"-style reference, and directly after a pass a leading
 pronoun stands for that pass ("It is conditional on ..."). A failed test or
 build, and a failure at an earlier iteration, is not a failed review; a
 failure at the final or a later iteration is. This is a vocabulary, not a
-parser: outside the text that directly continues the pass, a reversal in other
-words can still pass an uncorrected record, and inside it the recognized-form
-rule blocks some harmless sentences ("The review took two hours.", "Review
-passed and the deployment is pending."). The check applies to every
+parser: a reversal in other words can still pass an uncorrected record, with at
+most a warning, and the adverse vocabulary blocks some harmless sentences
+("Review passed and the deployment is pending."). The check applies to every
 historical record, because the strict retirement contract does not read
 retained narrative: it accepts a record whose status later says the result was
 invalidated. Adjacent Markdown field continuation lines, including nested list

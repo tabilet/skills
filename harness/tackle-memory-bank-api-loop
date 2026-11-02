@@ -1307,6 +1307,11 @@ _ADVERSE_PHRASE = re.compile(
     r'no\s+longer|rolled\s+back)\b', re.I)
 _ADVERSE_STRONG = re.compile(
     r'\b(?:invalidat\w*|revok\w*|withdr(?:aw\w*|ew)|rescind\w*|overturn\w*|retract\w*|reopen\w*)\b', re.I)
+# A reversal word that blocks anywhere in an unrecognized clause about the
+# review, however far it is from the subject.
+_REVERSAL_ANYWHERE = re.compile(
+    r'\b(?:invalidat\w*|revok\w*|withdr(?:aw\w*|ew)|rescind\w*|overturn\w*|retract\w*|reopen\w*|'
+    r'void\w*|annul\w*|nullif\w*|set\s+aside|disregard\w*|discard\w*|struck|strike\w*)\b', re.I)
 _ADVERSE_WEAK = re.compile(
     r'\b(?:fail(?:ed|s|ure|ures)?|revers\w*|reject\w*|supersed\w*|cancel\w*|contingent|conditional\w*|'
     r'provisional\w*|pending|subject\s+to|unresolved|disput\w*|incomplete|blocked|'
@@ -1330,20 +1335,36 @@ _BENIGN_FAILURE = re.compile(
 # these restatements, references or findings summaries; anything else about it
 # blocks, because a vocabulary of adverse words cannot list every reversal.
 # Counters in them are checked separately against the record.
+_REVIEW = r'(?:the\s+)?(?:ordinary\s+)?(?:whole(?:[- ]milestone)?\s+|closing\s+|final\s+|deep\s+)?review'
+_COUNT = r'(?:\s+(?:iteration\s+)?[1-9][0-9]*(?:\s*/\s*[1-9][0-9]*)?)'
+_NO_FINDINGS_BODY = (r'no\s+(?:open\s+)?(?:P1/P2(?:/P3)?|blocking)'
+                     r'(?:\s+(?:or\s+higher(?:-severity)?\s+)?(?:findings?|issues?))?')
+_NO_FINDINGS = r'(?:\s+with\s+' + _NO_FINDINGS_BODY + r'|\s*\(\s*' + _NO_FINDINGS_BODY + r'\s*\))?'
+# Complete clauses about the review that restate, locate or summarize a pass.
+# Each is matched against a whole clause: there are no free-text tails, so a
+# qualification such as "but was annulled" can never ride inside one. Counters
+# are checked separately against the record.
 RECOGNIZED_REVIEW_SENTENCES = (
-    r'(?:the\s+)?(?:whole(?:[- ]milestone)?\s+|closing\s+|final\s+|deep\s+)?review'
-    r'(?:\s+(?:iteration\s+)?[1-9][0-9]*(?:\s*/\s*[1-9][0-9]*)?)?\s+(?:passed|PASS(?:ED)?)'
-    r'(?:\s+(?:in|at)\s+iteration\s+[1-9][0-9]*)?'
-    r'(?:\s+with\s+no\s+(?:open\s+)?(?:P1/P2(?:/P3)?|blocking)'
-    r'(?:\s+(?:or\s+higher(?:-severity)?\s+)?(?:findings?|issues?))?)?'
-    r'(?:\s+after\s+[^,;]+)?\.?',
+    _REVIEW + _COUNT + r'?\s+(?:passed|PASS(?:ED)?)(?:\s+(?:(?:in|at)\s+)?iteration\s*[1-9][0-9]*)?'
+    + _COUNT + r'?' + _NO_FINDINGS,
+    _REVIEW + r'\s+passed\s+(?:all\s+)?[0-9]+(?:\s*/\s*[0-9]+)?\s+(?:checks?|tests?|cases?|assertions?)',
+    r'no\s+(?:further\s+)?(?:code\s+)?changes?\s+(?:was|were)\s+(?:required|needed|made)\s+after\s+'
+    + _REVIEW + _COUNT + r'?\s+passed',
+    r'no\s+(?:retired|earlier|prior|completed)\s+reviews?\s+(?:is|was|were|are)\s+reopened',
+    r'accepted\s+after\s+' + _REVIEW + _COUNT + r'?(?:\s+passed)?(?:\s+on\s+[0-9]{4}-[0-9]{2}-[0-9]{2})?',
+    _REVIEW + _COUNT,
     r'(?:the\s+)?(?:review\s+)?(?:results?|verdicts?|outcomes?|decisions?|logs?|findings?|notes?|records?)'
-    r'\s+(?:is|are)\s+recorded\s+(?:below|above|here|in\s+[^,;]+)\.?',
-    r'see\s+(?:the\s+)?[^,;]*\breview\b[^,;]*\s+for\s+details\.?',
-    r'(?:the\s+)?(?:whole(?:[- ]milestone)?\s+|closing\s+|final\s+)?review\s+(?:found|reported)\s+no\s+[^,;]+\.?',
-    r'(?:review\s+)?findings?\s*:\s*none\.?',
-    r'no\s+[^,;]+\s+(?:followed|came\s+after)\s+(?:the\s+)?review\.?',
+    r'\s+(?:is|are)\s+recorded\s+(?:below|above|here)',
+    r'see\s+(?:the\s+)?(?:review\s+(?:log|notes|record)|' + _REVIEW[len(r'(?:the\s+)?'):] + _COUNT + r')\s+for\s+details',
+    _REVIEW + r'\s+(?:found|reported)\s+no\s+(?:open\s+)?(?:P1/P2(?:/P3)?|P1|P2|blocking|defects?|issues?|findings?)'
+    r'(?:\s+(?:or\s+higher(?:-severity)?\s+)?(?:findings?|issues?|defects?))?(?:\s+remaining)?',
+    r'(?:review\s+)?findings?\s*:\s*none',
+    r'no\s+(?:further\s+|extra\s+|additional\s+)?(?:code|asset|code/asset|source|documentation|docs|test)?'
+    r'(?:\s+(?:or|and)\s+[a-z/]+)*\s*changes?(?:\s+or\s+expensive\s+runs?)?\s+followed\s+(?:the\s+)?review',
 )
+_OWN_REFERENCE = r'\b(?:our|ours|this|own|we|here|it|its)\b'
+_REVIEW_MENTION = re.compile(
+    r'\b(?:reviews?|results?|verdicts?|outcomes?|decisions?|acceptance|approval|sign-?off)\b|\bthe\s+pass\b', re.I)
 
 
 def _negated(before: str) -> bool:
@@ -1997,6 +2018,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         if metadata.get('Outcome') and disposition != metadata['Outcome']:
             outcome_conflicts.append('retained status conflicts with retirement outcome')
     review_conflicts = []
+    review_warnings = []
     iterations = metadata.get('Review iterations', '')
     if metadata.get('Review') == 'passed' and re.fullmatch(r'[1-9][0-9]*', iterations):
         final_iteration = int(iterations)
@@ -2009,7 +2031,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             # Every counter attached to a review or pass must be the recorded
             # final one; an unrelated ratio such as "12/12 checks" is not one.
             pairs = re.findall(r'\b(?:review|iteration|passed|pass)\s+(?:iteration\s+)?([1-9][0-9]*)\s*/\s*'
-                               r'([1-9][0-9]*)\b' + unit_nouns, text, re.I)
+                               r'([1-9][0-9]*)(?!\d)\b' + unit_nouns, text, re.I)
             leading = re.match(r'^\W*([1-9][0-9]*)\s*/\s*([1-9][0-9]*)\b' + unit_nouns, text)
             if leading:
                 pairs.append(leading.groups())
@@ -2020,11 +2042,26 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             # "M17 accepted ..., review 3/10" cites another milestone's review.
             # This record's own ID must not be in the clause: "Compared with
             # M02, M01 review 2/999" still names this record's own counter.
+            # The foreign ID must lead the claim within a few words, with no
+            # "our", "this" or comparison between them.
             clause = re.split(r'[.;]\s', before)[-1]
-            ids = re.findall(r'\b[A-Z][0-9]{2,}\b', clause)
-            return (identity.upper() not in {found.upper() for found in ids}
-                    and any(found.upper() != identity and re.fullmatch(MILESTONE_ID, found.upper())
-                            for found in ids))
+            if other_milestone_clause(clause):
+                return True
+            if identity.upper() in {found.upper() for found in re.findall(r'\b[A-Z][0-9]{2,}\b', clause)}:
+                return False
+            near = ' '.join(clause.split()[-6:])
+            return any(found[1].upper() != identity and re.fullmatch(MILESTONE_ID, found[1].upper())
+                       and not re.search(_OWN_REFERENCE, near[found.end():], re.I)
+                       and not re.search(r'\b(?:compared|versus|vs|than|unlike)\b', near, re.I)
+                       for found in re.finditer(r'\b([A-Z][0-9]{2,})\b', near))
+        def other_milestone_clause(clause):
+            # A clause led by another milestone's ID ("M02 review 3/10 passed")
+            # is about that milestone, unless it also points back at this one.
+            lead = re.match(r'\W*(?:the\s+)?(?:[A-Za-z][\w-]*:)?([A-Z][0-9]{2,})\b', clause)
+            return bool(lead and lead[1].upper() != identity and re.fullmatch(MILESTONE_ID, lead[1].upper())
+                        and identity.upper() not in clause.upper().split()
+                        and not re.search(_OWN_REFERENCE, clause, re.I)
+                        and not re.search(r'\b(?:compared|versus|vs|than|unlike)\b', clause, re.I))
         def counter_conflict(text):
             # Any review or iteration counter in the text, in either word order,
             # must agree with the record: a pass at another iteration or limit,
@@ -2032,7 +2069,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             # iteration may be cited or may have failed. A ratio that is not
             # attached to a review ("all 12/12 checks") is not a counter.
             for found in re.finditer(r'\b(review|iteration|passed|pass)\s+(?:(?:iteration|passed)\s+)?([1-9][0-9]*)'
-                                     r'(?:\s*/\s*([1-9][0-9]*))?\b' + unit_nouns, text, re.I):
+                                     r'(?:\s*/\s*([1-9][0-9]*))?(?!\s*/|\d)\b' + unit_nouns, text, re.I):
                 before = text[:found.start()]
                 if names_other_milestone(before):
                     continue
@@ -2053,20 +2090,41 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     return True
             return False
         def unrecognized_review_sentence(text):
-            # Conservative fallback for text that directly continues a pass: a
-            # sentence about the review is acceptable only in a recognized form.
+            # Validator for a literal record's pass continuation and claim
+            # fields. Every clause's counters are checked first, and a conflict
+            # blocks. A clause about the review, or one that refers back to it,
+            # should be a recognized complete form; one that is not is reported
+            # as a warning for human review, because real history is phrased too
+            # variously for exact forms to be a gate. A correction-backed pass
+            # never reaches this function: it blocks on any unrecognized prose.
+            mentioned = False
             for sentence in re.split(r'(?<=[.!?])\s+', ' '.join(text.split())):
-                bare = _EARLIER_FAILURE.sub(
-                    lambda m: '' if int(m[1] or m[2]) < final_iteration else m[0], sentence)
-                bare = _BENIGN_FAILURE.sub('', bare).strip(' ,;')
-                if not (re.search(r'\b(?:reviews?|results?|verdicts?|outcomes?|decisions?|acceptance|approval|'
-                                  r'sign-?off)\b|\bthe\s+pass\b', bare, re.I)
-                        or re.match(r'\W*(?:it|this|that|these|those)\b', bare, re.I)):
-                    continue
-                if counter_conflict(bare):
-                    return True
-                if not any(re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
-                    return True
+                for clause in sentence.split(';'):
+                    if counter_conflict(clause):
+                        return True
+                    bare = _EARLIER_FAILURE.sub(
+                        lambda m: '' if int(m[1] or m[2]) < final_iteration else m[0], clause)
+                    bare = _BENIGN_FAILURE.sub('', bare).strip(' ,;.')
+                    bare = re.sub(r'\b(?:[A-Z][0-9]{2,}(?:\.[0-9]+)+\s+(?:task[- ]?)?|task[- ]?)reviews?\b'
+                                  r'(?:\s+[0-9]+)?', 'task check', bare, flags=re.I)
+                    if other_milestone_clause(bare):
+                        mentioned = False
+                        continue
+                    nouns = bool(_REVIEW_MENTION.search(bare))
+                    refers = bool(re.match(r'\W*(?:it|this|that|these|those|they)\b', bare, re.I)
+                                  or (mentioned and re.search(r'\b(?:it|this|that|these|those|they)\b', bare, re.I)))
+                    if (nouns or refers) and not any(
+                            re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
+                        # Only a clause naming the review itself, or referring
+                        # back to it, is reversed by a word such as "revoke";
+                        # "acceptance" or "results" alone often names a test.
+                        reversal = _REVERSAL_ANYWHERE.search(bare)
+                        if (reversal and (refers or re.search(r'\breviews?\b', bare, re.I))
+                                and not _negated(bare[:reversal.start()])):
+                            return True
+                        excerpt = bare if len(bare) <= 160 else bare[:157] + '...'
+                        review_warnings.append(f'unrecognized review wording: "{excerpt}"')
+                    mentioned = nouns
             return False
         envelope_lines = [(line, True) for _, line in envelope_unfenced]
         review_lines = envelope_lines + [(line, trusted) for line, trusted, _, _ in status_lines.values()]
@@ -2111,6 +2169,12 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
             if all(not cell or re.fullmatch(r':?-{2,}:?', cell) for cell in cells):
                 return False
+            if all(re.fullmatch(r'[A-Za-z][A-Za-z /()-]{0,30}', cell) for cell in cells) and not any(
+                    re.search(r'\b(?:PASS\w*|FAIL\w*|pending|incomplete|blocked)\b', cell, re.I)
+                    or adverse_review_wording(cell) for cell in cells):
+                return False  # a header row of labels
+            if counter_conflict(' '.join(cells[1:])):
+                return True
             rest = ' '.join(cells[1:])
             first = re.fullmatch(r'(?:iteration\s+)?([1-9][0-9]*)', cells[0], re.I)
             verdict = re.match(r'\s*(PASS(?:ED)?|FAIL\w*|pending|incomplete|blocked)\b\W*', rest, re.I)
@@ -2312,7 +2376,10 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     if lenient else bool(re.search(old_prefix_risk, field_value[:passing.start()], re.I)))
                 if not accepted_suffix or risky_prefix:
                     review_conflicts.append('ambiguous review-result claim in structured metadata')
-            if lenient and counter_conflict(field_value):
+            if lenient and (counter_conflict(field_value) or (
+                    field_name in {'state', 'status', 'verification', 'outcome', 'result', 'acceptance',
+                                   'closure', 'review gate', 'disposition'}
+                    and unrecognized_review_sentence(field_value))):
                 review_conflicts.append('ambiguous review-result claim in structured metadata')
             colon_result = re.search(r'(?:^|[.;]\s+)review\s*:\s*(.*)', field_value, re.I)
             if colon_result and not (
@@ -2465,7 +2532,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         strict = False
     return {'metadata': metadata, 'literal_metadata': literal_metadata, 'specification': specification,
             'status': status, 'task_status': task_status, 'offsets': offsets, 'sources': sources,
-            'legacy_completion_lines': legacy, 'blockers': blockers, 'strict': strict}
+            'legacy_completion_lines': legacy, 'blockers': blockers, 'strict': strict,
+            'warnings': list(dict.fromkeys(review_warnings))}
 
 
 def historical_index_cells(cells: list[str]) -> list[str]:
@@ -2482,9 +2550,12 @@ def historical_index_cells(cells: list[str]) -> list[str]:
     return cells[:4] + [prefix] if prefix.count('`') % 2 == 0 else cells
 
 
+HISTORY_WARNINGS_SHOWN = 10
+
+
 def history_snapshot(repo: pathlib.Path) -> dict:
     history = repo / "tabilet" / "docs" / "history"
-    records, digests, problems = {}, {}, []
+    records, digests, problems, warnings = {}, {}, [], []
     paths = declared_status_files(history)
     corrections, correction_digest = {}, None
     try:
@@ -2503,6 +2574,7 @@ def history_snapshot(repo: pathlib.Path) -> dict:
                                        corrections.get('tabilet/docs/history/' + path.name))
             records[path.name] = record
             problems.extend(f'tabilet/docs/history/{path.name}: {problem}' for problem in record['blockers'])
+            warnings.extend(f'tabilet/docs/history/{path.name}: {warning}' for warning in record['warnings'])
         except (ValueError, OSError) as exc:
             problems.append(f"tabilet/docs/history/{path.name}: {exc}")
     for missing in set(corrections) - {'tabilet/docs/history/' + path.name for path in paths}:
@@ -2564,7 +2636,7 @@ def history_snapshot(repo: pathlib.Path) -> dict:
     journal = journal_path.read_bytes() if journal_path.is_file() else b""
     return {
         "records": records, "digests": digests, "entries": entries,
-        "journal": journal, "problems": problems, "corrections_sha256": correction_digest,
+        "journal": journal, "problems": problems, "warnings": warnings, "corrections_sha256": correction_digest,
         "corrections": corrections,
         "index_compatibility": index_compatibility,
     }
@@ -3987,6 +4059,15 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
             state_problems.append("no active status files or valid retired milestones")
         if state_problems:
             fail("Invalid memory-bank status/history state:\n  " + "\n  ".join(state_problems), 11)
+        review_warnings = before_rows["history"]["warnings"]
+        if run == 1 and review_warnings:
+            records = len({warning.split(":", 1)[0] for warning in review_warnings})
+            shown = review_warnings[:HISTORY_WARNINGS_SHOWN]
+            more = len(review_warnings) - len(shown)
+            print(f"Warning: {len(review_warnings)} review-wording warning(s) in {records} retired record(s) "
+                  "need human review (not blocking):\n  " + "\n  ".join(shown)
+                  + (f"\n  ... and {more} more; `tabilet-audit index status` and `tabilet status` list them all."
+                     if more else ""), file=sys.stderr)
         summary = lane_summary(repo)
         in_progress_rows = rows_in_state(repo, "in_progress")
         if len(in_progress_rows) > 1:

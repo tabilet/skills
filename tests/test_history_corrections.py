@@ -1250,14 +1250,116 @@ class HistoryCorrectionsTests(unittest.TestCase):
 
     def test_ordinary_english_next_to_a_review_pass_is_not_a_blocker(self):
         for where, payload in (
-                ('after', 'The review passed after the failed test was fixed.'),
                 ('field', '**State.** No changes were required after review passed.'),
+                ('field', '**Verification.** Review passed 12/12 checks.'),
+                ('field', '**State.** Complete; whole review 2/10 passed (no P1/P2); retired 2026-10-29.'),
+                ('field', '**State.** M01.2 review 4 PASS; whole review 2/10 passed.'),
                 ('field', '**Verification.** Review passed all 12/12 checks.'),
                 ('field', '**State.** Review passed 2/10; retirement pending.'),
                 ('after', 'The build was cancelled by the user and rerun.'),
                 ('after', '| Iteration | State |\n|---|---|\n| 1 | FAIL |\n| 2 | PASS |')):
             with self.subTest(payload=payload):
                 self.assertEqual(self.review_variants(where, payload)[0], [])
+
+    def test_review_prose_must_be_a_complete_recognized_form(self):
+        # A recognized form has no free-text tail, so a qualification cannot
+        # ride inside it, and a later sentence that refers back to the review
+        # is held to the same rule. A reversal word in an unrecognized clause
+        # blocks on both paths, however far it is from the subject.
+        for where, payload in (
+                ('after', 'Review passed after testing and was subsequently voided.'),
+                ('after', 'The review result is recorded in the log as voided.'),
+                ('after', 'Review found no defects but was annulled.'),
+                ('after', 'Review passed. Later it was annulled.'),
+                ('after', 'See the review log for details, which was voided.')):
+            with self.subTest(payload=payload):
+                uncorrected, corrected = self.review_variants(where, payload)
+                self.assertTrue(uncorrected)
+                self.assertTrue(corrected)
+
+    def test_unrecognized_review_wording_warns_on_a_literal_record(self):
+        # Without a reversal word, unrecognized wording about the review is a
+        # warning on a record that carries its own pass, and still a blocker
+        # when a correction supplies the pass.
+        for where, payload in (
+                ('after', 'The review passed after the failed test was fixed.'),
+                ('after', 'The review took two hours.'),
+                ('field', '**State.** Review passed 2/10. The review result was later deemed moot.'),
+                ('after', 'Review passed. Afterwards it was discussed with the owner.')):
+            with self.subTest(payload=payload):
+                uncorrected, corrected = self.review_variants(where, payload)
+                self.assertEqual(uncorrected, [])
+                self.assertTrue(corrected)
+                status = (payload + '\n\n| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\n' if where == 'field'
+                          else '| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\n' + payload + '\n')
+                warnings = core.historical_record(h.retirement_text(status), 'status-M01.md')['warnings']
+                self.assertEqual(len(warnings), 1)
+                self.assertIn('unrecognized review wording', warnings[0])
+        clean = core.historical_record(h.retirement_text(
+            '| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\nThe review result is recorded below.\n'),
+            'status-M01.md')
+        self.assertEqual((clean['blockers'], clean['warnings']), ([], []))
+
+    def test_review_warnings_reach_the_snapshot_and_index_without_blocking(self):
+        history = self.root / 'tabilet/docs/history'
+        history.mkdir(parents=True)
+        text = h.retirement_text('| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\nThe review took two hours.\n')
+        (history / 'status-M01.md').write_text(text)
+        (history / 'index.md').write_text('| Milestone | Outcome | Retired | Record | Summary |\n|---|---|---|---|---|\n'
+                                          '| M01 | completed | 2026-09-12 | [M01](status-M01.md) | Delivery |\n')
+        (self.root / 'tabilet/memory-bank/milestone.md').write_text('# Milestones\n\n[History](../docs/history/index.md)\n')
+        (self.root / 'tabilet/memory-bank/status-M01.md').unlink(missing_ok=True)
+        snapshot = core.row_snapshot(self.root)
+        self.assertEqual(snapshot['history']['problems'], [])
+        self.assertEqual(len(snapshot['history']['warnings']), 1)
+        self.assertIn('tabilet/docs/history/status-M01.md: unrecognized review wording: "The review took two hours"',
+                      snapshot['history']['warnings'][0])
+        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+            state = index.sync(connection, self.root)
+            diagnostics = index.status(connection, state['workspace_id'])['diagnostics']
+        self.assertTrue(any('warning: unrecognized review wording' in item for item in diagnostics), diagnostics)
+        parsed = index.parse_document('tabilet/docs/history/status-M01.md', 'history_status', text, digest(text))
+        self.assertNotIn('unverified', repr(parsed))
+
+    def test_claim_fields_use_the_same_review_validator(self):
+        for field in ('State', 'Status', 'Verification', 'Outcome', 'Result', 'Acceptance', 'Closure',
+                      'Review gate', 'Disposition'):
+            payload = f'**{field}.** Review passed 2/10. The review result was voided.'
+            with self.subTest(payload=payload):
+                self.assertTrue(self.review_variants('field', payload)[0])
+        for payload in ('**State.** Accepted after closing review 2/10.', '**State.** Review 2/10 passed.',
+                        '**State.** Review passed in iteration 2.', '**Verification.** Review passed 2/10.'):
+            with self.subTest(payload=payload):
+                self.assertEqual(self.review_variants('field', payload)[0], [])
+
+    def test_counters_are_checked_before_mentions_and_table_verdicts(self):
+        for where, payload in (
+                ('after', 'Iteration 3 passed.'),
+                ('after', 'Passed 9/10.'),
+                ('after', '| Iteration | State |\n|---|---|\n| 2 | PASS; iteration 3 passed. |'),
+                ('field', '**Verification.** Review passed 12/10.')):
+            with self.subTest(payload=payload):
+                self.assertTrue(self.review_variants(where, payload)[0])
+
+    def test_only_a_bound_foreign_milestone_exempts_a_counter(self):
+        for payload in ('**State.** Compared with M02, our review 3/10 passed.',
+                        '**State.** Unlike M02, this review 3/10 passed.',
+                        '**State.** M02 shipped first and then, after much work here, review 3/10 passed.'):
+            with self.subTest(payload=payload):
+                self.assertTrue(self.review_variants('field', payload)[0])
+        for payload in ('**State.** M02 review 3/10 passed but ours was voided.',
+                        '**State.** M02 review 3/10 passed; it was voided.'):
+            with self.subTest(payload=payload):
+                self.assertTrue(self.review_variants('field', payload)[0])
+        for payload in ('**State.** Review 2/10 passed; M02 review 3/10 passed.',
+                        '**State.** Review 2/10 passed; Other:M02 is accepted at abc1234 after whole review 3/10.'):
+            with self.subTest(payload=payload):
+                self.assertEqual(self.review_variants('field', payload)[0], [])
+
+    def test_a_table_header_is_structure_not_a_verdict(self):
+        header = '| Iteration | Result |\n|---|---|\n'
+        self.assertEqual(self.review_variants('after', header + '| 1 | FAIL |\n| 2 | PASS |')[0], [])
+        self.assertTrue(self.review_variants('after', header + '| 1 | FAIL |\n| 2 | FAIL |')[0])
 
     def test_adverse_wording_binds_negation_to_its_clause_and_the_subject_to_the_sentence(self):
         adverse = core.adverse_review_wording
