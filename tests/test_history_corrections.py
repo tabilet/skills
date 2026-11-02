@@ -1355,12 +1355,19 @@ class HistoryCorrectionsTests(unittest.TestCase):
             'after a blank line': lambda p: task + review + '\n' + p + '\n',
             'after a neutral sentence': lambda p: task + review + 'No errors remained.\n\n' + p + '\n',
             'after a fence': lambda p: task + review + '```text\nexample\n```\n' + p + '\n',
+            'after indented code': lambda p: task + review + '    example output\n' + p + '\n',
+            'table after a task row': lambda p: (task + review + '| Item | `[+]` | done |\n| Verdict | Details |\n'
+                                                 '|---|---|\n| Closure | ' + p + ' |\n'),
             'table body': lambda p: task + review + '| Item | Notes |\n|:---|---:|\n| Closure | ' + p + ' |\n',
             'table header': lambda p: task + review + '| ' + p + ' |\n|---|\n',
             'after the task table': lambda p: (task + review + '| Item | State | Notes |\n|---|---|---|\n'
                                                '| Closure | `[+]` | done |\n\n' + p + '\n'),
             'State field': lambda p: '**State.** Review passed 2/10. ' + p + '\n\n' + task + review,
             'Verification field': lambda p: '**Verification.** Review passed 2/10. ' + p + '\n\n' + task + review,
+            'State field alone': lambda p: '**State.** ' + p + '\n\n' + task + review,
+            'Result field alone': lambda p: '**Result.** ' + p + '\n\n' + task + review,
+            'Closure field alone': lambda p: '**Closure.** ' + p + '\n\n' + task + review,
+            'Disposition field alone': lambda p: '**Disposition.** ' + p + '\n\n' + task + review,
         }
         blocking = ('The review was voided.', 'Later this was annulled.', 'Later those were set aside.',
                     'After the release, following discussion, the verdict was subsequently voided.',
@@ -1368,12 +1375,35 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     'The review was never voided and was annulled.', 'This has since been rejected.',
                     'Later, this, after discussion, was annulled.', 'Later the same was annulled.',
                     'Later the owner annulled this.', 'Later it was ann\u00adulled.',
+                    'Pending.', 'Conditional on further checks.', 'No longer valid.', 'Later it was pending.',
+                    'The review, after discussion, is now pending.', 'It is, after discussion, conditional.',
+                    'M02 confirms review 3/10 passed for our milestone.', 'M02 says review 3/10 passed, unlike ours.',
                     'Whole-milestone review passed 3/10.', 'Passed 9/10.', "M02 confirmed M01's review 3/10 passed.",
-                    'M02 confirmed \u041c01 review 3/10 passed.', 'M02 confirmed M\u200b01 review 3/10 passed.')
-        flagged = ('Later the review was deemed moot.', 'Later it was treated as never having happened.')
+                    'M02 confirmed \u041c01 review 3/10 passed.', 'M02 confirmed M\u200b01 review 3/10 passed.',
+                    'Pending owner sign-off.', 'Rejected when reviewed.', 'Failed and reverted.',
+                    'Rejected, then rewritten.', 'Voided; see notes.')
+        flagged = ('Later the review was deemed moot.', 'Later it was treated as never having happened.',
+                   'Withheld.', 'Not granted.', 'Withheld; see notes.')
+        # A correction-backed pass must also block these in a claim field with no positive sentence first.
+        for field in ('State', 'Result'):
+            for payload in ('Annulled.', 'The whole thing was set aside.', 'The result was voided.', 'Pending.'):
+                with self.subTest(field=field, payload=payload):
+                    self.assertTrue(self.review_variants('field', f'**{field}.** {payload}')[0])
+                    self.assertTrue(self.review_variants('field', f'**{field}.** {payload}')[1])
         benign = ('Tests confirm that revoked tokens are rejected.', 'Revoked credentials are rejected by the broker.',
+                  'Tests verify that the stale grant was revoked.', 'Cancellation at Git staging still produced a commit.',
+                  'A wrong directory in the rewritten path fails it.',
                   'Tests verify that this path is cancelled cleanly.', 'The review result is recorded below.')
+        # A State or Status value opening with Failed, Pending or Blocked is an
+        # outcome statement; elsewhere an adverse word leading a noun phrase that
+        # has its own predicate is not a verdict.
+        benign_elsewhere = ('Failed preparation contexts retained.',)
         for place, build in places.items():
+            if not place.startswith(('State', 'Status')):
+                for payload in benign_elsewhere:
+                    with self.subTest(place=place, payload=payload):
+                        record = core.historical_record(h.retirement_text(build(payload)), 'status-M01.md')
+                        self.assertEqual(record['blockers'], [])
             for payload in blocking + flagged + benign:
                 status = build(payload if '|' not in build('') else payload.replace('|', '/'))
                 with self.subTest(place=place, payload=payload):
@@ -1388,6 +1418,19 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     if payload not in benign:
                         self.assertTrue(self.review_variants('after', payload)[1])
 
+    def test_a_formal_outcome_value_is_metadata_not_a_review_claim(self):
+        task, review = '| Task | `[+]` | verified |\n', '\n## Review\n\nReview: passed\n'
+        for value in ('completed', 'cancelled', 'superseded'):
+            with self.subTest(value=value):
+                record = core.historical_record(
+                    h.retirement_text(f'**Outcome.** {value}\n\n' + task + review), 'status-M01.md')
+                self.assertNotIn('ambiguous review-result claim in structured metadata', record['blockers'])
+        for value in ('superseded, then voided.', 'Withdrawn since.', 'Superseded.'):
+            with self.subTest(value=value):
+                uncorrected, corrected = self.review_variants('field', f'**Outcome.** {value}')
+                self.assertTrue(uncorrected)
+                self.assertTrue(corrected)
+
     def test_task_rows_after_a_pass_are_checked_on_both_paths(self):
         for row in ('| Item | `[+]` | The review was voided |', '| Item | `[+]` | Whole-milestone review passed 3/10. |',
                     '| M01.3 | `[+]` | The milestone review was annulled |'):
@@ -1398,6 +1441,15 @@ class HistoryCorrectionsTests(unittest.TestCase):
         uncorrected, corrected = self.review_variants('after', '| Item | `[+]` | done |\nThe review was withdrawn.')
         self.assertTrue(uncorrected)
         self.assertTrue(corrected)
+        for row in ('| Item | `[+]` | The milestone review is conditional on further checks. |',
+                    '| Item | `[+]` | The milestone review was deemed moot. |'):
+            with self.subTest(row=row):
+                uncorrected, corrected = self.review_variants('after', row)
+                self.assertTrue(corrected)
+                record = core.historical_record(h.retirement_text(
+                    '| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\n' + row + '\n'), 'status-M01.md')
+                self.assertTrue(record['blockers'] or record['warnings'])
+        self.assertTrue(self.review_variants('after', '| Item | `[+]` | The milestone review is conditional. |')[0])
         # Ordinary task notes and task-level review counters stay task evidence.
         for row in ('| Item | `[+]` | Tests revoke stale tokens |', '| Item | `[+]` | M01.2 review 4 fixed |'):
             with self.subTest(row=row):

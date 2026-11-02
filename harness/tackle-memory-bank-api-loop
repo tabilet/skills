@@ -927,6 +927,11 @@ def unfenced_lines(text: str):
             yield line_number, stripped
 
 
+def code_line_numbers(text: str) -> set[int]:
+    """Line numbers of fenced and indented code, which readers skip without ending a paragraph's context."""
+    return {line_number for line_number, _, indent, fenced in _scan_fences(text) if fenced or indent > 3}
+
+
 def fenced_line_numbers(text: str) -> set[int]:
     """Line numbers of fence markers and fenced content, which readers ignore."""
     return {line_number for line_number, _, _, fenced in _scan_fences(text) if fenced}
@@ -1320,6 +1325,13 @@ _ADVERSE_WEAK = re.compile(
     r'provisional\w*|pending|subject\s+to|unresolved|disput\w*|incomplete|blocked|'
     r'provided(?:\s+that)?|unless|only\s+if|on\s+condition|depending\s+on|assuming|as\s+long\s+as)\b', re.I)
 _ADVERSE_REVISED = re.compile(r'\b(?:changed|amended|revisit\w*)\b', re.I)
+# The complete adverse vocabulary: reversals, adverse phrases and conditions.
+_ANY_ADVERSE = re.compile('(?:' + '|'.join(p.pattern for p in (_REVERSAL_ANYWHERE, _ADVERSE_PHRASE, _ADVERSE_WEAK))
+                          + ')', re.I)
+# Words that take any complement: "Subject to further checks.", "Conditional on ...".
+_COMPLEMENT_TAKING = re.compile(
+    r'(?:subject\s+to|conditional\w*|contingent|provided(?:\s+that)?|unless|only\s+if|on\s+condition|'
+    r'depending\s+on|assuming|as\s+long\s+as)$', re.I)
 _RESULT_SUBJECT = re.compile(
     r'\b(?:review\w*|result\w*|verdict|outcome|decision|pass(?:ed)?|acceptance|approval|sign-?off)\b', re.I)
 _REFERENCE_SUBJECT = re.compile(
@@ -1386,8 +1398,13 @@ _REVIEW_MENTION = re.compile(
     r'\b(?:reviews?|results?|verdicts?|outcomes?|decisions?|acceptance|approval|sign-?off)\b|\bthe\s+pass\b', re.I)
 
 
+# A pronoun subject (followed by a verb, or set off by punctuation), or a
+# generic phrase. A conjunction ("tests verify that the grant was revoked") is
+# not a subject.
 _GENERIC_SUBJECT = re.compile(
-    r'\b(?:it|this|that|these|those|they|them|same|whole\s+thing|everything|all\s+of\s+(?:it|this|that))\b', re.I)
+    r'\b(?:it|this|that|these|those|they)\b(?=\s*[,(\u2014\u2013-]|\s+(?:(?:since|now|later|then|also|already|'
+    r'subsequently|eventually|finally)\s+)?(?:has|have|had|was|were|is|are|been|got|became|will|would|must|'
+    r'should|may|might|can|could)\b)|\b(?:same|whole\s+thing|everything|all\s+of\s+(?:it|this|that))\b', re.I)
 
 
 def _without_format_characters(text: str) -> str:
@@ -1395,17 +1412,52 @@ def _without_format_characters(text: str) -> str:
     return ''.join(ch for ch in text if unicodedata.category(ch) != 'Cf')
 
 
-def _reversal_predicate(text: str) -> bool:
-    """True when an affirmed reversal word is a predicate ("was annulled", "annulled this")."""
-    for found in _REVERSAL_ANYWHERE.finditer(text):
+def _adverse_predicate(text: str, vocabulary: re.Pattern = _REVERSAL_ANYWHERE) -> str | None:
+    """'object' for "annulled this", 'subject' for "was annulled" or a clause-final verdict, else None."""
+    kind = None
+    for found in vocabulary.finditer(text):
         if _negated(text[:found.start()]):
             continue
+        if re.match(r'\s+(?:it|this|that|them|these|those)\b', text[found.end():], re.I):
+            return 'object'
         if (re.search(r'\b(?:was|were|is|are|been|being|be|got|gets?)\s+(?:\w+\s+){0,2}$', text[:found.start()], re.I)
-                or re.match(r'\s+(?:it|this|that|them|these|those)\b', text[found.end():], re.I)
                 or re.fullmatch(r'\W*(?:(?:later|subsequently|again)|(?:by|on|after|at|in|following|per)\b.*)?\W*',
                                 text[found.end():], re.I)):
-            return True
-    return False
+            kind = 'subject'
+    return kind
+
+
+# A pronoun or result noun that is the subject of an adverse predicate: "it
+# was pending", "the review is conditional on ...", "this has since been
+# rejected". Weak words ("fails", "cancellation") elsewhere in technical prose
+# are not verdicts.
+_GOVERNED_ADVERSE = re.compile(
+    r'\b(?:it|this|that|these|those|they|reviews?|results?|verdicts?|outcomes?|decisions?|pass|acceptance|approval)'
+    r'(?:\s*,[^,;]{1,80},)?\s+(?:(?:since|now|still|later|then|also|already|subsequently|eventually|finally)\s+)?'
+    r'(?:is|was|were|are|remains?|remained|became|becomes|(?:has|had|have)\s+(?:since\s+)?been)(?:\s*,[^,;]{1,80},)?\s+'
+    r'(?:(?:now|still|later|then|also|already|subsequently|eventually|finally|deemed|considered|marked|found)\s+)?'
+    r'(?:' + _ANY_ADVERSE.pattern + r')', re.I)
+
+
+# Short claim values that state a positive result.
+_POSITIVE_CLAIM = (r'(?:(?:all\s+)?(?:tests?|checks?|gates?)\s+)?(?:passed|pass|PASS|complete[d]?|accepted|approved|clean|done|'
+                   r'ok|green|succeeded|verified|retired|closed|merged|completed\s+and\s+retired)')
+# A clause that opens with a noun phrase names its own subject.
+_NOUN_PHRASE_LEAD = re.compile(r'\W*(?:(?:the|a|an|all|every|each|no|[A-Z][0-9]{2,})\b|`)', re.I)
+
+
+def _bare_verdict(clause: str) -> bool:
+    """A clause with no subject of its own, such as "Voided." or "Conditional on further checks."."""
+    found = re.match(_BARE_VERDICT.pattern + r'(' + _ANY_ADVERSE.pattern + r')', clause, re.I)
+    if not found:
+        return False
+    rest = clause[found.end():]
+    if re.fullmatch(r'\W*|\s+\w+\W*|\s+(?:later|subsequently|again)\W*', rest, re.I) or _COMPLEMENT_TAKING.search(found[1]):
+        return True
+    # Only a reversal takes a free prepositional tail ("Annulled by the owner on
+    # 2026-10-01."); "Cancellation at Git staging ..." is not a verdict.
+    return bool(_REVERSAL_ANYWHERE.fullmatch(found[1])
+                and re.match(r'\s+(?:by|on|upon|after|at|in|following|per|for|because|due)\b', rest, re.I))
 
 
 def _affirmed_reversal(text: str) -> bool:
@@ -2105,7 +2157,10 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             # The foreign ID must lead the claim within a few words, with no
             # "our", "this" or comparison between them.
             clause = re.split(r'[.;]\s', before)[-1]
-            if names_own_id(clause) or names_own_id(clause_text):
+            whole = clause_text or clause
+            if (names_own_id(clause) or names_own_id(whole)
+                    or re.search(r'\b(?:our|ours|own|we|us|here)\b|\bthis\s+(?:milestone|record|review|one)\b'
+                                 r'|\b(?:compared|versus|vs|than|unlike)\b', whole, re.I)):
                 return False
             if other_milestone_clause(clause):
                 return True
@@ -2151,12 +2206,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         or re.match(r'\s*(?:[:,—–-]\s*)?(?:(?:was|is)\s+)?pass', text[found.end():], re.I)):
                     return True
             return False
-        def bare_verdict(clause):
-            return bool(re.fullmatch(
-                _BARE_VERDICT.pattern + r'(?:' + _REVERSAL_ANYWHERE.pattern + r')'
-                + r'(?:\s+(?:later|subsequently|again)|\s+(?:by|on|after|at|in|following|per)\b.*)?',
-                clause, re.I))
-        def unrecognized_review_sentence(text, context=False, warn=True):
+        def unrecognized_review_sentence(text, context=False, warn=True, claim=False, strict=False):
             # Validator for a literal record's pass continuation and claim
             # fields. Every clause's counters are checked first, and a conflict
             # blocks. A clause about the review, or one that refers back to it,
@@ -2167,10 +2217,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             # In a pass's continuation the recorded pass is the subject from
             # the start, so "Later it was annulled." refers to it; a mention
             # stays the subject across later neutral sentences and paragraphs.
+            # A claim field states the milestone's result, so the pass is its
+            # implied subject for verdicts and predicates; loose pronouns there
+            # need a mention first.
             mentioned = context
+            seeded = context or claim
             text = _without_format_characters(text)
             for sentence in re.split(r'(?<=[.!?])\s+', ' '.join(text.split())):
-                for clause in sentence.split(';'):
+                for position, clause in enumerate(sentence.split(';')):
                     if counter_conflict(clause):
                         return True
                     bare = _EARLIER_FAILURE.sub(
@@ -2185,27 +2239,64 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     # generic phrase ("this, after discussion, was annulled",
                     # "the same was voided", "the owner annulled this"); with any
                     # other subject it still needs a human reading.
-                    if mentioned and _reversal_predicate(bare) and not any(
-                            re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
-                        if (_GENERIC_SUBJECT.search(bare) or _MILESTONE_REVIEW_SUBJECT.search(bare)
-                                or bare_verdict(bare)):
+                    recognized = any(re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES)
+                    # Only a whole sentence of a few words is a bare verdict;
+                    # a short clause inside a longer sentence is a fragment
+                    # ("audit disabled").
+                    short = (seeded and not recognized and len(bare.split()) <= 4
+                             and (len(sentence.split()) <= 4 or (position == 0 and len(sentence.split()) <= 8))
+                             and not _NOUN_PHRASE_LEAD.match(bare))
+                    if short:
+                        # A short clause with no subject of its own that opens
+                        # with an adverse word is a verdict ("Pending owner sign-off.").
+                        # Only a noun phrase followed by its own predicate gives
+                        # the clause another subject ("Failed preparation
+                        # contexts retained."); "Rejected when reviewed." does not.
+                        lead = re.match(_BARE_VERDICT.pattern + r'(' + _ANY_ADVERSE.pattern + r')', bare, re.I)
+                        tail = bare[lead.end():] if lead else ''
+                        own_subject = (re.match(r'\s+(?!(?:and|or|but|then|when|once|until|after|before|since|as|by|'
+                                                r'at|on|in|for|to|with|without|because|while|so|if|unless|pending)\b)'
+                                                r'[A-Za-z]', tail, re.I)
+                                       and re.search(r'\b(?:\w+(?:ed|en)|is|are|was|were|been)\b', tail, re.I))
+                        if lead and not _negated(bare[:lead.start(1)]) and not own_subject:
                             return True
-                        if warn:
-                            review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
-                        continue
+                    if (seeded or mentioned) and not recognized:
+                        if _bare_verdict(bare) or _GOVERNED_ADVERSE.search(bare):
+                            if any(not _negated(bare[:found.start()]) for found in _ANY_ADVERSE.finditer(bare)):
+                                return True
+                        reversal = _adverse_predicate(bare)
+                        if reversal == 'object' or (reversal and (_GENERIC_SUBJECT.search(bare)
+                                                                  or _MILESTONE_REVIEW_SUBJECT.search(bare))):
+                            return True
+                        if reversal:
+                            # A reversal with another subject ("The token was
+                            # revoked.") still needs a human reading.
+                            if strict:
+                                return True
+                            if warn:
+                                review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
+                            continue
                     nouns = bool(_REVIEW_MENTION.search(bare))
                     refers = bool(re.match(r'\W*(?:it|this|that|these|those|they)\b', bare, re.I)
                                   or (mentioned and re.search(r'\b(?:it|they|them)\b', bare, re.I))
                                   or _REFERENCE_SUBJECT.search(bare)
-                                  or (mentioned and bare_verdict(bare)))
-                    if (nouns or refers) and not any(
-                            re.fullmatch(form, bare, re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
+                                  or ((seeded or mentioned) and _bare_verdict(bare)))
+                    if (nouns or refers) and not recognized:
                         # Only a clause naming the review itself, or referring
                         # back to it, is reversed by a word such as "revoke";
                         # "acceptance" or "results" alone often names a test.
                         # Every reversal word is judged in its own negation
                         # scope: "not voided but annulled" is an annulment.
                         if (refers or _MILESTONE_REVIEW_SUBJECT.search(bare)) and _affirmed_reversal(bare):
+                            return True
+                        if strict:
+                            return True
+                        if warn:
+                            review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
+                    elif short and not re.fullmatch(_POSITIVE_CLAIM, bare, re.I):
+                        # Otherwise a short clause with no subject of its own
+                        # still states the result ("Withheld.").
+                        if strict:
                             return True
                         if warn:
                             review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
@@ -2258,7 +2349,9 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 return False
             if header:
                 text = ' '.join(cells)
-                sentence = any(len(cell.split()) >= 4 for cell in cells)
+                # A label is short and unpunctuated; a cell of four or more
+                # words, or one ending as a sentence ("Withheld."), states something.
+                sentence = any(len(cell.split()) >= 4 or re.search(r'\w[.!?]$', cell) for cell in cells)
                 return (counter_conflict(text) or adverse_review_wording(text, final_iteration, True, True)
                         or unrecognized_review_sentence(text, True, warn=sentence))
             if counter_conflict(' '.join(cells[1:])):
@@ -2283,9 +2376,19 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             # review reversal or a conflicting review counter in them is not.
             cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
             text = ' '.join(cell for cell in cells if not re.fullmatch(r'`?\[[ +~!xX-]\]`?', cell))
-            plain = _TASK_REVIEW.sub('task check', text)
-            return bool(counter_conflict(text)
-                        or (_MILESTONE_REVIEW_SUBJECT.search(plain) and _affirmed_reversal(plain)))
+            plain = _without_format_characters(_TASK_REVIEW.sub('task check', text))
+            if counter_conflict(text):
+                return True
+            if not _MILESTONE_REVIEW_SUBJECT.search(plain):
+                return False
+            if (adverse_review_wording(plain, final_iteration)
+                    or any(not _negated(plain[:found.start()]) for found in _ANY_ADVERSE.finditer(plain))):
+                return True
+            if not any(re.fullmatch(form, plain.strip(' .'), re.I) for form in RECOGNIZED_REVIEW_SENTENCES):
+                if not lenient:
+                    return True
+                review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(plain)}"')
+            return False
         def ambiguous_pass_continuation(source, ignored):
             after_final_pass = False
             task_table = False
@@ -2332,7 +2435,10 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     task_start = re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', line, re.I) and (
                         re.search(marker_cell, line)
                         or (delimiter_row(number + 1) and re.search(marker_cell, by_number.get(number + 2, ''))))
-                    if task_start or (task_table and line.lstrip().startswith('|')):
+                    task_header_delimiter = (task_table and delimiter_row(number)
+                                             and re.match(r'^\s*\|\s*(?:Task|Item)\s*\|', by_number.get(number - 1, ''), re.I)
+                                             and not re.search(marker_cell, by_number.get(number - 1, '')))
+                    if task_start or (task_table and (re.search(marker_cell, line) or task_header_delimiter)):
                         # The task table does not end the continuation: its rows
                         # are checked for milestone review reversals and counters
                         # on both paths, and prose after it still continues the pass.
@@ -2408,8 +2514,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             return ambiguous()
         if ambiguous_prose_reference(envelope_context) or ambiguous_prose_reference(status_fields):
             review_conflicts.append('ambiguous recorded review-result reference')
-        if (ambiguous_pass_continuation(envelope_context, fenced_line_numbers(''.join(lines[:metadata_end])))
-                or ambiguous_pass_continuation(review_scan, fenced_line_numbers(documents['status']))):
+        if (ambiguous_pass_continuation(envelope_context, code_line_numbers(''.join(lines[:metadata_end])))
+                or ambiguous_pass_continuation(review_scan, code_line_numbers(documents['status']))):
             review_conflicts.append('unrecognized continuation after recorded review pass')
         # Other structured metadata can contain review-result claims too. Its
         # field name does not make those claims verification of acceptance.
@@ -2492,10 +2598,16 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     if lenient else bool(re.search(old_prefix_risk, field_value[:passing.start()], re.I)))
                 if not accepted_suffix or risky_prefix:
                     review_conflicts.append('ambiguous review-result claim in structured metadata')
-            if lenient and (counter_conflict(field_value) or (
-                    field_name in {'state', 'status', 'verification', 'outcome', 'result', 'acceptance',
-                                   'closure', 'review gate', 'disposition'}
-                    and unrecognized_review_sentence(field_value))):
+            if field_name in {'state', 'status', 'verification', 'outcome', 'result', 'acceptance',
+                              'closure', 'review gate', 'disposition'}:
+                # Claim fields are read on both paths; a literal record warns on
+                # wording a correction-backed one would never accept.
+                # The formal retirement outcome is metadata, not a review claim.
+                if field_name == 'outcome' and re.fullmatch(r'(?:completed|cancelled|superseded)\.?', field_value):
+                    continue
+                if unrecognized_review_sentence(field_value, warn=lenient, claim=True, strict=not lenient):
+                    review_conflicts.append('ambiguous review-result claim in structured metadata')
+            elif lenient and counter_conflict(field_value):
                 review_conflicts.append('ambiguous review-result claim in structured metadata')
             colon_result = re.search(r'(?:^|[.;]\s+)review\s*:\s*(.*)', field_value, re.I)
             if colon_result and not (

@@ -86,8 +86,12 @@ findings summary. The same rule covers a clause that refers back to the review.
 In the text that continues a pass, the pass is the subject from the start and
 stays the subject across neutral sentences and blank lines, so "Later it was
 annulled." refers to it however many paragraphs follow, and so does a clause with
-no subject of its own ("Subsequently annulled."). In a claim field, a clause that
-named the review stays the subject in the same way. A pronoun is a subject when
+no subject of its own ("Subsequently annulled.", "Pending.", "Conditional on
+further checks."). Such a subjectless verdict uses the whole adverse vocabulary,
+and so does a pronoun or result noun that is the subject of an adverse predicate,
+even with a parenthetical between them ("it was pending", "the review, after
+discussion, is now pending"). Weak words elsewhere in technical prose ("a
+failing case fails it", "cancellation at Git staging") are not verdicts. A pronoun is a subject when
 a verb follows it ("this was", "those were", "this has since been") or it
 determines a result ("this result"); a conjunction ("tests confirm that revoked
 tokens are rejected") is not, and neither is a reversal word used as an
@@ -117,10 +121,22 @@ moot") is reported here and nowhere else.
 Ordinary notes that do not mention the review, task-level reviews, findings
 lines and iteration history are not assertions about it. A fenced block between
 the pass and later prose does not end the context: its contents are ignored, but
-prose after it is still read as a continuation of the same result. The same validator
-applies to the claim fields of the envelope and retained status (`State`,
-`Status`, `Verification`, `Outcome`, `Result`, `Acceptance`, `Closure`,
-`Review gate`, `Disposition`); provenance and dependency fields are not claims
+prose after it is still read as a continuation of the same result, and the same
+holds for indented code. The same validator applies to the claim fields of the
+envelope and retained status (`State`, `Status`, `Verification`, `Outcome`,
+`Result`, `Acceptance`, `Closure`, `Review gate`, `Disposition`) on both paths,
+whether or not the field first says the review passed: a claim field states the
+result, so the pass is its implied subject ("**Result.** Annulled." blocks). A
+correction-backed record blocks where a literal one would warn. In a claim
+field and in a continuation, a sentence of four words or fewer, or the first
+clause of a sentence of up to eight words before a semicolon, that has no
+subject of its own is a verdict on the pass: one that opens with an adverse word
+blocks ("Pending owner sign-off.", "Rejected when reviewed.", "Voided; see
+notes."), and one that is neither a recognized form nor a plain positive result
+warns ("Withheld."). An adverse word that leads a noun phrase with its own
+predicate is not a verdict ("Failed preparation contexts retained."). The formal
+retirement outcome (`**Outcome.** completed`, `cancelled` or `superseded`) is
+metadata, not a review claim. Provenance and dependency fields are not claims
 about this review. The same distinction applies to numbered references such as
 `review 2/10`:
 
@@ -129,14 +145,18 @@ about this review. The same distinction applies to numbered references such as
   only an earlier or final iteration's own verdict word is history, and the rest
   of the row is still read, counters first; a final-iteration failure or a later
   iteration blocks. A header row (one followed by a delimiter row) raises no
-  warning for its labels, but a sentence in a header warns like prose, and every
+  warning for its labels, but a sentence in a header (a cell of four or more
+  words, or one ending in sentence punctuation) warns like prose, and every
   header is checked for counters and reversals. The status task table (a `Task`
   or `Item` row with a status marker cell, or its header followed by a
   delimiter and such a row) is task evidence, but it does not end the
   continuation: on both paths, its rows block on an explicit milestone review
-  reversal or a conflicting review counter, and prose after it still continues
-  the pass. Ordinary task notes and task-level review counters are exempt. Any
-  other table, whatever its header, is read row by row.
+  reversal (the whole adverse vocabulary) or a conflicting review counter; other
+  wording about the milestone review in them warns on a literal record and
+  blocks a correction-backed one; prose after the table still continues the
+  pass. Ordinary task notes and task-level review counters are exempt. Task
+  evidence is only the marker rows and the task table's own header and
+  delimiter: another table, even one directly below, is read row by row.
 - Every review or iteration counter in a paragraph is checked against the
   record before anything else, whether or not the clause names the review, in
   either word order ("review passed 2/10", "review 2/10 passed", "iteration 3
@@ -147,9 +167,10 @@ about this review. The same distinction applies to numbered references such as
   review ("M01.2 review 4") are not counters. A reference with no verdict
   ("see review 2/10") is not a verdict.
 - A counter is another milestone's only when that milestone's ID leads the
-  claim within a few words, with no "our", "this" or comparison between them,
-  no non-ASCII letter or invisible format character that could disguise an ID,
-  and the clause does not name this record's own ID ("M02 review 3/10 passed").
+  claim within a few words, and the whole clause, before or after the counter,
+  has no ownership word ("our", "this milestone", "here") or comparison, no
+  non-ASCII letter or invisible format character that could disguise an ID, and
+  no mention of this record's own ID ("M02 review 3/10 passed").
   "Compared with M02, our review 3/10 passed." is this record's counter.
 
 A clause is adverse when a review-result subject (review, result, verdict,
@@ -170,8 +191,8 @@ historical record, because the strict retirement contract does not read
 retained narrative: it accepts a record whose status later says the result was
 invalidated. Adjacent Markdown field continuation lines, including nested list
 or quote lines and values beginning after the label, are checked as one
-paragraph. Fenced and indented code remain examples; validation does not join
-source lines across those omitted blocks. Text after a heading that leaves the
+paragraph. Fenced and indented code remain examples: their contents are not
+read, and they neither join nor end the surrounding continuation. Text after a heading that leaves the
 review section is no longer a continuation of the pass. Literal documents,
 recovered source identifiers and offsets are not rewritten. Recognition is
 limited to supported explicit historical forms and does not establish the
