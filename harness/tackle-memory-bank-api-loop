@@ -897,8 +897,8 @@ def _table_cells(line: str) -> list[str]:
     return cells
 
 
-def unfenced_lines(text: str):
-    """Yield source lines outside fenced blocks, retaining their line numbers."""
+def _scan_fences(text: str):
+    """Yield (line number, de-indented line, indent, inside-or-marker) for each line."""
     fence_char = ""
     fence_length = 0
     for line_number, line in enumerate(text.splitlines(), 1):
@@ -914,9 +914,21 @@ def unfenced_lines(text: str):
                   and not stripped[len(token):].strip()):
                 fence_char = ""
                 fence_length = 0
+            yield line_number, stripped, indent, True
             continue
-        if not fence_char and indent <= 3:
+        yield line_number, stripped, indent, bool(fence_char)
+
+
+def unfenced_lines(text: str):
+    """Yield source lines outside fenced blocks, retaining their line numbers."""
+    for line_number, stripped, indent, fenced in _scan_fences(text):
+        if not fenced and indent <= 3:
             yield line_number, stripped
+
+
+def fenced_line_numbers(text: str) -> set[int]:
+    """Line numbers of fence markers and fenced content, which readers ignore."""
+    return {line_number for line_number, _, _, fenced in _scan_fences(text) if fenced}
 
 
 def table_rows(text: str) -> list[dict]:
@@ -1908,11 +1920,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         # retained status: unknown prose after a recognized pass is ambiguous.
         final_pass = (r'\bwhole\s+review\s+' + re.escape(iterations) + r'\s*/\s*'
                       + re.escape(recorded_limit) + r'\s+PASS\s+with\s+no\s+P1/P2\.')
-        def ambiguous_pass_continuation(source):
+        def ambiguous_pass_continuation(source, ignored):
             after_final_pass = False
             previous_number = None
             for line, trusted, relevant, envelope, _, number in source:
-                if previous_number is not None and number != previous_number + 1:
+                # A fenced block is skipped, not a break: the prose after it still
+                # continues the same recorded result. Any other gap ends the context.
+                if (previous_number is not None and number != previous_number + 1
+                        and not all(n in ignored for n in range(previous_number + 1, number))):
                     after_final_pass = False
                 previous_number = number
                 if not relevant:
@@ -1974,7 +1989,8 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
             return ambiguous()
         if ambiguous_prose_reference(envelope_context) or ambiguous_prose_reference(status_fields):
             review_conflicts.append('ambiguous recorded review-result reference')
-        if ambiguous_pass_continuation(envelope_context) or ambiguous_pass_continuation(review_scan):
+        if (ambiguous_pass_continuation(envelope_context, fenced_line_numbers(''.join(lines[:metadata_end])))
+                or ambiguous_pass_continuation(review_scan, fenced_line_numbers(documents['status']))):
             review_conflicts.append('unrecognized continuation after recorded review pass')
         # Other structured metadata can contain review-result claims too. Its
         # field name does not make those claims verification of acceptance.

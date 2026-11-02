@@ -69,7 +69,9 @@ conflict with other recorded outcomes. Fenced or headed examples, templates,
 prospective instructions and specification statements cannot supply a result.
 Unrecognized prose following an explicit final review pass in the envelope,
 status preamble or retained review section blocks acceptance, even when the
-prose is harmless.
+prose is harmless. A fenced block between the pass and that prose does not
+end the context: the block's contents are ignored, but prose after it is still
+read as a continuation of the same result.
 Unrecognized review-result claims in other structured metadata also block
 acceptance; that conservative rule can flag benign historical summaries.
 Adjacent Markdown field continuation lines, including nested list or quote

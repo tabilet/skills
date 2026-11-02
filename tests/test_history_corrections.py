@@ -1098,6 +1098,28 @@ class HistoryCorrectionsTests(unittest.TestCase):
         record = core.historical_record(text, 'status-M01.md', entry(text, [operation]))
         self.assertIn('recorded review limit approval is ambiguous or unsupported', record['blockers'])
 
+    def test_a_fenced_block_does_not_end_the_review_pass_context(self):
+        fences = {'backtick': '```text\nlog excerpt\n```\n', 'tilde': '~~~text\nlog excerpt\n~~~\n',
+                  'two blocks': '```text\nlog\n```\n\n~~~text\nmore\n~~~\n'}
+        for name, fence in fences.items():
+            for reversal in ('The result was later invalidated.', 'The review was later withdrawn.'):
+                with self.subTest(fence=name, reversal=reversal):
+                    status = ('| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\n'
+                              + fence + '\n' + reversal + '\n')
+                    text = h.retirement_text(status).replace('**Review.** passed\n', '')
+                    quote = 'Review: passed'
+                    line = next(n for n, actual in enumerate(text.splitlines(), 1) if actual == quote)
+                    correction = entry(text, [dict(kind='supply-metadata', field='Review', value='passed',
+                        evidence=[dict(start_line=line, end_line=line, quote=quote)])])
+                    with self.assertRaisesRegex(ValueError, 'conflicting recorded review result'):
+                        core.historical_record(text, 'status-M01.md', correction)
+                    # Without a correction the retained reversal is still a blocker.
+                    uncorrected = core.historical_record(h.retirement_text(status), 'status-M01.md')
+                    self.assertIn('unrecognized continuation after recorded review pass', uncorrected['blockers'])
+        # A fence with nothing after it is not a continuation.
+        status = '| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\n```text\nlog\n```\n'
+        self.assertEqual(core.historical_record(h.retirement_text(status), 'status-M01.md')['blockers'], [])
+
 
 if __name__ == '__main__':
     unittest.main()
