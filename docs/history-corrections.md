@@ -132,17 +132,24 @@ field and in a continuation, a clause with no subject of its own that opens with
 an adverse word is a verdict on the pass and blocks, whatever its length
 ("Pending owner sign-off.", "Rejected until the owner finishes all mandatory
 checks.", "No longer valid because the evidence was wrong.", "Voided; see
-notes."). Beyond a short sentence this applies to the predicate form that opens
-a sentence's first clause; a noun or verb form leads ordinary prose
-("Cancellation at Git staging ...", "Rejection leaves the ledger unchanged."),
-and so does an adverse word leading a noun phrase with its own predicate
-("Failed preparation contexts retained.", "Failed delivery permits a retry.").
+notes."). Beyond a short sentence this applies to a vocabulary word that opens
+a sentence's first clause, and to a status word (pending, incomplete,
+conditional, provisional, contingent, no longer, subject to) that opens any
+clause ("Completed implementation; pending final checks."). A noun or verb form
+leads ordinary prose ("Cancellation at Git staging ...", "Rejection leaves the
+ledger unchanged."), and so does an adverse word leading a noun phrase with a
+predicate of its own: a be-form, auxiliary or modal, a participle that ends the
+clause or takes a preposition or adverb, or a verb that takes an object ("Failed
+preparation contexts retained.", "Failed delivery permits a retry."). A
+participle before a noun ("Pending all required checks") or a plural noun
+("Pending final checks now.") is not a predicate.
 A short subjectless sentence (four words or fewer, or a first clause before a
 semicolon in a sentence of up to eight words) that is neither a recognized form
 nor a plain positive result warns ("Withheld."). `Result`, `Review gate` and
 `Outcome` exist to state the verdict: any value there that is neither
 recognized nor a plain positive result warns on a literal record and blocks a
-correction-backed one, whatever its length. A subjectless verdict outside the
+correction-backed one, whatever its length, even when the value names another
+milestone ("M02 declined the requested sign-off."). A subjectless verdict outside the
 vocabulary inside longer narrative elsewhere ("Withheld until the owner returns
 from leave next week.") names no review and is not reported. The formal
 retirement outcome (`**Outcome.** completed`, `cancelled` or `superseded`) is
@@ -195,9 +202,14 @@ a pronoun or "above"-style reference, and directly after a pass a leading
 pronoun stands for that pass ("It is conditional on ..."). A failed test or
 build, and a failure at an earlier iteration, is not a failed review; a
 failure at the final or a later iteration is. This is a vocabulary, not a
-parser: a reversal in other words can still pass an uncorrected record, with at
-most a warning, and the adverse vocabulary blocks some harmless sentences
-("Review passed and the deployment is pending."). The check applies to every
+parser, and its coverage of English wording is best effort: a reversal in other
+words or an unusual sentence shape can still pass an uncorrected record, with
+at most a warning, and the adverse vocabulary blocks some harmless sentences
+("Review passed and the deployment is pending."). The guarantees that do not
+depend on wording are structural: conflicting counters block, context
+boundaries do not hide text, a correction never supports acceptance past
+unrecognized prose, the `Result`, `Review gate` and `Outcome` fields are never
+silent, and warnings never change acceptance. The check applies to every
 historical record, because the strict retirement contract does not read
 retained narrative: it accepts a record whose status later says the result was
 invalidated. Adjacent Markdown field continuation lines, including nested list

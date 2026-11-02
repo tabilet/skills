@@ -2232,6 +2232,14 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                     bare = _BENIGN_FAILURE.sub('', bare).strip(' ,;.')
                     bare = _TASK_REVIEW.sub('task check', bare)
                     if other_milestone_clause(bare):
+                        # Another milestone's clause is not this record's
+                        # claim, but a verdict field exists to state this
+                        # record's result: there it is never silent.
+                        if claim == 'verdict' and not re.fullmatch(_POSITIVE_CLAIM, bare, re.I):
+                            if strict:
+                                return True
+                            if warn:
+                                review_warnings.append(f'unrecognized review wording: "{_printable_excerpt(bare)}"')
                         mentioned = context
                         continue
                     # While the pass is the subject, a reversal used as a
@@ -2255,20 +2263,33 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                         # another subject ("Failed preparation contexts retained.").
                         lead = re.match(_BARE_VERDICT.pattern + r'(' + _ANY_ADVERSE.pattern + r')', bare, re.I)
                         tail = bare[lead.end():] if lead else ''
+                        # The predicate needs positive evidence: a be-form,
+                        # auxiliary or modal; a participle that ends the clause or
+                        # takes a preposition or adverb, not a noun ("required
+                        # checks"); or a present-tense verb taking an object
+                        # ("permits a retry"), not a plural noun ("checks now").
                         function = (r'(?:and|or|but|then|when|once|until|after|before|since|as|by|at|on|in|of|for|to|'
                                     r'with|without|because|while|so|if|unless|pending|the|a|an|this|that|its|it|'
+                                    r'all|every|each|some|any|no|most|many|more|other|'
                                     r'is|are|was|were|be|been|being|has|have|had)\b')
+                        follows = (r'(?=\s*$|\s*[,;:(]|\s+(?:to|by|from|in|on|at|for|with|as|after|before|during|under|'
+                                   r'into|and|or|but|again|already|now|later|cleanly|successfully|unchanged|intact)\b)')
                         own_subject = re.match(r'(?:\s+(?!' + function + r')[\w/`-]+){1,3}?\s+'
-                                               r'(?:\w+(?:ed|en)|is|are|was|were|has|have|had|can|cannot|could|will|'
-                                               r'would|must|may|\w+s(?=\s+(?!(?:by|from|of|for|to|in|on|at|with|'
-                                               r'without|until|after|before|since|because|pending)\b)\w))\b', tail, re.I)
+                                               r'(?:(?:is|are|was|were|has|have|had|can|cannot|could|will|would|must|may)\b'
+                                               r'|\w+(?:ed|en)' + follows +
+                                               r'|\w+s(?=\s+(?:a|an|the|no|its|their|every|all|each|nothing|only|one|\d)\b))',
+                                               tail, re.I)
                         # Beyond a short sentence, only a predicate form that
                         # opens the sentence's first clause is a verdict
                         # ("Pending final checks by the designated owner.");
                         # a noun or verb form leads ordinary prose
                         # ("Cancellation at Git staging ...", "Reject writes nothing").
-                        if lead and not short and (position > 0 or not re.fullmatch(
-                                r'\w+(?:ed|en|wn|ing|al|nt)|void|null|moot|\w+(?:\s+\w+)+', lead[1], re.I)):
+                        noun_or_verb = (r'\w+(?:ions?|ures?)|withdrawals?|(?:reject|revoke|fail|cancel|withdraw|'
+                                        r'invalidate|rescind|retract|overturn|reopen|annul|nullify|strike|discard|'
+                                        r'disregard|block|dispute|supersede|void)s?')
+                        status_word = r'pending|incomplete|conditional|provisional|contingent|no\s+longer|subject\s+to'
+                        if lead and not short and (re.fullmatch(noun_or_verb, lead[1], re.I) or (
+                                position > 0 and not re.fullmatch(status_word, lead[1], re.I))):
                             lead = None
                         if lead and not _negated(bare[:lead.start(1)]) and not own_subject:
                             return True

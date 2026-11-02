@@ -1389,7 +1389,10 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     'No longer valid because the evidence was wrong.',
                     'Withdrawn until the owner finishes all mandatory checks.',
                     'M02 confirms review 3/10 passed for this project.',
-                    'M02 confirms review 3/10 passed for this delivery.')
+                    'M02 confirms review 3/10 passed for this delivery.',
+                    'Completed implementation; pending final checks by the designated owner.',
+                    'Incomplete until the owner finishes all mandatory checks.',
+                    'Pending final checks now.', 'Pending all required checks by the designated owner.')
         flagged = ('Later the review was deemed moot.', 'Later it was treated as never having happened.',
                    'Withheld.', 'Not granted.', 'Withheld; see notes.')
         # A correction-backed pass must also block these in a claim field with no positive sentence first.
@@ -1436,7 +1439,8 @@ class HistoryCorrectionsTests(unittest.TestCase):
         task, review = '| Task | `[+]` | verified |\n', '\n## Review\n\nReview: passed\n'
         for field in ('Result', 'Review gate', 'Outcome'):
             for value in ('Undone by the owner after the release went out.',
-                          'Withheld until the owner returns from leave next week.'):
+                          'Withheld until the owner returns from leave next week.',
+                          'M02 declined the requested sign-off.'):
                 with self.subTest(field=field, value=value):
                     record = core.historical_record(
                         h.retirement_text(f'**{field}.** {value}\n\n' + task + review), 'status-M01.md')
