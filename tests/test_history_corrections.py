@@ -1300,6 +1300,50 @@ class HistoryCorrectionsTests(unittest.TestCase):
             'status-M01.md')
         self.assertEqual((clean['blockers'], clean['warnings']), ([], []))
 
+    def literal_after_pass(self, payload):
+        base = '| Task | `[+]` | verified |\n\n## Review\n\nReview: passed\n'
+        return core.historical_record(h.retirement_text(base + payload + '\n'), 'status-M01.md')
+
+    def test_this_records_id_is_found_inside_punctuation(self):
+        for payload in ("M02 confirmed M01's review 3/10 passed.", 'Project:M02 confirmed (M01) review 3/10 passed.',
+                        'M02 confirmed review 3/10 passed for M01.'):
+            with self.subTest(payload=payload):
+                self.assertTrue(self.literal_after_pass(payload)['blockers'])
+        self.assertEqual(self.literal_after_pass('M100 review 3/10 passed.')['blockers'], [])
+
+    def test_only_a_task_table_ends_the_review_context(self):
+        for payload in ('| Item | Notes |\n|---|---|\n| Closure | The review was voided |',
+                        '| Task | Notes |\n|---|---|\n| Closure | The review was voided |',
+                        '| Item | Notes |\n| Closure | The review was voided |',
+                        '| The review was voided |\n|---|'):
+            with self.subTest(payload=payload):
+                self.assertTrue(self.literal_after_pass(payload)['blockers'])
+        record = self.literal_after_pass('| Iteration | Result |\n|---|---|\n| 1 | FAIL |\n| 2 | PASS |')
+        self.assertEqual((record['blockers'], record['warnings']), ([], []))
+
+    def test_the_recorded_pass_stays_the_subject_of_its_continuation(self):
+        for payload in ('Later it was annulled.', 'The review passed.\n\nLater it was voided.',
+                        'Review passed. No errors remained. Later it was annulled.',
+                        'No errors remained.\n\nAfterwards this result was set aside.'):
+            with self.subTest(payload=payload):
+                self.assertTrue(self.literal_after_pass(payload)['blockers'])
+        record = self.literal_after_pass('No errors remained.\n\nLater it was discussed with the owner.')
+        self.assertEqual(record['blockers'], [])
+        self.assertTrue(record['warnings'])
+
+    def test_every_reversal_word_is_judged_in_its_own_negation_scope(self):
+        for payload in ('The review was not voided but annulled.', 'The review was never voided and was annulled.',
+                        'The review was not reopened; it was revoked.'):
+            with self.subTest(payload=payload):
+                self.assertTrue(self.literal_after_pass(payload)['blockers'])
+        self.assertEqual(self.literal_after_pass('The review was not voided or annulled.')['blockers'], [])
+
+    def test_warning_excerpts_escape_control_characters(self):
+        warnings = self.literal_after_pass('The review was deemed moot.\x1b[2J\u202e')['warnings']
+        self.assertEqual(len(warnings), 1)
+        self.assertNotRegex(warnings[0], '[\x00-\x1f\x7f\u202e]')
+        self.assertIn('\\x1b[2J', warnings[0])
+
     def test_review_warnings_reach_the_snapshot_and_index_without_blocking(self):
         history = self.root / 'tabilet/docs/history'
         history.mkdir(parents=True)

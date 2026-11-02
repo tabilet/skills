@@ -1081,12 +1081,15 @@ class HarnessIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_repo(pathlib.Path(tmp) / "repo", marker("[+]"))
             status = repo / "tabilet/memory-bank" / "status-M01.md"
-            status.write_text(status.read_text() + "\n## Review\n\nReview: passed\nThe review took two hours.\n")
+            status.write_text(status.read_text()
+                              + "\n## Review\n\nReview: passed\nThe review took two hours.\x1b[2J\n")
             retire_fixture(repo)
-            proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT, env=self.harness_env(tmp))
+            proc = subprocess.run([sys.executable, str(HARNESS), str(repo)], cwd=ROOT,
+                                  env=self.harness_env(tmp), capture_output=True, check=False)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn("need human review (not blocking)", proc.stderr)
-        self.assertIn("The review took two hours", proc.stderr)
+        self.assertIn(b"need human review (not blocking)", proc.stderr)
+        self.assertIn(b"The review took two hours.\\x1b[2J", proc.stderr)
+        self.assertNotIn(b"\x1b", proc.stderr)
 
     def test_empty_or_broken_history_does_not_claim_completion(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

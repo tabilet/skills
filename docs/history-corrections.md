@@ -82,17 +82,21 @@ also be one complete recognized form: a restatement of the pass with matching
 counters, a reference to where the result is recorded, or a findings summary
 (listed in `RECOGNIZED_REVIEW_SENTENCES` in the runner). The forms have no
 free-text tails, so "Review found no defects but was annulled." is not a
-findings summary. The same rule covers a clause led by a pronoun, or one with a
-pronoun after a clause that named the review ("Review passed. Later it was
-annulled.").
+findings summary. The same rule covers a clause that refers back to the review.
+In the text that continues a pass, the pass is the subject from the start and
+stays the subject across neutral sentences and blank lines, so "Later it was
+annulled." refers to it however many paragraphs follow; in a claim field, a
+clause that named the review stays the subject in the same way.
 
 A clause about the review that is not a recognized form blocks when it names the
 review, or refers back to it, together with a reversal word such as voided,
 annulled, revoked, withdrawn, reopened, rescinded or set aside, however far that
-word is from the subject. Otherwise it is a **warning**, not a blocker: real
+word is from the subject. Each reversal word is judged in its own negation
+scope, so "not voided but annulled" blocks. Otherwise it is a **warning**, not a blocker: real
 history is phrased too variously for exact forms to be a gate, and the strict
 retirement contract never reads this prose. Warnings name the record and the
-clause. The API runner prints them before its first run, the first ten in full
+clause, with control and format characters escaped (`\x1b`) and the clause cut
+to 160 characters. The API runner prints them before its first run, the first ten in full
 with a count of the rest, and continues; the SQLite index records them as
 `warning:` diagnostics without marking the review unverified; `tabilet status`
 reports them as `history_warnings`. A person should read each one, because a
@@ -113,7 +117,11 @@ about this review. The same distinction applies to numbered references such as
   reversal from its subject. A table row after the pass is read cell by cell:
   only an earlier or final iteration's own verdict word is history, and the rest
   of the row is still read, counters first; a final-iteration failure or a later
-  iteration blocks. A header row of plain labels is structure, not a verdict.
+  iteration blocks. A header row (one followed by a delimiter row) raises no
+  warning for its labels but is still checked for counters and reversals. Only
+  the status task table ends the continuation: a `Task` or `Item` row with a
+  status marker cell, or its header followed by a delimiter and such a row. Any
+  other table, whatever its header, is read row by row.
 - Every review or iteration counter in a paragraph is checked against the
   record before anything else, whether or not the clause names the review, in
   either word order ("review passed 2/10", "review 2/10 passed", "iteration 3
