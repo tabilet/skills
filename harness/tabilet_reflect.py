@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import http.client
 import json
 import os
 import pathlib
@@ -731,7 +732,7 @@ def invoke_improver_llm(
             return ImproverResult(generate_heuristic_proposal(telemetry), "heuristic", {"input_total": None, "output": None})
     except urllib.error.HTTPError as exc:
         failures.append(f"REST API: HTTP {exc.code}")
-    except (urllib.error.URLError, OSError, ValueError, KeyError, IndexError, TypeError) as exc:
+    except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError, KeyError, IndexError, TypeError) as exc:
         timeouts += _is_timeout(exc)
         failures.append(f"REST API: {type(exc).__name__}")
     detail = "; ".join(failures)

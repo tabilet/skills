@@ -27,11 +27,13 @@ import contextlib
 import datetime
 import functools
 import hashlib
+import http.client
 import json
 import math
 import unicodedata
 import os
 import pathlib
+import random
 import re
 import signal
 import shutil
@@ -282,7 +284,8 @@ PROVIDER_SECRET_ENV = {
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
 }
-TRANSIENT_HTTP_CODES = {408, 409, 429, 500, 502, 503, 504}
+# 529 is Anthropic's temporary-overload status.
+TRANSIENT_HTTP_CODES = {408, 409, 429, 500, 502, 503, 504, 529}
 MAX_RESPONSE_BYTES = 10_000_000
 DANGEROUS_RE = re.compile(
     r"(?ix)"
@@ -3236,12 +3239,17 @@ def extract_json(text: str) -> dict:
     return value
 
 
+def _backoff(attempt: int) -> float:
+    """2, 4, 8 ... seconds with up to one second of jitter, capped at 30."""
+    return min(30.0, 2.0 ** (attempt + 1) + random.uniform(0.0, 1.0))
+
+
 def _retry_delay(exc: urllib.error.HTTPError, attempt: int) -> float:
     retry_after = exc.headers.get("Retry-After", "") if exc.headers else ""
     try:
         return min(30.0, max(0.0, float(retry_after)))
     except ValueError:
-        return min(30.0, float(2**attempt))
+        return _backoff(attempt)
 
 
 def _post_json(
@@ -3276,7 +3284,10 @@ def _post_json(
                 if exc.code in TRANSIENT_HTTP_CODES and attempt < max_retries
                 else None
             )
-            detail = exc.read(MAX_RESPONSE_BYTES).decode("utf-8", "replace")
+            try:
+                detail = exc.read(MAX_RESPONSE_BYTES).decode("utf-8", "replace")
+            except (OSError, http.client.HTTPException):
+                detail = "(the error body could not be read)"
             exc.close()
             if retry_delay is not None:
                 print(
@@ -3287,9 +3298,11 @@ def _post_json(
                 time.sleep(retry_delay)
                 continue
             fail(f"{label} HTTP {exc.code}: {detail}", 20)
-        except (urllib.error.URLError, TimeoutError) as exc:
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as exc:
+            # urllib wraps errors only while sending. A reset, a TLS error, a truncated body or a
+            # malformed status line while waiting for or reading the response arrives unwrapped.
             if attempt < max_retries:
-                delay = min(30.0, float(2**attempt))
+                delay = _backoff(attempt)
                 print(
                     f"{label} request failed; retrying in {delay:g}s "
                     f"({attempt + 1}/{max_retries}): {exc}",
@@ -4171,7 +4184,7 @@ def parse_args(argv=None) -> argparse.Namespace:
               TOOL_TIMEOUT                       Shell command timeout seconds. Default: 300.
               MAX_TOOL_OUTPUT                    Max shell output returned to model. Default: 24000.
               LLM_MAX_TOKENS                     Max response tokens. Default: 16000.
-              LLM_API_TIMEOUT                    API request timeout seconds. Default: 120.
+              LLM_API_TIMEOUT                    API request timeout seconds. Default: 600.
               LLM_MAX_RETRIES                    Retries after transient failures. Default: 2.
               MAX_HISTORY_CHARS                  Conversation character limit. Default: 500000.
               LLM_TEMPERATURE                    Sampling temperature. Unset by default:
@@ -4199,7 +4212,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--tool-timeout", type=positive_int, default=os.environ.get("TOOL_TIMEOUT", "300"))
     parser.add_argument("--max-tool-output", type=positive_int, default=os.environ.get("MAX_TOOL_OUTPUT", "24000"))
     parser.add_argument("--max-tokens", type=positive_int, default=os.environ.get("LLM_MAX_TOKENS", "16000"))
-    parser.add_argument("--api-timeout", type=positive_int, default=os.environ.get("LLM_API_TIMEOUT", "120"))
+    parser.add_argument("--api-timeout", type=positive_int, default=os.environ.get("LLM_API_TIMEOUT", "600"))
     parser.add_argument("--max-retries", type=nonnegative_int, default=os.environ.get("LLM_MAX_RETRIES", "2"))
     parser.add_argument("--max-history-chars", type=positive_int, default=os.environ.get("MAX_HISTORY_CHARS", "500000"))
     env_temp = os.environ.get("LLM_TEMPERATURE")
