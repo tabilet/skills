@@ -188,5 +188,110 @@ class ScratchRepoTests(unittest.TestCase):
         self.assertEqual(list(previous), ["alpha-skill"])
 
 
+PROFILE = "# Profiles\n\nWrite a verification section.\n\nKeep limits.\n"
+
+
+def skill_report(trials, held_out=False):
+    return {"schema": "tabilet.skill-eval-report/v1", "held_out": held_out, "trials": trials}
+
+
+def skill_trial(task="dev-task", role="candidate", passed=False, failed=("forbidden_content",)):
+    return {"task": task, "role": role, "passed": passed, "failed_checks": list(failed),
+            "evidence": {"tabilet/memory-bank/tech-stack.md": "- **Execution cadence**: [left bracketed]"}}
+
+
+class TextProposalTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.repo = pathlib.Path(self.tmp.name) / "repo"
+        self.target = "skills/a/references/profiles.md"
+        self.twin = "skills/b/references/profiles.md"
+        for rel in (self.target, self.twin):
+            (self.repo / rel).parent.mkdir(parents=True)
+            (self.repo / rel).write_text(PROFILE)
+        for name, held in (("dev-task", False), ("held-task", True)):
+            d = self.repo / "evals/skill-tasks" / name
+            d.mkdir(parents=True)
+            (d / "task.json").write_text(json.dumps({"description": f"{name} description", "request": "Plan it.", "held_out": held}))
+        subprocess.run(["git", "init", "-q"], cwd=self.repo, check=True)
+        for args in (("config", "user.name", "t"), ("config", "user.email", "t@t"), ("add", "-A"), ("commit", "-qm", "base")):
+            subprocess.run(["git", *args], cwd=self.repo, check=True, capture_output=True)
+        self.report = pathlib.Path(self.tmp.name) / "skill-eval-report.json"
+        self.report.write_text(json.dumps(skill_report([skill_trial(), skill_trial(passed=True, failed=())])))
+        self.check = types.SimpleNamespace(OPTIMIZER_TWINS=((self.target, (self.twin,)),))
+
+    def run_main(self, *extra, content=None, gate=0, sync=0, target=None):
+        edits = {"rationale": "say it", "edits": [{"old": "Keep limits.", "new": "Keep limits. Remove every bracket."}]}
+        runner = FakeRunner(content if content is not None else "Sure: " + json.dumps(edits))
+        arguments = ["--skill-report", str(self.report), "--target", target or self.target, "--repo", str(self.repo), *extra]
+        out, err = io.StringIO(), io.StringIO()
+
+        def fake_sync(repo):
+            (repo / self.twin).write_bytes((repo / self.target).read_bytes())
+            return sync
+
+        with mock.patch.dict(os.environ, {"PATH": os.environ.get("PATH", ""), "LLM_MODEL": "m"}, clear=True), \
+                mock.patch.object(prop.catalog_probe, "load_runner", return_value=runner), \
+                mock.patch.object(prop, "load_check", return_value=self.check), \
+                mock.patch.object(prop, "sync_twins", side_effect=fake_sync), \
+                mock.patch.object(prop, "run_optimizer_gate", return_value=gate) as gate_mock, \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = prop.main(arguments)
+        return code, runner, gate_mock, out.getvalue(), err.getvalue()
+
+    def read(self, rel):
+        return (self.repo / rel).read_text()
+
+    def test_a_held_out_task_or_report_never_reaches_the_model(self):
+        for data in (skill_report([skill_trial()], held_out=True), skill_report([skill_trial(task="held-task")]),
+                     {"schema": "other", "held_out": False, "trials": []}):
+            self.report.write_text(json.dumps(data))
+            code, runner, *_ = self.run_main()
+            self.assertEqual((code, runner.calls), (2, []))
+
+    def test_only_a_canonical_editable_file_is_a_target(self):
+        code, runner, *_ = self.run_main(target=self.twin)
+        self.assertEqual((code, runner.calls), (2, []))
+
+    def test_the_prompt_shows_failures_and_evidence_but_not_passing_trials(self):
+        code, runner, _, out, _ = self.run_main("--dry-run")
+        self.assertEqual((code, runner.calls), (0, []))
+        self.assertIn("dev-task description", out)
+        self.assertIn("forbidden_content (", out)
+        self.assertIn("[left bracketed]", out)
+        self.assertEqual(out.count("### Failure"), 1)
+
+    def test_preview_writes_nothing(self):
+        code, runner, gate, out, _ = self.run_main()
+        self.assertEqual((code, len(runner.calls)), (0, 1))
+        self.assertIn("Remove every bracket.", out)
+        self.assertEqual(self.read(self.target), PROFILE)
+        gate.assert_not_called()
+
+    def test_apply_edits_the_target_syncs_twins_and_runs_the_gate(self):
+        code, _, gate, *_ = self.run_main("--apply")
+        self.assertEqual(code, 0)
+        gate.assert_called_once()
+        self.assertIn("Remove every bracket.", self.read(self.target))
+        self.assertEqual(self.read(self.twin), self.read(self.target))
+
+    def test_a_failed_gate_restores_target_and_twins(self):
+        code, *_ = self.run_main("--apply", gate=1)
+        self.assertEqual(code, 1)
+        self.assertEqual((self.read(self.target), self.read(self.twin)), (PROFILE, PROFILE))
+
+    def test_an_edit_whose_passage_is_not_unique_is_refused(self):
+        bad = json.dumps({"edits": [{"old": "e", "new": "E"}]})
+        code, *_ = self.run_main("--apply", content=bad)
+        self.assertEqual(code, 2)
+        self.assertEqual(self.read(self.target), PROFILE)
+
+    def test_no_failing_trials_means_no_call(self):
+        self.report.write_text(json.dumps(skill_report([skill_trial(passed=True, failed=())])))
+        code, runner, *_ = self.run_main("--apply")
+        self.assertEqual((code, runner.calls), (0, []))
+
+
 if __name__ == "__main__":
     unittest.main()
