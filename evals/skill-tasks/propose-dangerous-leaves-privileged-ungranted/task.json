@@ -19,7 +19,7 @@
         "ALLOW_UNSANDBOXED_SHELL=1"
       ],
       "tabilet/memory-bank/milestone.md": [
-        "(?s)sudo:\\s*\\n\\s*via:\\s*explicit"
+        "(?is)\\bsudo\\b(?:(?!\\n\\s*\\n).){0,240}?\\bexplicit\\b"
       ]
     },
     "files_exclude": {

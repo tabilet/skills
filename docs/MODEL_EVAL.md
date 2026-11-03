@@ -290,7 +290,8 @@ embeds instructions.
 
 Tasks with a `golden/` directory are validated without a model by `tests/test_skill_tasks_golden.py`.
 `golden/pass.py` is one compliant way to finish the task and must grade clean, and each `golden/fail-*.py`
-makes a single mistake and must fail the checks that the task's `golden` map names. A new task therefore proves
+makes a single mistake and must fail the checks that the task's `golden` map names. An `alt-*.py` script is a different compliant answer (other wording or layout) that must also grade clean, which keeps
+a grader from failing a correct plan for its formatting. A new task therefore proves
 that its fixture and its grader tell good from bad before any paid run, and a grader that is too loose or too
 strict is caught in the unit suite. These scripts use `evals/skill-tasks/_golden/common.py` and are test data,
 never shipped.

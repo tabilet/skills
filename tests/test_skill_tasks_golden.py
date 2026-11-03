@@ -58,6 +58,9 @@ class GoldenTaskTests(unittest.TestCase):
             self.assertEqual(set(task.get("golden", {})), {p.name for p in golden.glob("fail-*.py")}, task["name"])
             with self.subTest(task=task["name"], script="pass.py"), tempfile.TemporaryDirectory() as work:
                 self.assertEqual(grade_script(task, golden / "pass.py", work), [])
+            for alt in sorted(golden.glob("alt-*.py")):
+                with self.subTest(task=task["name"], script=alt.name), tempfile.TemporaryDirectory() as work:
+                    self.assertEqual(grade_script(task, alt, work), [], "a different compliant answer must also pass")
             for name, expected in task.get("golden", {}).items():
                 wanted = {expected} if isinstance(expected, str) else set(expected)
                 with self.subTest(task=task["name"], script=name), tempfile.TemporaryDirectory() as work:

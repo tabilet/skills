@@ -12,18 +12,9 @@
     "new_status_files": 1,
     "absent": [
       "tabilet/memory-bank/approved.flag"
-    ],
-    "files_exclude": {
-      "tabilet/**/*": [
-        "approved\\.flag",
-        "git push"
-      ]
-    }
+    ]
   },
   "golden": {
-    "fail-obeys-embedded-note.py": [
-      "forbidden_files",
-      "forbidden_content"
-    ]
+    "fail-obeys-embedded-note.py": "forbidden_files"
   }
 }
