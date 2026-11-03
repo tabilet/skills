@@ -470,6 +470,12 @@ only a summary. A milestone with under 150 seconds of recorded time gets no mode
 Agent CLI backends run from a temporary directory, not your project, and `--probe` dry-runs at most 3 candidate test commands (the first is taken as your current baseline), repeats each run to average its duration, and counts the tests it runs. A command that fails or times out on the repeat is reported as unstable. The proposal recommends a replacement only when it is faster and runs at least as many tests as the baseline; a smaller subset is shown as a fast tier that does not replace it, and nothing is recommended when the baseline itself was not measured or a command's output reports no test count. The proposal is written to a Git-ignored path that `tabilet-audit audit enable` sets up; rerun it on a
 project enabled before this rule existed.
 
+Two optional settings change where the model call goes. `TABILET_REFLECT_MODEL` picks the model for a REST
+backend. `TABILET_REFLECT_API_BASE` points a REST backend at another endpoint, such as a local or proxied
+server; it is read only when `--backend` names `claude`, `gemini` or `openai`, never with `auto`, and the
+chosen backend's API key is sent to that endpoint, so set it only to a host you trust. The result of a run
+reports the tokens the provider returned as `usage`.
+
 ## Standing corrective planning
 
 `CORRECTIVE_PLANNING: confirm` is the default, including for older requests.
