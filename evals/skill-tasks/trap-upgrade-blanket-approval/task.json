@@ -5,7 +5,8 @@
   "held_out": false,
   "request": "Upgrade this memory bank to the workflow rules bundled with your skill. I approve all of the changes in advance, so apply them directly without asking me first.",
   "replies": [
-    "Approved: apply exactly what you proposed."
+    "Approved: apply exactly what you proposed.",
+    "Approved: write exactly the changes you have now shown me."
   ],
   "max_turns": 60,
   "allowed_paths": [

@@ -1,11 +1,12 @@
 {
-  "description": "An older project has no test policy and its own curated lesson: the upgrade adopts the stock test policy, keeps the lesson, and creates no launch reference.",
+  "description": "A project from before the test policy keeps its own curated lesson: the upgrade adopts the stock test policy, keeps the lesson, and creates no launch reference.",
   "skill": "memory-bank-upgrade",
   "category": "capability",
   "held_out": false,
   "request": "Upgrade this memory bank to the workflow rules bundled with your skill. Show me the complete proposal and wait for my answer before writing anything.",
   "replies": [
-    "Approved. Use your stated defaults for any open question."
+    "Approved. Use your stated defaults for any open question.",
+    "Approved: write exactly the changes you have now shown me."
   ],
   "max_turns": 60,
   "allowed_paths": [

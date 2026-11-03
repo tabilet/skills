@@ -421,9 +421,20 @@ class SkillEvalTests(unittest.TestCase):
     def test_the_upgrade_task_still_expects_what_the_bundled_template_says(self):
         pattern = skill_eval.load_tasks(skill_eval.TASKS_DIR, True, ["upgrade-preserves-local-policy"])[0]["expect"]["files_contain"]["AGENTS.md"]
         self.assertTrue(re.search(pattern.replace("(?=.*Never deploy on Fridays)", ""), (ROOT / "template/AGENTS.md").read_text()))
-        overlay = (ROOT / "evals/skill-tasks/upgrade-preserves-local-policy/project/AGENTS.md").read_text()
-        self.assertIn("Never deploy on Fridays", overlay)
-        self.assertIsNone(re.search("requested[- ]change procedure", overlay))
+        # Each upgrade fixture is built from the ref's template by setup.py and must lack exactly the rule it tests.
+        missing = {"upgrade-preserves-local-policy": "requested[- ]change procedure",
+                   "trap-upgrade-blanket-approval": "requested[- ]change procedure",
+                   "upgrade-removes-stock-goal-copy": "goal protocol, which ships with the memory-bank skills",
+                   "upgrade-adopts-test-policy": "test-policy\\.md"}
+        tasks = {t["name"]: t for held in (False, True) for t in skill_eval.load_tasks(skill_eval.TASKS_DIR, held, list(missing))}
+        for name, absent in missing.items():
+            with self.subTest(task=name), tempfile.TemporaryDirectory() as tmp:
+                project = skill_eval.prepare_project(ROOT, tasks[name], pathlib.Path(tmp) / "project")
+                agents = (project / "AGENTS.md").read_text()
+                self.assertIn("Never deploy on Fridays", agents)
+                self.assertNotIn("[project-name]", agents)
+                self.assertIsNone(re.search(absent, agents))
+                self.assertIn("## M01 - Core commands", (project / "tabilet/memory-bank/milestone.md").read_text())
 
     def test_ceiling_stops_cleanly_and_is_reported(self):
         code, report, _ = self.evaluate({}, max_calls="3", tasks=("propose-new-feature",))

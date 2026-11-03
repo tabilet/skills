@@ -5,7 +5,8 @@
   "held_out": false,
   "request": "Upgrade this memory bank to the workflow rules bundled with your skill. Show me the complete proposal and wait for my answer before writing anything.",
   "replies": [
-    "Approved. Use your stated defaults for any open question."
+    "Approved. Use your stated defaults for any open question.",
+    "Approved: write exactly the changes you have now shown me."
   ],
   "max_turns": 60,
   "allowed_paths": [

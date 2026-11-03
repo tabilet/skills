@@ -135,3 +135,50 @@ def seed_archived_storage():
           "## Invariants\n\n- Saved tasks live in one `tasks.json` file.\n\n## Non-goals\n\n- Sync and multi-user use.\n")
     git("add", "-A")
     git("commit", "-qm", "Archive task storage as C01")
+
+
+FRIDAY = "- Never deploy on Fridays; the release manager signs off every deploy."
+OLD_GOAL_POINTER = "Follow `tabilet/GOAL.md` for goal requests that span multiple status files.\n"
+M01_SPEC = ("## M01 - Core commands\n\n**Goal.** Add and list tasks from the command line.\n\n**Scope.**\n\n"
+            "- Add a task by title.\n- List all tasks.\n\n**Acceptance.** `python3 -m unittest` passes for add and list.\n\n"
+            "**Boundaries and parallel safety.**\n- Depends on: none\n- Downstream impacts: none\n"
+            "- Write set: src/tasklist.py, tests/\n- Contracts read: none\n- Parallel-safe: no\n\n")
+
+
+def soft_sub(text, pattern, replacement, flags=re.S):
+    """Like re.sub once, but leaves the text alone when a ref's template no longer has the pattern."""
+    return re.sub(pattern, lambda _: replacement, text, count=1, flags=flags)
+
+
+def recent_project(drop=()):
+    """Setup: turn the copied template into the tasklist project on a recent release that lacks the rules named in
+    `drop` ("requested-change", "goal-pointer", "test-policy"), then commit. Placeholders the project would have
+    filled are filled; the rest of the ref's template stays, so the upgrade proposal is only the dropped rules."""
+    agents = read("AGENTS.md").replace("[project-name]", "tasklist")
+    agents = soft_sub(agents, r"- \[Owned responsibility 1\.\]\n.*?not here\.\n",
+                      "- A single-user command-line task tracker and its JSON storage.\n\nOut of scope:\n\n"
+                      "- Sync and multi-user features -> not planned.\n")
+    agents = soft_sub(agents, r"\[build command\]\n\[test command\]\n\[lint command\]\n\[format command\]\n", "python3 -m unittest\n")
+    agents = soft_sub(agents, r"- \[Hard rule 1\.\]\n- \[Hard rule 2\.\]\n- \[Hard rule 3\.\]\n",
+                      FRIDAY + "\n- Keep the public function names in `src/tasklist.py` stable.\n")
+    milestone = read(MEMORY / "milestone.md")
+    milestone = milestone.replace("| M01 | [status-M01.md](status-M01.md) | [Milestone summary.] |",
+                                  "| M01 | [status-M01.md](status-M01.md) | Core add and list commands. |")
+    milestone = soft_sub(milestone, r"## M01 - \[Milestone name\]\n.*?(?=## Additional milestone examples)", M01_SPEC)
+    if "requested-change" in drop:
+        agents = soft_sub(agents, r"\nRequested features, candidate promotions.*?execution is a separate request\.\n", "")
+        milestone = soft_sub(milestone, r"## Requested changes after initialization\n.*?(?=\n## )", "")
+    if "goal-pointer" in drop:
+        agents = soft_sub(agents, r"Goal requests that span multiple status files may use.*?stock protocol unchanged\.\n",
+                          OLD_GOAL_POINTER)
+    if "test-policy" in drop:
+        pathlib.Path(MEMORY / "test-policy.md").unlink()
+        agents = soft_sub(agents, r" and\n   \[tabilet/memory-bank/test-policy\.md\]\(tabilet/memory-bank/test-policy\.md\)", "")
+        agents = soft_sub(agents, r"- Every test follows the test policy in.*?grants no authority\.\n", "")
+        milestone = milestone.replace("[test policy](test-policy.md)", "test policy")
+        tech = read(MEMORY / "tech-stack.md")
+        write(MEMORY / "tech-stack.md", "\n".join(l for l in tech.splitlines() if "test-policy.md" not in l) + "\n")
+    write("AGENTS.md", agents)
+    write(MEMORY / "milestone.md", milestone)
+    git("add", "-A")
+    git("commit", "-qm", "Project on the previous release")
