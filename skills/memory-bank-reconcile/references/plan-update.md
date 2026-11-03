@@ -82,7 +82,8 @@ operations (`sudo`, `ssh`, live browser, external pushes outside the workspace) 
 omitted unless an explicit modifier (such as `plus sudo`) authorizes them, and then as an exact-command
 grant without a `standing` block. Add a launch comment
 with recommended runner flags: `# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1`
-(and `ALLOW_DANGEROUS_COMMANDS=1` if `sudo` is granted).
+(and `ALLOW_DANGEROUS_COMMANDS=1` only when a `sudo` grant is approved, marked `[+]` or `[~]`;
+a `sudo` requirement or a grant left `[ ]` does not add it).
 For Init and Propose, also propose `CORRECTIVE_PLANNING: auto` in dangerous
 mode, and `CORRECTIVE_PLANNING: confirm` in sandbox or least mode. Explicit
 human policy overrides the preset. Reconcile preserves the approved corrective
