@@ -296,7 +296,14 @@ def main_text(args: argparse.Namespace) -> int:
     report = load_json(args.skill_report)
     tasks_dir = args.repo / "evals" / "skill-tasks"
     check_skill_report(report, tasks_dir)
-    paths = twin_set(args.target)
+    try:
+        paths = twin_set(args.target)
+    except run_eval.EvalError:
+        if args.apply or not (args.repo / args.target).is_file():
+            raise
+        # A frozen file may be previewed for human review; the gate would reject applying it.
+        paths = None
+        print(f"{args.target} is not on the editable surface: preview only, for a human edit", file=sys.stderr)
     failed = failing_trials(report, args.role)
     if not failed:
         print(f"no failing {args.role} trials; nothing to propose")

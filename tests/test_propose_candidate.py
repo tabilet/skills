@@ -251,8 +251,15 @@ class TextProposalTests(unittest.TestCase):
             self.assertEqual((code, runner.calls), (2, []))
 
     def test_only_a_canonical_editable_file_is_a_target(self):
-        code, runner, *_ = self.run_main(target=self.twin)
+        code, runner, *_ = self.run_main("--apply", target=self.twin)
         self.assertEqual((code, runner.calls), (2, []))
+
+    def test_a_frozen_file_may_be_previewed_but_never_applied(self):
+        code, runner, gate, out, err = self.run_main(target=self.twin)
+        self.assertEqual((code, len(runner.calls)), (0, 1))
+        self.assertIn("preview only", err)
+        self.assertEqual(self.read(self.twin), PROFILE)
+        gate.assert_not_called()
 
     def test_the_prompt_shows_failures_and_evidence_but_not_passing_trials(self):
         code, runner, _, out, _ = self.run_main("--dry-run")
