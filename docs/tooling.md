@@ -116,12 +116,17 @@ Built, and kept only in the `maintainer-tooling` branch:
   instability guard and held-out tasks.
 - `evals/catalog_probe.py`, which checks that the model still picks the right skill from the
   skill descriptions.
-- `evals/skill_eval.py` with 22 tasks covering `memory-bank-propose`, `memory-bank-reconcile`,
+- `evals/skill_eval.py` with 31 tasks covering `memory-bank-propose`, `memory-bank-reconcile`,
   `memory-bank-archive`, and `memory-bank-upgrade`: a scripted human, deterministic graders,
-  outside changes between replies, and injected instructions in a review.
-- `evals/propose_candidate.py`, a plain-LLM proposer for skill descriptions. It reads the dev routing
-  misses in a catalog report, makes one call to the runner's provider and model, and with `--apply`
-  writes the descriptions and runs the gate. It refuses a report that is not from the dev prompts.
+  outside changes between replies, and injected instructions in a review. Tasks with a `golden/`
+  directory are validated without a model: a compliant `pass.py` and any `alt-*.py` must grade
+  clean, and each `fail-*.py` must fail its named check. A failing trial's report entry keeps the
+  files its checks read, and a provider failure aborts the run as inconclusive instead of scoring it.
+- `evals/propose_candidate.py`, a plain-LLM proposer. With `--catalog-report` it proposes skill
+  descriptions from dev routing misses. With `--skill-report` and `--target` it proposes exact-passage
+  edits to one canonical editable-surface file from the failing dev trials of a `skill_eval.py` report
+  (the failed checks and the files produced, never the graders' patterns), syncs the twins, and runs
+  the gate. Either way it makes one model call and refuses held-out material.
 - `check.py --optimizer-gate` and `--sync-optimizer-twins`, and the check that keeps benchmark
   names out of the payload.
 - The measured noise floors for Haiku, Gemini and DeepSeek and the results of the first
@@ -130,12 +135,32 @@ Built, and kept only in the `maintainer-tooling` branch:
 ### What is not built
 
 - Consent-based collection of trajectories from real projects.
-- A proposer driven by trajectories, and the Harness² adapter. The description proposer above sees
-  catalog misses only.
-- Tasks hard enough to show a gap: Haiku and Gemini passed almost everything, and three
-  deliberate breaks of a rule produced `no_difference`, so the evals have caught regressions
-  only in unit tests with a fake model.
-- Evals for the other five skills, and graders for proposal quality.
+- A proposer driven by real-project trajectories, and the Harness² adapter. The proposer above sees
+  eval failures only.
+- Evals for the other skills beyond Propose that discriminate on a real model, and graders for proposal quality.
+
+### Calibration with Anthropic models (2026-11)
+
+About 26M tokens of paid runs (Haiku and Sonnet; roughly $1 and $7 at the time) calibrated the
+Propose tasks and tested the loop:
+
+- **Discriminating tasks now exist.** On Haiku, `propose-pythonlight-profile`,
+  `propose-dangerous-leaves-privileged-ungranted` and `propose-updates-pending-downstream` pass
+  30–80% of the time and fail on the rule they target. The launch-policy, Out of scope and trap
+  tasks pass 10 or 11 of 12 and serve as regression guards.
+- **Most apparent skill gaps were evaluator flaws.** Seven fixture or grader mistakes looked like
+  skill failures until the failing trials were read. Several would have been caught by an
+  `alt-*.py` golden script, so every new task should ship one.
+- **The decision rule needs a control.** At 3 repeats one run promoted a candidate identical to its
+  baseline. Run an A/A comparison before a campaign and use 5 or more repeats per side.
+- **Two human edits held up.** The bracket clarification in `testing-profiles.md` (3/10 → 8/10 on
+  `propose-pythonlight-profile`) and the full `suggested.txt` path in the Propose skill.
+- **The loop runs end to end.** From text with the bracket clarification removed, the proposer,
+  given only the failing trials, independently wrote an equivalent clarification. It passed the gate
+  and was measured with `skill_eval.py`. That measurement was inconclusive: the pre-fix baseline
+  passed 4/4 that time, and a network error stopped the run. The proposal itself matches the known fix.
+- **Haiku measures, Sonnet checks.** Haiku is cheaper and more sensitive to unclear text. Sonnet
+  costs about four times as many tokens per trial and passed rules Haiku missed.
 
 ### The description proposer: review and status
 
@@ -157,8 +182,8 @@ review's findings and where they stand:
    backslash or a YAML indicator is quoted or skipped instead of crashing or failing the lint.
 5. **Most eval failures point at files the proposer may not edit.** Open by design. The editable
    surface is the skill descriptions, `testing-profiles.md` and `tech-stack.md`. A `skill_eval.py`
-   failure is about a `SKILL.md` body or its references, which the gate rejects, so the proposer
-   reads catalog misses only. Widening the surface is a separately reviewed `check.py` change.
+   failure is usually about a `SKILL.md` body or its references, which the gate rejects. The proposer
+   now also reads `skill_eval.py` failures, but only for a canonical editable-surface `--target`. Widening the surface is a separately reviewed `check.py` change.
 6. **The proposed `next-one-row-one-commit` skill task repeats existing work and cannot be
    graded.** Open. `evals/tasks/one-row-one-commit` already covers it as a held-out runner task, and
    `skill_eval.grade` fails any trial that moves `HEAD` (`no_commit`), so an execution skill needs
@@ -167,8 +192,11 @@ review's findings and where they stand:
 The proposer is a paid step: a human runs it after a separate explicit confirmation, and reviews
 the diff (see [Paid Runs](MODEL_EVAL.md#paid-runs)).
 
-**Recommended direction.** Write harder Propose and Reconcile tasks before adding coverage for more
-skills, since the current tasks cannot show a regression. Then consider trajectory-driven proposals.
+**Recommended direction.** Keep the editable surface narrow and authority text frozen. Widen one
+non-authority file at a time, only when a discriminating dev task and a held-out task cover it. The
+remaining real gaps (the `Downstream impacts` rule) sit in frozen files and are human edits. Add
+Reconcile tasks with the same golden discipline, and consider Harness² only if the plain proposer
+proves too weak.
 
 ## Where to work
 
