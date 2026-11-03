@@ -408,6 +408,7 @@ class SkillEvalTests(unittest.TestCase):
             code, report, _ = self.evaluate({}, tasks=("propose-new-feature",))
         self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
         self.assertIn("transport failure (SSLError)", report["aborted"])
+        self.assertEqual(report["trials"], [], "a failed call is never scored")
 
     def test_missing_model_stops_before_any_call(self):
         code, report, requests = self.evaluate({}, LLM_MODEL="")

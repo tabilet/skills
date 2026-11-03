@@ -454,6 +454,7 @@ def main(argv: list[str] | None = None) -> int:
         trials: list[dict] = []
         calls = tokens = 0
         aborted = None
+        provider_failure = None
         with tempfile.TemporaryDirectory(prefix="tabilet-skill-eval-") as tmp:
             work = pathlib.Path(tmp)
             trees = {"baseline": run_eval.materialize_ref(args.baseline, work / "tree-baseline", ("template", "skills")),
@@ -465,19 +466,22 @@ def main(argv: list[str] | None = None) -> int:
                             aborted = f"ceiling reached ({calls} calls, {tokens} tokens)"
                             break
                         trial = run_trial(runner, llm, trees[role], task, role, repeat, work, args.max_calls - calls)
-                        trials.append(trial)
                         calls += trial["turns"]
                         tokens += trial["tokens"]
                         if trial["note"].startswith("provider"):
-                            # A failed call says nothing about the text; stop rather than score it as a loss.
+                            # A failed call says nothing about the text: keep the trial out of the score and stop.
                             aborted = f"{trial['note']} in {task['name']} ({role}, repeat {repeat})"
+                            provider_failure = trial
                             break
+                        trials.append(trial)
                     if aborted:
                         break
                 if aborted:
                     break
         by_role = {role: [t for t in trials if t["role"] == role] for role in ROLES}
         decision = run_eval.decide(by_role["baseline"], by_role["candidate"], args, aborted)
+        if provider_failure:
+            decision = {"decision": "inconclusive", "reasons": [f"stopped early: {aborted}; the scored trials are uneven, rerun"]}
         changed = run_eval.git("diff", "--name-only", args.baseline, args.candidate, "--", "template", "skills", check=False)
         report = {
             "schema": "tabilet.skill-eval-report/v1", "baseline": args.baseline, "candidate": args.candidate,
