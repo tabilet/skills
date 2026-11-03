@@ -173,6 +173,15 @@ Propose tasks and tested the loop:
   the postponed finding out, then asked about an undefined "data directory" or re-presented the
   narrowed proposal, and the single scripted reply ran out. With the directory named and a second
   reply that approves the revision, it passed 10/10.
+- **Archive is at the ceiling on Haiku; Upgrade fixtures must be realistic.** In A/A runs (about 14M
+  tokens) the successor, no-successor and dirty-worktree tasks passed 6/6, and the snapshot task
+  5/6 (one model slip). The Upgrade tasks first failed 14 of 18 trials because each fixture was a
+  tiny old project: a complete proposal meant merging the whole template, and every failing trial
+  asked approval of an outline and then rightly refused to write unseen text. Rebuilt by `setup.py`
+  as a recent project missing only the rule under test, the stock-copy and test-policy tasks passed
+  6/6. The blanket-approval trap passed 3/6: two failures stopped on an open question its reply
+  did not settle (now fixed), and one presented a proposal without exact text, the one real
+  Upgrade weakness seen so far.
 
 ### The description proposer: review and status
 

@@ -26,7 +26,7 @@ STATUS = ("printf '# Status {id} - New\\n\\n| Item | State | Notes |\\n|---|---|
 APPROVED = "Approved. Use your stated defaults for any open question."
 PARTIAL = ("Approved for SEC-1 only, as you proposed it; use your stated defaults for any open question. "
            "I am postponing SEC-2 myself: do not plan it, and do not mention it in any plan file.")
-APPROVALS = (APPROVED, PARTIAL, "Approved, for exactly what you proposed.", "Approved: apply exactly what you proposed.")
+APPROVALS = (APPROVED, PARTIAL, "Approved, for exactly what you proposed.", "Approved: apply exactly what you proposed. Use your stated defaults for any open question.")
 
 
 STAGES = "printf '# Stages\\n\\n## STG-01 - Reporting\\n\\n## STG-02 - Sync\\n' > tabilet/stages.md"
