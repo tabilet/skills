@@ -2,9 +2,7 @@
   "skill": "memory-bank-next",
   "held_out": false,
   "request": "Tackle the next task in the memory bank.",
-  "replies": [
-    "Go ahead, using your stated defaults for any open question."
-  ],
+  "replies": [],
   "max_turns": 60,
   "execution": true,
   "description": "A higher-priority milestone has a pending row, but another row is already in progress: Next resumes that row, completes it with one commit, and leaves the pending row alone.",

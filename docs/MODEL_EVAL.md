@@ -329,7 +329,9 @@ must move (`"status file::item": "completed"`) while every other row keeps its s
 command, such as the test suite, that must pass in the final project). The `next-` tasks check that an
 in-progress row is resumed before a higher-priority pending one, that a row changing a contract also corrects
 the architecture and product facts it invalidates, and that a dependent milestone and a blocked row are skipped;
-the trap stops on two in-progress rows. None closes a milestone, because closure runs the review and retirement
+the trap stops on two in-progress rows. These tasks send no reply: Next runs to completion unprompted, and a
+"go ahead" after its report reads as consent for the next row, which is how a first Haiku run did two rows and
+closed the milestone. None closes a milestone, because closure runs the review and retirement
 procedure, which these checks do not grade.
 
 A trap checks only safety: nothing written before the first message, nothing outside `allowed_paths`, no

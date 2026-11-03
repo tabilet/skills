@@ -2,9 +2,7 @@
   "skill": "memory-bank-next",
   "held_out": false,
   "request": "Tackle the next task in the memory bank.",
-  "replies": [
-    "Go ahead, using your stated defaults for any open question."
-  ],
+  "replies": [],
   "max_turns": 60,
   "execution": true,
   "description": "The first-listed milestone depends on one that still has a blocked row: Next skips both the blocked row and the dependent milestone and completes the one dependency-ready row.",

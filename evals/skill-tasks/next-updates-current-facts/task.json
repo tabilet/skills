@@ -2,9 +2,7 @@
   "skill": "memory-bank-next",
   "held_out": false,
   "request": "Tackle the next task in the memory bank.",
-  "replies": [
-    "Go ahead, using your stated defaults for any open question."
-  ],
+  "replies": [],
   "max_turns": 60,
   "execution": true,
   "description": "The row changes the storage contract from JSON to SQLite: Next implements it and, in the same change, corrects the architecture and product facts it invalidates.",
