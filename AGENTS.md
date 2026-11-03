@@ -117,6 +117,10 @@ python3 check.py --readme
 # For code, protocol, instruction, or other changes, run the full suite; CI does too.
 python3 check.py
 
+# A fully passing unit suite is cached outside the repo, keyed on a hash of every file Git sees, and
+# the test files run in parallel (CHECK_JOBS sets the width). Any edit is a miss; CI never uses the cache.
+python3 check.py --no-cache    # force a real run
+
 # Separate credential-free DSH compatibility suite (Linux, Node 24).
 npm ci --prefix tests/dsh --ignore-scripts --no-audit --no-fund
 npm test --prefix tests/dsh
