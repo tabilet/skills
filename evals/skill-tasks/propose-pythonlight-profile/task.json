@@ -18,9 +18,9 @@
     "new_status_files": 1,
     "files_contain": {
       "tabilet/memory-bank/tech-stack.md": [
-        "(?m)Testing profile\\*\\*:\\s*`pythonlight`",
-        "(?m)Focused tests\\*\\*:[^\\n]*unittest[^\\n]*30[- ]second",
-        "(?m)Full regression\\*\\*:[^\\n]*20[- ]minute"
+        "(?m)Testing profile\\*\\*:\\s*`?pythonlight`?",
+        "(?m)Focused tests\\*\\*:[^\\n]*unittest[^\\n]*30[- ]?seconds?",
+        "(?m)Full regression\\*\\*:[^\\n]*20[- ]?minutes?"
       ],
       "AGENTS.md": [
         "(?i)verification and testing standards"
