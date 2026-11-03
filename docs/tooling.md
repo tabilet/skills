@@ -160,6 +160,10 @@ Propose tasks and tested the loop:
   and was measured with `skill_eval.py` on Haiku: the pre-fix baseline passed 4/10 (5 failures left
   bracketed placeholders) and the proposer's candidate 9/9 (Fisher p ≈ 0.01). The tool reported
   inconclusive only because the token ceiling stopped the last trial.
+- **A plausible automated proposal still needs measuring.** For the unsolved `Downstream impacts`
+  failures, the proposer drafted a clear rule for `plan-update.md` (a frozen file, so it was
+  previewed and applied by hand). It measured 7/10 before and 8/10 after, and the failing trials
+  repeated the exact mistake the rule forbids, so it was dropped.
 - **Haiku measures, Sonnet checks.** Haiku is cheaper and more sensitive to unclear text. Sonnet
   costs about four times as many tokens per trial and passed rules Haiku missed.
 
