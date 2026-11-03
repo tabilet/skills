@@ -6,7 +6,7 @@ Scope: src/tasklist.py
 
 ## SEC-1 (P1) save() and load() accept any path
 
-`save()` and `load()` in `src/tasklist.py` write and read whatever path the caller passes, so a caller-controlled path can overwrite or read any file the process can reach. They must refuse a path outside the data directory.
+`save()` and `load()` in `src/tasklist.py` write and read whatever path the caller passes, so a caller-controlled path can overwrite or read any file the process can reach. They must refuse a path that resolves outside the current working directory, where `tasks.json` lives by default.
 
 ## SEC-2 (P2) load() trusts the file contents
 

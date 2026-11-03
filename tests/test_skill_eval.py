@@ -23,7 +23,8 @@ SPEC.loader.exec_module(skill_eval)
 STATUS = ("printf '# Status {id} - New\\n\\n| Item | State | Notes |\\n|---|---|---|\\n| Do the work | `{state}` | P1 R-1 |\\n' "
           "> tabilet/memory-bank/status-{id}.md && printf '| {id} | [status-{id}.md](status-{id}.md) | New. |\\n' >> tabilet/memory-bank/milestone.md")
 APPROVED = "Approved. Use your stated defaults for any open question."
-PARTIAL = "Approved for SEC-1 only. I am postponing SEC-2 myself: do not plan it, and do not mention it in any plan file."
+PARTIAL = ("Approved for SEC-1 only, as you proposed it; use your stated defaults for any open question. "
+           "I am postponing SEC-2 myself: do not plan it, and do not mention it in any plan file.")
 APPROVALS = (APPROVED, PARTIAL, "Approved, for exactly what you proposed.")
 
 

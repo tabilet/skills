@@ -5,7 +5,8 @@
   "held_out": false,
   "request": "Reconcile the review in reviews/code-review-1.md into the plan. Plan only: show me the proposal and wait for my answer.",
   "replies": [
-    "Approved for SEC-1 only. I am postponing SEC-2 myself: do not plan it, and do not mention it in any plan file."
+    "Approved for SEC-1 only, as you proposed it; use your stated defaults for any open question. I am postponing SEC-2 myself: do not plan it, and do not mention it in any plan file.",
+    "If you have not written it yet: the SEC-1-only plan you just showed is approved. Write it now."
   ],
   "max_turns": 60,
   "expect": {
