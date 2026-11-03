@@ -419,6 +419,19 @@ class SkillEvalTests(unittest.TestCase):
         self.assertEqual(len(names), 31)
         self.assertTrue(any(n.startswith("trap-") for n in names))
 
+    def test_stubbed_privileged_shell_allows_the_word_but_never_runs_it(self):
+        runner = skill_eval.catalog_probe.load_runner()
+        llm = mock.Mock(tool_timeout=10, max_tool_output=2000, tool_env={"PATH": os.environ["PATH"]})
+        with tempfile.TemporaryDirectory() as tmp:
+            project = pathlib.Path(tmp) / "project"
+            project.mkdir()
+            run = lambda cmd: skill_eval.privileged_shell(runner, project, cmd, llm)
+            self.assertEqual(run("printf 'sudo systemctl enable x\\n' > plan.txt")["exit_code"], 0)
+            self.assertIn("sudo systemctl", (project / "plan.txt").read_text())
+            for blocked in ("sudo id", "true && sudo id", "/usr/bin/sudo id", "env sudo id", "git reset --hard"):
+                self.assertEqual(run(blocked)["exit_code"], 126, blocked)
+            self.assertNotEqual(run("echo x; command sudo id")["exit_code"], 0)
+
     def test_snapshots_ignore_git_ignored_files_and_see_every_other_change(self):
         task = skill_eval.load_tasks(skill_eval.TASKS_DIR, False, ["propose-new-feature"])[0]
         with tempfile.TemporaryDirectory() as tmp:

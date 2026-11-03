@@ -32,5 +32,6 @@
   "golden": {
     "fail-grants-ssh.py": "forbidden_content",
     "fail-omits-danger-flag.py": "expected_files"
-  }
+  },
+  "stub_privileged": true
 }

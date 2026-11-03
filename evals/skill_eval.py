@@ -121,6 +121,8 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
     if between is not None and (not isinstance(between, list) or len(between) != len(task.get("replies", []))
                                 or not all(c is None or (isinstance(c, str) and c.strip()) for c in between)):
         problems.append("between must have one shell command or null per reply")
+    if not isinstance(task.get("stub_privileged", False), bool):
+        problems.append("stub_privileged must be true or false")
     if not isinstance(task.get("allowed_paths"), list) or not task["allowed_paths"]:
         problems.append("allowed_paths must be a non-empty list")
     project = task["dir"] / "project"
@@ -272,6 +274,37 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
     return failed, {"new_ids": new_ids, "changed": changes}
 
 
+PRIVILEGED_STUBS = ("sudo", "ssh", "scp")
+EXECUTED_SUDO_RE = re.compile(r"(?:^|[;&|(]|\$\()\s*(?:env\s+)?(?:\S*/)?sudo\b|(?<![\w.-])/[\w/.-]*/sudo\b")
+
+
+def stub_environment(project: pathlib.Path, env: dict) -> dict:
+    """PATH with failing sudo, ssh and scp first, so a task whose plan merely mentions them can run safely."""
+    stubs = project.parent / "stubs"
+    stubs.mkdir(exist_ok=True)
+    for name in PRIVILEGED_STUBS:
+        stub = stubs / name
+        stub.write_text(f"#!/bin/sh\necho '{name}: disabled in the skill eval' >&2\nexit 1\n")
+        stub.chmod(0o755)
+    return {**env, "PATH": f"{stubs}:{env.get('PATH', '/usr/bin:/bin')}"}
+
+
+def privileged_shell(runner, project: pathlib.Path, cmd: str, llm) -> dict:
+    """The harness shell for a `stub_privileged` task: the word `sudo` may appear in written text, but is never run.
+
+    The guardrail normally rejects any command containing `sudo`, which would stop a plan that must record a
+    sudo requirement. Here the remaining guardrail patterns still apply, a command that would execute sudo
+    is rejected, and the stubs make an accidental call fail."""
+    if runner.DANGEROUS_RE.search(cmd.replace("sudo", "")) or EXECUTED_SUDO_RE.search(cmd):
+        return {"exit_code": 126, "stdout": "", "stderr": "Command rejected by harness guardrail.", "truncated": False}
+    return runner.shell_tool(project, cmd, llm.tool_timeout, llm.max_tool_output, True, stub_environment(project, llm.tool_env))
+
+
+def expect_paths(task: dict) -> list[str]:
+    expect = task["expect"]
+    return [*expect.get("files_contain", {}), *expect.get("files_exclude", {})]
+
+
 def converse(runner, llm, project: pathlib.Path, system: str, task: dict, budget: int) -> dict:
     """Run the scripted conversation; returns checkpoints, finals, turns and token use."""
     messages = [{"role": "system", "content": system}, {"role": "user", "content": task["request"]}]
@@ -307,7 +340,10 @@ def converse(runner, llm, project: pathlib.Path, system: str, task: dict, budget
             if command.get("tool") != "run_shell" or not isinstance(command.get("cmd"), str):
                 messages.append({"role": "user", "content": 'Invalid command. Use {"tool":"run_shell","cmd":"...","why":"..."} or {"final":"..."}.'})
                 continue
-            result = runner.shell_tool(project, command["cmd"], llm.tool_timeout, llm.max_tool_output, llm.allow_dangerous, llm.tool_env)
+            if task.get("stub_privileged"):
+                result = privileged_shell(runner, project, command["cmd"], llm)
+            else:
+                result = runner.shell_tool(project, command["cmd"], llm.tool_timeout, llm.max_tool_output, llm.allow_dangerous, llm.tool_env)
             messages.append({"role": "user", "content": "Tool result:\n```json\n" + json.dumps(result, ensure_ascii=False, indent=2) + "\n```"})
         checkpoints.append(snapshot(project))
         finals.append(command["final"])
@@ -360,7 +396,14 @@ def run_trial(runner, llm, tree: pathlib.Path, task: dict, role: str, repeat: in
     rebased = outcome.get("rebased")
     base_rows = rebased["rows"] if rebased else initial_rows
     failed, facts = grade(task, runner, project, initial, base_rows, outcome["checkpoints"], final, outcome["finished"], rebased, outcome["finals"])
-    return {"task": task["name"], "category": task["category"], "role": role, "repeat": repeat,
+    evidence = {}
+    if failed:
+        # What a failing check looked at, so a failure can be read without re-running the trial.
+        for relatives in (*expect_paths(task),):
+            for path in expand_paths(project, relatives):
+                if path.is_file():
+                    evidence[str(path.relative_to(project))] = read_text(path)[:6000]
+    return {"task": task["name"], "category": task["category"], "role": role, "repeat": repeat, "evidence": evidence,
             "passed": not failed, "failed_checks": failed, "clean": None, "turns": outcome["turns"],
             "tokens": outcome["tokens"], "tokens_known": outcome["tokens_known"],
             "duration_sec": round(time.time() - started, 3), "note": outcome["note"],

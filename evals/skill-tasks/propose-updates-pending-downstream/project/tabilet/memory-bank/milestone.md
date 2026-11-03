@@ -43,7 +43,7 @@ retired ID stays reserved in `tabilet/docs/history/`.
 
 - Mark a task complete by id.
 - Persist tasks to `tasks.json`.
-- Count tasks by done state from the `(id, title, done)` tuples returned by `list_tasks()`.
+- Copy `tasks.json` to a backup file by reading its bare JSON list of tasks.
 
 **Acceptance.** Completed state survives a restart; `python3 -m unittest` passes.
 

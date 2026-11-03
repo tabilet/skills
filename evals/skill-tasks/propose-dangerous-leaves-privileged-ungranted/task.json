@@ -34,5 +34,6 @@
     "fail-grants-sudo.py": "forbidden_content",
     "fail-sudo-as-goal-policy.py": "expected_files",
     "fail-no-launch-reference.py": "expected_files"
-  }
+  },
+  "stub_privileged": true
 }
