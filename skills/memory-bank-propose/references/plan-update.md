@@ -21,7 +21,8 @@ launch execution. Grants cannot expand Python API authorization boundaries.
 
 Always emit `AUTHORIZATION_GRANTS` in refreshed launch input, using
 `AUTHORIZATION_GRANTS: {}` for the default with no explicit grants.
-Refresh launch input only when goal use is approved (an existing
+Refresh launch input, always at `tabilet/memory-bank/suggested.txt` and never at the
+project root or in `tabilet/`, only when goal use is approved (an existing
 `suggested.txt` counts as goal-use intent, never execution approval) and the
 selected governing protocol is available and compatible. Preserve explicit
 `GOAL_PROTOCOL` selection and its actual path/hash. For stock selection, name

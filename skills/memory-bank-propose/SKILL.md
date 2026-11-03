@@ -33,7 +33,8 @@ explicit milestone-planning outcome enriches context only.
 
 An optional environment selector is `--environment dangerous`, `--environment sandbox`
 (the default when omitted), or `--environment least`. These set the hands-free
-authorization stance for the proposed launch reference (`suggested.txt`) and
+authorization stance for the proposed launch reference
+(`tabilet/memory-bank/suggested.txt`) and
 milestone policies. Natural English modifiers adapt the chosen environment:
 `plus <action>` (e.g., `plus sudo`) explicitly adds concrete approval for that
 action in milestones requiring it; `minus <action>` or `deny <action>` sets the
@@ -94,7 +95,8 @@ Use the shared plan-update reference for optional milestone
 Accept `--environment dangerous`, `--environment sandbox` (default when omitted), or
 `--environment least` (with optional modifiers `plus`, `minus`, `but ... in milestone ...`)
 to synthesize the launch stance and milestone policies.
-Grants in `suggested.txt` use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
+Grants in `tabilet/memory-bank/suggested.txt` (never a copy at the project root or in
+`tabilet/`) use decision markers (`[ ]`, `[+]`, `[-]`, `[~]`) and optional
 `GLOBAL:` scopes; preserve existing human decisions and any `SUGGESTED_UPDATE` policy
 when refreshing. Approval of these file actions does not activate grants or authorize execution,
 and goal resumption requires verifying the updated file's SHA256 checksum.
