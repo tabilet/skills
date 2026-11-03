@@ -19,13 +19,17 @@ This file checks `skills` itself. It is not payload: a project that copies
 from __future__ import annotations
 
 import ast
+import concurrent.futures
 import hashlib
 import importlib.machinery
 import importlib.util
 import json
+import os
 import pathlib
+import platform
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -303,18 +307,95 @@ def harness_parses():
 # 1b. The harness is executable payload. Exercise its parser, shell boundary,
 #     providers, git gates, and one-row contract without external network calls.
 # --------------------------------------------------------------------------
+# The unit suite is the slow part of this script, so it runs one subprocess per test file in
+# parallel, and a fully passing run is remembered the way `go test` remembers one. The cache key
+# is a hash of every file Git can see (tracked, or untracked and not ignored: contents and the
+# executable bit) plus the interpreter, SQLite, Git and platform, the tags and the TABILET/LLM-style
+# environment. Any edit, including to a test or to this file, is therefore a miss. Only a full pass is
+# stored, only outside CI, and `--no-cache` or CHECK_NO_CACHE=1 forces a real run. Static checks
+# are never cached.
+CACHE_KEEP = 20
+USE_CACHE = True
+
+
+def unit_suite_files() -> list[pathlib.Path]:
+    """The test files `unittest discover -s tests` would load, largest first so long ones start early."""
+    return sorted(ROOT.joinpath("tests").glob("test*.py"), key=lambda p: (-p.stat().st_size, p.name))
+
+
+def unit_suite_key() -> str | None:
+    """Hash of everything the suite can depend on, or None when that cannot be established."""
+    def git(*args: str) -> bytes:
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True).stdout
+
+    try:
+        listed = git("ls-files", "-z", "--cached", "--others", "--exclude-standard").split(b"\0")
+        tags, version = git("tag", "--list"), git("--version")
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    digest = hashlib.sha256()
+    environment = sorted(
+        (k, v if k.startswith(("ALLOW_", "LLM_", "TABILET_", "RUN_REPORT", "MAX_")) else bool(v))
+        for k, v in os.environ.items()
+        if k.startswith(("ALLOW_", "LLM_", "TABILET_", "RUN_REPORT", "MAX_")) or k.endswith("_API_KEY")
+    )
+    for part in (sys.version, sys.executable, sqlite3.sqlite_version, platform.platform(), repr(environment)):
+        digest.update(part.encode() + b"\0")
+    digest.update(tags + b"\0" + version + b"\0")
+    for name in sorted(path for path in listed if path):
+        path = ROOT / name.decode()
+        try:
+            content, mode = path.read_bytes(), path.stat().st_mode & 0o111
+        except OSError:
+            continue  # listed but gone: deleted in the working tree
+        digest.update(name + b"\0" + str(mode).encode() + b"\0" + hashlib.sha256(content).digest())
+    return digest.hexdigest()
+
+
+def unit_suite_cache_entry(key: str) -> pathlib.Path:
+    base = pathlib.Path(os.environ.get("XDG_CACHE_HOME") or pathlib.Path.home() / ".cache")
+    return base / "tabilet-skills-check" / f"{hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]}-{key}.ok"
+
+
+def unit_suite_cache_enabled() -> bool:
+    return USE_CACHE and not os.environ.get("CI") and not os.environ.get("CHECK_NO_CACHE")
+
+
+def unit_suite_cache_store(key: str) -> None:
+    entry = unit_suite_cache_entry(key)
+    try:
+        entry.parent.mkdir(parents=True, exist_ok=True)
+        entry.write_text(f"{sys.version.split()[0]}\n")
+        mine = sorted(entry.parent.glob(entry.name.split("-")[0] + "-*.ok"), key=lambda p: p.stat().st_mtime)
+        for stale in mine[:-CACHE_KEEP]:
+            stale.unlink(missing_ok=True)
+    except OSError:
+        pass  # a cache that cannot be written only costs the next run its speed
+
+
+def run_unit_test_file(path: pathlib.Path) -> tuple[str, int, str]:
+    proc = subprocess.run(
+        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-p", path.name],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    return path.name, proc.returncode, (proc.stdout + proc.stderr).strip()
+
+
 @check("harness behavioral tests pass")
 def harness_tests():
-    proc = subprocess.run(
-        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode == 0:
+    key = unit_suite_key() if unit_suite_cache_enabled() else None
+    if key and unit_suite_cache_entry(key).is_file():
+        print(f"          (unit suite unchanged since a passing run; cached {key[:12]}; --no-cache reruns it)")
         return []
-    detail = (proc.stdout + proc.stderr).strip()
-    return ["behavioral suite failed:\n" + detail]
+    jobs = int(os.environ.get("CHECK_JOBS") or min(6, max(1, (os.cpu_count() or 2) // 2)))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        results = list(pool.map(run_unit_test_file, unit_suite_files()))
+    failed = [(name, detail) for name, code, detail in results if code != 0]
+    if not failed:
+        if key:
+            unit_suite_cache_store(key)
+        return []
+    return [f"behavioral suite failed in {name}:\n{detail}" for name, detail in failed]
 
 
 # --------------------------------------------------------------------------
@@ -3956,6 +4037,9 @@ def main(*, readme_only: bool = False) -> int:
 
 if __name__ == "__main__":
     sys.dont_write_bytecode = True
+    if "--no-cache" in sys.argv[1:]:
+        USE_CACHE = False
+        sys.argv.remove("--no-cache")
     if sys.argv[1:] == ["--sync-goal-protocol"]:
         raise SystemExit(sync_goal_protocol())
     if sys.argv[1:] == ["--readme"]:
@@ -3965,5 +4049,5 @@ if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--optimizer-gate":
         raise SystemExit(optimizer_gate(sys.argv[2]))
     if sys.argv[1:]:
-        raise SystemExit("usage: check.py [--readme | --sync-goal-protocol | --sync-optimizer-twins | --optimizer-gate <base>]")
+        raise SystemExit("usage: check.py [--no-cache] [--readme | --sync-goal-protocol | --sync-optimizer-twins | --optimizer-gate <base>]")
     raise SystemExit(main())

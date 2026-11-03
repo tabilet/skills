@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import pathlib
 import re
 import subprocess
@@ -766,6 +767,68 @@ class OptimizerGateTests(unittest.TestCase):
     def test_unknown_base_is_rejected(self) -> None:
         with mock.patch.object(repository_checks, "ROOT", ROOT):
             self.assertEqual(["no-such-ref: not a commit"], repository_checks.optimizer_gate_problems("no-such-ref"))
+class UnitSuiteRunnerTests(unittest.TestCase):
+    """The parallel, cached unit-suite step of check.py."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = pathlib.Path(self.tmp.name) / "repo"
+        (self.root / "tests").mkdir(parents=True)
+        (self.root / "tests/test_good.py").write_text(
+            "import unittest\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n")
+        self.cache = pathlib.Path(self.tmp.name) / "cache"
+        mock.patch.dict("os.environ", {"XDG_CACHE_HOME": str(self.cache), "CHECK_JOBS": "2"}).start()
+        for name in ("CI", "CHECK_NO_CACHE"):
+            os.environ.pop(name, None)  # restored when the patch above stops
+        self.addCleanup(mock.patch.stopall)
+        mock.patch.object(repository_checks, "ROOT", self.root).start()
+        mock.patch.object(repository_checks, "USE_CACHE", True).start()
+
+    def add_failing_file(self):
+        (self.root / "tests/test_bad.py").write_text(
+            "import unittest\n\nclass T(unittest.TestCase):\n    def test_no(self):\n        self.fail('boom')\n")
+
+    def test_a_failure_names_its_file_and_is_never_cached(self):
+        self.add_failing_file()
+        with mock.patch.object(repository_checks, "unit_suite_key", return_value="k1"):
+            problems = repository_checks.harness_tests()
+        self.assertEqual(len(problems), 1)
+        self.assertIn("test_bad.py", problems[0])
+        self.assertIn("boom", problems[0])
+        self.assertFalse(repository_checks.unit_suite_cache_entry("k1").exists())
+
+    def test_a_pass_is_cached_and_the_next_run_skips_the_suite(self):
+        with mock.patch.object(repository_checks, "unit_suite_key", return_value="k2"):
+            self.assertEqual(repository_checks.harness_tests(), [])
+            self.assertTrue(repository_checks.unit_suite_cache_entry("k2").is_file())
+            self.add_failing_file()  # same key, so the suite must not run at all
+            with mock.patch.object(repository_checks, "run_unit_test_file", side_effect=AssertionError):
+                with mock.patch("builtins.print"):
+                    self.assertEqual(repository_checks.harness_tests(), [])
+
+    def test_no_cache_flag_and_ci_force_a_real_run(self):
+        with mock.patch.object(repository_checks, "unit_suite_key", return_value="k3"):
+            self.assertEqual(repository_checks.harness_tests(), [])
+            self.add_failing_file()
+            with mock.patch.object(repository_checks, "USE_CACHE", False):
+                self.assertEqual(len(repository_checks.harness_tests()), 1)
+            with mock.patch.dict("os.environ", {"CI": "true"}):
+                self.assertEqual(len(repository_checks.harness_tests()), 1)
+            with mock.patch.dict("os.environ", {"CHECK_NO_CACHE": "1"}):
+                self.assertEqual(len(repository_checks.harness_tests()), 1)
+
+    def test_old_cache_entries_for_one_checkout_are_pruned(self):
+        for i in range(repository_checks.CACHE_KEEP + 5):
+            repository_checks.unit_suite_cache_store(f"key{i:02d}")
+        left = list(repository_checks.unit_suite_cache_entry("x").parent.glob("*.ok"))
+        self.assertEqual(len(left), repository_checks.CACHE_KEEP)
+
+    def test_the_real_key_tracks_every_visible_file(self):
+        with mock.patch.object(repository_checks, "ROOT", ROOT):
+            before = repository_checks.unit_suite_key()
+            self.assertIsNotNone(before)
+            self.assertEqual(before, repository_checks.unit_suite_key())
 
 
 if __name__ == "__main__":
