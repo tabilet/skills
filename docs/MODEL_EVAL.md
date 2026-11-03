@@ -426,6 +426,31 @@ needs a separate explicit confirmation that names the provider, the model, and t
 6. **Review and release.** A human reads the diff and the reports, then the normal release steps apply.
    Record the ceilings, the actual spend and the decision in the release notes.
 
+## When To Run The Evals
+
+Run `skill_eval.py` before releasing any change to a skill body, a skill reference, or the template
+text a skill writes from, whether a human or a proposer wrote it. The text is close to what current
+Claude models follow reliably, so the evals mostly guard against regressions and against new rules
+that read ambiguously. A change that cannot show a measured benefit is dropped, however plausible it
+reads.
+
+- **Write the task first.** A new rule gets a dev task with golden `pass.py`, `fail-*.py` and at least
+  one `alt-*.py`, and `tests/test_skill_tasks_golden.py` must pass before any paid run. In the
+  2026-11 calibration, seven of nine apparent skill failures were fixture or grader mistakes.
+- **Run an A/A control first.** Compare the baseline ref with itself on the same tasks. It must come out
+  `no_difference` or `inconclusive`; at 3 repeats one A/A run was promoted on noise.
+- **Use 5 or more repeats per side**, and 10 for a task whose pass rate is between 30% and 80%. Size
+  `--max-tokens` from the last run of the same task: trials vary from about 100K to 200K tokens on Haiku
+  and about 650K on Sonnet.
+- **Measure on Haiku, spot-check on Sonnet.** The smaller model shows unclear text more often and
+  costs less. Use the larger model once per finding, to tell a skill gap from a model limit.
+- **Read the failing trials before acting.** Each failing trial's report entry keeps the files its checks
+  read. Classify each failure as a skill gap, a fixture flaw or a grader flaw before changing anything.
+- **Keep the held-out tasks for the end.** Run them once, on a candidate that already passed the dev
+  tasks.
+- **Promote only on a clear decision.** If the tool says `inconclusive`, report the raw pass counts and
+  the failure mechanism, and treat the change as unproven. Do not re-run until it passes.
+
 ## Promotion Rules
 
 Before promoting a new model, prompt, or agent workflow, define:
