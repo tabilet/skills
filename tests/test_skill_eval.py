@@ -428,9 +428,13 @@ class SkillEvalTests(unittest.TestCase):
             run = lambda cmd: skill_eval.privileged_shell(runner, project, cmd, llm)
             self.assertEqual(run("printf 'sudo systemctl enable x\\n' > plan.txt")["exit_code"], 0)
             self.assertIn("sudo systemctl", (project / "plan.txt").read_text())
-            for blocked in ("sudo id", "true && sudo id", "/usr/bin/sudo id", "env sudo id", "git reset --hard"):
+            for blocked in ("/usr/bin/sudo id", "true && /bin/sudo id", "git reset --hard"):
                 self.assertEqual(run(blocked)["exit_code"], 126, blocked)
-            self.assertNotEqual(run("echo x; command sudo id")["exit_code"], 0)
+            for stubbed in ("sudo id", "true && sudo id", "env sudo id", "echo x; command sudo id", "(sudo id)", "printf '| sudo cp |' | cat; sudo id"):
+                result = run(stubbed)
+                self.assertNotEqual(result["exit_code"], 0, stubbed)
+                self.assertIn("disabled in the skill eval", result["stderr"], stubbed)
+            self.assertEqual(run("printf '| sudo cp | (sudo x) |\\n' > t.md")["exit_code"], 0)
 
     def test_snapshots_ignore_git_ignored_files_and_see_every_other_change(self):
         task = skill_eval.load_tasks(skill_eval.TASKS_DIR, False, ["propose-new-feature"])[0]

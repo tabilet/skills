@@ -275,7 +275,7 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
 
 
 PRIVILEGED_STUBS = ("sudo", "ssh", "scp")
-EXECUTED_SUDO_RE = re.compile(r"(?:^|[;&|(]|\$\()\s*(?:env\s+)?(?:\S*/)?sudo\b|(?<![\w.-])/[\w/.-]*/sudo\b")
+EXECUTED_SUDO_RE = re.compile(r"(?<![\w.-])/[\w/.-]*/sudo\b")
 
 
 def stub_environment(project: pathlib.Path, env: dict) -> dict:
@@ -293,8 +293,8 @@ def privileged_shell(runner, project: pathlib.Path, cmd: str, llm) -> dict:
     """The harness shell for a `stub_privileged` task: the word `sudo` may appear in written text, but is never run.
 
     The guardrail normally rejects any command containing `sudo`, which would stop a plan that must record a
-    sudo requirement. Here the remaining guardrail patterns still apply, a command that would execute sudo
-    is rejected, and the stubs make an accidental call fail."""
+    sudo requirement. Here the remaining guardrail patterns still apply, a command naming sudo by absolute
+    path is rejected, and the stubs make any other call fail, so prose such as a table cell or a parenthesis is not blocked."""
     if runner.DANGEROUS_RE.search(cmd.replace("sudo", "")) or EXECUTED_SUDO_RE.search(cmd):
         return {"exit_code": 126, "stdout": "", "stderr": "Command rejected by harness guardrail.", "truncated": False}
     return runner.shell_tool(project, cmd, llm.tool_timeout, llm.max_tool_output, True, stub_environment(project, llm.tool_env))
