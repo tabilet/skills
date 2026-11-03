@@ -1,0 +1,21 @@
+{
+  "description": "Held-out: Milestone with slow test suite run (>120s) and fast baseline; proposal should recommend the fast test command.",
+  "category": "capability",
+  "held_out": true,
+  "milestone": "M01",
+  "expect": {
+    "telemetry": {
+      "friction_runs_count": 1,
+      "fast_baselines_count": 2,
+      "downstream_gate": "open"
+    },
+    "prompt": {
+      "must_include": ["heldout-slow-run"],
+      "must_exclude": []
+    },
+    "proposal": {
+      "must_include": ["test_fast.py"],
+      "must_exclude": []
+    }
+  }
+}

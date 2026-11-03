@@ -286,6 +286,7 @@ def harness_parses():
         ROOT / "harness/tabilet_recovery.py", ROOT / "harness/tabilet_status.py",
         ROOT / "harness/tabilet_cli.py", ROOT / "harness/tabilet_reflect.py", ROOT / "harness/tabilet",
         ROOT / "evals/run_eval.py", ROOT / "evals/catalog_probe.py", ROOT / "evals/skill_eval.py",
+        ROOT / "evals/reflect_eval.py",
         SKILLS_DIR / "memory-bank-goal/scripts/email_notify.py",
         SKILLS_DIR / "memory-bank-next/scripts/email_notify.py",
     ):

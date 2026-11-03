@@ -1,0 +1,56 @@
+{
+  "runs": [
+    {
+      "run_id": "clean-run-1",
+      "operation": "next",
+      "started_at": "2026-11-01T12:00:00Z",
+      "completed_at": "2026-11-01T12:00:10Z",
+      "result": "completed",
+      "capture_mode": "metadata",
+      "events": [
+        {
+          "event_type": "task_transition",
+          "subject": {
+            "milestone_id": "M01",
+            "task_label": "Fast task 1",
+            "old_state": "pending",
+            "new_state": "completed"
+          },
+          "details": {
+            "schema": "tabilet.audit.details/v1",
+            "capture_source": "agent",
+            "fidelity": "summarized"
+          }
+        }
+      ]
+    },
+    {
+      "run_id": "clean-run-2",
+      "operation": "next",
+      "started_at": "2026-11-01T12:00:15Z",
+      "completed_at": "2026-11-01T12:00:25Z",
+      "result": "completed",
+      "capture_mode": "metadata",
+      "events": [
+        {
+          "event_type": "task_transition",
+          "subject": {
+            "milestone_id": "M01",
+            "task_label": "Fast task 2",
+            "old_state": "pending",
+            "new_state": "completed"
+          },
+          "details": {
+            "schema": "tabilet.audit.details/v1",
+            "capture_source": "agent",
+            "fidelity": "summarized"
+          }
+        }
+      ]
+    }
+  ],
+  "files": {
+    "tabilet/memory-bank/suggested.txt": "STATUS_ORDER: M01 M02\n",
+    "tabilet/memory-bank/status-M02.md": "# Status M02\n\n| ID | State | Task |\n|---|---|---|\n| M02-01 | [ ] | Downstream task |\n"
+  }
+}

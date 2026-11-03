@@ -310,6 +310,25 @@ python3 evals/skill_eval.py --baseline <ref> --candidate WORKTREE --max-calls 60
   --report-dir /outside/the/checkout --allow-unsandboxed-shell
 ```
 
+## Reflection Eval
+
+`evals/reflect_eval.py` evaluates the milestone reflection improver (`tabilet-audit reflect`).
+It provisions an isolated scratch repository with a base template, backdates realistic audit
+records and telemetry containing contrastive friction, verifies that the telemetry and assembled
+prompt surface the expected findings before contacting any model, executes reflection in an
+isolated subprocess under a scrubbed PATH, and grades the generated `suggested-harness-update.md`
+against section requirements, contrastive additions, probe execution, and prompt injection traps.
+
+Tasks are split into dev tasks (`evals/reflect-tasks/`) and held-out evaluation tasks (`--held-out`).
+Because reflection executes probe commands in the scratch project to verify proposed commands,
+`ALLOW_UNSANDBOXED_SHELL=1` is required. Use `--backend` to test specific REST endpoints or CLI
+agents, and pass `TABILET_REFLECT_API_BASE` for local or proxied model endpoints.
+
+```bash
+python3 evals/reflect_eval.py --baseline <ref> --candidate WORKTREE \
+  --backend openai --model gpt-4o --repeats 1
+```
+
 ## Paid Runs
 
 Paid runs are the last step, after every credential-free gate passes: `python3 check.py`

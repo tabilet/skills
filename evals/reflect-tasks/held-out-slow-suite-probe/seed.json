@@ -1,0 +1,74 @@
+{
+  "runs": [
+    {
+      "run_id": "heldout-fast-run",
+      "operation": "next",
+      "started_at": "2026-11-01T15:00:00Z",
+      "completed_at": "2026-11-01T15:00:01Z",
+      "result": "completed",
+      "capture_mode": "metadata",
+      "events": [
+        {
+          "event_type": "task_transition",
+          "subject": {
+            "milestone_id": "M01",
+            "task_label": "Fast targeted test",
+            "old_state": "pending",
+            "new_state": "completed"
+          },
+          "details": {
+            "schema": "tabilet.audit.details/v1",
+            "capture_source": "agent",
+            "fidelity": "summarized"
+          }
+        }
+      ],
+      "coverage": [
+        {
+          "coverage_id": "cov-fast-2",
+          "framework": "unittest",
+          "test_command": "python3 -m unittest discover -s tests -p 'test_fast.py'",
+          "duration_sec": 0.01,
+          "tests_run": 1,
+          "passed": 1,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "run_id": "heldout-slow-run",
+      "operation": "next",
+      "started_at": "2026-11-01T15:01:00Z",
+      "completed_at": "2026-11-01T15:03:10Z",
+      "result": "completed",
+      "capture_mode": "metadata",
+      "events": [
+        {
+          "event_type": "task_transition",
+          "subject": {
+            "milestone_id": "M01",
+            "task_label": "Slow comprehensive suite",
+            "old_state": "pending",
+            "new_state": "completed"
+          },
+          "details": {
+            "schema": "tabilet.audit.details/v1",
+            "capture_source": "agent",
+            "fidelity": "summarized"
+          }
+        }
+      ],
+      "coverage": [
+        {
+          "coverage_id": "cov-slow-2",
+          "framework": "unittest",
+          "test_command": "python3 -m unittest discover -s tests -p 'test_slow.py'",
+          "duration_sec": 128.0,
+          "tests_run": 1,
+          "passed": 1,
+          "failed": 0
+        }
+      ]
+    }
+  ]
+}

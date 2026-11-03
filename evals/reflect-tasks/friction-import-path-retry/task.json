@@ -1,0 +1,21 @@
+{
+  "description": "Milestone with a failed run due to ModuleNotFoundError and captured error trace. Downstream M02 is open.",
+  "category": "capability",
+  "held_out": false,
+  "milestone": "M01",
+  "expect": {
+    "telemetry": {
+      "friction_runs_count": 1,
+      "downstream_gate": "open",
+      "error_traces_nonempty": true
+    },
+    "prompt": {
+      "must_include": ["ModuleNotFoundError", "failed-import-run", "M02"],
+      "must_exclude": []
+    },
+    "proposal": {
+      "must_include": ["ModuleNotFoundError"],
+      "must_exclude": []
+    }
+  }
+}

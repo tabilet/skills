@@ -1,0 +1,74 @@
+{
+  "runs": [
+    {
+      "run_id": "fast-run",
+      "operation": "next",
+      "started_at": "2026-11-01T10:00:00Z",
+      "completed_at": "2026-11-01T10:00:01Z",
+      "result": "completed",
+      "capture_mode": "metadata",
+      "events": [
+        {
+          "event_type": "task_transition",
+          "subject": {
+            "milestone_id": "M01",
+            "task_label": "Fast unit test",
+            "old_state": "pending",
+            "new_state": "completed"
+          },
+          "details": {
+            "schema": "tabilet.audit.details/v1",
+            "capture_source": "agent",
+            "fidelity": "summarized"
+          }
+        }
+      ],
+      "coverage": [
+        {
+          "coverage_id": "cov-fast",
+          "framework": "unittest",
+          "test_command": "python3 -m unittest discover -s tests -p 'test_fast.py'",
+          "duration_sec": 0.01,
+          "tests_run": 1,
+          "passed": 1,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "run_id": "slow-run",
+      "operation": "next",
+      "started_at": "2026-11-01T10:01:00Z",
+      "completed_at": "2026-11-01T10:03:15Z",
+      "result": "completed",
+      "capture_mode": "metadata",
+      "events": [
+        {
+          "event_type": "task_transition",
+          "subject": {
+            "milestone_id": "M01",
+            "task_label": "Slow test suite",
+            "old_state": "pending",
+            "new_state": "completed"
+          },
+          "details": {
+            "schema": "tabilet.audit.details/v1",
+            "capture_source": "agent",
+            "fidelity": "summarized"
+          }
+        }
+      ],
+      "coverage": [
+        {
+          "coverage_id": "cov-slow",
+          "framework": "unittest",
+          "test_command": "python3 -m unittest discover -s tests -p 'test_slow.py'",
+          "duration_sec": 130.0,
+          "tests_run": 1,
+          "passed": 1,
+          "failed": 0
+        }
+      ]
+    }
+  ]
+}

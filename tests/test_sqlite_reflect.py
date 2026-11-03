@@ -471,6 +471,102 @@ class ReflectTests(unittest.TestCase):
             self.probe('pytest', 50, 3.0), {**self.probe('go test ./...', None, 0.5, has_coverage=True)}])
         self.assertNotIn('Recommended Test Profile:', report)
 
+    def test_captured_message_content_extracted_in_telemetry_and_trajectories(self):
+        self.command('audit', 'enable', self.repo)
+        started = self.command('audit', 'begin', self.repo, 'next', '--run-id', 'friction-run', '--capture', 'relevant')
+        self.command('audit', 'event', data={
+            'schema': 'tabilet.audit.event/v1', 'event_id': 'e-friction', 'run_id': 'friction-run',
+            'workspace_id': started['workspace_id'], 'operation': 'next', 'event_type': 'task_transition',
+            'subject': {'milestone_id': 'M01', 'task_label': 'Implement feature',
+                        'old_state': 'pending', 'new_state': 'in_progress'},
+            'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent', 'fidelity': 'summarized'}})
+        self.command('audit', 'message', data={
+            'run_id': 'friction-run', 'role': 'user', 'text': 'Please fix the bug in parser.py',
+            'capture_source': 'agent', 'fidelity': 'summarized'})
+        self.command('audit', 'message', data={
+            'run_id': 'friction-run', 'role': 'assistant', 'text': 'I will edit_file src/parser.py now.',
+            'capture_source': 'agent', 'fidelity': 'summarized'})
+        self.command('audit', 'message', data={
+            'run_id': 'friction-run', 'role': 'assistant', 'text': 'Error: ModuleNotFoundError: No module named foo',
+            'capture_source': 'agent', 'fidelity': 'summarized'})
+        self.command('audit', 'finish', 'friction-run', 'failed')
+
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        self.assertEqual(len(telemetry['turn_efficiency']), 1)
+        self.assertEqual(telemetry['turn_efficiency'][0]['first_edit_turn'], 2)
+        self.assertEqual(telemetry['turn_efficiency'][0]['total_turns'], 3)
+        self.assertIn('friction-run', telemetry['bounded_error_traces'])
+        traces = telemetry['bounded_error_traces']['friction-run']
+        self.assertEqual(len(traces), 3)
+        self.assertIn('ModuleNotFoundError', traces[-1]['snippet'])
+
+        trajectories = reflect.export_trajectories(self.repo, 'M01')
+        self.assertEqual(len(trajectories['tasks']), 1)
+        turns = trajectories['tasks'][0]['turns']
+        self.assertEqual(len(turns), 3)
+        self.assertEqual(turns[0]['text'], 'Please fix the bug in parser.py')
+        self.assertIn('edit_file', turns[1]['text'])
+        self.assertIn('ModuleNotFoundError', turns[2]['text'])
+
+    def test_rest_fallback_with_custom_api_base_and_usage(self):
+        self.record_completed_task()
+        fake_response = {
+            "choices": [{"message": {"content": "## Proposed\nSome proposal"}}],
+            "usage": {"prompt_tokens": 150, "completion_tokens": 42}
+        }
+        mock_resp = mock.MagicMock()
+        mock_resp.read.return_value = json.dumps(fake_response).encode("utf-8")
+        mock_resp.__enter__.return_value = mock_resp
+
+        recorded_req = []
+
+        def fake_urlopen(req, timeout=120):
+            recorded_req.append(req)
+            return mock_resp
+
+        with mock.patch.dict(os.environ, {
+            "OPENAI_API_KEY": "test-key",
+            "TABILET_REFLECT_API_BASE": "http://custom-proxy.local/v1"
+        }, clear=True), mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            res = reflect.invoke_improver_llm(
+                reflect.extract_telemetry(self.repo), self.repo, backend="openai"
+            )
+            self.assertEqual(res.source, "rest:openai")
+            self.assertEqual(res[1], "rest:openai")
+            self.assertEqual(res.text, "## Proposed\nSome proposal")
+            self.assertEqual(res[0], "## Proposed\nSome proposal")
+            self.assertEqual(res.usage, {"input_total": 150, "output": 42})
+            self.assertEqual(len(recorded_req), 1)
+            self.assertEqual(recorded_req[0].full_url, "http://custom-proxy.local/v1/chat/completions")
+
+    def test_rest_fallback_ignores_custom_api_base_when_auto(self):
+        self.record_completed_task()
+        fake_response = {
+            "content": [{"type": "text", "text": "## Proposed\nClaude proposal"}],
+            "usage": {"input_tokens": 100, "output_tokens": 50}
+        }
+        mock_resp = mock.MagicMock()
+        mock_resp.read.return_value = json.dumps(fake_response).encode("utf-8")
+        mock_resp.__enter__.return_value = mock_resp
+
+        recorded_req = []
+
+        def fake_urlopen(req, timeout=120):
+            recorded_req.append(req)
+            return mock_resp
+
+        with mock.patch.dict(os.environ, {
+            "ANTHROPIC_API_KEY": "test-key",
+            "TABILET_REFLECT_API_BASE": "http://custom-proxy.local/v1"
+        }, clear=True), mock.patch("shutil.which", return_value=None), mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            res = reflect.invoke_improver_llm(
+                reflect.extract_telemetry(self.repo), self.repo, backend="auto"
+            )
+            self.assertEqual(res.source, "rest:claude")
+            self.assertEqual(res.usage, {"input_total": 100, "output": 50})
+            self.assertEqual(len(recorded_req), 1)
+            self.assertEqual(recorded_req[0].full_url, "https://api.anthropic.com/v1/messages")
+
 
 if __name__ == '__main__':
     unittest.main()

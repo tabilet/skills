@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+*.pyo
+suggested-harness-update.md
+tabilet/audit.sqlite3*

@@ -1,0 +1,20 @@
+{
+  "description": "Quiet successful milestone with no friction; downstream gate remains closed.",
+  "category": "capability",
+  "held_out": false,
+  "milestone": "M01",
+  "expect": {
+    "telemetry": {
+      "friction_runs_count": 0,
+      "downstream_gate": "closed"
+    },
+    "prompt": {
+      "must_include": ["closed (no significant finding in this milestone)"],
+      "must_exclude": []
+    },
+    "proposal": {
+      "must_include": [],
+      "must_exclude": []
+    }
+  }
+}
