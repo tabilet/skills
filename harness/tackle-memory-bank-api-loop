@@ -3271,6 +3271,10 @@ def _post_json(
                 raw = resp.read(MAX_RESPONSE_BYTES + 1)
                 if len(raw) > MAX_RESPONSE_BYTES:
                     fail(f"{label} response exceeded {MAX_RESPONSE_BYTES} bytes.", 22)
+                expected = (resp.headers.get("Content-Length") or "").strip()
+                if expected.isdigit() and len(raw) < int(expected):
+                    # A connection closed early can return the partial body without raising.
+                    raise http.client.IncompleteRead(raw, int(expected) - len(raw))
                 try:
                     body = json.loads(raw.decode("utf-8"))
                 except (UnicodeDecodeError, json.JSONDecodeError) as exc:
