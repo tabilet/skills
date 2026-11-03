@@ -15,17 +15,17 @@
       "Write set:\\s*\\S",
       "Parallel-safe:\\s*no"
     ],
-    "files_contain": {
+    "files_exclude": {
       "tabilet/memory-bank/milestone.md": [
-        "(?is)##\\s+M02\\b(?:(?!\\n##\\s).)*\\bversion"
+        "(?is)##\\s+M02\\b(?:(?!\\n##\\s).)*bare JSON list"
       ]
     }
   },
   "golden": {
     "fail-forgets-consumer.py": [
       "new_spec",
-      "expected_files"
+      "forbidden_content"
     ],
-    "fail-leaves-consumer-stale.py": "expected_files"
+    "fail-leaves-consumer-stale.py": "forbidden_content"
   }
 }
