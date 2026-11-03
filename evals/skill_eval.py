@@ -389,8 +389,10 @@ def run_trial(runner, llm, tree: pathlib.Path, task: dict, role: str, repeat: in
     error = ""
     try:
         outcome = converse(runner, llm, project, system, task, budget)
-    except SystemExit as exc:
-        error = f"provider or runner failure (exit {exc.code})"
+    except (SystemExit, OSError) as exc:
+        # A transport error (e.g. a TLS reset the runner does not retry) is an aborted trial, not a crash.
+        error = (f"provider or runner failure (exit {exc.code})" if isinstance(exc, SystemExit)
+                 else f"provider transport failure ({type(exc).__name__})")
         outcome = {"finished": False, "checkpoints": [], "finals": [], "turns": 0, "tokens": 0, "tokens_known": False, "note": error}
     final = snapshot(project)
     rebased = outcome.get("rebased")
@@ -466,6 +468,10 @@ def main(argv: list[str] | None = None) -> int:
                         trials.append(trial)
                         calls += trial["turns"]
                         tokens += trial["tokens"]
+                        if trial["note"].startswith("provider"):
+                            # A failed call says nothing about the text; stop rather than score it as a loss.
+                            aborted = f"{trial['note']} in {task['name']} ({role}, repeat {repeat})"
+                            break
                     if aborted:
                         break
                 if aborted:

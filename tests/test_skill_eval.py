@@ -398,6 +398,17 @@ class SkillEvalTests(unittest.TestCase):
         code, report, requests = self.evaluate({}, shell_ack=False)
         self.assertEqual((code, report, requests), (2, None, 0))
 
+    def test_a_transport_error_aborts_the_run_as_inconclusive(self):
+        import ssl
+        real = skill_eval.catalog_probe.load_runner()
+        def broken(*args, **kwargs):
+            raise ssl.SSLError("bad record mac")
+        with mock.patch.object(skill_eval.catalog_probe, "load_runner", return_value=mock.Mock(wraps=real, call_llm=broken,
+                               status_rows=real.status_rows, status_marker_problems=real.status_marker_problems)):
+            code, report, _ = self.evaluate({}, tasks=("propose-new-feature",))
+        self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
+        self.assertIn("transport failure (SSLError)", report["aborted"])
+
     def test_missing_model_stops_before_any_call(self):
         code, report, requests = self.evaluate({}, LLM_MODEL="")
         self.assertEqual((code, report, requests), (2, None, 0))
