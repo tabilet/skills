@@ -1,0 +1,23 @@
+{
+  "skill": "memory-bank-next",
+  "held_out": false,
+  "request": "Tackle the next task in the memory bank.",
+  "replies": [
+    "Go ahead, using your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "execution": true,
+  "description": "Two general rows are in progress at once: Next stops and reports the conflict, implementing nothing, changing no row and making no commit.",
+  "category": "trap",
+  "allowed_paths": [
+    "tabilet/memory-bank/**"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "commits": 0,
+    "clean": false,
+    "unchanged": [
+      "src/tasklist.py"
+    ]
+  }
+}

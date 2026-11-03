@@ -75,6 +75,9 @@ CHECK_MEANINGS = {
     "new_spec": "the new milestone specification lacks a required field or names the wrong impact",
     "final_mentions": "the final message omits something it must report",
     "finished": "the conversation did not finish within its turn limit",
+    "commits": "an execution run made the wrong number of commits or rewrote history",
+    "uncommitted": "an execution run left uncommitted changes",
+    "verify": "the task's verification command failed in the final project",
 }
 
 TEXT_PROMPT = """You are improving one instruction file of Tabilet Memory Bank, a set of planning skills that

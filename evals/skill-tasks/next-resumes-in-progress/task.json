@@ -1,0 +1,34 @@
+{
+  "skill": "memory-bank-next",
+  "held_out": false,
+  "request": "Tackle the next task in the memory bank.",
+  "replies": [
+    "Go ahead, using your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "execution": true,
+  "description": "A higher-priority milestone has a pending row, but another row is already in progress: Next resumes that row, completes it with one commit, and leaves the pending row alone.",
+  "category": "capability",
+  "allowed_paths": [
+    "src/**",
+    "tests/**",
+    "tabilet/memory-bank/**",
+    "tabilet/evolution/**"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "commits": [
+      1,
+      2
+    ],
+    "row_states": {
+      "tabilet/memory-bank/status-M02.md::Add remove(task_id) to src/tasklist.py": "completed"
+    },
+    "verify": "python3 -B -m unittest -q && ! grep -q 'def rename' src/tasklist.py"
+  },
+  "golden": {
+    "fail-picks-pending.py": "rows_preserved",
+    "fail-no-commit.py": "commits",
+    "fail-marks-without-code.py": "verify"
+  }
+}

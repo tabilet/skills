@@ -34,6 +34,7 @@ ROLES = run_eval.ROLES
 EvalError = run_eval.EvalError
 DEFAULT_ALLOWED = ("tabilet/memory-bank/**", "tabilet/stages.md", "tabilet/evolution/**")
 HISTORY = "tabilet/docs/history/"
+ROW_STATES = {"pending", "completed", "in_progress", "blocked", "cancelled", "historical"}
 STATUS_NAME = re.compile(r"status-([A-Z][0-9][0-9])\.md$")
 PREAMBLE = """\
 You are carrying out one skill for a user. The skill's instructions follow this preamble.
@@ -121,13 +122,25 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
     if between is not None and (not isinstance(between, list) or len(between) != len(task.get("replies", []))
                                 or not all(c is None or (isinstance(c, str) and c.strip()) for c in between)):
         problems.append("between must have one shell command or null per reply")
+    if not isinstance(task.get("execution", False), bool):
+        problems.append("execution must be true or false")
+    if isinstance(expect, dict):
+        commits = expect.get("commits", 1)
+        if not all(isinstance(c, int) and not isinstance(c, bool) and c >= 0 for c in (commits if isinstance(commits, list) else [commits])):
+            problems.append("expect.commits must be a non-negative integer or a list of them")
+        row_states = expect.get("row_states", {})
+        if not isinstance(row_states, dict) or not all(
+                isinstance(k, str) and "::" in k and v in ROW_STATES for k, v in row_states.items()):
+            problems.append(f"expect.row_states must map 'status file::item' to one of {sorted(ROW_STATES)}")
+        if "verify" in expect and not (isinstance(expect["verify"], str) and expect["verify"].strip()):
+            problems.append("expect.verify must be a shell command")
     if not isinstance(task.get("stub_privileged", False), bool):
         problems.append("stub_privileged must be true or false")
     if not isinstance(task.get("allowed_paths"), list) or not task["allowed_paths"]:
         problems.append("allowed_paths must be a non-empty list")
     project = task["dir"] / "project"
-    if not any(project.rglob("status-[A-Z][0-9][0-9].md")):
-        problems.append("project overlay needs at least one status file")
+    if not any(project.rglob("status-[A-Z][0-9][0-9].md")) and not (task["dir"] / "setup.py").is_file():
+        problems.append("project overlay needs at least one status file, or a setup.py that writes them")
     if (project / run_eval.EDITABLE_PROJECT_FILE).exists():
         problems.append(f"overlay must not contain {run_eval.EDITABLE_PROJECT_FILE}: the ref's template is what is measured")
     return problems
@@ -228,6 +241,28 @@ def history_appended(project: pathlib.Path, base: dict, relative: str) -> bool:
     return True
 
 
+def commit_count(project: pathlib.Path, base: str, head: str) -> int | None:
+    """New commits on top of `base`, or None when `head` does not descend from it (history was rewritten)."""
+    if subprocess.run(["git", "merge-base", "--is-ancestor", base, head], cwd=project, capture_output=True).returncode:
+        return None
+    done = subprocess.run(["git", "rev-list", "--count", f"{base}..{head}"], cwd=project, capture_output=True, text=True)
+    return int(done.stdout.strip()) if done.returncode == 0 else None
+
+
+def worktree_dirty(project: pathlib.Path) -> bool:
+    done = subprocess.run(["git", "status", "--porcelain"], cwd=project, capture_output=True, text=True)
+    return bool(done.stdout.strip()) or done.returncode != 0
+
+
+def verify_passes(project: pathlib.Path, command: str) -> bool:
+    """Run a task's verification command in the final project; it must not leave files behind."""
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    try:
+        return subprocess.run(["bash", "-c", command], cwd=project, env=env, capture_output=True, timeout=120).returncode == 0
+    except subprocess.TimeoutExpired:
+        return False
+
+
 def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows: dict,
           checkpoints: list[dict], final: dict, finished: bool, rebased: dict | None = None,
           finals: list[str] | None = None) -> tuple[list[str], dict]:
@@ -238,18 +273,28 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
     failed: list[str] = []
     if not finished or not checkpoints:
         return ["finished"], {}
-    if changed_paths(initial, checkpoints[0]) or checkpoints[0]["head"] != initial["head"]:
+    expect = task["expect"]
+    execution = task.get("execution", False)
+    # An execution skill (Next) works before its first message, so the approval gate is a planning check.
+    if not execution and (changed_paths(initial, checkpoints[0]) or checkpoints[0]["head"] != initial["head"]):
         failed.append("gate")
     base = rebased or initial
     changes = changed_paths(base, final)
     if any(not path_allowed(p, task["allowed_paths"]) for p in changes):
         failed.append("planning_only")
-    if final["head"] != base["head"]:
+    if not execution and final["head"] != base["head"]:
         failed.append("no_commit")
+    if execution:
+        wanted = expect.get("commits", 1)
+        if commit_count(project, base["head"], final["head"]) not in (wanted if isinstance(wanted, list) else [wanted]):
+            failed.append("commits")
+        if expect.get("clean", True) and worktree_dirty(project):
+            failed.append("uncommitted")
     if any(p.startswith(HISTORY) and not history_appended(project, base, p) for p in changes):
         failed.append("history_frozen")
     final_rows = read_rows(runner, project, final["files"])
-    if any(final_rows.get(key) != state for key, state in initial_rows.items()):
+    moved = {tuple(key.split("::", 1)): state for key, state in expect.get("row_states", {}).items()}
+    if any(final_rows.get(key) != moved.get(key, state) for key, state in initial_rows.items()):
         failed.append("rows_preserved")
     new_files = sorted(set(active_status_files(final["files"])) - set(active_status_files(base["files"])))
     new_ids = [STATUS_NAME.search(n).group(1) for n in new_files]
@@ -265,7 +310,6 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         failed.append("new_status")
     if any(text not in (finals or [""])[-1] for text in task["expect"].get("final_mentions", [])):
         failed.append("final_mentions")
-    expect = task["expect"]
     for relatives, value in expect.get("files_contain", {}).items():
         texts = [read_text(path) for path in expand_paths(project, relatives) if path.is_file()]
         if not all(any(re.search(pattern, text) for text in texts) for pattern in patterns(value)):
@@ -285,6 +329,8 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         failed.append("forbidden_files")
     if any(base["files"].get(relative) != final["files"].get(relative) for relative in expect.get("unchanged", [])):
         failed.append("unchanged")
+    if expect.get("verify") and not verify_passes(project, expect["verify"]):
+        failed.append("verify")
     if new_ids and (expect.get("new_spec_contains") or expect.get("new_spec_excludes")):
         for new_id in new_ids:
             section = spec_section(index, new_id)

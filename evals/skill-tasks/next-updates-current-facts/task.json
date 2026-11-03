@@ -1,0 +1,42 @@
+{
+  "skill": "memory-bank-next",
+  "held_out": false,
+  "request": "Tackle the next task in the memory bank.",
+  "replies": [
+    "Go ahead, using your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "execution": true,
+  "description": "The row changes the storage contract from JSON to SQLite: Next implements it and, in the same change, corrects the architecture and product facts it invalidates.",
+  "category": "capability",
+  "allowed_paths": [
+    "src/**",
+    "tests/**",
+    "tabilet/memory-bank/**",
+    "tabilet/evolution/**"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "commits": [
+      1,
+      2
+    ],
+    "row_states": {
+      "tabilet/memory-bank/status-M01.md::Store tasks in a SQLite database `tasks.db` (table `tasks`) instead of `tasks.json`; keep save(path) and load(path)": "completed"
+    },
+    "files_contain": {
+      "tabilet/memory-bank/architecture.md": "(?i)sqlite",
+      "tabilet/memory-bank/product.md": "(?i)sqlite"
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/architecture.md": "`tasks\\.json` holds a JSON array",
+      "tabilet/memory-bank/product.md": "live in one `tasks\\.json` file"
+    },
+    "verify": "python3 -B -m unittest -q"
+  },
+  "golden": {
+    "fail-status-only.py": "expected_files",
+    "fail-keeps-json-claim.py": "forbidden_content",
+    "fail-breaks-tests.py": "verify"
+  }
+}

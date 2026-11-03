@@ -182,3 +182,79 @@ def recent_project(drop=()):
     write(MEMORY / "milestone.md", milestone)
     git("add", "-A")
     git("commit", "-qm", "Project on the previous release")
+
+
+# Next helpers: a recent project with an explicit milestone ledger, and the edits an executor makes.
+def status_file(ident, title, rows):
+    """A status file with the ref's template preamble (which carries the commit-unit rule) and these rows."""
+    text = (TREE / "template/tabilet/memory-bank/status-M01.md").read_text(encoding="utf-8")
+    text = text.replace("# Status M01 - [Milestone name]", f"# Status {ident} - {title}", 1)
+    text = text.replace("State of each M01 milestone item", f"State of each {ident} milestone item", 1)
+    table = "| Item | State | Notes |\n|---|---|---|\n" + "".join(f"| {i} | `{m}` | {n} |\n" for i, m, n in rows)
+    text = text[:text.index("| Item | State | Notes |")] + table
+    write(MEMORY / f"status-{ident}.md", text)
+
+
+def ledger(milestones):
+    """Setup: a recent project whose active milestones, in priority order, are `milestones`: dicts with ident,
+    title, goal, depends, write_set and rows [(item, marker, notes)]. Writes the index, specifications and status
+    files, then commits."""
+    recent_project()
+    for path in MEMORY.glob("status-*.md"):
+        path.unlink()
+    index, specs = "", ""
+    for m in milestones:
+        status_file(m["ident"], m["title"], m["rows"])
+        index += f"| {m['ident']} | [status-{m['ident']}.md](status-{m['ident']}.md) | {m['title']}. |\n"
+        scope = "".join(f"- {item}\n" for item, _, _ in m["rows"])
+        specs += (f"## {m['ident']} - {m['title']}\n\n**Goal.** {m['goal']}\n\n**Scope.**\n\n{scope}\n"
+                  "**Acceptance.** `python3 -m unittest` passes, including a test for each scoped item.\n\n"
+                  f"**Boundaries and parallel safety.**\n- Depends on: {m['depends']}\n- Downstream impacts: none\n"
+                  f"- Write set: {m.get('write_set', 'src/tasklist.py, tests/')}\n- Contracts read: none\n- Parallel-safe: no\n\n")
+    text = read(MEMORY / "milestone.md")
+    text = text.replace("| M01 | [status-M01.md](status-M01.md) | Core add and list commands. |\n", index, 1)
+    text = text.replace(M01_SPEC, specs, 1)
+    write(MEMORY / "milestone.md", text)
+    git("add", "-A")
+    git("commit", "-qm", "Plan the active milestones")
+
+
+def write_summaries():
+    """Current architecture and product facts for the JSON storage, without an archive registry."""
+    write(MEMORY / "architecture.md",
+          "# Architecture\n\n## Layout\n\n| Path | Role |\n|---|---|\n"
+          "| `src/tasklist.py` | Task model and JSON persistence. |\n| `tests/` | Unit tests run with `python3 -m unittest`. |\n"
+          "| `tabilet/memory-bank/` | Project memory and milestone state. |\n\n## Data flow\n\n"
+          "Callers add and complete tasks in the in-memory `TASKS` list; `save()` writes it to `tasks.json` and "
+          "`load()` reads it back.\n\n## Public contracts\n\n"
+          "- `add`, `complete`, `listing`, `save(path=\"tasks.json\")` and `load(path=\"tasks.json\")` in `src/tasklist.py`.\n"
+          "- `tasks.json` holds a JSON array of `{\"id\", \"title\", \"done\"}` objects.\n\n"
+          "## Archive baselines\n\nNo archive baseline is registered.\n")
+    write(MEMORY / "product.md",
+          "# Product\n\n## What this is\n\n`tasklist` is a single-user command-line task tracker.\n\n## Domain model\n\n"
+          "| Concept | Meaning | Relationships and invariants |\n|---|---|---|\n"
+          "| Task | One item to do | Has an integer id, a title and a done flag; ids follow insertion order. |\n\n"
+          "## Invariants\n\n- Saved tasks live in one `tasks.json` file.\n\n## Non-goals\n\n- Sync and multi-user use.\n")
+
+
+def set_row(ident, item, marker, notes=None):
+    """Change one status row's marker (and optionally its notes) in place."""
+    path = MEMORY / f"status-{ident}.md"
+    lines = read(path).splitlines()
+    for n, line in enumerate(lines):
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if line.startswith("|") and cells and cells[0] == item:
+            lines[n] = f"| {item} | `{marker}` | {cells[2] if notes is None and len(cells) > 2 else notes or ''} |"
+            break
+    else:
+        raise AssertionError(f"row {item!r} not found in {path}")
+    write(path, "\n".join(lines) + "\n")
+
+
+def add_code(text):
+    write("src/tasklist.py", read("src/tasklist.py").rstrip("\n") + "\n\n\n" + text.strip("\n") + "\n")
+
+
+def commit(message):
+    git("add", "-A")
+    git("commit", "-qm", message)

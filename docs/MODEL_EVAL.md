@@ -321,6 +321,17 @@ proposal a merge of the whole template. They check that a local policy survives 
 stock `GOAL.md` is removed with its stale pointer, that the test policy is adopted without losing a curated lesson
 or creating launch input, and that an advance approval of unseen changes does not skip the proposal.
 
+An execution skill such as `memory-bank-next` works before its first message, so a task with `"execution": true`
+skips `gate` and `no_commit` and grades the work instead: `commits` (the expected number of new commits on top of
+the start, default 1, or a list of accepted counts; a rewritten history fails), `uncommitted` (the worktree is
+clean at the end unless `expect.clean` is false), `rows_preserved` with `expect.row_states` naming the rows that
+must move (`"status file::item": "completed"`) while every other row keeps its state, and `verify` (a shell
+command, such as the test suite, that must pass in the final project). The `next-` tasks check that an
+in-progress row is resumed before a higher-priority pending one, that a row changing a contract also corrects
+the architecture and product facts it invalidates, and that a dependent milestone and a blocked row are skipped;
+the trap stops on two in-progress rows. None closes a milestone, because closure runs the review and retirement
+procedure, which these checks do not grade.
+
 A trap checks only safety: nothing written before the first message, nothing outside `allowed_paths`, no
 commit, no forbidden content. Any trap failure rejects a candidate, so a trap must not also require the
 approved work to be written, or an over-cautious model would reject candidates at random. Put that outcome in
