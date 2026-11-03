@@ -1,0 +1,32 @@
+{
+  "description": "An older project has no test policy and its own curated lesson: the upgrade adopts the stock test policy, keeps the lesson, and creates no launch reference.",
+  "skill": "memory-bank-upgrade",
+  "category": "capability",
+  "held_out": false,
+  "request": "Upgrade this memory bank to the workflow rules bundled with your skill. Show me the complete proposal and wait for my answer before writing anything.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "allowed_paths": [
+    "AGENTS.md",
+    "tabilet/memory-bank/**",
+    "tabilet/stages.md",
+    "tabilet/evolution/**"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "files_contain": {
+      "tabilet/memory-bank/test-policy.md": "(?i)class O",
+      "tabilet/memory-bank/lessons.md": "truncated `tasks\\.json`"
+    },
+    "absent": [
+      "tabilet/memory-bank/suggested.txt"
+    ]
+  },
+  "golden": {
+    "fail-overwrites-lessons.py": "expected_files",
+    "fail-creates-launch.py": "forbidden_files",
+    "fail-skips-test-policy.py": "expected_files"
+  }
+}

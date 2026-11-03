@@ -1,0 +1,34 @@
+{
+  "description": "The project keeps a byte-identical copy of the stock goal protocol and an AGENTS.md pointer naming it as the protocol: the upgrade removes the copy and repoints the reference to the bundled protocol.",
+  "skill": "memory-bank-upgrade",
+  "category": "capability",
+  "held_out": false,
+  "request": "Upgrade this memory bank to the workflow rules bundled with your skill. Show me the complete proposal and wait for my answer before writing anything.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "allowed_paths": [
+    "tabilet/GOAL.md",
+    "AGENTS.md",
+    "tabilet/memory-bank/**",
+    "tabilet/stages.md",
+    "tabilet/evolution/**"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "absent": [
+      "tabilet/GOAL.md"
+    ],
+    "files_contain": {
+      "AGENTS.md": "Never deploy on Fridays"
+    },
+    "files_exclude": {
+      "AGENTS.md": "Follow `tabilet/GOAL\\.md` for goal requests"
+    }
+  },
+  "golden": {
+    "fail-keeps-copy.py": "forbidden_files",
+    "fail-stale-pointer.py": "forbidden_content"
+  }
+}

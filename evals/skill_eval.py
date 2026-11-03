@@ -207,6 +207,27 @@ def read_rows(runner, project: pathlib.Path, files: dict) -> dict[tuple[str, str
     return rows
 
 
+def history_appended(project: pathlib.Path, base: dict, relative: str) -> bool:
+    """Whether a history change is an allowed addition: the knowledge journal keeps its old text as a prefix,
+    and the history index keeps every old line. Retired records and every other history file stay frozen."""
+    if relative not in (HISTORY + "knowledge.md", HISTORY + "index.md") or not (project / relative).is_file():
+        return False
+    new = read_text(project / relative)
+    if relative not in base["files"]:
+        return True
+    old = subprocess.run(["git", "show", f"{base['head']}:{relative}"], cwd=project, capture_output=True, text=True)
+    if old.returncode:
+        return False
+    if relative.endswith("knowledge.md"):
+        return new.startswith(old.stdout)
+    remaining = new.splitlines()
+    for line in old.stdout.splitlines():
+        if line not in remaining:
+            return False
+        remaining.remove(line)
+    return True
+
+
 def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows: dict,
           checkpoints: list[dict], final: dict, finished: bool, rebased: dict | None = None,
           finals: list[str] | None = None) -> tuple[list[str], dict]:
@@ -225,7 +246,7 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
         failed.append("planning_only")
     if final["head"] != base["head"]:
         failed.append("no_commit")
-    if any(p.startswith(HISTORY) for p in changes):
+    if any(p.startswith(HISTORY) and not history_appended(project, base, p) for p in changes):
         failed.append("history_frozen")
     final_rows = read_rows(runner, project, final["files"])
     if any(final_rows.get(key) != state for key, state in initial_rows.items()):
@@ -369,6 +390,12 @@ def prepare_project(tree: pathlib.Path, task: dict, dest: pathlib.Path) -> pathl
     run_eval.git("config", "--local", "user.email", "eval@example.test", cwd=dest)
     run_eval.git("add", "-A", cwd=dest)
     run_eval.git("commit", "-qm", "initial", cwd=dest)
+    setup = task["dir"] / "setup.py"
+    if setup.is_file():
+        # A task's setup builds history or leaves a dirty worktree after the first commit; it runs in the project.
+        done = subprocess.run([sys.executable, "-B", str(setup)], cwd=dest, capture_output=True, text=True, timeout=120)
+        if done.returncode:
+            raise EvalError(f"{task['name']}: setup.py failed: {done.stderr.strip()[-500:]}")
     return dest
 
 

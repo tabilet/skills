@@ -19,5 +19,10 @@
     "files_contain": {
       "AGENTS.md": "(?s)(?=.*Never deploy on Fridays)(?=.*requested[- ]change procedure)"
     }
+  },
+  "golden": {
+    "fail-drops-policy.py": "expected_files",
+    "fail-commits.py": "no_commit",
+    "fail-plans-work.py": "new_status"
   }
 }

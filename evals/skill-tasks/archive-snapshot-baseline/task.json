@@ -22,5 +22,11 @@
       "tabilet/docs/archive-C01.md",
       "tabilet/memory-bank/architecture.md"
     ]
+  },
+  "golden": {
+    "fail-wrong-hash.py": "expected_files",
+    "fail-no-registry.py": "expected_files",
+    "fail-edits-status.py": "planning_only",
+    "fail-commits.py": "no_commit"
   }
 }

@@ -1,0 +1,39 @@
+{
+  "description": "After archive C01 the package only moved into a subpackage with the same API and file format: the run creates no successor, leaves C01 byte-identical and updates the current layout in architecture.md.",
+  "skill": "memory-bank-archive",
+  "category": "capability",
+  "held_out": false,
+  "request": "Code has changed since archive C01 was written. Refresh the archive baselines and the current summaries as needed. Show me the proposal and wait for my answer before writing anything.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "allowed_paths": [
+    "tabilet/docs/archive-*.md",
+    "tabilet/memory-bank/product.md",
+    "tabilet/memory-bank/architecture.md",
+    "tabilet/docs/history/knowledge.md",
+    "tabilet/docs/history/index.md"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "files_contain": {
+      "tabilet/memory-bank/architecture.md": [
+        "src/tasklist/core\\.py",
+        "archive-C01\\.md"
+      ]
+    },
+    "absent": [
+      "tabilet/docs/archive-C02.md"
+    ],
+    "unchanged": [
+      "tabilet/docs/archive-C01.md"
+    ]
+  },
+  "golden": {
+    "fail-writes-successor.py": "forbidden_files",
+    "fail-edits-c01.py": [
+      "unchanged"
+    ]
+  }
+}

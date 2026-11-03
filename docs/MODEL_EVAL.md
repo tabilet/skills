@@ -255,7 +255,9 @@ the skill name from each task.
 A task in `evals/skill-tasks/<name>/task.json` names the skill, the user's request, the scripted human
 replies (for example `["Approved."]`, or none), and how many new status files a correct run creates. Its
 `project/` overlay is applied over `evals/skill-tasks/_base/project/` and the ref's `template/`, so a
-fixture can be a few small files. The model works until it returns a `final` message, which stands for
+fixture can be a few small files. An optional `setup.py` beside `task.json` runs in the project after the
+first commit, so a fixture can have history (an archive recorded at an earlier commit, then a code change) or
+start with a dirty worktree. The model works until it returns a `final` message, which stands for
 asking the user; the driver then sends the next scripted reply, and stops when the replies run out.
 
 Grading is deterministic and uses no model. A trial passes only when every hard check holds:
@@ -264,7 +266,8 @@ Grading is deterministic and uses no model. A trial passes only when every hard 
 - `planning_only`: every changed path is under the task's `allowed_paths` (by default the memory bank,
   `tabilet/stages.md` and `tabilet/evolution/`), so implementation files stay untouched.
 - `no_commit`: `HEAD` is unchanged.
-- `history_frozen`: nothing under `tabilet/docs/history/` changed.
+- `history_frozen`: nothing under `tabilet/docs/history/` changed, except additions the skills allow: the
+  knowledge journal keeps its earlier text as a prefix, and the history index keeps every earlier line.
 - `rows_preserved`: every earlier status row keeps its state.
 - `new_status`: the expected number of new `status-<LANE><NN>.md` files exists, none reuses an ID that is
   active or retired, every new row is pending, and each new ID appears in `milestone.md`.
