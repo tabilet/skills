@@ -157,8 +157,9 @@ Propose tasks and tested the loop:
   `propose-pythonlight-profile`) and the full `suggested.txt` path in the Propose skill.
 - **The loop runs end to end.** From text with the bracket clarification removed, the proposer,
   given only the failing trials, independently wrote an equivalent clarification. It passed the gate
-  and was measured with `skill_eval.py`. That measurement was inconclusive: the pre-fix baseline
-  passed 4/4 that time, and a network error stopped the run. The proposal itself matches the known fix.
+  and was measured with `skill_eval.py` on Haiku: the pre-fix baseline passed 4/10 (5 failures left
+  bracketed placeholders) and the proposer's candidate 9/9 (Fisher p ≈ 0.01). The tool reported
+  inconclusive only because the token ceiling stopped the last trial.
 - **Haiku measures, Sonnet checks.** Haiku is cheaper and more sensitive to unclear text. Sonnet
   costs about four times as many tokens per trial and passed rules Haiku missed.
 
