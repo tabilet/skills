@@ -3,7 +3,7 @@
   "skill": "memory-bank-propose",
   "category": "capability",
   "held_out": false,
-  "request": "Change `save()` and `load()` so tasks.json holds an object with a `version` key and a `tasks` list instead of the bare list of tasks. Plan it as its own milestone in lane M. Plan only: show me the proposal and wait for my answer.",
+  "request": "Change `save()` and `load()` so tasks.json holds an object with a `version` key and a `tasks` list instead of the bare list of tasks. Plan it as its own milestone in lane M. The pending backup command in M02 must still work after this change. Plan only: show me the proposal and wait for my answer.",
   "replies": [
     "Approved. Use your stated defaults for any open question."
   ],
@@ -17,8 +17,7 @@
     ],
     "files_contain": {
       "tabilet/memory-bank/milestone.md": [
-        "(?is)##\\s+M02\\b(?:(?!\\n##\\s).)*\\bversion",
-        "(?is)##\\s+M02\\b(?:(?!\\n##\\s).)*Depends on:[^\\n]*\\b(?!M01\\b)[A-Z]\\d{2,}\\b"
+        "(?is)##\\s+M02\\b(?:(?!\\n##\\s).)*\\bversion"
       ]
     }
   },
@@ -27,6 +26,6 @@
       "new_spec",
       "expected_files"
     ],
-    "fail-no-dependency.py": "expected_files"
+    "fail-leaves-consumer-stale.py": "expected_files"
   }
 }
