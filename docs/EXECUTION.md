@@ -146,8 +146,10 @@ environment, and extra project variables require `TOOL_ENV_ALLOW`, but neither
 measure turns the host shell into a security boundary. The dangerous-command
 denylist is only a bypassable guardrail.
 
-Operational limits are configurable with `LLM_API_TIMEOUT` (default `120`
-seconds), `LLM_MAX_RETRIES` (default `2` retries after the first attempt), and
+Operational limits are configurable with `LLM_API_TIMEOUT` (default `600`
+seconds, long enough for a full non-streaming reply), `LLM_MAX_RETRIES` (default `2`
+retries after the first attempt, for transient HTTP statuses including Anthropic's 529
+and for connection, TLS and truncated-response errors), and
 `MAX_HISTORY_CHARS` (default `500000`). `MAX_TOOL_OUTPUT` remains the combined
 stdout/stderr character budget for each command.
 

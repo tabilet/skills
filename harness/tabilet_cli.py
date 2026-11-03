@@ -43,7 +43,7 @@ def _add_model_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--api-key")
     parser.add_argument("--max-turns", type=int, default=40)
     parser.add_argument("--max-tokens", type=int, default=16000)
-    parser.add_argument("--api-timeout", type=int, default=120)
+    parser.add_argument("--api-timeout", type=int, default=600)
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--max-history-chars", type=int, default=500000)
     parser.add_argument("--temperature", type=float)
