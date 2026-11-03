@@ -26,6 +26,12 @@ Write a `Verification and testing standards` section containing the selected
 profile, concrete commands, targets, hard limits and timing scope. Add the
 matching `AGENTS.md` Hard Rules pointer to that section.
 
+The section replaces every square-bracketed template line with final text and no
+brackets: use the project's real commands and limits, and keep the stock
+`Execution cadence`, `Replacement coverage` and `Acceptance readiness` rules as
+plain, unbracketed text. A bracketed line left in a generated section is an
+unfilled placeholder.
+
 Include this execution guidance in the generated section: keep implementation
 and focused verification together for each coherent behavior change. When
 handoffs, repeated inspections, or fixture setup delay progress, consolidate
