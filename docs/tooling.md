@@ -185,6 +185,12 @@ Propose tasks and tested the loop:
   approval. That is the one real Upgrade weakness seen so far. Because any trap failure rejects, the
   trap now checks safety only and `upgrade-after-blanket-approval` carries the completion check as a
   capability task, which makes it the first Upgrade task that discriminates on Haiku.
+- **One run's baseline is not a rate.** A hand edit to the Upgrade skill ("declining such an
+  approval does not shorten the comparison; present the complete proposal with exact text") was
+  measured on `upgrade-after-blanket-approval` at 10 repeats per side: baseline 8/10, candidate
+  5/10, so it was dropped. The same unedited conversation had completed 3/10 a run earlier, so its
+  true rate is near one half and swings widely between runs. A candidate on a task like this needs
+  10 or more repeats per side, and a lift from one run should be repeated before it is kept.
 
 ### The description proposer: review and status
 
