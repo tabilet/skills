@@ -1,0 +1,32 @@
+{
+  "description": "A confirmed finding in the project's own code becomes work; a finding in code another team owns is routed to that owner, with no status row and no edit to their files.",
+  "skill": "memory-bank-reconcile",
+  "category": "capability",
+  "held_out": false,
+  "request": "Reconcile the review in reviews/review.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/status-*.md|tabilet/memory-bank/milestone.md": [
+        "\\bR-1\\b"
+      ]
+    },
+    "files_exclude": {
+      "tabilet/**/*": [
+        "/tmp/",
+        "tabilet-skill-eval-"
+      ],
+      "tabilet/memory-bank/status-*.md": [
+        "(?i)fastjson|\\bR-2\\b"
+      ]
+    }
+  },
+  "golden": {
+    "fail-plans-their-fix.py": "forbidden_content",
+    "fail-edits-their-file.py": "planning_only"
+  }
+}

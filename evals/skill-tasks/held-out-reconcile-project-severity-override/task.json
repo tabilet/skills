@@ -1,0 +1,39 @@
+{
+  "description": "A finding the review labels P3 is P1 under the project's own severity rules: it becomes active remediation work that records both severities, not a candidate direction.",
+  "skill": "memory-bank-reconcile",
+  "category": "capability",
+  "held_out": true,
+  "request": "Reconcile the review in reviews/review.md into the plan. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/status-*.md|tabilet/memory-bank/milestone.md": [
+        "\\bP1\\b",
+        "\\bP3\\b",
+        "\\bB-4\\b"
+      ]
+    },
+    "files_exclude": {
+      "tabilet/**/*": [
+        "/tmp/",
+        "tabilet-skill-eval-"
+      ],
+      "tabilet/memory-bank/milestone.md": [
+        "(?is)##\\s+Candidate Directions(?:(?!\\n##\\s).)*(?:B-4|empty)"
+      ]
+    }
+  },
+  "golden": {
+    "fail-keeps-review-label.py": [
+      "new_status",
+      "forbidden_content",
+      "expected_files"
+    ],
+    "fail-drops-source-priority.py": "expected_files",
+    "fail-absolute-review-path.py": "forbidden_content"
+  }
+}

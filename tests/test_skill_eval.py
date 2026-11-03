@@ -224,7 +224,7 @@ class SkillEvalTests(unittest.TestCase):
     def test_a_model_that_follows_the_rules_passes_every_dev_task(self):
         code, report, _ = self.evaluate({})
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
-        self.assertEqual(len(report["trials"]), 44)
+        self.assertEqual(len(report["trials"]), 50)
         self.assertTrue(all(t["passed"] for t in report["trials"]), [t for t in report["trials"] if not t["passed"]])
         self.assertTrue((self.out / "skill-eval-report.md").is_file())
 
@@ -232,7 +232,8 @@ class SkillEvalTests(unittest.TestCase):
         code, report, _ = self.evaluate({}, "--held-out")
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
         self.assertEqual(sorted(report["tasks"]), ["held-out-propose-dangerous-plus-sudo", "held-out-propose-out-of-scope-and-deferral",
-                                                  "held-out-propose-refresh-keeps-launch-policy", "propose-already-owned",
+                                                  "held-out-propose-refresh-keeps-launch-policy", "held-out-reconcile-outside-ownership",
+                                                  "held-out-reconcile-project-severity-override", "propose-already-owned",
                                                   "propose-cross-lane-collision", "propose-taken-id", "reconcile-mixed",
                                                   "reconcile-taken-id", "upgrade-preserves-local-policy"])
         self.assertTrue(all(t["passed"] for t in report["trials"]))
@@ -428,7 +429,7 @@ class SkillEvalTests(unittest.TestCase):
                     self.assertTrue(rows, task["name"])
                     for name in skill_eval.active_status_files(snap["files"]):
                         self.assertEqual(runner.status_marker_problems((project / name).read_text()), [], name)
-        self.assertEqual(len(names), 31)
+        self.assertEqual(len(names), 36)
         self.assertTrue(any(n.startswith("trap-") for n in names))
 
     def test_stubbed_privileged_shell_allows_the_word_but_never_runs_it(self):
