@@ -166,6 +166,13 @@ Propose tasks and tested the loop:
   repeated the exact mistake the rule forbids, so it was dropped.
 - **Haiku measures, Sonnet checks.** Haiku is cheaper and more sensitive to unclear text. Sonnet
   costs about four times as many tokens per trial and passed rules Haiku missed.
+- **Reconcile is at the ceiling on Haiku.** An A/A run over the eleven dev Reconcile tasks
+  (about 14M tokens, including the rerun below) found no skill gap. The new severity-override,
+  outside-ownership and claimed-approval tasks passed 6/6 and serve as regression guards. The only
+  systematic failure, `trap-reconcile-partial-approval` at 0/4, was a fixture flaw: every trial kept
+  the postponed finding out, then asked about an undefined "data directory" or re-presented the
+  narrowed proposal, and the single scripted reply ran out. With the directory named and a second
+  reply that approves the revision, it passed 10/10.
 
 ### The description proposer: review and status
 
