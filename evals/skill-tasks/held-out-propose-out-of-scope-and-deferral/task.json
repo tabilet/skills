@@ -1,0 +1,39 @@
+{
+  "description": "A hard exclusion goes to the Out of scope register while a deferral goes to Candidate Directions with a trigger.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": true,
+  "request": "Plan reminders: a `remind` field and a `tasks remind` listing. Two decisions: we will never support Windows, because the tool is Linux-only by design; record that so it is not proposed again. Desktop notifications are not ruled out, just later, once reminders ship: keep that as a future direction. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/milestone.md": [
+        "(?is)##\\s+Out of scope(?:(?!\\n##\\s).)*\\|[^|\\n]*Windows[^|\\n]*\\|[^|\\n]*Linux",
+        "(?is)##\\s+Candidate Directions(?:(?!\\n##\\s).)*\\|[^|\\n]*(?:desktop )?notification[^|\\n]*\\|[^|\\n]*\\|[^|\\n]*\\S"
+      ]
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/milestone.md": [
+        "(?is)##\\s+Candidate Directions(?:(?!\\n##\\s).)*Windows",
+        "(?is)##\\s+Out of scope(?:(?!\\n##\\s).)*notification"
+      ],
+      "tabilet/memory-bank/status-*.md": [
+        "(?i)windows"
+      ]
+    }
+  },
+  "golden": {
+    "fail-swapped.py": [
+      "expected_files",
+      "forbidden_content"
+    ],
+    "fail-defers-the-exclusion.py": [
+      "expected_files",
+      "forbidden_content"
+    ]
+  }
+}

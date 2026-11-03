@@ -1,0 +1,32 @@
+{
+  "description": "A contract change gets its own milestone, names the pending consumer as a downstream impact, and updates that consumer's scope.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "Change `list_tasks()` to return dicts with the keys id, title and done instead of tuples, so callers can use names. Plan it as its own milestone in lane M. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 80,
+  "expect": {
+    "new_status_files": 1,
+    "new_spec_contains": [
+      "Downstream impacts:[^\\n]*\\bM02\\b",
+      "Write set:\\s*\\S",
+      "Parallel-safe:\\s*no"
+    ],
+    "files_contain": {
+      "tabilet/memory-bank/milestone.md": [
+        "(?is)##\\s+M02\\b(?:(?!\\n##\\s).)*\\bdict",
+        "(?is)##\\s+M02\\b(?:(?!\\n##\\s).)*Depends on:[^\\n]*\\b(?!M01\\b)[A-Z]\\d{2,}\\b"
+      ]
+    }
+  },
+  "golden": {
+    "fail-forgets-consumer.py": [
+      "new_spec",
+      "expected_files"
+    ],
+    "fail-no-dependency.py": "expected_files"
+  }
+}

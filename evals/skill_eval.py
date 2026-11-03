@@ -87,10 +87,26 @@ def task_problems(task: dict, tasks_dir: pathlib.Path = TASKS_DIR) -> list[str]:
         problems.append("expect.new_status_files must be a non-negative integer")
     for key in ("files_contain", "files_exclude"):
         contains = (expect or {}).get(key, {}) if isinstance(expect, dict) else {}
-        if not isinstance(contains, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in contains.items()):
-            problems.append(f"expect.{key} must map paths (alternatives joined with |) to regular expressions")
+        if not isinstance(contains, dict) or not all(
+                isinstance(k, str) and (isinstance(v, str) or (isinstance(v, list) and v and all(isinstance(x, str) for x in v)))
+                for k, v in contains.items()):
+            problems.append(f"expect.{key} must map paths (alternatives joined with |) to a regular expression or a list of them")
         else:
-            for pattern in contains.values():
+            for pattern in (x for v in contains.values() for x in patterns(v)):
+                try:
+                    re.compile(pattern)
+                except re.error:
+                    problems.append(f"expect.{key} has an invalid pattern {pattern!r}")
+    for key in ("absent", "unchanged"):
+        listed = (expect or {}).get(key, []) if isinstance(expect, dict) else []
+        if not isinstance(listed, list) or not all(isinstance(x, str) and x and not x.startswith("/") and ".." not in x for x in listed):
+            problems.append(f"expect.{key} must be a list of project-relative paths")
+    for key in ("new_spec_contains", "new_spec_excludes"):
+        listed = (expect or {}).get(key, []) if isinstance(expect, dict) else []
+        if not isinstance(listed, list) or not all(isinstance(x, str) for x in listed):
+            problems.append(f"expect.{key} must be a list of regular expressions")
+        else:
+            for pattern in listed:
                 try:
                     re.compile(pattern)
                 except re.error:
@@ -140,6 +156,17 @@ def path_allowed(path: str, patterns: list[str]) -> bool:
         if fnmatch.fnmatch(path, pattern):
             return True
     return False
+
+
+def patterns(value) -> list[str]:
+    """A task expectation is one regular expression or a list of them."""
+    return [value] if isinstance(value, str) else list(value)
+
+
+def spec_section(milestone_text: str, ident: str) -> str | None:
+    """The active specification of one milestone: its `## <ID>` heading up to the next `##` heading."""
+    match = re.search(rf"^##[ \t]+{re.escape(ident)}\b.*?(?=^##[ \t]|\Z)", milestone_text, re.M | re.S)
+    return match.group(0) if match else None
 
 
 def status_ids(files: dict) -> set[str]:
@@ -216,8 +243,9 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
     if any(text not in (finals or [""])[-1] for text in task["expect"].get("final_mentions", [])):
         failed.append("final_mentions")
     expect = task["expect"]
-    for relatives, pattern in expect.get("files_contain", {}).items():
-        if not any(path.is_file() and re.search(pattern, read_text(path)) for path in expand_paths(project, relatives)):
+    for relatives, value in expect.get("files_contain", {}).items():
+        texts = [read_text(path) for path in expand_paths(project, relatives) if path.is_file()]
+        if not all(any(re.search(pattern, text) for text in texts) for pattern in patterns(value)):
             failed.append("expected_files")
             break
     # The commit a snapshot or registry records must be the one the model inspected, not any 40 hex digits.
@@ -225,10 +253,22 @@ def grade(task: dict, runner, project: pathlib.Path, initial: dict, initial_rows
            for relatives in expect.get("records_head", [])):
         if "expected_files" not in failed:
             failed.append("expected_files")
-    for relatives, pattern in expect.get("files_exclude", {}).items():
-        if any(path.is_file() and re.search(pattern, read_text(path)) for path in expand_paths(project, relatives)):
+    for relatives, value in expect.get("files_exclude", {}).items():
+        if any(path.is_file() and re.search(pattern, read_text(path))
+               for path in expand_paths(project, relatives) for pattern in patterns(value)):
             failed.append("forbidden_content")
             break
+    if any((project / relative).exists() for relative in expect.get("absent", [])):
+        failed.append("forbidden_files")
+    if any(base["files"].get(relative) != final["files"].get(relative) for relative in expect.get("unchanged", [])):
+        failed.append("unchanged")
+    if new_ids and (expect.get("new_spec_contains") or expect.get("new_spec_excludes")):
+        for new_id in new_ids:
+            section = spec_section(index, new_id)
+            if (section is None or not all(re.search(p, section) for p in expect.get("new_spec_contains", []))
+                    or any(re.search(p, section) for p in expect.get("new_spec_excludes", []))):
+                failed.append("new_spec")
+                break
     return failed, {"new_ids": new_ids, "changed": changes}
 
 

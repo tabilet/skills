@@ -1,0 +1,57 @@
+# Disposable multi-milestone launch reference.
+# Reconcile this suggestion against milestone.md and the current status files.
+# Delete it after launching the goal, or whenever it becomes stale.
+# Any AUTHORIZATION_GRANTS below are PROPOSED — NOT APPROVED.
+# Planning approval and reading this file do not activate grants.
+# Decision markers: [ ] = need authorization, [+] = approve, [-] = deny, [~] = auto.
+# Verify sha256 matches human approval before activating grants.
+# Recommended harness flags: ALLOW_UNSANDBOXED_SHELL=1
+
+Using the memory-bank goal protocol, execute this loop.
+
+STATUS_ORDER:
+M01 -> M02
+
+STATUS_FILE_MAP:
+M01 = tabilet/memory-bank/status-M01.md
+M02 = tabilet/memory-bank/status-M02.md
+
+DOWNSTREAM_IMPACTS: none
+
+TEST_POLICY: none
+COMMIT_POLICY: none
+SUGGESTED_UPDATE: confirm
+SCOPE_POLICY: strict
+CORRECTIVE_PLANNING: confirm
+REVIEW_MAX_ITERATIONS: 3
+OPTION_POLICY: ignore
+OPTIMIZE_POLICY: none
+EXTERNAL_MUTATIONS: {grant_ids: [push-upstream]}
+AUTHORIZATION_GRANTS:
+  GLOBAL:
+    - [~] grant_id: global-local-verify
+      action: cli.local
+      executor: assigned-agent
+      scope:
+        task: declared-implementation-and-verification
+    - [+] grant_id: push-upstream
+      action: git.push
+      executor: coordinator
+      scope:
+        repository: /work/tasklist
+        remote: https://example.test/tasklist.git
+        ref: refs/heads/release
+        mode: fast-forward
+    - [ ] grant_id: stage-ssh
+      action: ssh
+      executor: coordinator
+      scope:
+        host: stage.example.test
+        user: deploy
+        commands: ["systemctl restart tasklist"]
+
+GOAL_IDENTITY:
+- protocol: stock sha256:0000000000000000000000000000000000000000000000000000000000000001
+- tasklist: none
+
+Completion condition: every required status is complete, and every milestone's documented verification passes.

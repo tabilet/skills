@@ -1,0 +1,42 @@
+{
+  "description": "A light test profile fills the verification standards with the project's real commands and limits and points AGENTS.md at them.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "--test pythonlight. Plan a new milestone that exports all tasks to a CSV file. Use the columns id, title, done; overwrite an existing file; add no dependencies; expose it as a function export_csv(path) in src/tasklist.py. Set the project's verification standards to that profile; the project's test command is `python3 -m unittest`. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 80,
+  "allowed_paths": [
+    "tabilet/memory-bank/**",
+    "tabilet/stages.md",
+    "tabilet/evolution/**",
+    "AGENTS.md"
+  ],
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/tech-stack.md": [
+        "(?m)Testing profile\\*\\*:\\s*`pythonlight`",
+        "(?m)Focused tests\\*\\*:[^\\n]*unittest[^\\n]*30[- ]second",
+        "(?m)Full regression\\*\\*:[^\\n]*20[- ]minute"
+      ],
+      "AGENTS.md": [
+        "(?i)verification and testing standards"
+      ]
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/tech-stack.md": [
+        "\\[standard \\| browserlight",
+        "(?m)\\*\\*(?:Execution cadence|Replacement coverage|Acceptance readiness)\\*\\*:\\s*\\[",
+        "(?m)\\*\\*Focused tests\\*\\*:\\s*\\["
+      ]
+    }
+  },
+  "golden": {
+    "fail-leaves-template.py": "expected_files",
+    "fail-placeholders-remain.py": "forbidden_content",
+    "fail-no-agents-pointer.py": "expected_files"
+  }
+}

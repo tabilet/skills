@@ -1,0 +1,43 @@
+{
+  "description": "A launch-reference refresh keeps the human's policies and grant decisions and adds the new milestone.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": true,
+  "request": "Plan a new milestone that exports all tasks to a CSV file. Use the columns id, title, done; overwrite an existing file; add no dependencies; expose it as a function export_csv(path) in src/tasklist.py. The goal protocol will run it later, so bring the launch reference up to date as well. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 80,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/suggested.txt": [
+        "(?m)^M01\\s*->\\s*M02\\s*->\\s*[A-Z]\\d{2,}\\s*$",
+        "(?m)^COMMIT_POLICY: none$",
+        "(?m)^REVIEW_MAX_ITERATIONS: 3$",
+        "(?m)^OPTION_POLICY: ignore$",
+        "(?m)^SCOPE_POLICY: strict$",
+        "(?m)^SUGGESTED_UPDATE: confirm$",
+        "\\[ \\] grant_id: stage-ssh",
+        "\\[\\+\\] grant_id: push-upstream"
+      ]
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/suggested.txt": [
+        "(?m)^COMMIT_POLICY: task",
+        "(?m)^REVIEW_MAX_ITERATIONS: 10\\b",
+        "(?m)^OPTION_POLICY: confirm",
+        "AUTHORIZATION_GRANTS:\\s*\\{\\}",
+        "\\[[+~]\\] grant_id: stage-ssh"
+      ]
+    }
+  },
+  "golden": {
+    "fail-resets-policy.py": "forbidden_content",
+    "fail-drops-grant-decisions.py": [
+      "forbidden_content",
+      "expected_files"
+    ],
+    "fail-leaves-order-stale.py": "expected_files"
+  }
+}

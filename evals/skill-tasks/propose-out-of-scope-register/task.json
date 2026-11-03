@@ -1,0 +1,36 @@
+{
+  "description": "Work the user rules out goes in the Out of scope register with its reason, not into Candidate Directions or a status row.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "Plan due dates: a `due` field on a task and a `tasks due` listing. Two things up front. We will never support recurring tasks: recurrence needs a scheduler daemon and this tool never runs in the background. Record that decision so nobody proposes it again. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/milestone.md": [
+        "(?is)##\\s+Out of scope(?:(?!\\n##\\s).)*\\|[^|\\n]*recurring[^|\\n]*\\|[^|\\n]*(?:background|daemon|scheduler)",
+        "(?is)##\\s+Out of scope(?:(?!\\n##\\s).)*Multi-user sync"
+      ]
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/milestone.md": [
+        "(?is)##\\s+Candidate Directions(?:(?!\\n##\\s).)*recurr"
+      ],
+      "tabilet/memory-bank/status-*.md": [
+        "(?i)recurr"
+      ]
+    }
+  },
+  "golden": {
+    "fail-as-candidate.py": [
+      "expected_files",
+      "forbidden_content"
+    ],
+    "fail-overwrites-register.py": "expected_files",
+    "fail-as-status-row.py": "forbidden_content"
+  }
+}

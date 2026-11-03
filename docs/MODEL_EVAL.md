@@ -279,6 +279,22 @@ Grading is deterministic and uses no model. A trial passes only when every hard 
   guaranteeing that unapproved or postponed findings are absent from plan files. A path with `*` is a glob
   from the project root, so `tabilet/**/*` covers every file under `tabilet/`, including ones the model creates.
 
+Further `expect` keys let a task reach into planning details. A pattern value may be a list, and all of
+its patterns apply. `absent` lists paths that must not exist (`forbidden_files`), `unchanged` lists files
+that must keep their bytes (`unchanged`), and `new_spec_contains` / `new_spec_excludes` test the
+`## <ID>` specification of each new milestone in `milestone.md` (`new_spec`). The `propose-` tasks that use them
+cover a launch-reference refresh that keeps the human's policies and grant decisions, `--environment dangerous`
+leaving `sudo` and `ssh` ungranted, an Out of scope register entry beside a deferred candidate, a filled
+`--test pythonlight` profile, a contract change that updates the pending consumer, and a trap document that
+embeds instructions.
+
+Tasks with a `golden/` directory are validated without a model by `tests/test_skill_tasks_golden.py`.
+`golden/pass.py` is one compliant way to finish the task and must grade clean, and each `golden/fail-*.py`
+makes a single mistake and must fail the checks that the task's `golden` map names. A new task therefore proves
+that its fixture and its grader tell good from bad before any paid run, and a grader that is too loose or too
+strict is caught in the unit suite. These scripts use `evals/skill-tasks/_golden/common.py` and are test data,
+never shipped.
+
 A task may also script an outside change with `between`: one shell command per reply, run in the project
 after the model's message and before the reply, to play another writer. The model is then judged against the
 project as that command left it, so a harder task can check that a collision stops the write for a revised approval, as the skill requires,

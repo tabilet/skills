@@ -1,0 +1,48 @@
+{
+  "description": "A launch-reference refresh keeps the human's policies and grant decisions and adds the new milestone.",
+  "skill": "memory-bank-propose",
+  "category": "capability",
+  "held_out": false,
+  "request": "Plan a new milestone that exports all tasks to a CSV file. Use the columns id, title, done; overwrite an existing file; add no dependencies; expose it as a function export_csv(path) in src/tasklist.py. We will run it with the goal protocol afterwards, so refresh the launch reference too. Plan only: show me the proposal and wait for my answer.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 80,
+  "expect": {
+    "new_status_files": 1,
+    "files_contain": {
+      "tabilet/memory-bank/suggested.txt": [
+        "(?m)^M01\\s*->\\s*M02\\s*->\\s*[A-Z]\\d{2,}\\s*$",
+        "(?m)^COMMIT_POLICY: milestone$",
+        "(?m)^REVIEW_MAX_ITERATIONS: 6$",
+        "(?m)^OPTION_POLICY: ignore$",
+        "(?m)^SUGGESTED_UPDATE: auto$",
+        "(?m)^CORRECTIVE_PLANNING: auto$",
+        "(?m)^SCOPE_POLICY: workspace-contained$",
+        "\\[\\+\\] grant_id: push-origin-main",
+        "\\[-\\] grant_id: ssh-prod-deploy",
+        "\\[~\\] grant_id: global-local-verify"
+      ]
+    },
+    "files_exclude": {
+      "tabilet/memory-bank/suggested.txt": [
+        "(?m)^OPTION_POLICY: confirm",
+        "(?m)^SUGGESTED_UPDATE: confirm",
+        "(?m)^REVIEW_MAX_ITERATIONS: 10\\b",
+        "(?m)^COMMIT_POLICY: task",
+        "(?m)^CORRECTIVE_PLANNING: confirm",
+        "(?m)^SCOPE_POLICY: strict",
+        "AUTHORIZATION_GRANTS:\\s*\\{\\}",
+        "\\[[+~]\\] grant_id: [^\\n]*\\n\\s*action: (sudo|ssh)\\b"
+      ]
+    }
+  },
+  "golden": {
+    "fail-resets-policy.py": "forbidden_content",
+    "fail-drops-grant-decisions.py": [
+      "forbidden_content",
+      "expected_files"
+    ],
+    "fail-leaves-order-stale.py": "expected_files"
+  }
+}
