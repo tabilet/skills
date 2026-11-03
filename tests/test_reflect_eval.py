@@ -1,12 +1,14 @@
 """Unit tests for the repository-only reflection eval runner (evals/reflect_eval.py)."""
 import contextlib
 import http.server
+import io
 import importlib.util
 import json
 import os
 import pathlib
 import tempfile
 import threading
+import sys
 import unittest
 from unittest import mock
 
@@ -14,27 +16,37 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("reflect_eval", ROOT / "evals/reflect_eval.py")
 reflect_eval = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(reflect_eval)
+sys.path.insert(0, str(ROOT / "harness"))
+import tabilet_reflect  # noqa: E402
+
+# A reply that follows the engine's own prompt, not the grader's expectations.
+ENGINE_PROPOSAL = (
+    "## Contrastive Diagnosis\n- The fast run used tests/test_fast.py; the slow run used full discovery.\n\n"
+    "## Probe Commands\n```probe-commands\n"
+    "python3 -m unittest discover -s tests\n"
+    "python3 -m unittest tests/test_fast.py\n```\n\n"
+    "## Proposed Edits to tech-stack.md\n+ Fast tier: python3 -m unittest tests/test_fast.py\n\n"
+    "## Proposed Entry for lessons.md\nFull discovery took 185s; tests/test_fast.py takes under a second.\n\n"
+    "## Proposed Downstream Amendments\nNo downstream changes.\n"
+)
 
 
 class FakeReflectionHandler(http.server.BaseHTTPRequestHandler):
     """Fake REST improver answering with OpenAI-compatible responses."""
     proposal_text: str = ""
     requests: int = 0
+    status_code: int = 200
 
     def do_POST(self):
         self.__class__.requests += 1
         _ = self.rfile.read(int(self.headers["Content-Length"]))
 
-        content = self.__class__.proposal_text or (
-            "## Proposed Additions\n"
-            "Use tests/test_fast.py for quick iteration.\n\n"
-            "## Probe Verification\n"
-            "```probe-commands\n"
-            "python3 -m unittest discover -s tests -p 'test_fast.py'\n"
-            "```\n\n"
-            "## Suggested Downstream Actions\n"
-            "(none)\n"
-        )
+        content = self.__class__.proposal_text or ENGINE_PROPOSAL
+        if self.__class__.status_code != 200:
+            self.send_response(self.__class__.status_code)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
 
         resp = {
             "choices": [{"message": {"role": "assistant", "content": content}}],
@@ -52,8 +64,9 @@ class FakeReflectionHandler(http.server.BaseHTTPRequestHandler):
 
 
 @contextlib.contextmanager
-def fake_rest_provider(proposal_text: str = ""):
+def fake_rest_provider(proposal_text: str = "", status_code: int = 200):
     FakeReflectionHandler.proposal_text = proposal_text
+    FakeReflectionHandler.status_code = status_code
     FakeReflectionHandler.requests = 0
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FakeReflectionHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -166,40 +179,93 @@ class ReflectEvalTests(unittest.TestCase):
         self.assertTrue(passed)
         self.assertEqual(reasons, [])
 
+    def eval_args(self, api_base, *extra, report="report"):
+        return reflect_eval.parse_args([
+            "--backend", "openai", "--api-base", api_base, "--timeout", "60",
+            "--report-dir", str(self.base / report), "--max-calls", "20", "--max-tokens", "100000",
+            *extra,
+        ])
+
+    def test_required_sections_are_the_engines_output_contract(self):
+        for heading in reflect_eval.REQUIRED_SECTIONS:
+            self.assertIn(heading, tabilet_reflect.PROMPT_TEMPLATE)
+
     def test_run_trial_end_to_end_with_fake_rest_backend(self):
-        tasks = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, held_out=False, only=["friction-slow-discovery"])
-        self.assertEqual(len(tasks), 1)
-        task = tasks[0]
-
-        proposal = (
-            "## Observed Findings\n"
-            "Fast and slow runs observed.\n\n"
-            "## Proposed Additions\n"
-            "Add fast test profile with tests/test_fast.py.\n\n"
-            "## Probe Verification\n"
-            "```probe-commands\n"
-            "python3 -m unittest discover -s tests -p 'test_fast.py'\n"
-            "```\n\n"
-            "## Suggested Downstream Actions\n"
-            "None.\n"
-        )
-
-        with fake_rest_provider(proposal) as api_base:
-            args = reflect_eval.parse_args([
-                "--backend", "openai",
-                "--api-base", api_base,
-                "--api-key", "fake-key",
-                "--timeout", "60",
-                "--budget-percent", "100"
-            ])
-            trial = reflect_eval.run_trial(
-                ROOT, task, role="candidate", repeat=1, work=self.base / "work", args=args
-            )
+        task = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, held_out=False, only=["friction-slow-discovery"])[0]
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fake-key"}), fake_rest_provider() as api_base:
+            trial = reflect_eval.run_trial(ROOT, task, "candidate", 1, self.base / "work", self.eval_args(api_base))
             self.assertTrue(trial["passed"], f"Trial failed with reasons: {trial['reasons']}")
+            self.assertEqual(trial["status"], "ok")
             self.assertTrue(trial["clean"])
             self.assertEqual(trial["tokens"], 120)  # 80 prompt + 40 completion
-            self.assertGreater(trial["duration_sec"], 0)
+            self.assertTrue(trial["tokens_known"])
             self.assertEqual(FakeReflectionHandler.requests, 1)
+        kept = self.base / "work" / "candidate-friction-slow-discovery-r1"
+        self.assertTrue((kept / "proposal.md").is_file(), "the proposal must outlive the trial")
+        self.assertTrue((kept / "grade.json").is_file())
+        self.assertFalse((kept / "project").exists())
+
+    def test_main_reaches_a_decision_and_writes_a_report(self):
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fake-key"}), fake_rest_provider() as api_base:
+            args = ["--baseline", "WORKTREE", "--candidate", "WORKTREE", "--only", "friction-slow-discovery",
+                    "--repeats", "1"]
+            parsed = self.eval_args(api_base, *args)
+            code = reflect_eval.main([
+                "--backend", "openai", "--api-base", api_base, "--timeout", "60",
+                "--report-dir", str(parsed.report_dir), "--max-calls", "20", "--max-tokens", "100000", *args])
+            self.assertEqual(FakeReflectionHandler.requests, 2)
+        self.assertEqual(code, 0)
+        report = json.loads((self.base / "report" / "eval-report.json").read_text())
+        self.assertEqual(report["decision"]["decision"], "no_difference")
+        self.assertEqual(report["spend"], {"calls": 2, "tokens": 240})
+        self.assertEqual(report["excluded_pairs"], 0)
+        self.assertEqual(len(report["refs"]["baseline"]["sha"]), 40)
+        self.assertTrue((self.base / "report" / "eval-report.md").is_file())
+
+    def test_a_provider_failure_is_inconclusive_not_a_regression(self):
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fake-key"}), \
+                fake_rest_provider(status_code=500) as api_base:
+            code = reflect_eval.main([
+                "--backend", "openai", "--api-base", api_base, "--timeout", "60",
+                "--report-dir", str(self.base / "report"), "--max-calls", "20", "--max-tokens", "100000",
+                "--baseline", "WORKTREE", "--candidate", "WORKTREE", "--only", "trap-transcript-injection",
+                "--repeats", "1"])
+        self.assertEqual(code, 3)
+        report = json.loads((self.base / "report" / "eval-report.json").read_text())
+        self.assertEqual(report["decision"]["decision"], "inconclusive")
+        self.assertEqual(report["excluded_pairs"], 1)
+        self.assertEqual({t["status"] for r in reflect_eval.ROLES for t in report["trials"][r]}, {"infra_error"})
+
+    def test_a_model_free_report_is_never_scored_as_the_model(self):
+        env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            trial = reflect_eval.run_trial(
+                ROOT, reflect_eval.load_tasks(reflect_eval.TASKS_DIR, held_out=False, only=["friction-slow-discovery"])[0],
+                "candidate", 1, self.base / "work", self.eval_args("http://127.0.0.1:9/v1"))
+        self.assertEqual(trial["status"], "heuristic")
+        self.assertFalse(trial["passed"])
+
+    def test_classify(self):
+        c = reflect_eval.classify
+        self.assertEqual(c(0, False, "", {"proposal_source": "rest:openai"}), "ok")
+        self.assertEqual(c(0, False, "", {"proposal_source": "heuristic"}), "heuristic")
+        self.assertEqual(c(2, False, "error: reflection backend failed (REST API: HTTP 500)", None), "infra_error")
+        self.assertEqual(c(-1, True, "", None), "infra_error")
+        self.assertEqual(c(1, False, "Traceback (most recent call last)", None), "ok")  # an engine crash is the candidate's
+
+    def test_ceilings_and_backend_are_enforced_before_any_call(self):
+        base = ["--report-dir", str(self.base / "r"), "--max-tokens", "1000", "--only", "friction-slow-discovery",
+                "--repeats", "3"]
+        with self.assertRaises(reflect_eval.EvalError):  # 1 task x 3 repeats x 2 refs = 6 calls
+            reflect_eval.main(["--backend", "openai", "--max-calls", "5", *base])
+        with self.assertRaises(reflect_eval.EvalError):
+            reflect_eval.main(["--backend", "openai", "--max-calls", "6", "--report-dir", str(ROOT / "x"),
+                               "--max-tokens", "1000"])
+        with contextlib.redirect_stderr(io.StringIO()):  # argparse prints its usage on refusal
+            with self.assertRaises(SystemExit):  # no auto backend, no unbounded run
+                reflect_eval.parse_args(["--report-dir", "r", "--max-calls", "1", "--max-tokens", "1"])
+            with self.assertRaises(SystemExit):
+                reflect_eval.parse_args(["--backend", "auto", "--report-dir", "r", "--max-calls", "1", "--max-tokens", "1"])
 
 
 if __name__ == "__main__":

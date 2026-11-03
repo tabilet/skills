@@ -11,6 +11,7 @@ and decides promotion by paired contrastive rules. Standard library only.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -23,6 +24,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "evals"))
@@ -33,6 +35,19 @@ TASKS_DIR = ROOT / "evals" / "reflect-tasks"
 BASE_PROJECT_DIR = TASKS_DIR / "_base" / "project"
 CATEGORIES = ("capability", "trap")
 ROLES = ("baseline", "candidate")
+# The output contract of tabilet_reflect.PROMPT_TEMPLATE. A drift test pins these to the engine's prompt.
+REQUIRED_SECTIONS = (
+    "## Contrastive Diagnosis",
+    "## Probe Commands",
+    "## Proposed Edits to tech-stack.md",
+    "## Proposed Entry for lessons.md",
+    "## Proposed Downstream Amendments",
+)
+BACKEND_KEYS = {"claude": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"}
+SAFE_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# stderr of a reflect run that failed because the provider failed, not because the engine did.
+INFRA_RE = re.compile(r"reflection backend|time budget", re.I)
+EXIT_CODES = {"promote": 0, "no_difference": 0, "reject": 1, "inconclusive": 3}
 
 
 class EvalError(Exception):
@@ -304,11 +319,7 @@ def grade_proposal(project: pathlib.Path, task: dict, reflect_result: dict | Non
     content = proposal_path.read_text(encoding="utf-8")
 
     # Required sections
-    req_sections = task.get("expect", {}).get("required_sections", [
-        "## Proposed Additions",
-        "## Probe Verification",
-        "## Suggested Downstream Actions",
-    ])
+    req_sections = task.get("expect", {}).get("required_sections", list(REQUIRED_SECTIONS))
     for sec in req_sections:
         if sec not in content:
             reasons.append(f"missing required section header {sec!r}")
@@ -341,6 +352,39 @@ def grade_proposal(project: pathlib.Path, task: dict, reflect_result: dict | Non
     return passed, clean, reasons
 
 
+def child_env(args: argparse.Namespace) -> dict:
+    """Environment for the reflect subprocess: only the chosen backend's key, a fixed PATH, no bytecode."""
+    env = {k: v for k, v in os.environ.items()
+           if k not in (*BACKEND_KEYS.values(), "TABILET_REFLECT_API_BASE", "TABILET_REFLECT_MODEL", "LLM_API_BASE")}
+    env["ALLOW_UNSANDBOXED_SHELL"] = "1"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PATH"] = SAFE_PATH
+    key_name = BACKEND_KEYS[args.backend]
+    key = None
+    if args.api_key_file:
+        key = pathlib.Path(args.api_key_file).read_text(encoding="utf-8").strip()
+    elif os.environ.get(key_name):
+        key = os.environ[key_name]
+    if key:
+        env[key_name] = key
+    if args.api_base:
+        env["TABILET_REFLECT_API_BASE"] = args.api_base
+    if args.model:
+        env["TABILET_REFLECT_MODEL"] = args.model
+    return env
+
+
+def classify(exit_code: int, timed_out: bool, stderr_text: str, reflect_result: dict | None) -> str:
+    """`ok` trials are scored. `infra_error` and `heuristic` mean the model never produced the proposal."""
+    if timed_out:
+        return "infra_error"
+    if exit_code != 0:
+        return "infra_error" if INFRA_RE.search(stderr_text) else "ok"  # an engine crash is the candidate's
+    if str((reflect_result or {}).get("proposal_source", "")).startswith("heuristic"):
+        return "heuristic"
+    return "ok"
+
+
 def run_trial(
     tree: pathlib.Path,
     task: dict,
@@ -359,7 +403,7 @@ def run_trial(
     cli_path = tree / "harness/tabilet_audit_host.py"
     cmd = [
         sys.executable, "-B", str(cli_path), "reflect", str(project),
-        "--backend", args.backend or "auto",
+        "--backend", args.backend,
         "--budget-percent", str(args.budget_percent),
     ]
     if args.probe:
@@ -367,36 +411,12 @@ def run_trial(
     if task.get("milestone"):
         cmd.extend(["--milestone", task["milestone"]])
 
-    # Scrubbed environment
-    clean_env = {
-        k: v for k, v in os.environ.items()
-        if k not in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "TABILET_REFLECT_API_BASE", "TABILET_REFLECT_MODEL")
-    }
-    clean_env["ALLOW_UNSANDBOXED_SHELL"] = "1"
-    clean_env["PYTHONDONTWRITEBYTECODE"] = "1"
-    clean_env["PATH"] = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-
-    if args.api_base:
-        clean_env["TABILET_REFLECT_API_BASE"] = args.api_base
-    if args.model:
-        clean_env["TABILET_REFLECT_MODEL"] = args.model
-    if args.api_key:
-        if args.backend in ("claude", "anthropic"):
-            clean_env["ANTHROPIC_API_KEY"] = args.api_key
-        elif args.backend in ("openai", "codex"):
-            clean_env["OPENAI_API_KEY"] = args.api_key
-        elif args.backend in ("gemini",):
-            clean_env["GEMINI_API_KEY"] = args.api_key
-    else:
-        for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"):
-            if k in os.environ:
-                clean_env[k] = os.environ[k]
-
     stderr_path = trial_root / "stderr.txt"
     start_time = time.monotonic()
+    timed_out = False
     with open(stderr_path, "wb") as err:
         proc = subprocess.Popen(
-            cmd, cwd=project, env=clean_env, stdin=subprocess.DEVNULL,
+            cmd, cwd=project, env=child_env(args), stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=err, start_new_session=True
         )
         try:
@@ -408,8 +428,7 @@ def run_trial(
             except ProcessLookupError:
                 pass
             proc.wait()
-            exit_code = -1
-            stdout_bytes = b""
+            exit_code, timed_out, stdout_bytes = -1, True, b""
     duration_sec = time.monotonic() - start_time
 
     reflect_result = None
@@ -418,86 +437,172 @@ def run_trial(
             reflect_result = json.loads(stdout_bytes.decode("utf-8"))
         except Exception:
             pass
+    stderr_text = stderr_path.read_text(errors="replace")
+    status = classify(exit_code, timed_out, stderr_text, reflect_result)
 
     passed, clean, reasons = grade_proposal(project, task, reflect_result, exit_code)
+    if status != "ok":
+        passed = False
+        reasons = [f"not scored ({status})", *reasons]
 
     usage = (reflect_result or {}).get("usage") or {}
-    total_tokens = None
-    if usage.get("input_total") is not None and usage.get("output") is not None:
-        total_tokens = usage["input_total"] + usage["output"]
+    tokens_known = usage.get("input_total") is not None and usage.get("output") is not None
+    total_tokens = usage["input_total"] + usage["output"] if tokens_known else 0
+
+    # Keep what a maintainer needs to read a failure, then drop the scratch project.
+    proposal_file = project / DEFAULT_PROPOSAL_PATH
+    if proposal_file.is_file():
+        shutil.copyfile(proposal_file, trial_root / "proposal.md")
+    (trial_root / "reflect.json").write_text(json.dumps(reflect_result, indent=2) + "\n", encoding="utf-8")
+    (trial_root / "grade.json").write_text(json.dumps(
+        {"status": status, "passed": passed, "clean": clean, "reasons": reasons, "exit_code": exit_code}, indent=2) + "\n",
+        encoding="utf-8")
+    shutil.rmtree(project, ignore_errors=True)
 
     return {
         "task": task["name"],
         "category": task["category"],
         "role": role,
         "repeat": repeat,
+        "status": status,
         "passed": passed,
         "clean": clean,
         "reasons": reasons,
-        "turns": 1,
-        "tokens": total_tokens or 0,
+        "turns": None,  # one model call per trial, so a turn gain carries no information
+        "tokens": total_tokens,
+        "tokens_known": tokens_known,
         "duration_sec": duration_sec,
         "usage": usage,
-        "reflect_result": reflect_result,
+        "exit_code": exit_code,
+        "stderr_tail": stderr_text[-400:] if status != "ok" or not passed else "",
     }
 
 
+def resolve_ref(ref: str) -> dict:
+    """Identify what a ref measured: a commit, or the dirty checkout with a hash of its diff."""
+    if ref == WORKTREE:
+        diff = git("diff", "HEAD", cwd=ROOT, check=False).stdout
+        return {"ref": ref, "sha": git("rev-parse", "HEAD").stdout.strip(),
+                "dirty_diff_sha256": hashlib.sha256(diff.encode()).hexdigest() if diff else None}
+    return {"ref": ref, "sha": git("rev-parse", "--verify", f"{ref}^{{commit}}").stdout.strip()}
+
+
+def pair_scored(trials: dict[str, list[dict]]) -> tuple[dict[str, list[dict]], int]:
+    """Drop both sides of any (task, repeat) pair where either side was not scored, so counts stay paired."""
+    bad = {(t["task"], t["repeat"]) for role in ROLES for t in trials[role] if t["status"] != "ok"}
+    kept = {role: [t for t in trials[role] if (t["task"], t["repeat"]) not in bad] for role in ROLES}
+    return kept, len(bad)
+
+
+def render_markdown(report: dict) -> str:
+    d = report["decision"]
+    lines = [f"# Reflection eval: {d['decision']}", "",
+             f"Baseline `{report['refs']['baseline']['ref']}` {report['refs']['baseline']['sha'][:12]}, "
+             f"candidate `{report['refs']['candidate']['ref']}` {report['refs']['candidate']['sha'][:12]}. "
+             f"{report['backend']}/{report['model'] or 'default model'}, {report['repeats']} repeat(s), "
+             f"{'held-out' if report['held_out'] else 'dev'} tasks: {', '.join(report['tasks'])}.", ""]
+    lines += [f"- {r}" for r in d.get("reasons", [])]
+    if report["excluded_pairs"]:
+        lines.append(f"- {report['excluded_pairs']} (task, repeat) pair(s) not scored: provider failure or model-free report.")
+    if report["aborted"]:
+        lines.append(f"- stopped early: {report['aborted']}")
+    lines += ["", "| task | role | passes |", "|---|---|---|"]
+    for role in ROLES:
+        for name, entry in report["summary"][role]["per_task"].items():
+            lines.append(f"| {name} | {role} | {entry['passes']}/{entry['trials']} |")
+    failing = [t for role in ROLES for t in report["trials"][role] if not t["passed"]]
+    if failing:
+        lines += ["", "## Failing trials", ""]
+        lines += [f"- {t['role']} {t['task']} r{t['repeat']}: " + "; ".join(t["reasons"]) for t in failing]
+    return "\n".join(lines) + "\n"
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--baseline", default="HEAD", help="Baseline git ref or WORKTREE. Default: HEAD.")
     parser.add_argument("--candidate", default=WORKTREE, help="Candidate git ref or WORKTREE. Default: WORKTREE.")
-    parser.add_argument("--backend", default="auto", help="Reflection improver backend: claude, openai, gemini, auto.")
-    parser.add_argument("--model", default=None, help="Model override for reflection improver.")
+    parser.add_argument("--backend", required=True, choices=sorted(BACKEND_KEYS),
+                        help="REST backend to call. There is no auto: an agent CLI on PATH must not be picked up.")
+    parser.add_argument("--model", default=None, help="Model for the reflection improver (TABILET_REFLECT_MODEL).")
     parser.add_argument("--api-base", default=None, help="Custom REST API base for reflection.")
-    parser.add_argument("--api-key", default=None, help="API key override.")
-    parser.add_argument("--repeats", type=int, default=1, help="Repeat count per task. Default: 1.")
+    parser.add_argument("--api-key-file", default=None,
+                        help="File holding the provider key. Otherwise the backend's own environment variable is used.")
+    parser.add_argument("--report-dir", required=True, type=pathlib.Path,
+                        help="Write eval-report.json/.md and per-trial artifacts here (outside the checkout).")
+    parser.add_argument("--max-calls", required=True, type=int, help="Ceiling on model calls (one per trial).")
+    parser.add_argument("--max-tokens", required=True, type=int, help="Ceiling on reported input+output tokens.")
+    parser.add_argument("--repeats", type=int, default=3, help="Repeat count per task. Default: 3.")
+    parser.add_argument("--min-repeats", type=int, default=3, help="Repeats needed before an improvement is claimed.")
     parser.add_argument("--tasks-dir", type=pathlib.Path, default=TASKS_DIR, help="Directory containing reflection tasks.")
     parser.add_argument("--held-out", action="store_true", help="Run held-out tasks instead of dev tasks.")
     parser.add_argument("--only", type=lambda s: [x.strip() for x in s.split(",") if x.strip()], help="Comma-separated task names.")
     parser.add_argument("--no-probe", dest="probe", action="store_false", default=True, help="Disable probe command execution.")
     parser.add_argument("--budget-percent", type=int, default=100, help="Reflection budget percent. Default: 100.")
     parser.add_argument("--timeout", type=float, default=180.0, help="Timeout per trial in seconds. Default: 180s.")
-    parser.add_argument("--allowed-regressions", type=int, default=0, help="Allowed task regressions before rejection.")
-    parser.add_argument("--min-gain-percent", type=float, default=0.0, help="Required percentage gain in efficiency.")
-    parser.add_argument("--report", type=pathlib.Path, default=None, help="Write JSON summary report.")
+    parser.add_argument("--allowed-regressions", type=int, default=0, help="Tasks the candidate may pass less often.")
+    parser.add_argument("--min-gain-percent", type=float, default=15.0, help="Token gain needed to claim efficiency.")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    report_dir = args.report_dir.resolve()
+    if report_dir == ROOT or ROOT in report_dir.parents:
+        raise EvalError("--report-dir must be outside the checkout")
     tasks = load_tasks(args.tasks_dir, held_out=args.held_out, only=args.only)
     if not tasks:
         raise EvalError("No tasks matched criteria.")
+    planned = len(tasks) * args.repeats * len(ROLES)
+    if planned > args.max_calls:
+        raise EvalError(f"plan needs {planned} model calls, over --max-calls {args.max_calls}")
+    cli = shutil.which(args.backend, path=SAFE_PATH)
+    if cli:
+        raise EvalError(f"the {args.backend!r} agent CLI ({cli}) is on PATH and would be used instead of REST")
+    refs = {"baseline": resolve_ref(args.baseline), "candidate": resolve_ref(args.candidate)}
 
+    trials: dict[str, list[dict]] = {role: [] for role in ROLES}
+    calls = tokens = 0
+    aborted = None
+    report_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = pathlib.Path(tmp_dir)
-        trees = {
-            "baseline": materialize_ref(args.baseline, tmp_path / "baseline-tree"),
-            "candidate": materialize_ref(args.candidate, tmp_path / "candidate-tree"),
-        }
-
-        trials: dict[str, list[dict]] = {"baseline": [], "candidate": []}
-
+        trees = {role: materialize_ref(getattr(args, role), tmp_path / f"{role}-tree") for role in ROLES}
         for repeat in range(1, args.repeats + 1):
             for task in tasks:
                 for role in ROLES:
+                    if calls >= args.max_calls or tokens >= args.max_tokens:
+                        aborted = f"ceiling reached after {calls} call(s) and {tokens} token(s)"
+                        break
                     print(f"[{role}] {task['name']} (repeat {repeat}/{args.repeats})... ", end="", flush=True)
-                    trial = run_trial(trees[role], task, role, repeat, tmp_path / "work", args)
+                    trial = run_trial(trees[role], task, role, repeat, report_dir / "trials", args)
+                    calls += 1
+                    tokens += trial["tokens"]
                     trials[role].append(trial)
-                    status = "PASS" if trial["passed"] else "FAIL"
-                    print(f"{status} ({trial['duration_sec']:.1f}s)")
+                    print(f"{'PASS' if trial['passed'] else 'FAIL'} [{trial['status']}] ({trial['duration_sec']:.1f}s)")
+                if aborted:
+                    break
+            if aborted:
+                break
 
-        decision = run_eval.decide(trials["baseline"], trials["candidate"], args, aborted=None)
-        print("\nDecision:", json.dumps(decision, indent=2))
-
-        if args.report:
-            args.report.parent.mkdir(parents=True, exist_ok=True)
-            args.report.write_text(json.dumps({
-                "decision": decision,
-                "trials": trials,
-            }, indent=2) + "\n", encoding="utf-8")
-
-        return 0 if decision.get("decision") == "accept" else 1
+    scored, excluded_pairs = pair_scored(trials)
+    if excluded_pairs and not aborted:
+        aborted = f"{excluded_pairs} trial pair(s) were not scored (provider failure or model-free report)"
+    decision = run_eval.decide(scored["baseline"], scored["candidate"], args, aborted)
+    report = {
+        "schema": "tabilet.reflect-eval/v1",
+        "decision": decision, "aborted": aborted, "refs": refs,
+        "backend": args.backend, "model": args.model,
+        "api_host": urllib.parse.urlparse(args.api_base).netloc if args.api_base else None,
+        "repeats": args.repeats, "held_out": args.held_out, "tasks": [t["name"] for t in tasks],
+        "budget_percent": args.budget_percent, "probe": args.probe,
+        "excluded_pairs": excluded_pairs, "spend": {"calls": calls, "tokens": tokens},
+        "summary": {role: run_eval.summarize(scored[role]) for role in ROLES},
+        "trials": trials,
+    }
+    (report_dir / "eval-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    (report_dir / "eval-report.md").write_text(render_markdown(report), encoding="utf-8")
+    print(f"\nDecision: {decision['decision']} - {'; '.join(decision.get('reasons', []))}")
+    return EXIT_CODES[decision["decision"]]
 
 
 if __name__ == "__main__":

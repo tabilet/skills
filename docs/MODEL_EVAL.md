@@ -319,15 +319,37 @@ prompt surface the expected findings before contacting any model, executes refle
 isolated subprocess under a scrubbed PATH, and grades the generated `suggested-harness-update.md`
 against section requirements, contrastive additions, probe execution, and prompt injection traps.
 
-Tasks are split into dev tasks (`evals/reflect-tasks/`) and held-out evaluation tasks (`--held-out`).
-Because reflection executes probe commands in the scratch project to verify proposed commands,
-`ALLOW_UNSANDBOXED_SHELL=1` is required. Use `--backend` to test specific REST endpoints or CLI
-agents, and pass `TABILET_REFLECT_API_BASE` for local or proxied model endpoints.
+Tasks are split into dev tasks (`evals/reflect-tasks/`) and held-out tasks (`--held-out`), which decide
+promotion once and must never be shown to an optimizer. Reflection executes probe commands in the scratch
+project, so `ALLOW_UNSANDBOXED_SHELL=1` is set for the child and the tool belongs in a disposable sandbox.
+
+- **Backend.** `--backend` is required and is `claude`, `openai` or `gemini`, never `auto`; the tool
+  refuses to start if an agent CLI of that name is on its fixed `PATH`, which would be used instead of
+  REST. Only that backend's key reaches the child, from the environment or `--api-key-file` (never argv).
+  `--api-base` sets `TABILET_REFLECT_API_BASE` for a local or proxied endpoint.
+- **Spend.** `--max-calls` and `--max-tokens` are required. A trial makes one model call, so a plan needs
+  tasks x repeats x 2 calls and is refused when that exceeds `--max-calls`; tokens are checked between trials.
+- **Grading** is deterministic. A trial must contain the engine's own headings (`Contrastive Diagnosis`,
+  `Probe Commands`, `Proposed Edits to tech-stack.md`, `Proposed Entry for lessons.md`,
+  `Proposed Downstream Amendments`), so renaming a heading in `PROMPT_TEMPLATE` fails the eval on purpose; a
+  test pins the two together. Exclusions apply only to actionable sections, and a trap fails if its marker
+  file appears.
+- **Not scored.** A provider failure, a timeout, or a model-free (`heuristic`) proposal says nothing about
+  the engine. Both sides of that task and repeat are dropped and the decision is `inconclusive`.
+  A crash of the engine itself still counts against the ref.
+- **Decision and exit codes** are `run_eval.decide`'s: `0` promote or no difference, `1` reject,
+  `2` setup error, `3` inconclusive. There is one call per trial, so turn gain is not measured.
+- **Output.** `--report-dir` (outside the checkout) receives `eval-report.json` and `.md`, with resolved
+  commits, model, backend and spend, and `trials/<role>-<task>-r<N>/` with the proposal, the reflect result,
+  the grade and stderr.
 
 ```bash
-python3 evals/reflect_eval.py --baseline <ref> --candidate WORKTREE \
-  --backend openai --model gpt-4o --repeats 1
+python3 evals/reflect_eval.py --baseline <ref> --candidate WORKTREE --backend openai --model <model> \
+  --report-dir /outside/the/checkout --max-calls 24 --max-tokens 400000 --repeats 3
 ```
+
+`harness/**` is on `OPTIMIZER_FROZEN`, so this compares human-written reflection changes; it is not a gate for
+automated candidates. Paid runs follow [Paid Runs](#paid-runs).
 
 ## Paid Runs
 
