@@ -296,18 +296,28 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         multi_attempts = [dict(row) for row in conn.execute(q_multi, {"m": milestone_id}).fetchall()]
 
         # 3. Turn-Level Efficiency & Captured Messages
-        q_turns = """
-        SELECT run_id,
+        has_v4 = "captured_message_content" in audit.schema_tables(conn)
+        message_expr = (
+            "CASE WHEN t.message_id IS NOT NULL THEN '' ELSE COALESCE(CAST(mc.content AS TEXT), m.text, '') END"
+            if has_v4 else "COALESCE(m.text, '')"
+        )
+        from_clause = (
+            "captured_messages m LEFT JOIN captured_message_content mc ON mc.message_id=m.message_id "
+            "LEFT JOIN message_content_tombstones t ON t.message_id=m.message_id"
+            if has_v4 else "captured_messages m"
+        )
+        q_turns = f"""
+        SELECT m.run_id,
                COUNT(*) AS total_turns,
-               MIN(CASE WHEN text LIKE '%edit_file%' OR text LIKE '%write_file%' OR text LIKE '%apply_patch%'
-                        THEN sequence END) AS first_edit_turn
-        FROM captured_messages
-        WHERE run_id IN (
+               MIN(CASE WHEN {message_expr} LIKE '%edit_file%' OR {message_expr} LIKE '%write_file%' OR {message_expr} LIKE '%apply_patch%'
+                        THEN m.sequence END) AS first_edit_turn
+        FROM {from_clause}
+        WHERE m.run_id IN (
             SELECT DISTINCT r.run_id FROM runs r
             JOIN events e ON r.run_id = e.run_id
             WHERE (:m IS NULL OR e.milestone_id = :m)
         )
-        GROUP BY run_id;
+        GROUP BY m.run_id;
         """
         turn_stats = [dict(row) for row in conn.execute(q_turns, {"m": milestone_id}).fetchall()]
 
@@ -315,15 +325,9 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         if turn_stats and friction_runs:
             for fr in friction_runs[:5]:
                 rid = fr["run_id"]
-                msgs = conn.execute(
-                    """
-                    SELECT sequence, role, text FROM captured_messages
-                    WHERE run_id = ? ORDER BY sequence DESC LIMIT 3
-                    """,
-                    (rid,),
-                ).fetchall()
+                msgs = audit.query_messages(conn, rid, include_content=True, limit=3, descending=True)
                 error_traces[rid] = [
-                    {"turn": m["sequence"], "role": m["role"], "snippet": truncate_middle(m["text"], 300, 600)}
+                    {"turn": m["sequence"], "role": m["role"], "snippet": truncate_middle(m.get("text") or "", 300, 600)}
                     for m in reversed(msgs)
                 ]
 
@@ -396,12 +400,7 @@ def export_trajectories(project_path: str | pathlib.Path = ".", milestone_id: st
 
         tasks = []
         for r in runs:
-            turns = conn.execute("""
-                SELECT sequence, role, text
-                FROM captured_messages
-                WHERE run_id = ?
-                ORDER BY sequence ASC
-            """, (r["run_id"],)).fetchall()
+            turns = audit.query_messages(conn, r["run_id"], include_content=True)
 
             tasks.append({
                 "task_id": r["task_label"],
@@ -409,7 +408,7 @@ def export_trajectories(project_path: str | pathlib.Path = ".", milestone_id: st
                 "status": r["result"],
                 "duration_sec": r["duration_sec"],
                 "verification": json.loads(r["verification_json"]) if r["verification_json"] else None,
-                "turns": [{"turn": t["sequence"], "role": t["role"], "text": t["text"]} for t in turns],
+                "turns": [{"turn": t["sequence"], "role": t["role"], "text": t.get("text") or ""} for t in turns],
             })
 
     return {"milestone_id": milestone_id, "tasks": tasks}
@@ -458,11 +457,24 @@ def build_reflection_prompt(telemetry: dict[str, Any], project_root: pathlib.Pat
     )
 
 
-def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> str:
+def _endpoint_url(base: str, default_endpoint: str) -> str:
+    """Join custom base with endpoint, avoiding duplicate /v1 prefixes."""
+    clean_base = base.rstrip("/")
+    if not default_endpoint.startswith("/"):
+        default_endpoint = "/" + default_endpoint
+    if clean_base.endswith("/v1") and default_endpoint.startswith("/v1/"):
+        default_endpoint = default_endpoint[3:]
+    return clean_base + default_endpoint
+
+
+def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tuple[str, str, dict[str, int | None]]:
     """Zero-dependency urllib REST fallback if local CLI binaries are unavailable."""
+    custom_base = os.environ.get("TABILET_REFLECT_API_BASE") if backend != "auto" else None
+
     if backend in ("auto", "claude") and os.environ.get("ANTHROPIC_API_KEY"):
+        url = _endpoint_url(custom_base, "/v1/messages") if (backend == "claude" and custom_base) else "https://api.anthropic.com/v1/messages"
         req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
+            url,
             data=json.dumps({
                 "model": os.environ.get("TABILET_REFLECT_MODEL", "claude-sonnet-5-5"),
                 "max_tokens": 4096,
@@ -477,11 +489,15 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> st
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-            return body["content"][0]["text"]
+            u = body.get("usage", {})
+            usage = {"input_total": u.get("input_tokens"), "output": u.get("output_tokens")}
+            return body["content"][0]["text"], "rest:claude", usage
 
     if backend in ("auto", "gemini") and os.environ.get("GEMINI_API_KEY"):
         model = os.environ.get("TABILET_REFLECT_MODEL", "gemini-2.5-pro")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        url = (_endpoint_url(custom_base, f"/v1beta/models/{model}:generateContent")
+               if (backend == "gemini" and custom_base)
+               else f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
         req = urllib.request.Request(
             url,
             data=json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8"),
@@ -490,11 +506,16 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> st
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-            return body["candidates"][0]["content"]["parts"][0]["text"]
+            u = body.get("usageMetadata", {})
+            usage = {"input_total": u.get("promptTokenCount"), "output": u.get("candidatesTokenCount")}
+            return body["candidates"][0]["content"]["parts"][0]["text"], "rest:gemini", usage
 
     if backend in ("auto", "codex", "openai") and os.environ.get("OPENAI_API_KEY"):
+        url = (_endpoint_url(custom_base, "/v1/chat/completions")
+               if (backend in ("openai", "codex") and custom_base)
+               else "https://api.openai.com/v1/chat/completions")
         req = urllib.request.Request(
-            "https://api.openai.com/v1/chat/completions",
+            url,
             data=json.dumps({
                 "model": os.environ.get("TABILET_REFLECT_MODEL", "gpt-4o"),
                 "messages": [{"role": "user", "content": prompt}],
@@ -507,7 +528,9 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> st
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-            return body["choices"][0]["message"]["content"]
+            u = body.get("usage", {})
+            usage = {"input_total": u.get("prompt_tokens"), "output": u.get("completion_tokens")}
+            return body["choices"][0]["message"]["content"], "rest:openai", usage
 
     raise LookupError(
         "No supported CLI agent ('claude', 'gemini', 'codex') found on PATH and no API keys "
@@ -638,12 +661,24 @@ def _run_cli(cmd: list[str], prompt: str, timeout_sec: float) -> tuple[int, str]
         return proc.returncode, stdout
 
 
+class ImproverResult(tuple):
+    """Result of invoke_improver_llm, unpacking as (text, source) for backwards compatibility."""
+
+    def __new__(cls, text: str, source: str, usage: dict[str, int | None] | None = None):
+        return super().__new__(cls, (text, source))
+
+    def __init__(self, text: str, source: str, usage: dict[str, int | None] | None = None):
+        self.text = text
+        self.source = source
+        self.usage = usage or {"input_total": None, "output": None}
+
+
 def invoke_improver_llm(
     telemetry: dict[str, Any],
     project_root: pathlib.Path,
     backend: str = "auto",
     timeout_sec: float = 120,
-) -> tuple[str, str]:
+) -> ImproverResult:
     """
     Run the improver through a local CLI agent (Claude Code, Gemini CLI, or Codex CLI) on stdin,
     then a REST API, all inside one shared deadline of `timeout_sec`. Returns (markdown, source).
@@ -681,18 +716,19 @@ def invoke_improver_llm(
             failures.append(f"{name} CLI: {type(exc).__name__}")
             continue
         if returncode == 0 and stdout.strip():
-            return stdout.strip(), f"cli:{name}"
+            return ImproverResult(stdout.strip(), f"cli:{name}", {"input_total": None, "output": None})
         failures.append(f"{name} CLI: exit {returncode}" if returncode else f"{name} CLI: empty output")
 
     try:
-        return _call_rest_fallback(prompt, backend=backend, timeout_sec=int(remaining()) or 1), f"rest:{backend}"
+        text, actual_source, usage = _call_rest_fallback(prompt, backend=backend, timeout_sec=int(remaining()) or 1)
+        return ImproverResult(text, actual_source, usage)
     except BudgetExceeded:
         # A CLI used the whole budget, so the REST fallback never started: that is a timeout too.
         timeouts += 1
         failures.append("REST API: no time left")
     except LookupError:
         if not failures:
-            return generate_heuristic_proposal(telemetry), "heuristic"
+            return ImproverResult(generate_heuristic_proposal(telemetry), "heuristic", {"input_total": None, "output": None})
     except urllib.error.HTTPError as exc:
         failures.append(f"REST API: HTTP {exc.code}")
     except (urllib.error.URLError, OSError, ValueError, KeyError, IndexError, TypeError) as exc:
@@ -882,12 +918,15 @@ def reflect_command(project_path: str = ".", milestone_id: str | None = None,
     # Propose -> Probe -> Compose
     budget = model_budget_sec(telemetry["milestone_wall_sec"], budget_percent)
     note = None
+    usage = {"input_total": None, "output": None}
     if budget < MIN_MODEL_BUDGET_SEC:
         raw_proposal, source = generate_heuristic_proposal(telemetry), "heuristic"
         note = f"model skipped: {budget:.0f}s budget is under the {MIN_MODEL_BUDGET_SEC}s minimum"
     else:
         try:
-            raw_proposal, source = invoke_improver_llm(telemetry, project_root, backend=backend, timeout_sec=budget)
+            res = invoke_improver_llm(telemetry, project_root, backend=backend, timeout_sec=budget)
+            raw_proposal, source = res[0], res[1]
+            usage = getattr(res, "usage", usage)
         except BudgetExceeded as exc:
             raw_proposal, source = generate_heuristic_proposal(telemetry), "heuristic"
             note = f"model skipped: {exc}"
@@ -904,6 +943,7 @@ def reflect_command(project_path: str = ".", milestone_id: str | None = None,
         "output_file": str(out_file),
         "milestone_id": milestone_id,
         "proposal_source": source,
+        "usage": usage,
         "model_budget_sec": round(budget, 1),
         "budget_note": note,
         "downstream_gate": telemetry["downstream"]["gate"],
