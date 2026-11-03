@@ -25,7 +25,7 @@
     "files_exclude": {
       "tabilet/memory-bank/suggested.txt": [
         "\\[[+~]\\]\\s*grant_id:[^\\n]*(?:\\n[ \\t]+(?![ \\t-])[^\\n]*)*?\\n[ \\t]+action:\\s*(sudo|ssh)\\b",
-        "ALLOW_DANGEROUS_COMMANDS",
+        "(?m)^#?\\s*Recommended harness flags:[^\\n]*ALLOW_DANGEROUS_COMMANDS",
         "(?i)sudo:\\s*true"
       ]
     }
