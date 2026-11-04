@@ -3610,7 +3610,8 @@ def test_policy_and_convergent_review_gate():
             "only the goal owner writes them",
             "register is approved planning state, not a review copy or ledger",
             "[test policy](test-policy.md)", "**Real-effect checks.**",
-            "rerun required\n   gates only when something they read has changed"),
+            "rerun required\n   gates only when something they read has changed",
+            "**Safe capacity refusals.**", "needs explicit\nhuman approval, and the finding stays P1"),
         TEST_POLICY_FILE: (
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's evidence",

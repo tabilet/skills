@@ -455,6 +455,11 @@ stricter gate in which P2 also blocks. Milestones run by the optional `tabilet`
 controller keep P2 blocking, because the controller runs its own full review and
 does not read the register.
 
+A safely refused case at extreme size or capacity is P2, not P1, when no acceptance
+line promises that size, a test shows nothing is leaked, corrupted, lost or
+rewritten, the stored data stays reachable, and the limit is documented. Narrowing
+an acceptance line that does promise that size needs your explicit approval.
+
 A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may
 use `goal-policy`. Every other browser environment needs explicit authority.

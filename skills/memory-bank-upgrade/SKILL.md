@@ -210,7 +210,8 @@ project adopts them, its stricter text stays binding. The proposal:
   specifics`, or declaring its path in `AGENTS.md`.
 - For a project that already has the policy, proposes merging stock rules it
   lacks, such as focused checks and required gates, and the matching
-  `milestone.md` closure step. `Project specifics` and project-made edits stay.
+  `milestone.md` closure step and safe capacity refusal rule. `Project specifics`
+  and project-made edits stay.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note. Adds the
   `tech-stack.md`, status-file preamble and `AGENTS.md` pointers, and adds

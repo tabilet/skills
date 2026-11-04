@@ -552,7 +552,9 @@ spelling so an inbound link survives translation.
   `references/model-policy.md`; planning preserves explicit policy and adds it
   only when requested. The Python API paths do not consume model policy.
 - `GOAL.md` and the template milestone review use the same bounded review-fix
-  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1).
+  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1). A
+  proven safe refusal at extreme size or capacity is P2 unless acceptance promises
+  that size; narrowing such a line needs explicit human approval.
   The initial deep-review pass is iteration 1 and covers the full milestone
   diff; later iterations review only the prior blocking findings, the change
   since the recorded reviewed state and its direct consumers, and each records

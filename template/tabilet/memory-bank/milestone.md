@@ -381,6 +381,14 @@ is P1. A security, privacy or data-loss finding is P1 unless evidence clearly
 shows otherwise. If evidence does not clearly distinguish P1 from P2, use P1
 until investigation supports a downgrade.
 
+**Safe capacity refusals.** A case at extreme size or capacity is P2, not P1,
+only when all of these hold: no acceptance line promises that size; a test shows
+the refusal is deterministic and clear, with nothing leaked, corrupted, lost or
+rewritten; the stored data stays reachable through a supported path and no
+required flow dead-ends; and the limit is documented. Carry it with a named fix
+owner. If an acceptance line promises that size, narrowing it needs explicit
+human approval, and the finding stays P1 until then.
+
 When the project's own severity definitions make P2 blocking, or it has no open
 review findings register, that stricter gate applies (P2 blocks and every
 iteration reviews the whole milestone) until the project explicitly adopts this
