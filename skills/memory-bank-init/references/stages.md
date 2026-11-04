@@ -55,6 +55,10 @@ its description. A preliminary stage need not have a candidate's deferral
 reason or promotion trigger. A new stage does not automatically promote a
 candidate.
 
+A stage carries no checks of its own. When its outcome needs end-to-end
+qualification with real pinned artifacts, name that in the acceptance of the
+stage's last active milestone, as a required gate under the test policy.
+
 Revisit stages through an approved planning proposal. Distinguish enriching a
 stage's context from explicitly requesting executable milestones. When adopting
 stages in an initialized project, preserve completed history, current row states,

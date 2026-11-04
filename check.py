@@ -3071,7 +3071,8 @@ def stage_contract():
         problems.append("Init and Propose stage references differ")
     source = references[0].read_text()
     for token in ("one implicit stage", "STG-01", "tentative name",
-                  "future stage ideas have none", "stage label alone never defers"):
+                  "future stage ideas have none", "stage label alone never defers",
+                  "A stage carries no checks of its own"):
         if token not in source:
             problems.append(f"stage reference lacks {token!r}")
     if (ROOT / "template/tabilet/stages.md").exists():
@@ -3626,6 +3627,7 @@ def test_policy_and_convergent_review_gate():
             "names a narrower step in `tech-stack.md`", "Every gate run, rerun included, is fresh",
             "still runs in a required gate without the variant", "memory safety at a size boundary",
             "not added to get past a failure", "a required gate served from a cache",
+            "it is a required gate of the stage's last active milestone", "- **Row checks**:",
             "record a result served from the\n   cache as cached", "fresh and not served",
             "**Match the fixture to the variant.**", "has its\n     own smaller test under the variant",
             "The gate still runs whole units; only the named fixture is skipped.",
@@ -3668,7 +3670,7 @@ def test_policy_and_convergent_review_gate():
             "except an individually approved method-only rewrite of a pending row or pending specification",
             "except individually approved method-only rewrites of pending rows and specifications",
             "compares `test-policy.md` with the", "Separately compares `milestone.md`", "by content, not step number",
-            "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips"),
+            "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips", "a missing `Row checks` line is offered"),
         "skills/memory-bank-propose/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "skills/memory-bank-reconcile/references/plan-update.md": (

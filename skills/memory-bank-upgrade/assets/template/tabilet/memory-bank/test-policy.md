@@ -100,6 +100,9 @@ test on loopback fixtures with a throwaway profile is class O.
    After a failure, finish the other cheap gates, fix with focused checks, then
    rerun the failed and affected gates and
    run any gate that was skipped before the review.
+   Where a stage's acceptance requires end-to-end qualification with real pinned
+   artifacts, it is a required gate of the stage's last active milestone. Rule 6
+   governs those artifacts, and any class R part keeps its own authority.
    Grants and class R runs are unchanged, and this adds no counters, budgets or
    approvals.
 8. **Match the fixture to the variant.** A large capacity or maximum-size
@@ -172,6 +175,7 @@ prohibited machinery: that acceptance line is unproven, which is P1.
 ## Project specifics
 
 - **Toolchain**: [Languages and the test entry points that run them.]
-- **Required gates**: [Whole-unit commands from tech-stack.md that closure requires.]
+- **Row checks**: [Whole-project build or type-check, static checks and whole-unit test commands from tech-stack.md.]
+- **Required gates**: [Whole-unit commands from tech-stack.md, run fresh, that closure requires, and any stage qualification.]
 - **Class R checks**: [Named real-effect checks and owning milestones, or "none".]
 - **Approved other-language tools**: [Tool, scope, approval source, reason, or "none".]

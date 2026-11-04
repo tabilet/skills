@@ -207,7 +207,8 @@ required gates once and fresh before the whole review, and a named capacity
 fixture may skip an instrumented variant only under rule 8's conditions. In `milestone.md`, the closure step reuses unchanged class O gate
 results and the safe capacity refusal rule and its register note are added. The
 status-file preamble gets the matching recording text.
-`Project specifics` and any edits the project made stay.
+`Project specifics` and any edits the project made stay; a missing `Row checks`
+line is offered without changing the others.
 
 ## If DSH reports compatibility warnings
 

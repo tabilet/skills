@@ -414,7 +414,7 @@ Then edit the copied files in this order:
 2. `tabilet/memory-bank/architecture.md`: define layout, data flow, and boundaries.
 3. `tabilet/memory-bank/tech-stack.md`: define commands, dependencies, and harnesses.
 4. `tabilet/memory-bank/test-policy.md`: keep the stock text and fill its
-   *Project specifics* (toolchain, required gates, class R checks, approved
+   *Project specifics* (toolchain, row checks, required gates, class R checks, approved
    other-language tools).
 5. `tabilet/memory-bank/milestone.md`: define the status ID lanes (see
    [Status ID lanes](#status-id-lanes)) and the first milestone.

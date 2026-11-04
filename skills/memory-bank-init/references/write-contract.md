@@ -98,7 +98,7 @@ Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
 Create `tabilet/memory-bank/test-policy.md` from the template. Keep the stock
 rules and fill only its `Project specifics` section from discovery: the
-toolchain and test entry points, the required whole-unit gates, any named class
+toolchain and test entry points, the row checks, the required whole-unit gates, any named class
 R checks with their owning milestones (or "none"), and approved other-language
 tools (or "none"). Never invent a class R check. Declare its path in the
 `AGENTS.md` Hard Rules bullet so standalone Next and the API runner find it, and
