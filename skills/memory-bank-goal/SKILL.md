@@ -89,7 +89,7 @@ When it is not `none`, run these preflight checks before milestone execution:
    `WARNING: OPTIMIZE_POLICY is configured, but no reflection model is available (tabilet-audit reflect --check lists no backends). Reflection will only produce a summary with no edits. Install claude, gemini or codex, or set ANTHROPIC_API_KEY, GEMINI_API_KEY or OPENAI_API_KEY.`
    and continue; milestones shorter than the `min_model_milestone_sec` it reports get no model call either.
 When both pass, run `tabilet-audit reflect . --milestone <ID>` upon milestone closure and read its proposal
-(`proposal_source` of `heuristic` means no model ran; treat it as a summary with no edits). Probe commands
+(`proposal_source` of `heuristic` means no model ran; treat it as a summary with no edits). A "backend unreachable" note means the host sandbox blocks network: request network access for this command and rerun it. Probe commands
 are not run unless you pass `--probe` with the host-shell acknowledgment. A failed reflection,
 model-free report or empty proposal makes no edits and does not pause execution.
 Under `confirm`, pause for human approval only of an actionable complete proposal.

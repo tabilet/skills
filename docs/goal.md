@@ -462,7 +462,7 @@ pauses for approval of the whole proposal. `auto` applies only additive, evidenc
 touches authorization, review or verification limits. Reflection reads later milestones only after a significant
 finding (a task that needed several runs, or a failed, blocked or slow run), only those listed in `suggested.txt`
 and still open, and spends at most 10% of the milestone's recorded time. Milestone graph changes count as corrective planning
-and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits.
+and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits. Reflection needs the network for its model call: a host sandbox without network access makes it stop with "backend unreachable" and write a report with no edits, so run `tabilet-audit reflect` with network access.
 
 An interactive Goal run records its own events, so they can be sparse. Reflection therefore also reads
 evidence the agent does not write: the Git commits made during the recorded runs, and the review rounds

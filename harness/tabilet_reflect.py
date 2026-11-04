@@ -41,6 +41,32 @@ REST_KEYS = {"claude": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "openai"
 class BudgetExceeded(audit.AuditError):
     """The model call could not finish inside the reflection time budget."""
 
+
+class BackendUnreachable(BudgetExceeded):
+    """Every installed backend needs a network the host does not provide (typically a sandbox)."""
+
+
+CLI_HOSTS = {"claude": "api.anthropic.com", "gemini": "generativelanguage.googleapis.com", "codex": "chatgpt.com"}
+
+
+def _host_resolves(host: str, wait_sec: float = 3.0) -> bool:
+    """True when DNS answers within `wait_sec`. A sandbox without network fails at once; a CLI would hang."""
+    import socket
+    import threading
+    result: list[bool] = []
+
+    def lookup() -> None:
+        try:
+            socket.getaddrinfo(host, 443)
+            result.append(True)
+        except OSError:
+            result.append(False)
+
+    worker = threading.Thread(target=lookup, daemon=True)
+    worker.start()
+    worker.join(wait_sec)
+    return bool(result and result[0])
+
 PROMPT_TEMPLATE = """You are the Tabilet Milestone Reflector for Tabilet Memory Bank.
 Analyze the following execution telemetry from Milestone {milestone_id} in {project_root}.
 
@@ -808,8 +834,13 @@ def invoke_improver_llm(
 
     failures: list[str] = []
     timeouts = 0
+    unreachable = 0
     for name, cmd in cli_candidates:
         if shutil.which(cmd[0]) is None:
+            continue
+        if not _host_resolves(CLI_HOSTS[name]):
+            unreachable += 1
+            failures.append(f"{name} CLI: no network (cannot resolve {CLI_HOSTS[name]})")
             continue
         try:
             returncode, stdout = _run_cli(cmd, prompt, remaining())
@@ -821,6 +852,10 @@ def invoke_improver_llm(
             return ImproverResult(stdout.strip(), f"cli:{name}", {"input_total": None, "output": None})
         failures.append(f"{name} CLI: exit {returncode}" if returncode else f"{name} CLI: empty output")
 
+    if failures and unreachable == len(failures):
+        raise BackendUnreachable("reflection backend unreachable ("
+                                 + "; ".join(failures)
+                                 + "); the host probably blocks network, so run reflect with network access")
     try:
         text, actual_source, usage = _call_rest_fallback(prompt, backend=backend, timeout_sec=int(remaining()) or 1)
         return ImproverResult(text, actual_source, usage)

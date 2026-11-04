@@ -19,6 +19,10 @@ import tabilet_reflect as reflect  # noqa: E402
 
 class ReflectTests(unittest.TestCase):
     def setUp(self):
+        # Tests use fake CLIs; the real DNS check is only exercised where a test patches it to False.
+        patcher = mock.patch.object(reflect, '_host_resolves', return_value=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.base = Path(self.tmp.name)
@@ -226,6 +230,25 @@ class ReflectTests(unittest.TestCase):
         self.assertTrue(Path(result['output_file']).is_file())
         self.assertIn('Why no model analysis: model skipped', Path(result['output_file']).read_text())
 
+    def test_missing_network_fails_fast_and_says_why(self):
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        with mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
+                mock.patch.object(reflect, '_host_resolves', return_value=False), \
+                mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')):
+            with self.assertRaises(reflect.BackendUnreachable) as ctx:
+                reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=60)
+        self.assertIn('claude CLI: no network', str(ctx.exception))
+
+    def test_unreachable_backend_degrades_to_the_model_free_report_with_reason(self):
+        self.record_completed_task()
+        with mock.patch.object(reflect, 'model_budget_sec', return_value=60), \
+                mock.patch.object(reflect, 'invoke_improver_llm',
+                                  side_effect=reflect.BackendUnreachable('reflection backend unreachable (x)')):
+            result = reflect.reflect_command(str(self.repo), milestone_id='M01')
+        self.assertEqual(result['proposal_source'], 'heuristic')
+        self.assertIn('unreachable', Path(result['output_file']).read_text())
+
     def test_exhausted_budget_names_the_backend_that_used_it(self):
         def slow(cmd, prompt, timeout_sec):
             time.sleep(0.08)
@@ -233,6 +256,7 @@ class ReflectTests(unittest.TestCase):
         self.record_completed_task()
         telemetry = reflect.extract_telemetry(self.repo, 'M01')
         with mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
+                mock.patch.object(reflect, '_host_resolves', return_value=True), \
                 mock.patch.object(reflect, '_run_cli', side_effect=slow):
             with self.assertRaises(reflect.BudgetExceeded) as ctx:
                 reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=0.05)
