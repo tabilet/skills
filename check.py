@@ -952,7 +952,6 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "dangerous` proposes `CORRECTIVE_PLANNING: auto`",
         "least propose `CORRECTIVE_PLANNING: confirm`", "Explicit human policy overrides the preset",
         "Do not put an email recipient in project launch input by default",
-        "`Safe capacity refusals` paragraph and `capacity limit` register note",
     ),
     "skills/memory-bank-propose/references/plan-update.md": (
         "For Init and Propose, also propose `CORRECTIVE_PLANNING: auto` in dangerous mode",
@@ -3614,8 +3613,9 @@ def test_policy_and_convergent_review_gate():
             "a class O gate may reuse its result when nothing it", "never in the frozen record",
             "**Safe capacity refusals.**", "needs explicit\nhuman approval, and the finding stays P1",
             "public contract or previously", "Otherwise classify it normally",
-            "A `capacity limit` row keeps fix owner `unassigned`",
-            "At horizon closure a human defers it or plans a row that fixes it"),
+            "A `capacity limit` row keeps fix owner `unassigned`", "becomes blocking, except a `capacity limit` row",
+            "cite the test\nand the documentation that show each condition",
+            "may defer it or plan a row that fixes it at any review, and must at horizon closure"),
         TEST_POLICY_FILE: (
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's focused verification and its evidence",
@@ -3640,10 +3640,13 @@ def test_policy_and_convergent_review_gate():
         "AGENTS.md": (
             "Open review findings register", "`FND-`", "make no further review change",
             "it does not read the register", "class R", "`TEST_POLICY`",
-            "Grant budgets bind independently of test class"),
+            "Grant budgets bind independently of test class",
+            "a\n  `capacity limit` row ends through human deferral or a planned fix"),
         "skills/memory-bank-init/references/write-contract.md": (
             "tabilet/memory-bank/test-policy.md", "TEST_POLICY: <resolved path or none>",
             "Open review findings", "keeps P2 blocking",
+            "template's `Safe capacity refusals` paragraph, which a project's own severity",
+            "`capacity limit` note, and its execution-path",
             "carry no controller, receipt or other-language method forward"),
         "skills/memory-bank-goal/references/subagents.md": (
             "scopes the iteration as the governing gate", "resolved `TEST_POLICY`",
@@ -3653,13 +3656,17 @@ def test_policy_and_convergent_review_gate():
             "Earlier UNKNOWN, aborted and failed class O records stay literal",
             "prescribes a method the test policy forbids", "frozen records stay as they are",
             "except an individually approved method-only rewrite of a pending row or pending specification",
-            "except individually approved method-only rewrites of pending rows and specifications"),
+            "except individually approved method-only rewrites of pending rows and specifications",
+            "compares `test-policy.md` with the", "Separately compares `milestone.md`",
+            "is not\n  already compatible, so a repeat run is not a no-op"),
         "skills/memory-bank-propose/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "skills/memory-bank-reconcile/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
-        "docs/upgrade.md": ("prescribes a method the policy forbids",),
-        "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence"),
+        "docs/upgrade.md": ("prescribes a method the policy forbids", "In `milestone.md`, the closure step",
+                            "every stock rule it lacks or that"),
+        "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
+                         "Narrowing an acceptance line that promises such a size"),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}",),
         "docs/tabilet-controller.md": (
             "does not read the project's open review findings register", "keep P2 blocking"),

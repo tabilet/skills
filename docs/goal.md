@@ -457,8 +457,9 @@ does not read the register.
 
 A case at extreme size or capacity can be P2 instead of P1 when it is safely refused
 and documented and nothing promises that size; the conditions are in the
-`Safe capacity refusals` paragraph of `milestone.md`. A human ends such a limit by
-deferring it or planning a fix.
+[`Safe capacity refusals`](https://github.com/tabilet/skills/blob/main/template/tabilet/memory-bank/milestone.md)
+paragraph of `milestone.md`. Narrowing an acceptance line that promises such a size needs
+your explicit approval. A human ends the limit by deferring it or planning a fix.
 
 A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may

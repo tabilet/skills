@@ -325,9 +325,10 @@ Last used ID: none
 - Disposition: `open`, `fixed in <commit or task row>`, `obsolete: <evidence>`,
   or `deferred by human: <approval source>`; never the last without that
   approval.
-- A `capacity limit` row keeps fix owner `unassigned`. A task that touches its code
-  need not fix it, it does not turn blocking when examined, and it needs no
-  corrective row. At horizon closure a human defers it or plans a row that fixes it.
+- A `capacity limit` row keeps fix owner `unassigned`. This is the one exception to the
+  carried-P2 rules in the review gate: a task that touches its code need not fix it,
+  it does not turn blocking when examined, and it needs no corrective row. A human
+  may defer it or plan a row that fixes it at any review, and must at horizon closure.
 - In concurrent leases, children return register updates; only the goal owner
   writes them.
 - Horizon closure (the last active milestone of the current stage, or of the
@@ -389,9 +390,11 @@ when all of these hold: no acceptance line, public contract or previously
 supported behavior promises that size; a test shows the refusal is deterministic
 and clear, with nothing leaked, corrupted, lost or rewritten; the stored data
 stays reachable through a supported path and no required flow dead-ends; and the
-limit is documented. Otherwise classify it normally. Handle it as any other P2
-under the project's gate, and label a carried one `capacity limit` in the register.
-If a promise covers that size, narrowing it needs explicit
+limit is documented. Otherwise classify it normally. Handle it as a P2 under the
+project's gate, except as the `capacity limit` register note says. Label a
+carried one `capacity limit` in the register's Finding column and cite the test
+and the documentation that show each condition; without that evidence it is an
+ordinary P2. If a promise covers that size, narrowing it needs explicit
 human approval, and the finding stays P1 until then.
 
 When the project's own severity definitions make P2 blocking, or it has no open
@@ -546,7 +549,7 @@ notes identify the consumed attempt or supersession and its accepted successor:
    - The gate passes with no blocking finding in scope, every earlier blocking
      finding fixed, and no unreviewed review change.
    - A carried P2 still unfixed when its fix owner's review, or a later
-     iteration, examines it becomes blocking.
+     iteration, examines it becomes blocking, except a `capacity limit` row.
    - Resolve `REVIEW_MAX_ITERATIONS` from the human-approved interactive request,
      default 10, independently of commit policy. It must be a positive integer.
      Project caps use `REVIEW_MAX_ITERATIONS` in `tech-stack.md` verification

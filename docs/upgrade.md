@@ -201,10 +201,10 @@ next iteration only when the prior reviewed state is recorded.
 
 
 A project that already has the policy is offered every stock rule it lacks or that
-differs, in the same approved proposal. Rule 7 is
+differs, in the same approved proposal. In `test-policy.md`, rule 7 is
 one: narrow checks while editing, affected whole units before a row is done, and
-required gates once before the whole review. Others are the closure step that
-reuses unchanged class O gate results and the safe capacity refusal rule.
+required gates once before the whole review. In `milestone.md`, the closure step
+reuses unchanged class O gate results and the safe capacity refusal rule is added.
 `Project specifics` and any edits the project made stay.
 
 ## If DSH reports compatibility warnings
