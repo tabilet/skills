@@ -1,3 +1,72 @@
+# memory-bank v2.19.0
+
+Cuts the time a milestone spends re-running checks, keeps a safely refused
+oversize input from blocking a review forever, and hardens the API runner and
+reflection against transport failures. The stock `GOAL.md` protocol is
+unchanged.
+
+- **Focused checks and required gates.** The stock test policy gains rule 7.
+  While editing, run the narrowest check. Before a row is done or a task review
+  or re-review, run the affected whole units and their direct consumers (plus
+  race or UI runs if concurrency or UI changed), recorded like a gate. The
+  required gates run once immediately before the whole review and rerun only
+  when something a gate reads has changed. If it is unclear what a gate reads,
+  rerun it. A gate's state is the full `HEAD`, plus a saved diff and its hash
+  for uncommitted work; status and record bookkeeping is ignored unless a gate
+  reads it. Run cheapest first; after a failure finish the other cheap gates,
+  fix, rerun the failed and affected gates, and run any skipped gate before
+  the review. Rules 3 and 5 and the reviewer-finding list were adjusted to
+  match.
+- **Reuse at closure.** `milestone.md` step 8 lets a class O gate reuse its
+  result when nothing it reads has changed; class R follows its own authority.
+  The reuse is stated in the retired record's `**Verification.**`. A later
+  closure rerun is reported in the step 9 summary, never written into the
+  frozen record. The status-file preamble records the source revision or saved
+  diff hash for each result.
+- **Safe capacity refusals are Lower.** An extreme-size input that is refused
+  deterministically and clearly, with nothing leaked, corrupted, lost or
+  rewritten, with the data still reachable and the limit documented, is Lower
+  rather than P1 or P2, provided no acceptance line, public contract or
+  previously supported behavior promises that size. Register the finding as a
+  `capacity limit` row citing the test and the documentation. The fix-now rule
+  applies if later work builds on it; a human defers it or plans a fix at any
+  review, and must do so at horizon closure. Narrowing a promised size needs
+  your explicit approval, and the finding stays P1 until then. Projects whose
+  own severity definitions disagree keep theirs.
+- **Upgrade.** `memory-bank-upgrade` compares `test-policy.md` rule by rule
+  (rules 3, 5, 7 and the reviewer list), compares `milestone.md` by content for
+  the closure step and the capacity paragraph, and compares the status-file
+  preamble. It offers each missing piece in its complete proposal and writes
+  only after approval. A repeat run is no longer a no-op while any is missing.
+  Project edits and severity definitions are preserved. Init's write contract
+  carries the capacity paragraph for new projects.
+- **API runner.** Transport failures while reading a response (a reset, a TLS
+  error, a truncated body, a body shorter than its `Content-Length`, a
+  malformed status line) are retried instead of escaping as a traceback or as
+  invalid JSON. Anthropic's 529 overload status is retried, backoff is
+  2/4/8 seconds with jitter, and the default API timeout is 600 seconds. Exit
+  codes are unchanged.
+- **Reflection.** `tabilet-audit reflect` reads captured message text that v4
+  audit storage keeps in a separate table (it sent blank traces before),
+  honours tombstones, reports provider token usage, labels the proposal with
+  the provider actually used, and accepts `TABILET_REFLECT_API_BASE` for an
+  explicit `--backend` only. Its REST call also catches malformed HTTP
+  responses.
+- **Propose and init.** Propose names the full `suggested.txt` path
+  (`tabilet/memory-bank/suggested.txt`); generated verification sections say
+  that brackets mean unfilled placeholders and must be removed. The README
+  documents the stock test policy.
+- **Repository checks.** `check.py` runs test files in parallel and caches a
+  fully passing suite outside the repository; CI never uses the cache.
+
+**Scope.** The skills, the template and the harness change; `GOAL.md` and its
+fingerprint do not. Installing the 2.19.0 plugin alone changes no project file.
+
+**Upgrade note.** An existing project keeps its current test and review rules
+until it adopts them through `memory-bank-upgrade`, which writes only after you
+approve the complete proposal. The runner and reflection changes ship in the
+account-level harness: install the updated files separately.
+
 # memory-bank v2.18.0
 
 Makes the shared historical-record reader read older retired milestones with
