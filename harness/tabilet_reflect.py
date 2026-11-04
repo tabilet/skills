@@ -1201,6 +1201,9 @@ def reflect_command(project_path: str = ".", milestone_id: str | None = None,
             note = f"model skipped: {exc}"
     probe_results = probe_proposed_commands(raw_proposal, project_root, enabled=probe)
     final_proposal = format_compose_report(raw_proposal, probe_results)
+    if note:
+        # The reason must survive in the file: the JSON result is gone once a host agent summarises it.
+        final_proposal += f"\n> Why no model analysis: {note}.\n"
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(final_proposal, encoding="utf-8")

@@ -82,6 +82,25 @@ when a correction has matching evidence, make retirement write the ID into combi
 explain at retirement. This changes shared runner behavior. Until then retire such milestones under their
 own IDs.
 
+`hcllight` (milestones `M1`-`M8` in one `status-M01.md`) hit the same index gap on 2026-11-04, so the
+defect is now seen in two projects. They share an owner, so this is still one ecosystem's evidence.
+
+### Pilot result: `hcllight`, one run over two milestones
+
+`M09` -> `M13` (six tasks, 9 commits, review rounds 2 and 1) ran as a single audit run of about 56
+minutes. It recorded 12 turns and no edit turns, but the Git evidence (section 1F) recovered the commits
+and both review counts. Both in-run reflections produced "no model was used" reports; the run's own
+summary called this a timeout. The cause was not recorded anywhere: the reason lived only in the JSON
+result, which the host agent summarised away. The same command run afterwards from outside the goal run
+finished in 15 seconds through `cli:claude` and was mostly accurate (it found the incomplete recording and
+put the friction in `M09`), but one proposed edit was vague and it misread the agent's own message as
+telemetry, so it would not have been accepted. Consequences:
+
+- A model-free proposal now ends with "Why no model analysis: ..." in the file itself.
+- One run spanning two milestones blurs per-milestone timing. Open: split by Git commits, or open a run
+  per milestone.
+- Why the in-run model call failed in the Codex tab is still unreproduced.
+
 ### Proposal under review: `tabilet-audit optimize`
 
 A plan proposed a multi-candidate optimizer, shipped on `main`. It would draft two or three

@@ -224,6 +224,7 @@ class ReflectTests(unittest.TestCase):
         self.assertEqual(result['proposal_source'], 'heuristic')
         self.assertIn('model skipped', result['budget_note'])
         self.assertTrue(Path(result['output_file']).is_file())
+        self.assertIn('Why no model analysis: model skipped', Path(result['output_file']).read_text())
 
     def test_budget_overrun_degrades_to_the_model_free_report(self):
         self.record_completed_task()
