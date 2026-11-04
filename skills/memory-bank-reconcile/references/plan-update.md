@@ -242,6 +242,10 @@ needs:
 - Prefer one check that refuses every unsupported case over logic that keeps rare
   cases working, unless acceptance requires them. A rare path the owner needs may
   stay, in one interface.
+- When a milestone adds a persisted record and the project defines guarantee
+  levels, propose the record's level in the milestone specification and show it in
+  the approval request. The user approves it; an agent never assigns one. A
+  project without levels gets no question about them.
 <!-- END SHARED scope-control-planning -->
 
 When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.

@@ -221,7 +221,9 @@ project adopts them, its stricter text stays binding. The proposal:
   from any of these is not already compatible, so a repeat run is not a no-op
   for it. `Project specifics`, project-made edits and the project's own
   severity definitions stay; a missing `Row checks` line is offered without
-  changing the others.
+  changing the others. Offers the optional `Guarantee levels` section and
+  `Advisory records` paragraph as their own decision; declining them leaves the
+  project compatible.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the

@@ -364,6 +364,29 @@ approved direction. Record it here so the same idea is not proposed again.
 |---|---|
 | [Work the project will not do.] | [Why it is outside this project's boundary.] |
 
+## Guarantee levels
+
+Optional. A project may define levels for its persisted records, so that a hint
+or a rebuildable view does not receive the full durability set. Without defined
+levels, every record keeps its ordinary treatment and none of this applies.
+
+The levels and their guarantees belong to the project. For example:
+
+| Level | Records | Required guarantees |
+|---|---|---|
+| Full | Records that grant authority or hold data the project must keep | Everything the project requires, such as privacy, crash recovery, quota, backup and legacy refusal |
+| Advisory | Records that grant nothing and can be rebuilt or lost | Privacy and a size bound only |
+
+- A milestone that adds a persisted record names the record's level in its
+  specification, with the human approval source. An agent may propose a level
+  but never assign one, and agent-authored text cannot prove the approval.
+- Losing or failing to read an advisory record must be acceptable, and restore
+  may bring it back empty.
+- A record that influences an authority decision names what protects that
+  decision: a separate record of the decision at the full level, or the full
+  level for itself.
+- Levels apply going forward. Finished work is not reworked for them.
+
 ## Review finding severity
 
 P1 and P2 are engineering review priorities. They describe the impact and
@@ -397,6 +420,13 @@ and the documentation that show each condition; without that evidence it keeps
 its ordinary severity. A project whose own severity definitions differ keeps
 them. If a promise covers that size, narrowing it needs explicit
 human approval, and the finding stays P1 until then.
+
+**Advisory records.** With [guarantee levels](#guarantee-levels), a finding
+confined to a record at a human-approved advisory level, including its loss or an
+unreadable copy, is Lower. It keeps its ordinary severity if it is a privacy,
+credential or authority failure, breaks the record's size bound or leaves an
+acceptance line unmet, or if the level has no human approval source. A project
+whose own severity definitions differ keeps them.
 
 When the project's own severity definitions make P2 blocking, or it has no open
 review findings register, that stricter gate applies (P2 blocks and every
@@ -782,6 +812,8 @@ instruction. Never initialize Git merely to make retirement possible.
 - [Scoped item.]
 
 **Acceptance.** [Clear completion condition.]
+
+**Guarantee levels.** (Optional; only when this milestone adds a persisted record and the project defines levels) [Record, level and human approval source.]
 
 **Boundaries and parallel safety.** (Optional; defaults to not parallel-safe)
 - Depends on: none

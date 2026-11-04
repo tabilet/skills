@@ -3622,7 +3622,11 @@ def test_policy_and_convergent_review_gate():
             "public contract or previously", "Otherwise classify it normally",
             "A `capacity limit` row is Lower", "is Lower, not P1 or\nP2, when all of these hold",
             "citing the test\nand the documentation that show each condition",
-            "may defer it or plan a row that fixes it at any review, and must at horizon closure"),
+            "may defer it or plan a row that fixes it at any review, and must at horizon closure",
+            "## Guarantee levels", "**Advisory records.**", "but never assign one",
+            "agent-authored text cannot prove the approval",
+            "names what protects that decision", "or if the level has no human approval source",
+            "breaks the record's size bound", "**Guarantee levels.** (Optional;"),
         TEST_POLICY_FILE: (
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's focused verification and its evidence",
@@ -3665,7 +3669,7 @@ def test_policy_and_convergent_review_gate():
         "skills/memory-bank-init/references/write-contract.md": (
             "tabilet/memory-bank/test-policy.md", "TEST_POLICY: <resolved path or none>",
             "Open review findings", "keeps P2 blocking",
-            "template's `Safe capacity refusals` paragraph, which a project's own severity",
+            "`Safe capacity refusals` and `Advisory records` paragraphs, which a project's own severity",
             "`capacity limit` note, and its execution-path",
             "carry no controller, receipt or other-language method forward"),
         "skills/memory-bank-goal/references/subagents.md": (
@@ -3679,10 +3683,11 @@ def test_policy_and_convergent_review_gate():
             "except individually approved method-only rewrites of pending rows and specifications",
             "compares `test-policy.md` with the", "Separately compares `milestone.md`", "by content, not step number",
             "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips", "a missing `Row checks` line is offered",
-            "the capacity and unit size section"),
+            "the capacity and unit size section", "declining them leaves the project compatible"),
         "skills/memory-bank-propose/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",
             "for a path the stage cannot reach", "unless acceptance requires them",
+            "an agent never assigns one",
             "adds new ones only for real gaps"),
         "skills/memory-bank-reconcile/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
@@ -3691,8 +3696,9 @@ def test_policy_and_convergent_review_gate():
                             "rules 7 and 8 are among them"),
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
                          "Narrowing an acceptance line that promises such a size",
-                         "Required gates run fresh immediately before the whole review"),
-        "docs/propose.md": ("the proposal includes a scope pass",),
+                         "Required gates run fresh immediately before the whole review",
+                         "advisory level you approved is also Lower"),
+        "docs/propose.md": ("the proposal includes a scope pass", "An agent never assigns one"),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}",),
         "docs/tabilet-controller.md": (
             "does not read the project's open review findings register", "keep P2 blocking"),

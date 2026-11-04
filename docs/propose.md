@@ -36,6 +36,11 @@ valid one-line outcome. Planning also leaves out fixtures and measurement for
 paths the stage cannot reach, and a final qualification milestone maps to
 existing tests instead of repeating them.
 
+A project may define guarantee levels for its persisted records, so that a
+rebuildable hint does not get the full durability set. Propose then shows each new
+record's level in the approval request, and you approve it. An agent never assigns
+one.
+
 ## Corrective-planning preset
 
 For future execution, `--environment dangerous` proposes

@@ -174,8 +174,9 @@ adopted gate and is fixed now or carried in `Open review findings`; Lower is
 fixed, carried or declined with rationale); let project-specific definitions in
 `AGENTS.md` or a linked review policy override those defaults. Classification
 must follow impact, likelihood, and affected scope rather than fix size. Include
-the template's `Safe capacity refusals` paragraph, which a project's own severity
-definitions may override. Include the template's `Open review findings` register
+the template's `Safe capacity refusals` and `Advisory records` paragraphs, which a
+project's own severity definitions may override, and its optional `Guarantee levels`
+section. Include the template's `Open review findings` register
 with `Last used ID: none` and its `capacity limit` note, and its execution-path
 note that the optional `tabilet` controller keeps P2 blocking.
 
@@ -463,6 +464,10 @@ needs:
 - Prefer one check that refuses every unsupported case over logic that keeps rare
   cases working, unless acceptance requires them. A rare path the owner needs may
   stay, in one interface.
+- When a milestone adds a persisted record and the project defines guarantee
+  levels, propose the record's level in the milestone specification and show it in
+  the approval request. The user approves it; an agent never assigns one. A
+  project without levels gets no question about them.
 <!-- END SHARED scope-control-planning -->
 
 Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
