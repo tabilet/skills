@@ -45,6 +45,28 @@ the parser knew, and reflection saw the run as unfinished (no result, end time "
 about recording the terminal event, an artifact of when reflection runs. One run per project is not a
 rate; the recording improvement could be chance.
 
+### Pilot result: two milestones on one project (2026-11-03)
+
+Two interactive Goal runs on `golet` with `--optimize confirm` and relevant capture: M01 (22 minutes,
+10 commits, 3 review rounds, a P1 from docs that disagreed with the code) and M02 (16 minutes, 10
+commits, 2 review rounds, a P1 from a signing key the client holds).
+
+- **What the pilot found.** Four faults in reflection's own telemetry, none caught by the fixtures: it
+  depended on events the agent did not record, it missed a slow run that recorded no transition, it read
+  only one wording of the review counter, and it treated a run still open at closure as a stall. All are
+  fixed. The first proposal was empty and wrong; the last two were accurate and tied to evidence.
+- **What it produced.** Three project lessons, all applied by the owner: verify docs against code before
+  the first review round, a doc-fix verification note, and security-sensitive review questions before the
+  first full verification. The audit-recording notes it proposed twice were rejected, because they worked
+  around the tool faults above.
+- **What it did not show.** Whether reflection makes the next milestone cheaper. M02 needed one round
+  fewer than M01, but its P1 was a different kind of problem from the one the first lesson addressed,
+  and interactive recording was better in M02 (4 task transitions and a verification event, against none)
+  for reasons not known. One project, two runs, no control: a signal, not a rate.
+- **Still open.** A second project, which the two-project rule needs before the engine is tuned further;
+  a decision on whether the agent-recorded events need a host-side hook; and the retirement defect below.
+  The paid reflection eval is not worth running until a second project shows the proposals stay accurate.
+
 ### Open defect: retiring a combined legacy milestone
 
 Retiring a project's combined legacy file (`golet`'s `M1`-`M5` in one `status-M01.md`) under the single
