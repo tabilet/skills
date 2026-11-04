@@ -3695,6 +3695,7 @@ def test_policy_and_convergent_review_gate():
             "except individually approved method-only rewrites of pending rows and specifications",
             "compares `test-policy.md` with the", "Separately compares `milestone.md`", "by content, not step number",
             "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips", "a missing `Row checks` or `Stage qualification` line is offered",
+            "in `tech-stack.md`'s verification standards", "`tech-stack.md` pointers and its `Row checks` and `Stage qualification` lines",
             "the capacity and unit size section", "Guarantee levels never count toward compatibility", "A project with nothing else to change stays a no-op"),
         "skills/memory-bank-propose/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",
@@ -3707,7 +3708,7 @@ def test_policy_and_convergent_review_gate():
             "carries no controller, receipt or other-language method forward",),
         "docs/upgrade.md": ("prescribes a method the policy forbids", "In `milestone.md`, the closure step",
                             "every stock rule it lacks or that", "status-file preamble gets the matching recording text",
-                            "rules 7 and 8 are among them"),
+                            "rules 7 and 8 are among them", "`Project specifics` and in `tech-stack.md`"),
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review",
@@ -3717,7 +3718,7 @@ def test_policy_and_convergent_review_gate():
                             "这项检查可以使用工具链的测试缓存", "同样按 Lower 处理"),
         "docs/zh/propose.md": ("范围审视", "agent 绝不自行指定"),
         "docs/zh/upgrade.md": ("`test-policy.md` 中的第 7、8 条就在其中", "`Stage qualification`",
-                               "只随其他改动一起提出"),
+                               "只随其他改动一起提出", "`Project specifics` 或 `tech-stack.md` 缺少"),
         "README.md": ("(toolchain, row checks, required gates, stage qualification, class R checks",),
         "docs/tabilet-controller.md": (
             "does not read the project's open review findings register", "keep P2 blocking"),

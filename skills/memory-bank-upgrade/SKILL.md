@@ -221,7 +221,8 @@ project adopts them, its stricter text stays binding. The proposal:
   from any of these is not already compatible, so a repeat run is not a no-op
   for it. `Project specifics`, project-made edits and the project's own
   severity definitions stay; a missing `Row checks` or `Stage qualification` line
-  is offered without changing the others.
+  is offered without changing the others, in `Project specifics` and in
+  `tech-stack.md`'s verification standards.
 - Guarantee levels never count toward compatibility. Mention the `Guarantee levels`
   section, its specification line and the `Advisory records` paragraph only in a
   proposal that already has other changes, including first adoption, as their own
@@ -229,7 +230,8 @@ project adopts them, its stricter text stays binding. The proposal:
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the
-  `tech-stack.md`, status-file preamble and `AGENTS.md` pointers, and adds
+  `tech-stack.md` pointers and its `Row checks` and `Stage qualification` lines, the
+  status-file preamble and `AGENTS.md` pointers, and adds
   `TEST_POLICY` to an existing launch reference.
 - Includes a compatibility assessment: if the project runs milestones through
   the optional `tabilet` controller, state that those milestones keep P2
