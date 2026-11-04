@@ -57,7 +57,8 @@ Resolve resources relative to this skill's directory. The complete
 copy over the project. Read its [agent rules](assets/template/AGENTS.md),
 [milestone rules](assets/template/tabilet/memory-bank/milestone.md),
 [status rules](assets/template/tabilet/memory-bank/status-M01.md), and
-[lessons convention](assets/template/tabilet/memory-bank/lessons.md) before proposing.
+[lessons convention](assets/template/tabilet/memory-bank/lessons.md) and
+[test policy](assets/template/tabilet/memory-bank/test-policy.md) before proposing.
 Consult other bundled files only when their contract is relevant. Never apply
 example tasks, example IDs, or bracketed placeholders as project content.
 
@@ -208,12 +209,16 @@ project adopts them, its stricter text stays binding. The proposal:
 - Creates `tabilet/memory-bank/test-policy.md` from the bundled asset. If an
   equivalent project rule file exists, propose reducing it to `Project
   specifics`, or declaring its path in `AGENTS.md`.
-- For a project that already has the policy, proposes merging stock rules it
-  lacks, such as focused checks and required gates, and the matching
-  `milestone.md` closure step and safe capacity refusal rule. `Project specifics`
+- For a project that already has the policy, compares it with the bundled one
+  rule by rule and proposes merging every stock rule that is missing or differs,
+  including rule 3, the reviewer list, rule 7 on focused checks and required
+  gates, and the matching `milestone.md` closure step and safe capacity
+  refusal rule. A policy that lacks or differs from any of these is not
+  already compatible, so a repeat run is not a no-op for it. `Project specifics`
   and project-made edits stay.
 - Merges into `milestone.md` the severity table, review procedure, attempt
-  gate, `Open review findings` register and execution-path note. Adds the
+  gate, `Open review findings` register and execution-path note, and the safe
+  capacity refusal paragraph with its `capacity limit` register note. Adds the
   `tech-stack.md`, status-file preamble and `AGENTS.md` pointers, and adds
   `TEST_POLICY` to an existing launch reference.
 - Includes a compatibility assessment: if the project runs milestones through

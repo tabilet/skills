@@ -455,10 +455,10 @@ stricter gate in which P2 also blocks. Milestones run by the optional `tabilet`
 controller keep P2 blocking, because the controller runs its own full review and
 does not read the register.
 
-A safely refused case at extreme size or capacity is P2, not P1, when no acceptance
-line promises that size, a test shows nothing is leaked, corrupted, lost or
-rewritten, the stored data stays reachable, and the limit is documented. Narrowing
-an acceptance line that does promise that size needs your explicit approval.
+A case at extreme size or capacity can be P2 instead of P1 when it is safely refused
+and documented and nothing promises that size; the conditions are in the
+`Safe capacity refusals` paragraph of `milestone.md`. A human ends such a limit by
+deferring it or planning a fix.
 
 A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may
