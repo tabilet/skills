@@ -793,7 +793,8 @@ def invoke_improver_llm(
     def remaining() -> float:
         left = deadline - time.monotonic()
         if left <= 0:
-            raise BudgetExceeded("reflection time budget exhausted")
+            detail = f" after {'; '.join(failures)}" if failures else ""
+            raise BudgetExceeded(f"reflection time budget exhausted{detail}")
         return left
 
     cli_candidates: list[tuple[str, list[str]]] = [
