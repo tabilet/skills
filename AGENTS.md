@@ -591,8 +591,9 @@ spelling so an inbound link survives translation.
   `capacity limit` row ends through human deferral or a planned fix. Optional
   project guarantee levels work the same way: a finding confined to a record at a
   human-approved advisory level is Lower unless it is a privacy, credential or
-  authority failure, breaks a size bound or leaves acceptance unmet; an agent never
-  assigns a level. Only a
+  authority failure, breaks a size bound, makes a supported flow fail or leaves
+  acceptance unmet; an agent never assigns a level, and `Project levels: none` is the
+  stock state. Only a
   class R (real-effect) check, or every expensive or protected check when no test
   policy applies, uses a bounded verification-attempt gate per stage: persist
   attempt counts in status notes, never repeat an unchanged failed attempt, run the

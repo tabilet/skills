@@ -98,7 +98,7 @@ Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
 Create `tabilet/memory-bank/test-policy.md` from the template. Keep the stock
 rules and fill only its `Project specifics` section from discovery: the
-toolchain and test entry points, the row checks, the required whole-unit gates, any named class
+toolchain and test entry points, the row checks, the required whole-unit gates, any stage qualification, any named class
 R checks with their owning milestones (or "none"), and approved other-language
 tools (or "none"). Never invent a class R check. Declare its path in the
 `AGENTS.md` Hard Rules bullet so standalone Next and the API runner find it, and
@@ -175,8 +175,8 @@ fixed, carried or declined with rationale); let project-specific definitions in
 `AGENTS.md` or a linked review policy override those defaults. Classification
 must follow impact, likelihood, and affected scope rather than fix size. Include
 the template's `Safe capacity refusals` and `Advisory records` paragraphs, which a
-project's own severity definitions may override, and its optional `Guarantee levels`
-section. Include the template's `Open review findings` register
+project's own severity definitions may override, and its `Guarantee levels`
+section with `Project levels: none` unless the user chose levels. Include the template's `Open review findings` register
 with `Last used ID: none` and its `capacity limit` note, and its execution-path
 note that the optional `tabilet` controller keeps P2 blocking.
 
@@ -226,6 +226,26 @@ Use the resolved value in every launch template, never a literal default over an
 explicit value. Apply the minimum of declared project/milestone caps; legacy fixed
 prose remains binding until explicit human adoption resolves the conflict.
 <!-- END SHARED review-limit-planning -->
+
+<!-- BEGIN SHARED scope-control-planning -->
+Keep each planned milestone to what its stage can reach and what its acceptance
+needs:
+
+- Do not plan fixtures, shadow systems or measurement for a path the stage cannot
+  reach. Defer them until it can.
+- An integration or final qualification milestone maps its list to existing tests
+  and adds new ones only for real gaps. It does not repeat coverage that owning
+  milestones already provide.
+- Prefer one check that refuses every unsupported case over logic that keeps rare
+  cases working, unless acceptance requires them. A rare path the owner needs may
+  stay, in one interface.
+- When a milestone adds a persisted record and `milestone.md` lists project
+  guarantee levels, propose the record's level in the milestone specification and
+  show it in the approval request. The user approves it; an agent never assigns
+  one. Without that approval, including under standing corrective approval, the
+  record keeps its ordinary treatment and no level. A project whose `Project
+  levels` line says `none` gets no question about them.
+<!-- END SHARED scope-control-planning -->
 
 ## Handle the stock goal protocol
 
@@ -451,24 +471,6 @@ alone does not change option or ordering policy. Prefer an authorized ignored
 workspace scratch location over requesting permission for a default external
 temporary path; verify symlink containment and preserve unrelated files.
 <!-- END SHARED continuous-launch-planning -->
-
-<!-- BEGIN SHARED scope-control-planning -->
-Keep each planned milestone to what its stage can reach and what its acceptance
-needs:
-
-- Do not plan fixtures, shadow systems or measurement for a path the stage cannot
-  reach. Defer them until it can.
-- An integration or final qualification milestone maps its list to existing tests
-  and adds new ones only for real gaps. It does not repeat coverage that owning
-  milestones already provide.
-- Prefer one check that refuses every unsupported case over logic that keeps rare
-  cases working, unless acceptance requires them. A rare path the owner needs may
-  stay, in one interface.
-- When a milestone adds a persisted record and the project defines guarantee
-  levels, propose the record's level in the milestone specification and show it in
-  the approval request. The user approves it; an agent never assigns one. A
-  project without levels gets no question about them.
-<!-- END SHARED scope-control-planning -->
 
 Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed

@@ -220,10 +220,12 @@ project adopts them, its stricter text stays binding. The proposal:
   gate and focused-verification recording text. A project that lacks or differs
   from any of these is not already compatible, so a repeat run is not a no-op
   for it. `Project specifics`, project-made edits and the project's own
-  severity definitions stay; a missing `Row checks` line is offered without
-  changing the others. Offers the optional `Guarantee levels` section and
-  `Advisory records` paragraph as their own decision; declining them leaves the
-  project compatible.
+  severity definitions stay; a missing `Row checks` or `Stage qualification` line
+  is offered without changing the others.
+- Guarantee levels never count toward compatibility. Mention the `Guarantee levels`
+  section, its specification line and the `Advisory records` paragraph only in a
+  proposal that already has other changes, including first adoption, as their own
+  decision. A project with nothing else to change stays a no-op.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the

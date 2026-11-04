@@ -88,8 +88,9 @@ test on loopback fixtures with a throwaway profile is class O.
    record a result served from the cache as cached.
    Run required gates immediately before the whole review, not after each edit
    or before each task review. Every gate run, rerun included, is fresh and not
-   served from a cache: when a gate command can be served from one, use the
-   toolchain's no-cache option. Rerun them before a later iteration or closure
+   served from a test-result cache: when a gate command can be served from one,
+   use the toolchain's option to bypass it. Compiler and dependency caches stay.
+   Rerun them before a later iteration or closure
    only when something a gate reads has changed: code, tests, build or tool
    inputs, dependencies, a moved base, or the documents and data the gate
    itself checks.
@@ -112,8 +113,9 @@ test on loopback fixtures with a throwaway profile is class O.
    - the skip is written in the test with its reason, uses the toolchain's own
      skip mechanism, and is reported as skipped, never a silent filter;
    - anything the variant checks on the path the fixture exercises, such as
-     concurrency, including work that grows with the fixture, or memory safety
-     at a size boundary, has its own smaller test under the variant;
+     concurrency, including work that grows with the fixture, has its own
+     smaller test under the variant. A property that appears only at full size,
+     such as memory safety at a size boundary, keeps the variant: no skip;
    - the skip is not added to get past a failure the variant reported. A
      timeout is a FAIL with a cause: confirm the time is instrumentation
      overhead before skipping.
@@ -183,7 +185,7 @@ class O tests; an UNKNOWN class O outcome; per-run approvals or readiness
 reviews that this policy does not require and no effective authorization
 requires; class O attempt counters other than grant budgets; a required-gate
 result reused after something the gate reads changed; a required gate served
-from a cache; an instrumented-variant skip that breaks a condition of rule 8; test runners or evidence
+from a test-result cache; an instrumented-variant skip that breaks a condition of rule 8; test runners or evidence
 generators in another language without approval. Approvals,
 reservations and conditions required by effective authorization are not
 findings. A milestone cannot close on acceptance evidence that depends on the
@@ -193,6 +195,7 @@ prohibited machinery: that acceptance line is unproven, which is P1.
 
 - **Toolchain**: [Languages and the test entry points that run them.]
 - **Row checks**: [Whole-project build or type-check, static checks and whole-unit test commands from tech-stack.md.]
-- **Required gates**: [Whole-unit commands from tech-stack.md, run fresh, that closure requires, and any stage qualification.]
+- **Required gates**: [Whole-unit commands from tech-stack.md, run fresh, that closure requires.]
+- **Stage qualification**: [End-to-end qualification with real pinned artifacts and the milestone that owns it, or "none".]
 - **Class R checks**: [Named real-effect checks and owning milestones, or "none".]
 - **Approved other-language tools**: [Tool, scope, approval source, reason, or "none".]

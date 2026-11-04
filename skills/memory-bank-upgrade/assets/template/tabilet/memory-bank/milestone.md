@@ -367,10 +367,13 @@ approved direction. Record it here so the same idea is not proposed again.
 ## Guarantee levels
 
 Optional. A project may define levels for its persisted records, so that a hint
-or a rebuildable view does not receive the full durability set. Without defined
-levels, every record keeps its ordinary treatment and none of this applies.
+or a rebuildable view does not receive the full durability set.
 
-The levels and their guarantees belong to the project. For example:
+Project levels: none
+
+While that line says `none`, every record keeps its ordinary treatment and none
+of this applies. A project that adopts levels replaces `none` with its own level
+names; the levels and their guarantees belong to it. An example, not in force:
 
 | Level | Records | Required guarantees |
 |---|---|---|
@@ -421,11 +424,12 @@ its ordinary severity. A project whose own severity definitions differ keeps
 them. If a promise covers that size, narrowing it needs explicit
 human approval, and the finding stays P1 until then.
 
-**Advisory records.** With [guarantee levels](#guarantee-levels), a finding
+**Advisory records.** With project [guarantee levels](#guarantee-levels), a finding
 confined to a record at a human-approved advisory level, including its loss or an
 unreadable copy, is Lower. It keeps its ordinary severity if it is a privacy,
-credential or authority failure, breaks the record's size bound or leaves an
-acceptance line unmet, or if the level has no human approval source. A project
+credential or authority failure, breaks the record's size bound, makes a
+supported flow fail when the record is lost or unreadable, or leaves an acceptance
+line unmet, or if the level has no human approval source. A project
 whose own severity definitions differ keeps them.
 
 When the project's own severity definitions make P2 blocking, or it has no open

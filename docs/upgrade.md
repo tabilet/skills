@@ -208,8 +208,9 @@ fixture may skip an instrumented variant only under rule 8's conditions. In `mil
 results and the safe capacity refusal rule and its register note are added. The
 status-file preamble gets the matching recording text.
 `Project specifics` and any edits the project made stay; a missing `Row checks`
-line is offered without changing the others. The optional guarantee levels and
-advisory records rule is a separate decision, and declining it changes nothing.
+or `Stage qualification` line is offered without changing the others. The optional
+guarantee levels and advisory records rule is a separate decision, offered only
+alongside other changes, and declining it changes nothing.
 
 ## If DSH reports compatibility warnings
 

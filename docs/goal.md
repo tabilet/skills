@@ -469,7 +469,8 @@ your explicit approval. A human ends the limit by deferring it or planning a fix
 
 If the project defines guarantee levels, a finding confined to a record at an
 advisory level you approved is also Lower, unless it is a privacy, credential or
-authority failure, breaks the record's size bound or leaves acceptance unmet.
+authority failure, breaks the record's size bound, makes a supported flow fail or
+leaves acceptance unmet.
 
 A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may
