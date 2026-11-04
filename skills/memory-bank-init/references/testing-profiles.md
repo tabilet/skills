@@ -93,7 +93,10 @@ coverage. Required closure checks are not waived.
   interfaces, `t.TempDir()` and standard contexts/`os/exec.CommandContext` when
   an offline CLI child is necessary. Use `go test -timeout=2m` for focused
   packages and `go test -race -timeout=5m` for affected races, adding `-count=1`
-  for required gates and for tests whose inputs the cache cannot see.
+  for required gates and for tests whose inputs the cache cannot see. A row check
+  is `go build ./...`, `go vet` on the changed packages, then those `go test`
+  commands. A rule 8 fixture skip uses `t.Skip` with its reason, which
+  `go test -v` reports.
   Prefer CGO off where the project permits;
   race tests may need CGO and the existing supported C toolchain. Do not disable
   required race coverage to keep CGO off.

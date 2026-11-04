@@ -134,7 +134,9 @@ These are recommendations, not gates. Numbers belong to each project, in
 - **Test unit size.** When one unit's gate becomes slow or the unit has many
   importers, plan a split as its own milestone, and do not start it in the
   middle of a task. The project sets the threshold. Scoped checks only pay off
-  when units are small.
+  when units are small. Keep test helpers near the domain they serve: a shared
+  helper unit that many tests import invalidates their cached results on every
+  edit.
 - **Parallel tests.** Prefer tests that can run in parallel, each with its own
   disposable state. Note toolchain limits, such as tests that change the process
   environment.

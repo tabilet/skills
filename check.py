@@ -3302,7 +3302,8 @@ V213_CONTRACTS = {
     "skills/memory-bank-init/references/testing-profiles.md": (
         "keep implementation and focused verification together",
         "consolidate related work and reuse still-valid verification",
-        "Preserve mandatory reviews, acceptance coverage, grant budgets and class R attempt records"),
+        "Preserve mandatory reviews, acceptance coverage, grant budgets and class R attempt records",
+        "A row check is `go build ./...`", "A rule 8 fixture skip uses `t.Skip` with its reason"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
@@ -3642,6 +3643,7 @@ def test_policy_and_convergent_review_gate():
             "it is a required gate of the stage's last active milestone", "- **Row checks**:",
             "## Capacity and unit size", "These are recommendations, not gates",
             "isolated stores and ports do not isolate CPU", "do not start it in the middle of a task",
+            "Keep test helpers near the domain they serve",
             "record a result served from the\n   cache as cached", "fresh and not served",
             "**Match the fixture to the variant.**", "has its\n     own smaller test under the variant",
             "The gate still runs whole units; only the named fixture is skipped.",
