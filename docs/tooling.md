@@ -116,9 +116,11 @@ Built, and kept only in the `maintainer-tooling` branch:
   instability guard and held-out tasks.
 - `evals/catalog_probe.py`, which checks that the model still picks the right skill from the
   skill descriptions.
-- `evals/skill_eval.py` with 31 tasks covering `memory-bank-propose`, `memory-bank-reconcile`,
-  `memory-bank-archive`, and `memory-bank-upgrade`: a scripted human, deterministic graders,
-  outside changes between replies, and injected instructions in a review. Tasks with a `golden/`
+- `evals/skill_eval.py` with 47 tasks (11 held out) covering `memory-bank-propose`,
+  `memory-bank-reconcile`, `memory-bank-archive`, `memory-bank-upgrade`, and `memory-bank-next`: a
+  scripted human, deterministic graders, outside changes between replies, injected instructions in
+  a review, a per-task `setup.py` for history or a dirty worktree, and execution grading for Next
+  (commits, row transitions, a clean worktree and a verify command). The 24 tasks with a `golden/`
   directory are validated without a model: a compliant `pass.py` and any `alt-*.py` must grade
   clean, and each `fail-*.py` must fail its named check. A failing trial's report entry keeps the
   files its checks read, and a provider failure aborts the run as inconclusive instead of scoring it.
@@ -137,7 +139,9 @@ Built, and kept only in the `maintainer-tooling` branch:
 - Consent-based collection of trajectories from real projects.
 - A proposer driven by real-project trajectories, and the Harness² adapter. The proposer above sees
   eval failures only.
-- Evals for the other skills beyond Propose that discriminate on a real model, and graders for proposal quality.
+- Tasks for `memory-bank-init` and `memory-bank-goal`, which need long multi-step conversations.
+- Grading of milestone closure (the review gate and retirement), which Goal needs and which no
+  Next task reaches, and graders for proposal quality.
 
 ### Calibration with Anthropic models (2026-11)
 
@@ -197,6 +201,25 @@ Propose tasks and tested the loop:
   5/10, so it was dropped. The same unedited conversation had completed 3/10 a run earlier, so its
   true rate is near one half and swings widely between runs. A candidate on a task like this needs
   10 or more repeats per side, and a lift from one run should be repeated before it is kept.
+
+### Where the first campaign ended (2026-11)
+
+About 76M tokens of paid runs, mostly on Haiku, covered five of the seven skills. It stopped here
+by choice: Init and Goal cost several times more per trial, and the cheaper skills showed few real gaps.
+
+- **Kept in the payload.** The `testing-profiles.md` bracket clarification, the full `suggested.txt`
+  path in Propose and the shared plan update, and runner retries for transport failures.
+- **Measured and dropped.** Three edits: the `ALLOW_DANGEROUS_COMMANDS` flag wording, the downstream
+  rule, and a sentence for the Upgrade blanket approval. None beat the baseline's own noise.
+- **Real weaknesses, recorded and not fixed.** `Downstream impacts` failures in Propose; an incomplete
+  Upgrade proposal after an advance approval, which leaves about half of those runs unfinished; and
+  Next doing a second row unprompted (2 of 12).
+- **Main result.** The skills were already well tuned, and most apparent failures were evaluator
+  flaws. The durable value is the evaluator and its rules: run an A/A control first, use 5 to 10 or
+  more repeats, keep traps to safety checks, and build fixtures that resemble a real project.
+
+Run the evals before releasing a skill change, as `docs/MODEL_EVAL.md` describes. A new campaign
+should start with closure grading, which unlocks Goal.
 
 ### The description proposer: review and status
 
