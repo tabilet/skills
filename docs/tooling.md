@@ -84,6 +84,8 @@ own IDs.
 
 `hcllight` (milestones `M1`-`M8` in one `status-M01.md`) hit the same index gap on 2026-11-04, so the
 defect is now seen in two projects. They share an owner, so this is still one ecosystem's evidence.
+Closing `M12` there on 2026-11-04 hit it a third time (same project, same legacy `M01` layout), so it is
+three sightings but still two projects.
 
 ### Pilot result: `hcllight`, one run over two milestones
 
@@ -100,6 +102,33 @@ telemetry, so it would not have been accepted. Consequences:
 - One run spanning two milestones blurs per-milestone timing. Open: split by Git commits, or open a run
   per milestone.
 - Why the in-run model call failed in the Codex tab is still unreproduced.
+
+### Pilot result: `hcllight`, `M12` (2026-11-04)
+
+One milestone, closed and retired at review iteration 4 of 10. The audit recorded two runs: `goal`
+(985 s, ended blocked at T03) and `resume-B` (354 s, completed). Splitting the work into a run per
+resume is the first useful per-milestone timing we have; the open question about one run spanning
+milestones did not arise.
+
+- **What happened.** The exact-numeric change was implemented correctly. The consumer qualification
+  (udon scratch copy) then went from 16/16 to 15/16 because one test pinned the old contract. The run
+  stopped on that decision, and a human-approved amendment let the second run finish. The friction was a
+  decision gate found after implementation, not slow tests.
+- **Reflection outside the agent.** `tabilet-audit reflect --milestone M12` ran in 29 s through
+  `cli:claude` (budget 120 s) and wrote a proposal. Its diagnosis matched the record, correctly said no
+  faster test profile was warranted, and proposed a `tech-stack.md` preflight and a `lessons.md` entry.
+  This is the second project, after `golet`, where an outside-the-agent proposal was accurate.
+- **What was edited before accepting.** Three parts of the lesson were removed or reworded: a note about
+  `first_edit_turn: null` (an audit-tooling gap, not project learning; the `golet` pilot rejected the
+  same kind of note twice), a "deterministic check candidate" bullet (a lesson is curated learning, not a
+  pending proposal), and a cost claim that counted the whole 985 s run as blocked time. The preflight
+  diff was accepted as written apart from naming the `w8m-browser-operations` consumer as part of `w8m`.
+  Applied as a local `hcllight` commit, not pushed.
+- **Still unanswered.** Whether the in-run reflection can reach a model from inside the host's sandbox:
+  the Codex agent deferred to the human and never tried. The proposal's lesson is also the same single M12
+  sighting that the v2.21 plan already carries, so it is not a second independent observation.
+- **Recording.** `first_edit_turn` was still `null` with 8 commits and 4 review iterations. The Git
+  evidence recovered them, as before.
 
 ### Proposal under review: `tabilet-audit optimize`
 
