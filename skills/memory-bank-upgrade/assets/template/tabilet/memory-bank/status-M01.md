@@ -57,8 +57,9 @@ grant budget, records its attempt count here under the
 [verification-attempt gate](milestone.md#verification-attempt-gate). A class O
 gate under the [test policy](test-policy.md) records the command, the source
 revision or saved diff hash (and artifact identity when one is qualified), PASS
-or FAIL, and one log link; a reused result says its inputs are unchanged. A row's
-focused verification is recorded the same way. A row that fixes a carried review finding says "fixes FND-nn" in its
+or FAIL, and one log link; a reused result says its inputs are unchanged, and a
+result served from the toolchain's cache says so. A row's focused verification is
+recorded the same way. A row that fixes a carried review finding says "fixes FND-nn" in its
 notes (see [Open review findings](milestone.md#open-review-findings)).
 
 After the milestone's review, consolidation, and downstream reconciliation

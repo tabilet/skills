@@ -49,7 +49,8 @@ test on loopback fixtures with a throwaway profile is class O.
    unchanged code hoping for a pass: a flaky test is a bug.
 3. **Run whole units.** Required gates run whole packages, modules or project
    targets, not per-test cohorts that each get their own plan, approval or
-   review. Rule 7 covers checks made while changing code.
+   review. Rule 7 covers checks made while changing code, and rule 8 names the
+   only skip of a single fixture.
 4. **Review code, not test runs.** Task and milestone reviews cover product and
    test code together. No readiness review before a run; no separate review of
    a runner or harness fix.
@@ -70,13 +71,20 @@ test on loopback fixtures with a throwaway profile is class O.
 7. **Focused checks and required gates.** While changing code, run the
    narrowest check that exercises the change, without race, sanitizer, coverage
    or other slow variants. Before marking a row done or starting a task review
-   or re-review, run the affected whole units and their direct consumers, plus
-   the race or UI check when the row changes concurrency or UI. That run
-   is the row's focused verification and its evidence, with any red-then-green
-   regression; earlier narrow runs are not evidence. Record it as rule 5 records
-   a gate.
-   Run required gates immediately before the whole review, not after each edit
-   or before each task review. Rerun them before a later iteration or closure
+   or re-review, build or type-check the whole project, which is cheap and
+   catches a broken signature in a unit whose tests do not run, then run the
+   affected whole units. Add their direct consumers when the row changes a
+   public contract, a persisted format or behavior its consumers rely on, and
+   the race or UI check when it changes concurrency or UI. Run an instrumented
+   variant only on units whose concurrent code changed; a consumer broken in
+   some other way surfaces at the required gates. That run is the row's focused
+   verification and its evidence, with any red-then-green regression; earlier
+   narrow runs are not evidence. Record it as rule 5 records a gate. It may use
+   the toolchain's test cache unless a test depends on inputs the cache cannot
+   see, such as a pinned external artifact; record a result served from the
+   cache as cached.
+   Run required gates immediately before the whole review, fresh and not served
+   from the cache, and not after each edit or before each task review. Rerun them before a later iteration or closure
    only when something a gate reads has changed: code, tests, build or tool
    inputs, dependencies, a moved base, or the documents and data the gate
    itself checks.
@@ -89,6 +97,20 @@ test on loopback fixtures with a throwaway profile is class O.
    run any gate that was skipped before the review.
    Grants and class R runs are unchanged, and this adds no counters, budgets or
    approvals.
+8. **Match the fixture to the variant.** A large capacity or maximum-size
+   fixture may skip an instrumented variant (race, sanitizer, coverage) when
+   all of these hold:
+   - the same fixture still runs in a required gate without the variant;
+   - the skip is written in the test with its reason, uses the toolchain's own
+     skip mechanism, and is reported as skipped, never a silent filter;
+   - the code path the fixture exercises starts no concurrent work, and any
+     concurrency there, including work that grows with the fixture, has its
+     own smaller test under the variant;
+   - the skip is not added to get past a failure the variant reported. A
+     timeout is a FAIL with a cause: confirm the time is instrumentation
+     overhead before skipping.
+
+   The gate still runs whole units; only the named fixture is skipped.
 
 ## Use the project's own toolchain
 
@@ -135,7 +157,8 @@ Reviewers report as findings: an external controller or receipt reader around
 class O tests; an UNKNOWN class O outcome; per-run approvals or readiness
 reviews that this policy does not require and no effective authorization
 requires; class O attempt counters other than grant budgets; a required-gate
-result reused after something the gate reads changed; test runners or evidence
+result reused after something the gate reads changed; an instrumented-variant
+skip that is silent, unreported, unexplained or added to pass a failure; test runners or evidence
 generators in another language without approval. Approvals,
 reservations and conditions required by effective authorization are not
 findings. A milestone cannot close on acceptance evidence that depends on the

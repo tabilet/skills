@@ -200,10 +200,11 @@ written only after your individual approval; frozen records stay literal. An in-
 next iteration only when the prior reviewed state is recorded.
 
 A project that already has the policy is offered every stock rule it lacks or that
-differs, in the same approved proposal. In `test-policy.md`, rule 7 is
-one, with rules 3 and 5 and the reviewer list: narrow checks while editing,
-affected whole units before a row is done, and required gates once before the
-whole review. In `milestone.md`, the closure step reuses unchanged class O gate
+differs, in the same approved proposal. In `test-policy.md`, rules 7 and 8 are
+new, with rules 3 and 5 and the reviewer list adjusted: narrow checks while
+editing, a whole-project build and the affected whole units before a row is done,
+required gates once and fresh before the whole review, and a named capacity
+fixture may skip an instrumented variant only under rule 8's conditions. In `milestone.md`, the closure step reuses unchanged class O gate
 results and the safe capacity refusal rule and its register note are added. The
 status-file preamble gets the matching recording text.
 `Project specifics` and any edits the project made stay.

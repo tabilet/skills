@@ -3620,6 +3620,12 @@ def test_policy_and_convergent_review_gate():
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's focused verification and its evidence",
             "not after each edit", "something a gate reads has changed",
+            "build or type-check the whole project", "behavior its consumers rely on",
+            "Run an instrumented variant only on units whose concurrent code changed",
+            "record a result served from the\n   cache as cached", "fresh and not served",
+            "**Match the fixture to the variant.**", "has its\n     own smaller test under the variant",
+            "The gate still runs whole units; only the named fixture is skipped.",
+            "an instrumented-variant\nskip that is silent",
             "If it is unclear what a gate reads, rerun it.", "run any gate that was skipped before the review",
             "**Authorization is separate:**", "An exhausted budget pauses the run for human direction",
             "no external network access", "isolated loopback fixtures",
@@ -3636,7 +3642,7 @@ def test_policy_and_convergent_review_gate():
         "template/AGENTS.md": (
             "Every test follows the test policy in `tabilet/memory-bank/test-policy.md`; it grants no authority.",),
         "template/tabilet/memory-bank/tech-stack.md": ("**Test policy**", "before each counted attempt of a check that uses the verification-attempt gate"),
-        "template/tabilet/memory-bank/status-M01.md": ("fixes FND-nn", "class O gate"),
+        "template/tabilet/memory-bank/status-M01.md": ("fixes FND-nn", "class O gate", "served from the toolchain's cache says so"),
         "AGENTS.md": (
             "Open review findings register", "`FND-`", "make no further review change",
             "it does not read the register", "class R", "`TEST_POLICY`",
@@ -3658,13 +3664,14 @@ def test_policy_and_convergent_review_gate():
             "except an individually approved method-only rewrite of a pending row or pending specification",
             "except individually approved method-only rewrites of pending rows and specifications",
             "compares `test-policy.md` with the", "Separately compares `milestone.md`", "by content, not step number",
-            "is not\n  already compatible, so a repeat run is not a no-op"),
+            "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips"),
         "skills/memory-bank-propose/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "skills/memory-bank-reconcile/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "docs/upgrade.md": ("prescribes a method the policy forbids", "In `milestone.md`, the closure step",
-                            "every stock rule it lacks or that", "status-file preamble gets the matching recording text"),
+                            "every stock rule it lacks or that", "status-file preamble gets the matching recording text",
+                            "rules 7 and 8 are\nnew"),
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
                          "Narrowing an acceptance line that promises such a size"),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}",),
