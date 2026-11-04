@@ -455,7 +455,7 @@ stricter gate in which P2 also blocks. Milestones run by the optional `tabilet`
 controller keep P2 blocking, because the controller runs its own full review and
 does not read the register.
 
-A case at extreme size or capacity can be P2 instead of P1 when it is safely refused
+A case at extreme size or capacity can be Lower instead of P1 or P2 when it is safely refused
 and documented and nothing promises that size; the conditions are in the
 [`Safe capacity refusals`](https://github.com/tabilet/skills/blob/main/template/tabilet/memory-bank/milestone.md)
 paragraph of `milestone.md`. Narrowing an acceptance line that promises such a size needs

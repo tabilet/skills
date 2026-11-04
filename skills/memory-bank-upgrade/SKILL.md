@@ -213,10 +213,13 @@ project adopts them, its stricter text stays binding. The proposal:
   bundled one rule by rule and proposes merging every stock rule that is missing
   or differs, including rule 3, rule 5, rule 7 on focused checks and required
   gates, and the reviewer list. Separately compares `milestone.md` with the
-  bundled one for the closure step 8 and the safe capacity refusal paragraph with
-  its `capacity limit` register note. A project that lacks or differs from any of
-  these is not already compatible, so a repeat run is not a no-op for it.
-  `Project specifics` and project-made edits stay.
+  bundled one by content, not step number, for the closure step that reuses
+  class O gate results and the safe capacity refusal paragraph with its
+  `capacity limit` register note, and compares the status-file preamble for its
+  gate and focused-verification recording text. A project that lacks or differs
+  from any of these is not already compatible, so a repeat run is not a no-op
+  for it. `Project specifics`, project-made edits and the project's own
+  severity definitions stay.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the

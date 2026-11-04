@@ -586,7 +586,8 @@ spelling so an inbound link survives translation.
   Persist the iteration count in the active status or
   equivalent goal state. `milestone.md` owns the review-severity context and
   project override rules; P1/P2 are not product-domain concepts. Safe capacity
-  refusals live only there, not in `GOAL.md`'s fallback severity text, and a
+  refusals are Lower there, which is why `GOAL.md` and the controller need no
+  exception, and a
   `capacity limit` row ends through human deferral or a planned fix. Only a
   class R (real-effect) check, or every expensive or protected check when no test
   policy applies, uses a bounded verification-attempt gate per stage: persist

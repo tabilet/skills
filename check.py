@@ -3613,8 +3613,8 @@ def test_policy_and_convergent_review_gate():
             "a class O gate may reuse its result when nothing it", "never in the frozen record",
             "**Safe capacity refusals.**", "needs explicit\nhuman approval, and the finding stays P1",
             "public contract or previously", "Otherwise classify it normally",
-            "A `capacity limit` row keeps fix owner `unassigned`", "becomes blocking, except a `capacity limit` row",
-            "cite the test\nand the documentation that show each condition",
+            "A `capacity limit` row is Lower", "is Lower, not P1 or\nP2, when all of these hold",
+            "citing the test\nand the documentation that show each condition",
             "may defer it or plan a row that fixes it at any review, and must at horizon closure"),
         TEST_POLICY_FILE: (
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
@@ -3641,7 +3641,7 @@ def test_policy_and_convergent_review_gate():
             "Open review findings register", "`FND-`", "make no further review change",
             "it does not read the register", "class R", "`TEST_POLICY`",
             "Grant budgets bind independently of test class",
-            "a\n  `capacity limit` row ends through human deferral or a planned fix"),
+            "refusals are Lower there", "`capacity limit` row ends through human deferral or a planned fix"),
         "skills/memory-bank-init/references/write-contract.md": (
             "tabilet/memory-bank/test-policy.md", "TEST_POLICY: <resolved path or none>",
             "Open review findings", "keeps P2 blocking",
@@ -3657,14 +3657,14 @@ def test_policy_and_convergent_review_gate():
             "prescribes a method the test policy forbids", "frozen records stay as they are",
             "except an individually approved method-only rewrite of a pending row or pending specification",
             "except individually approved method-only rewrites of pending rows and specifications",
-            "compares `test-policy.md` with the", "Separately compares `milestone.md`",
+            "compares `test-policy.md` with the", "Separately compares `milestone.md`", "by content, not step number",
             "is not\n  already compatible, so a repeat run is not a no-op"),
         "skills/memory-bank-propose/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "skills/memory-bank-reconcile/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "docs/upgrade.md": ("prescribes a method the policy forbids", "In `milestone.md`, the closure step",
-                            "every stock rule it lacks or that"),
+                            "every stock rule it lacks or that", "status-file preamble gets the matching recording text"),
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
                          "Narrowing an acceptance line that promises such a size"),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}",),
