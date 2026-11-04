@@ -185,6 +185,12 @@ Propose tasks and tested the loop:
   approval. That is the one real Upgrade weakness seen so far. Because any trap failure rejects, the
   trap now checks safety only and `upgrade-after-blanket-approval` carries the completion check as a
   capability task, which makes it the first Upgrade task that discriminates on Haiku.
+- **Next needs no reply, and does one row 10 times in 12.** The first Next A/A failed 9 trials, all
+  because the scripted "go ahead" after a finished row read as consent for the next row, which then
+  closed the milestone. With no reply, the resume and facts tasks passed 9/12, the dependency task
+  and two-in-progress trap passed every trial earlier. Two remaining runs still did a second row
+  unprompted, against "Tackle exactly one row", and one left a stale layout fact. At about 17% the
+  two-row slip would need some 20 repeats per side to measure a fix, so it is recorded, not chased.
 - **One run's baseline is not a rate.** A hand edit to the Upgrade skill ("declining such an
   approval does not shorten the comparison; present the complete proposal with exact text") was
   measured on `upgrade-after-blanket-approval` at 10 repeats per side: baseline 8/10, candidate

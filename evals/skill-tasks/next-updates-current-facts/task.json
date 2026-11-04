@@ -27,14 +27,21 @@
       "tabilet/memory-bank/product.md": "(?i)sqlite"
     },
     "files_exclude": {
-      "tabilet/memory-bank/architecture.md": "`tasks\\.json` holds a JSON array",
+      "tabilet/memory-bank/architecture.md": [
+        "`tasks\\.json` holds a JSON array",
+        "JSON persistence"
+      ],
       "tabilet/memory-bank/product.md": "live in one `tasks\\.json` file"
     },
     "verify": "python3 -B -m unittest -q"
   },
   "golden": {
-    "fail-status-only.py": "expected_files",
+    "fail-status-only.py": [
+      "expected_files",
+      "forbidden_content"
+    ],
     "fail-keeps-json-claim.py": "forbidden_content",
+    "fail-stale-layout.py": "forbidden_content",
     "fail-breaks-tests.py": "verify"
   }
 }
