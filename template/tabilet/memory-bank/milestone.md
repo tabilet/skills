@@ -581,9 +581,12 @@ notes identify the consumed attempt or supersession and its accepted successor:
    acceptance against the delivered outcome. Then consolidate and retire under
    the procedure below. During an ordered goal, the goal protocol finishes its
    downstream reconciliation before performing this retirement step.
-8. Check the retirement links and record. Under a test policy, rerun required
-   gates only when something they read has changed since they last passed;
-   without one, run required verification again. Then commit substantive closure
+8. Check the retirement links and record, and run required verification again.
+   Under a test policy, a class O gate may reuse its result when nothing it
+   reads has changed since it passed; if that is unclear, rerun it. Class R checks
+   follow their own authority. State a reuse in the retired record's
+   `**Verification.**` when writing it; report a rerun made after freezing in the
+   step 9 summary, never in the frozen record. Then commit substantive closure
    changes under the governing commit policy.
    Do not create an extra milestone commit when the review changes nothing.
 9. Report a short review summary: what was verified, the review-fix iteration

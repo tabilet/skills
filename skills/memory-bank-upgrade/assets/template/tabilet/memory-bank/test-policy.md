@@ -55,8 +55,9 @@ test on loopback fixtures with a throwaway profile is class O.
    a runner or harness fix.
 5. **Light bookkeeping.** This policy adds no attempt counters, failure streaks
    or numeric allowances. For each required gate the status file records the
-   command, the source revision (and artifact identity when one is qualified),
-   PASS or FAIL, and one link to a log kept in ignored scratch. No per-attempt
+   command, the source revision or saved diff hash (and artifact identity when
+   one is qualified), PASS or FAIL, and one link to a log kept in ignored
+   scratch; a reused result says its inputs are unchanged. No per-attempt
    narrative. **Authorization is separate:** when a run needs an explicit
    grant, that grant's scope, reservations, budget and stop conditions bind as
    the goal protocol states. An exhausted budget pauses the run for human
@@ -70,17 +71,22 @@ test on loopback fixtures with a throwaway profile is class O.
    narrowest check that exercises the change, without race, sanitizer, coverage
    or other slow variants. Before marking a row done or starting a task review
    or re-review, run the affected whole units and their direct consumers, plus
-   the race or UI check when the row changes concurrency or UI. That result, with
-   any red-then-green regression, is the row's evidence; earlier narrow runs
-   are not.
+   the race or UI check when the row changes concurrency or UI. That run
+   is the row's focused verification and its evidence, with any red-then-green
+   regression; earlier narrow runs are not evidence. Record it as rule 5 records
+   a gate.
    Run required gates immediately before the whole review, not after each edit
    or before each task review. Rerun them before a later iteration or closure
    only when something a gate reads has changed: code, tests, build or tool
    inputs, dependencies, a moved base, or the documents and data the gate
-   itself checks. Record the state they passed on (the commit, or the saved
-   diff hash for uncommitted work) and, when reusing a result, that those inputs
-   are unchanged. Run the cheapest tier first and report every failure in a tier
-   before stopping. Fix with focused checks, then rerun the affected gates.
+   itself checks.
+   If it is unclear what a gate reads, rerun it.
+   Record the state they passed on as the full `HEAD` commit ID, plus a saved
+   diff and its hash for uncommitted work. When comparing states, ignore status
+   and record bookkeeping unless a gate reads it. Run gates cheapest first.
+   After a failure, finish the other cheap gates, fix with focused checks, then
+   rerun the failed and affected gates and
+   run any gate that was skipped before the review.
    Grants and class R runs are unchanged, and this adds no counters, budgets or
    approvals.
 
