@@ -451,6 +451,20 @@ workspace scratch location over requesting permission for a default external
 temporary path; verify symlink containment and preserve unrelated files.
 <!-- END SHARED continuous-launch-planning -->
 
+<!-- BEGIN SHARED scope-control-planning -->
+Keep each planned milestone to what its stage can reach and what its acceptance
+needs:
+
+- Do not plan fixtures, shadow systems or measurement for a path the stage cannot
+  reach. Defer them until it can.
+- An integration or final qualification milestone maps its list to existing tests
+  and adds new ones only for real gaps. It does not repeat coverage that owning
+  milestones already provide.
+- Prefer one check that refuses every unsupported case over logic that keeps rare
+  cases working, unless acceptance requires them. A rare path the owner needs may
+  stay, in one interface.
+<!-- END SHARED scope-control-planning -->
+
 Under `--environment sandbox` (the default when omitted), synthesize standard fail-safe policies:
 `SUGGESTED_UPDATE: confirm`, `SCOPE_POLICY: strict`, and `AUTHORIZATION_GRANTS: {}` (or proposed
 grants, including any explicit `standing` block for local verification, marked `[ ]`). Under `--environment least`, synthesize strict least privilege:

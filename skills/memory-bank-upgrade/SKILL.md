@@ -212,7 +212,8 @@ project adopts them, its stricter text stays binding. The proposal:
 - For a project that already has the policy, compares `test-policy.md` with the
   bundled one rule by rule and proposes merging every stock rule that is missing
   or differs, including rule 3, rule 5, rule 7 on focused checks and required
-  gates, rule 8 on fixture skips, and the reviewer list. Separately compares `milestone.md` with the
+  gates, rule 8 on fixture skips, the capacity and unit size section, and the reviewer
+  list. Separately compares `milestone.md` with the
   bundled one by content, not step number, for the closure step that reuses
   class O gate results and the safe capacity refusal paragraph with its
   `capacity limit` register note, and compares the status-file preamble for its

@@ -1199,6 +1199,11 @@ SHARED_PLANNING_BLOCKS = {
         "skills/memory-bank-propose/references/plan-update.md",
         "skills/memory-bank-reconcile/references/plan-update.md",
     ),
+    "scope-control-planning": (
+        "skills/memory-bank-init/references/write-contract.md",
+        "skills/memory-bank-propose/references/plan-update.md",
+        "skills/memory-bank-reconcile/references/plan-update.md",
+    ),
     "test-policy-resolution": (
         "GOAL.md",
         "skills/memory-bank-next/references/interactive-controls.md",
@@ -3072,7 +3077,8 @@ def stage_contract():
     source = references[0].read_text()
     for token in ("one implicit stage", "STG-01", "tentative name",
                   "future stage ideas have none", "stage label alone never defers",
-                  "A stage carries no checks of its own"):
+                  "A stage carries no checks of its own", "includes a scope pass",
+                  "never narrows an existing acceptance line"):
         if token not in source:
             problems.append(f"stage reference lacks {token!r}")
     if (ROOT / "template/tabilet/stages.md").exists():
@@ -3628,6 +3634,8 @@ def test_policy_and_convergent_review_gate():
             "still runs in a required gate without the variant", "memory safety at a size boundary",
             "not added to get past a failure", "a required gate served from a cache",
             "it is a required gate of the stage's last active milestone", "- **Row checks**:",
+            "## Capacity and unit size", "These are recommendations, not gates",
+            "isolated stores and ports do not isolate CPU", "do not start it in the middle of a task",
             "record a result served from the\n   cache as cached", "fresh and not served",
             "**Match the fixture to the variant.**", "has its\n     own smaller test under the variant",
             "The gate still runs whole units; only the named fixture is skipped.",
@@ -3670,9 +3678,12 @@ def test_policy_and_convergent_review_gate():
             "except an individually approved method-only rewrite of a pending row or pending specification",
             "except individually approved method-only rewrites of pending rows and specifications",
             "compares `test-policy.md` with the", "Separately compares `milestone.md`", "by content, not step number",
-            "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips", "a missing `Row checks` line is offered"),
+            "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips", "a missing `Row checks` line is offered",
+            "the capacity and unit size section"),
         "skills/memory-bank-propose/references/plan-update.md": (
-            "carries no controller, receipt or other-language method forward",),
+            "carries no controller, receipt or other-language method forward",
+            "for a path the stage cannot reach", "unless acceptance requires them",
+            "adds new ones only for real gaps"),
         "skills/memory-bank-reconcile/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "docs/upgrade.md": ("prescribes a method the policy forbids", "In `milestone.md`, the closure step",
@@ -3681,6 +3692,7 @@ def test_policy_and_convergent_review_gate():
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review"),
+        "docs/propose.md": ("the proposal includes a scope pass",),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}",),
         "docs/tabilet-controller.md": (
             "does not read the project's open review findings register", "keep P2 blocking"),

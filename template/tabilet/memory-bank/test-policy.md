@@ -120,6 +120,23 @@ test on loopback fixtures with a throwaway profile is class O.
 
    The gate still runs whole units; only the named fixture is skipped.
 
+## Capacity and unit size
+
+These are recommendations, not gates. Numbers belong to each project, in
+`tech-stack.md`.
+
+- **Concurrency limits.** Run heavy instrumented targets serially on a shared
+  host: isolated stores and ports do not isolate CPU. Plain targets may run in
+  parallel. Record the measured reason for any limit in either direction; an
+  unexplained serial setting is worth challenging.
+- **Test unit size.** When one unit's gate becomes slow or the unit has many
+  importers, plan a split as its own milestone, and do not start it in the
+  middle of a task. The project sets the threshold. Scoped checks only pay off
+  when units are small.
+- **Parallel tests.** Prefer tests that can run in parallel, each with its own
+  disposable state. Note toolchain limits, such as tests that change the process
+  environment.
+
 ## Use the project's own toolchain
 
 Tests are written and run in the language and toolchain of the code they test,

@@ -230,6 +230,20 @@ standards and assign the required evidence to the relevant milestone owners.
   and action limits. Use existing records. Run a fast preflight of fixtures,
   schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
 
+<!-- BEGIN SHARED scope-control-planning -->
+Keep each planned milestone to what its stage can reach and what its acceptance
+needs:
+
+- Do not plan fixtures, shadow systems or measurement for a path the stage cannot
+  reach. Defer them until it can.
+- An integration or final qualification milestone maps its list to existing tests
+  and adds new ones only for real gaps. It does not repeat coverage that owning
+  milestones already provide.
+- Prefer one check that refuses every unsupported case over logic that keeps rare
+  cases working, unless acceptance requires them. A rare path the owner needs may
+  stay, in one interface.
+<!-- END SHARED scope-control-planning -->
+
 When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.
 
 Record work the user rules out of the project in the milestone file's Out of scope register with its reason. It gets no ID, never promotes, and returns only through a new approved direction; do not re-propose it as a candidate.
