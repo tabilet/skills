@@ -80,7 +80,7 @@ YOUR TASK:
    redundant step). Skip any finding already covered by the milestone's own text or by `lessons.md`.
    Name the milestone, cite the run or task evidence from section 1, and state the exact change.
    If the gate is closed or nothing is both new and evidenced, write exactly `No downstream changes.`
-5. RECORDING GAPS: Interactive runs record their own events, so they can be sparse. Section 1F comes from Git and the Markdown records, not from the agent. When 1F shows commits or review rounds that sections 1A-1D do not, believe 1F and say the audit recording was incomplete. Never conclude that a run made no edits or had no friction when 1F shows otherwise, and treat extra review rounds as friction evidence.
+5. RECORDING GAPS: Interactive runs record their own events, so they can be sparse, and reflection usually runs before the run is finished (1F says when a run was still open). Section 1F comes from Git and the Markdown records, not from the agent. When 1F shows commits or review rounds that sections 1A-1D do not, believe 1F and say the audit recording was incomplete. Never conclude that a run made no edits or had no friction when 1F shows otherwise, and treat extra review rounds as friction evidence.
 6. STRICT SAFETY CONSTRAINT: You must NOT modify, weaken, or remove any authorization blocks, security gates, review iteration limits, or verification attempt limits.
 
 OUTPUT FORMAT:
@@ -132,7 +132,9 @@ def significance_reasons(friction_runs: list[dict[str, Any]], multi_attempts: li
     for task in multi_attempts:
         reasons.append(f"task `{task.get('task_label')}` needed {task.get('attempt_count')} runs")
     for run in friction_runs:
-        if run.get("result") != "completed":
+        if run.get("result") is None:
+            reasons.append(f"run {run.get('run_id')} was still open after {run.get('duration_sec')}s")
+        elif run.get("result") != "completed":
             reasons.append(f"run {run.get('run_id')} ended {run.get('result')}")
         else:
             reasons.append(f"run {run.get('run_id')} took {run.get('duration_sec')}s (over {SLOW_RUN_SEC}s)")
@@ -208,7 +210,12 @@ def downstream_context(project_root: pathlib.Path, finished: str | None) -> tupl
 
 MAX_EVIDENCE_COMMITS = 25
 _REVIEW_ITERATIONS = re.compile(r"^\*\*Review iterations\.\*\*[ \t]*`?(\d+)", re.M)
-_PERSISTED_ITERATIONS = re.compile(r"Persisted iteration count:[ \t]*`?(\d+)\s*/", re.I)
+# Active status files word the counter differently from project to project, so accept the common forms
+# ("Persisted iteration count: 3/10", "Iteration 2 of 10", "iteration 2/10") and keep the highest.
+_ACTIVE_ITERATIONS = (
+    re.compile(r"Persisted (?:iteration|review) count:?[ \t]*`?(\d+)\s*/", re.I),
+    re.compile(r"\biteration[ \t]+(\d+)[ \t]*(?:of|/)[ \t]*(\d+)", re.I),
+)
 
 
 def review_rounds(project_root: pathlib.Path, milestone_id: str | None) -> dict[str, Any]:
@@ -216,13 +223,18 @@ def review_rounds(project_root: pathlib.Path, milestone_id: str | None) -> dict[
     if not milestone_id or not re.fullmatch(r"[A-Za-z][0-9]{2,}(-[0-9]{2})?", milestone_id):
         return {"iterations": None, "source": None}
     base = project_root / "tabilet"
-    for rel, pattern in ((f"docs/history/status-{milestone_id}.md", _REVIEW_ITERATIONS),
-                         (f"memory-bank/status-{milestone_id}.md", _PERSISTED_ITERATIONS)):
-        path = base / rel
-        if path.is_file():
-            match = pattern.search(path.read_text(encoding="utf-8", errors="replace"))
-            if match:
-                return {"iterations": int(match.group(1)), "source": f"tabilet/{rel}"}
+    history = base / f"docs/history/status-{milestone_id}.md"
+    if history.is_file():
+        match = _REVIEW_ITERATIONS.search(history.read_text(encoding="utf-8", errors="replace"))
+        if match:
+            return {"iterations": int(match.group(1)), "source": f"tabilet/docs/history/status-{milestone_id}.md"}
+    active = base / f"memory-bank/status-{milestone_id}.md"
+    if active.is_file():
+        text = active.read_text(encoding="utf-8", errors="replace")
+        counts = [int(m.group(1)) for pattern in _ACTIVE_ITERATIONS for m in pattern.finditer(text)]
+        counts = [n for n in counts if 0 < n <= 100]
+        if counts:
+            return {"iterations": max(counts), "source": f"tabilet/memory-bank/status-{milestone_id}.md"}
     return {"iterations": None, "source": None}
 
 
@@ -248,15 +260,22 @@ def git_commits_during(project_root: pathlib.Path, windows: list[tuple[str, str 
 
 
 def independent_evidence(project_root: pathlib.Path, milestone_id: str | None,
-                         windows: list[tuple[str, str | None]], recorded_transitions: int) -> dict[str, Any]:
+                         windows: list[tuple[str, str | None]], recorded_transitions: int,
+                         open_run_ids: list[tuple[str, str | None]] = ()) -> dict[str, Any]:
     """Facts from Git and the Markdown records, so sparse agent-recorded events cannot hide the work."""
     git = git_commits_during(project_root, windows)
     review = review_rounds(project_root, milestone_id)
     gap = None
+    open_runs = [run_id for run_id, finished in open_run_ids if not finished]
     if git.get("count") and not recorded_transitions:
         gap = (f"{git['count']} commits were made during the recorded runs, but the audit recorded no task "
                "transitions. The agent's own recording is incomplete; do not treat missing events as missing work.")
-    return {"git_commits": git, "review_rounds": review, "recording_gap": gap}
+    open_note = None
+    if open_runs:
+        open_note = (f"{len(open_runs)} run(s) were still open when reflection started ({', '.join(open_runs[:3])}); "
+                     "reflection normally runs at milestone closure, before the run is finished. A missing result, "
+                     "exit code or end time means the run had not been closed yet. It is not a stall or a failure.")
+    return {"git_commits": git, "review_rounds": review, "recording_gap": gap, "open_runs": open_note}
 
 
 def model_budget_sec(wall_sec: float, percent: float) -> float:
@@ -405,6 +424,10 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
             )
         """, {"m": milestone_id}).fetchone()
         milestone_wall_sec = float(wall_row[0]) if wall_row else 0.0
+        run_rows = conn.execute(
+            "SELECT r.run_id, r.completed_at FROM runs r WHERE r.run_id IN "
+            "(SELECT DISTINCT e.run_id FROM events e WHERE (:m IS NULL OR e.milestone_id = :m))",
+            {"m": milestone_id}).fetchall()
         windows = [(row[0], row[1]) for row in conn.execute(
             "SELECT r.started_at, r.completed_at FROM runs r WHERE r.run_id IN "
             "(SELECT DISTINCT e.run_id FROM events e WHERE (:m IS NULL OR e.milestone_id = :m))",
@@ -444,7 +467,8 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         "multi_attempts": multi_attempts,
         "turn_efficiency": turn_stats,
         "bounded_error_traces": error_traces,
-        "independent_evidence": independent_evidence(project_root, milestone_id, windows, recorded_transitions),
+        "independent_evidence": independent_evidence(project_root, milestone_id, windows, recorded_transitions,
+                                                     [(row[0], row[1]) for row in run_rows]),
         "tech_stack_present": bool(current_tech_stack),
         "lessons_present": bool(current_lessons),
     }

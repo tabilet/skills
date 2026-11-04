@@ -38,6 +38,13 @@ or failed run counts without a transition event. The fixtures had hidden the gap
 them used `task_transition`, and two shipped fixtures were wrong; a test now checks the signal of every
 task. Recorded here so the next pilot checks recording first.
 
+The second `golet` run (M02, 16 minutes, 10 commits, 2 review rounds, one P1) recorded more: 4 task
+transitions and a verification event, against none in M01. Its proposal exposed two more faults, both
+fixed: review rounds were missed because the status file said "Iteration 1 of 10" and not the one wording
+the parser knew, and reflection saw the run as unfinished (no result, end time "now") and proposed a lesson
+about recording the terminal event, an artifact of when reflection runs. One run per project is not a
+rate; the recording improvement could be chance.
+
 ### Open defect: retiring a combined legacy milestone
 
 Retiring a project's combined legacy file (`golet`'s `M1`-`M5` in one `status-M01.md`) under the single

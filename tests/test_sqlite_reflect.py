@@ -624,6 +624,40 @@ class ReflectTests(unittest.TestCase):
         result = reflect.git_commits_during(outside, [('2026-01-01T00:00:00Z', None)])
         self.assertEqual(result['available'], False)
 
+    def test_review_rounds_accept_the_wordings_projects_actually_use(self):
+        status = self.repo / 'tabilet/memory-bank/status-M01.md'
+        for text, expected in (
+            ('**Milestone review.** Iteration 1 of 10 reviewed `abc`. Findings (iteration 1): P1.\n', 1),
+            ('Review gate: iteration 2/10 passed.\n', 2),
+            ('Persisted iteration count: 3/10.\n', 3),
+            ('Persisted review count: 4/10.\n', 4),
+            ('Iteration 1 of 10 found a P1. Iteration 2 of 10 passed.\n', 2),
+            ('No review has run yet.\n', None),
+            ('Iteration 900 of 1000.\n', None),
+        ):
+            with self.subTest(text=text):
+                status.write_text('# Status\n\n' + text, encoding='utf-8')
+                self.assertEqual(reflect.review_rounds(self.repo, 'M01')['iterations'], expected)
+
+    def test_a_run_still_open_at_reflection_time_is_not_reported_as_a_stall(self):
+        self.command('audit', 'enable', self.repo)
+        started = self.command('audit', 'begin', self.repo, 'goal', '--run-id', 'open-run')
+        self.command('audit', 'event', data={
+            'schema': 'tabilet.audit.event/v1', 'event_id': 'e-open', 'run_id': 'open-run',
+            'workspace_id': started['workspace_id'], 'operation': 'goal', 'event_type': 'task_observed',
+            'subject': {'milestone_id': 'M01', 'task_label': 'Closing review'},
+            'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent', 'fidelity': 'summarized'}})
+        telemetry = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']
+        note = telemetry['independent_evidence']['open_runs']
+        self.assertIn('still open when reflection started', note)
+        self.assertIn('not a stall', note)
+        self.assertIn('still open when reflection started', reflect.build_reflection_prompt(telemetry, self.repo))
+        self.assertEqual(reflect.significance_reasons([{'run_id': 'r', 'result': None, 'duration_sec': 900}], []),
+                         ['run r was still open after 900s'])
+        self.command('audit', 'finish', 'open-run', 'completed')
+        done = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']
+        self.assertIsNone(done['independent_evidence']['open_runs'])
+
 
 if __name__ == '__main__':
     unittest.main()
