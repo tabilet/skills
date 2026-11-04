@@ -174,6 +174,8 @@ adopted gate and is fixed now or carried in `Open review findings`; Lower is
 fixed, carried or declined with rationale); let project-specific definitions in
 `AGENTS.md` or a linked review policy override those defaults. Classification
 must follow impact, likelihood, and affected scope rather than fix size. Include
+the template's `Safe capacity refusals` paragraph and `capacity limit` register note.
+Include
 the template's `Open review findings` register with `Last used ID: none`, and
 its execution-path note that the optional `tabilet` controller keeps P2
 blocking.

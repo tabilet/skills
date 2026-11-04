@@ -325,11 +325,14 @@ Last used ID: none
 - Disposition: `open`, `fixed in <commit or task row>`, `obsolete: <evidence>`,
   or `deferred by human: <approval source>`; never the last without that
   approval.
+- A `capacity limit` row keeps fix owner `unassigned`. A task that touches its code
+  need not fix it, it does not turn blocking when examined, and it needs no
+  corrective row. At horizon closure a human defers it or plans a row that fixes it.
 - In concurrent leases, children return register updates; only the goal owner
   writes them.
 - Horizon closure (the last active milestone of the current stage, or of the
   project without stages) requires every row fixed, obsolete or deferred.
-  Before then, give every unowned open P2 a corrective row under the
+  Before then, give every unowned open P2 except a `capacity limit` a corrective row under the
   corrective planning policy. After closure, remove fixed and obsolete rows
   (lineage stays in the fixing task's status record); keep deferred rows and
   the last used ID.
@@ -381,12 +384,14 @@ is P1. A security, privacy or data-loss finding is P1 unless evidence clearly
 shows otherwise. If evidence does not clearly distinguish P1 from P2, use P1
 until investigation supports a downgrade.
 
-**Safe capacity refusals.** A case at extreme size or capacity is P2, not P1,
-only when all of these hold: no acceptance line promises that size; a test shows
-the refusal is deterministic and clear, with nothing leaked, corrupted, lost or
-rewritten; the stored data stays reachable through a supported path and no
-required flow dead-ends; and the limit is documented. Carry it with a named fix
-owner. If an acceptance line promises that size, narrowing it needs explicit
+**Safe capacity refusals.** A case at extreme size or capacity is P2 rather than P1
+when all of these hold: no acceptance line, public contract or previously
+supported behavior promises that size; a test shows the refusal is deterministic
+and clear, with nothing leaked, corrupted, lost or rewritten; the stored data
+stays reachable through a supported path and no required flow dead-ends; and the
+limit is documented. Otherwise classify it normally. Handle it as any other P2
+under the project's gate, and label a carried one `capacity limit` in the register.
+If a promise covers that size, narrowing it needs explicit
 human approval, and the finding stays P1 until then.
 
 When the project's own severity definitions make P2 blocking, or it has no open

@@ -952,6 +952,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
         "dangerous` proposes `CORRECTIVE_PLANNING: auto`",
         "least propose `CORRECTIVE_PLANNING: confirm`", "Explicit human policy overrides the preset",
         "Do not put an email recipient in project launch input by default",
+        "`Safe capacity refusals` paragraph and `capacity limit` register note",
     ),
     "skills/memory-bank-propose/references/plan-update.md": (
         "For Init and Propose, also propose `CORRECTIVE_PLANNING: auto` in dangerous mode",
@@ -3611,7 +3612,10 @@ def test_policy_and_convergent_review_gate():
             "register is approved planning state, not a review copy or ledger",
             "[test policy](test-policy.md)", "**Real-effect checks.**",
             "a class O gate may reuse its result when nothing it", "never in the frozen record",
-            "**Safe capacity refusals.**", "needs explicit\nhuman approval, and the finding stays P1"),
+            "**Safe capacity refusals.**", "needs explicit\nhuman approval, and the finding stays P1",
+            "public contract or previously", "Otherwise classify it normally",
+            "A `capacity limit` row keeps fix owner `unassigned`",
+            "At horizon closure a human defers it or plans a row that fixes it"),
         TEST_POLICY_FILE: (
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's focused verification and its evidence",

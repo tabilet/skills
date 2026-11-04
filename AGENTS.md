@@ -552,9 +552,7 @@ spelling so an inbound link survives translation.
   `references/model-policy.md`; planning preserves explicit policy and adds it
   only when requested. The Python API paths do not consume model policy.
 - `GOAL.md` and the template milestone review use the same bounded review-fix
-  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1). A
-  proven safe refusal at extreme size or capacity is P2 unless acceptance promises
-  that size; narrowing such a line needs explicit human approval.
+  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1).
   The initial deep-review pass is iteration 1 and covers the full milestone
   diff; later iterations review only the prior blocking findings, the change
   since the recorded reviewed state and its direct consumers, and each records
@@ -587,7 +585,9 @@ spelling so an inbound link survives translation.
   across their consumers and checked using their BEGIN/END SHARED markers.
   Persist the iteration count in the active status or
   equivalent goal state. `milestone.md` owns the review-severity context and
-  project override rules; P1/P2 are not product-domain concepts. Only a
+  project override rules; P1/P2 are not product-domain concepts. Safe capacity
+  refusals live only there, not in `GOAL.md`'s fallback severity text, and a
+  `capacity limit` row ends through human deferral or a planned fix. Only a
   class R (real-effect) check, or every expensive or protected check when no test
   policy applies, uses a bounded verification-attempt gate per stage: persist
   attempt counts in status notes, never repeat an unchanged failed attempt, run the
