@@ -1,3 +1,68 @@
+# memory-bank v2.20.0
+
+Makes the per-row check cheaper and more precise, adds a rule for skipping an
+instrumented variant on one large fixture, and adds optional planning rules that
+keep a stage to what it can reach. The stock `GOAL.md` protocol is unchanged.
+
+- **Row checks (rule 7).** Before a row is done or a task review starts, the check
+  builds or type-checks the whole project where the toolchain has such a step,
+  then runs static checks and the affected whole units. Direct consumers join when
+  the row changes a public contract, a persisted format or behavior its consumers
+  rely on. The race check runs on units whose concurrent code changed and on
+  consumers of a changed concurrency contract, and this limits the row check,
+  never a required gate. A project with a slow build names a narrower step in
+  `tech-stack.md`. A row check may use the toolchain's test cache and says so.
+- **Fresh gates.** Every run of a required gate, a rerun included, bypasses a
+  test-result cache. Compiler and dependency caches stay. A required gate served
+  from a test-result cache is a reviewer finding.
+- **Rule 8: match the fixture to the variant.** A large capacity or maximum-size
+  fixture may skip an instrumented variant (race, sanitizer, coverage) only when
+  it still runs in a required gate without the variant, the skip is written in the
+  test with its reason and reported, anything the variant checks on that path has
+  its own smaller test, and the skip is not added to get past a failure. A
+  property that appears only at full size keeps the variant. A skip that breaks a
+  condition is a reviewer finding.
+- **Capacity and unit size advice.** A new section of recommendations, not gates:
+  run heavy instrumented targets serially on a shared host, plan a test-unit split
+  as its own milestone, prefer tests that run in parallel, and keep test helpers
+  near the domain they serve so a shared helper does not invalidate cached results.
+- **Stage qualification and project specifics.** `Project specifics` gains `Row
+  checks` and `Stage qualification` lines, and `tech-stack.md` gains matching
+  verification-standards lines. Stage qualification is a required gate of the
+  milestone that completes the stage, which depends on the stage's other
+  milestones and is planned with its final horizon.
+- **Scope control in planning.** A new stage's proposal includes a scope pass of
+  keep, simplify or defer recommendations for you to decide, with a one-line "no
+  change" outcome. A shared planning block in Init, Propose and Reconcile keeps
+  planned work to what the stage can reach, maps final qualification to existing
+  tests, and prefers one check that refuses every unsupported case unless
+  acceptance requires the rare ones.
+- **Optional guarantee levels.** `milestone.md` ships `Project levels: none`. A
+  project may define levels for its persisted records so a rebuildable hint does
+  not get the full durability set. You approve each record's level and an agent
+  never assigns one. Defining or changing levels needs its own approved proposal,
+  never standing corrective approval. A finding confined to an approved advisory
+  record is Lower, citing the approval source and the evidence that losing the
+  record breaks no supported flow, unless it is a privacy, credential or authority
+  failure, breaks the record's size bound, makes a supported flow fail or leaves
+  acceptance unmet.
+- **Profiles.** The `golight` profile names the Go row check and says a rule 8 skip
+  uses `t.Skip`, run with `-v` so the log reports it.
+- **Upgrade.** `memory-bank-upgrade` compares rules 7 and 8, the capacity section
+  and the reviewer list, and offers missing `Row checks` and `Stage qualification`
+  lines in both `Project specifics` and `tech-stack.md`. Guarantee levels never
+  count toward compatibility and are offered only alongside other changes, so a
+  project with nothing else to change stays a no-op.
+
+**Scope.** The skills, the template and the repository checks change; `GOAL.md`,
+its fingerprint and the harness do not. Installing the 2.20.0 plugin alone changes
+no project file.
+
+**Upgrade note.** An existing project keeps its current test rules until it adopts
+them through `memory-bank-upgrade`, which writes only after you approve the
+complete proposal. An adopted project that runs required gates as cached commands,
+such as `go test ./...`, should declare their no-cache form in `tech-stack.md`.
+
 # memory-bank v2.19.0
 
 Cuts the time a milestone spends re-running checks, keeps a safely refused
