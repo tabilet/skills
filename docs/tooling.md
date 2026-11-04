@@ -38,6 +38,21 @@ or failed run counts without a transition event. The fixtures had hidden the gap
 them used `task_transition`, and two shipped fixtures were wrong; a test now checks the signal of every
 task. Recorded here so the next pilot checks recording first.
 
+### Open defect: retiring a combined legacy milestone
+
+Retiring a project's combined legacy file (`golet`'s `M1`-`M5` in one `status-M01.md`) under the single
+ID `M01` wrote a record that the shared reader then rejects with "historical specification identity is
+missing or ambiguous". `tabilet-audit audit finish` prints it as an index gap; the run still completes.
+The reader (`historical_record` in `harness/tackle-memory-bank-api-loop`, near the
+`identify-specification` check) wants all three of: an explicit correction whose heading equals the
+specification's first heading, a first heading that is not itself an ID heading, and the record's own ID
+appearing as a word in the specification text. The `golet` specification says only `M1`-`M5`, so the last
+condition fails and no entry in `corrections.json` can pass; the record is frozen. An unpadded `## M1`
+heading is not an ID heading, so that is not the cause. Fix options, undecided: relax the third condition
+when a correction has matching evidence, make retirement write the ID into combined records, or refuse and
+explain at retirement. This changes shared runner behavior. Until then retire such milestones under their
+own IDs.
+
 ### Proposal under review: `tabilet-audit optimize`
 
 A plan proposed a multi-candidate optimizer, shipped on `main`. It would draft two or three
