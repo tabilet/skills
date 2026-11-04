@@ -199,6 +199,13 @@ Each rewrite is method-only, limited to pending rows and specifications, and
 written only after your individual approval; frozen records stay literal. An in-flight gate keeps its counter and narrows its
 next iteration only when the prior reviewed state is recorded.
 
+
+A project that already has the policy is offered the stock rules it lacks, in the
+same approved proposal. Rule 7 is one: agents run narrow checks while editing,
+affected whole units before a row is done, and required gates once before the
+whole review. The matching `milestone.md` closure step stops rerunning gates whose
+inputs have not changed. `Project specifics` and any edits the project made stay.
+
 ## If DSH reports compatibility warnings
 
 You can prepare an Upgrade request even when the dashboard cannot read all the

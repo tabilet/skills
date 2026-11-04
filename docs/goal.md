@@ -397,6 +397,13 @@ method it forbids, such as a controller or receipt reader around class O tests,
 the policy wins on method and the acceptance outcome stays. Using the project's
 language does not make a supervising controller acceptable.
 
+The policy also sets how often checks run. While changing code, agents run the
+narrowest check that exercises the change. Before a row is done or its task
+review starts, they run the affected whole units and direct consumers, and that
+result is the row's evidence. Required gates run immediately before the whole
+review, and again only when something a gate reads has changed. A documentation
+change skips the rerun only if no gate reads that document.
+
 The goal request may carry `TEST_POLICY: <path or none>`. `GOAL.md` resolves it
 in a fixed order: an explicit value in the human-approved request, otherwise
 the path `AGENTS.md` declares, otherwise `tabilet/memory-bank/test-policy.md`

@@ -208,6 +208,9 @@ project adopts them, its stricter text stays binding. The proposal:
 - Creates `tabilet/memory-bank/test-policy.md` from the bundled asset. If an
   equivalent project rule file exists, propose reducing it to `Project
   specifics`, or declaring its path in `AGENTS.md`.
+- For a project that already has the policy, proposes merging stock rules it
+  lacks, such as focused checks and required gates, and the matching
+  `milestone.md` closure step. `Project specifics` and project-made edits stay.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note. Adds the
   `tech-stack.md`, status-file preamble and `AGENTS.md` pointers, and adds
