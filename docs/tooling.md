@@ -28,6 +28,16 @@ proposals, and leaves every change to the project's owner.
 - `RUN_REPORT` is one JSON line per runner invocation, so a failed run can still be scored.
 - The runner trap suite pins the dangerous-command guard and the exit codes.
 
+### First real run (2026-11-03)
+
+A shakedown on `golet` ran one interactive Goal run: 22 minutes, 10 commits, 3 review rounds and a P1.
+Reflection returned an empty proposal that called it a no-edit run. The agent had recorded 9 events and
+no task transitions, and the friction query needed such an event, so even the slow run was missed. Both
+are fixed on `maintainer-tooling`: reflection reads commits and review rounds independently, and a slow
+or failed run counts without a transition event. The fixtures had hidden the gap because every one of
+them used `task_transition`, and two shipped fixtures were wrong; a test now checks the signal of every
+task. Recorded here so the next pilot checks recording first.
+
 ### Proposal under review: `tabilet-audit optimize`
 
 A plan proposed a multi-candidate optimizer, shipped on `main`. It would draft two or three

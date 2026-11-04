@@ -5,15 +5,20 @@
   "milestone": "M01",
   "expect": {
     "telemetry": {
-      "friction_runs_count": 2,
+      "friction_runs_count": 1,
       "downstream_gate": "open"
     },
     "prompt": {
-      "must_include": ["M03", "hotspot-retry-run"],
+      "must_include": [
+        "M03",
+        "hotspot-retry-run"
+      ],
       "must_exclude": []
     },
     "proposal": {
-      "must_include": ["M03"],
+      "must_include": [
+        "M03"
+      ],
       "must_exclude": []
     }
   }

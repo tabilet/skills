@@ -60,6 +60,9 @@ D. Turn-Level Efficiency & Truncated Error Traces (Capture mode: {capture_status
 E. Downstream Milestones (Gate: {downstream_gate}):
 {downstream_milestones}
 
+F. Evidence Independent of Agent-Recorded Events (Git commits made during the recorded runs, and the review rounds the milestone needed):
+{independent_evidence}
+
 --- 2. CURRENT HARNESS STATE ---
 Current `tech-stack.md`:
 {current_tech_stack_md}
@@ -77,7 +80,8 @@ YOUR TASK:
    redundant step). Skip any finding already covered by the milestone's own text or by `lessons.md`.
    Name the milestone, cite the run or task evidence from section 1, and state the exact change.
    If the gate is closed or nothing is both new and evidenced, write exactly `No downstream changes.`
-5. STRICT SAFETY CONSTRAINT: You must NOT modify, weaken, or remove any authorization blocks, security gates, review iteration limits, or verification attempt limits.
+5. RECORDING GAPS: Interactive runs record their own events, so they can be sparse. Section 1F comes from Git and the Markdown records, not from the agent. When 1F shows commits or review rounds that sections 1A-1D do not, believe 1F and say the audit recording was incomplete. Never conclude that a run made no edits or had no friction when 1F shows otherwise, and treat extra review rounds as friction evidence.
+6. STRICT SAFETY CONSTRAINT: You must NOT modify, weaken, or remove any authorization blocks, security gates, review iteration limits, or verification attempt limits.
 
 OUTPUT FORMAT:
 Return ONLY a Markdown document containing:
@@ -202,6 +206,59 @@ def downstream_context(project_root: pathlib.Path, finished: str | None) -> tupl
     return included, skipped
 
 
+MAX_EVIDENCE_COMMITS = 25
+_REVIEW_ITERATIONS = re.compile(r"^\*\*Review iterations\.\*\*[ \t]*`?(\d+)", re.M)
+_PERSISTED_ITERATIONS = re.compile(r"Persisted iteration count:[ \t]*`?(\d+)\s*/", re.I)
+
+
+def review_rounds(project_root: pathlib.Path, milestone_id: str | None) -> dict[str, Any]:
+    """Review iterations the milestone needed, from its retired record or its active status file."""
+    if not milestone_id or not re.fullmatch(r"[A-Za-z][0-9]{2,}(-[0-9]{2})?", milestone_id):
+        return {"iterations": None, "source": None}
+    base = project_root / "tabilet"
+    for rel, pattern in ((f"docs/history/status-{milestone_id}.md", _REVIEW_ITERATIONS),
+                         (f"memory-bank/status-{milestone_id}.md", _PERSISTED_ITERATIONS)):
+        path = base / rel
+        if path.is_file():
+            match = pattern.search(path.read_text(encoding="utf-8", errors="replace"))
+            if match:
+                return {"iterations": int(match.group(1)), "source": f"tabilet/{rel}"}
+    return {"iterations": None, "source": None}
+
+
+def git_commits_during(project_root: pathlib.Path, windows: list[tuple[str, str | None]]) -> dict[str, Any]:
+    """Commits whose author time falls inside any recorded run window (Git is not agent-reported)."""
+    commits: dict[str, dict[str, str]] = {}
+    try:
+        for start, end in windows:
+            cmd = ["git", "log", "--all", "--no-merges", f"--since={start}", "--format=%H%x1f%aI%x1f%s"]
+            if end:
+                cmd.append(f"--until={end}")
+            proc = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True, timeout=20)
+            if proc.returncode != 0:
+                return {"available": False, "count": None, "commits": []}
+            for line in proc.stdout.splitlines():
+                sha, _, rest = line.partition("\x1f")
+                when, _, subject = rest.partition("\x1f")
+                commits[sha] = {"sha": sha[:10], "at": when, "subject": truncate_middle(subject, 90, 40)}
+    except (OSError, subprocess.SubprocessError):
+        return {"available": False, "count": None, "commits": []}
+    ordered = sorted(commits.values(), key=lambda c: c["at"])
+    return {"available": True, "count": len(ordered), "commits": ordered[:MAX_EVIDENCE_COMMITS]}
+
+
+def independent_evidence(project_root: pathlib.Path, milestone_id: str | None,
+                         windows: list[tuple[str, str | None]], recorded_transitions: int) -> dict[str, Any]:
+    """Facts from Git and the Markdown records, so sparse agent-recorded events cannot hide the work."""
+    git = git_commits_during(project_root, windows)
+    review = review_rounds(project_root, milestone_id)
+    gap = None
+    if git.get("count") and not recorded_transitions:
+        gap = (f"{git['count']} commits were made during the recorded runs, but the audit recorded no task "
+               "transitions. The agent's own recording is incomplete; do not treat missing events as missing work.")
+    return {"git_commits": git, "review_rounds": review, "recording_gap": gap}
+
+
 def model_budget_sec(wall_sec: float, percent: float) -> float:
     """Time the model call may take: a share of the milestone's recorded wall time, capped."""
     return min(float(MODEL_TIMEOUT_CAP_SEC), max(0.0, wall_sec) * percent / 100.0)
@@ -233,11 +290,12 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         -- A run belongs to the milestone when any of its events names it: the runner's
         -- run_failed and run_blocked events carry no subject, so the terminal event cannot decide.
         WHERE (:m IS NULL OR r.run_id IN (SELECT run_id FROM events WHERE milestone_id = :m))
-          AND e.sequence = (
-              SELECT MAX(e2.sequence)
-              FROM events e2
-              WHERE e2.run_id = r.run_id
-                AND e2.event_type IN ('run_failed', 'run_blocked', 'task_transition')
+          AND e.sequence = COALESCE(
+              (SELECT MAX(e2.sequence) FROM events e2
+               WHERE e2.run_id = r.run_id
+                 AND e2.event_type IN ('run_failed', 'run_blocked', 'task_transition')),
+              -- An interactive run may record none of those; its slow or failed run must still count.
+              (SELECT MAX(e4.sequence) FROM events e4 WHERE e4.run_id = r.run_id)
           )
           AND (
               r.result != 'completed'
@@ -347,6 +405,13 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
             )
         """, {"m": milestone_id}).fetchone()
         milestone_wall_sec = float(wall_row[0]) if wall_row else 0.0
+        windows = [(row[0], row[1]) for row in conn.execute(
+            "SELECT r.started_at, r.completed_at FROM runs r WHERE r.run_id IN "
+            "(SELECT DISTINCT e.run_id FROM events e WHERE (:m IS NULL OR e.milestone_id = :m))",
+            {"m": milestone_id}).fetchall()]
+        recorded_transitions = conn.execute(
+            "SELECT COUNT(*) FROM events e WHERE e.event_type IN ('task_transition', 'verification_observed') "
+            "AND (:m IS NULL OR e.milestone_id = :m)", {"m": milestone_id}).fetchone()[0]
 
     capture_mode = "relevant" if turn_stats else "metadata-only"
     reasons = significance_reasons(friction_runs, multi_attempts)
@@ -379,6 +444,7 @@ def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str 
         "multi_attempts": multi_attempts,
         "turn_efficiency": turn_stats,
         "bounded_error_traces": error_traces,
+        "independent_evidence": independent_evidence(project_root, milestone_id, windows, recorded_transitions),
         "tech_stack_present": bool(current_tech_stack),
         "lessons_present": bool(current_lessons),
     }
@@ -453,6 +519,7 @@ def build_reflection_prompt(telemetry: dict[str, Any], project_root: pathlib.Pat
         turn_efficiency_and_traces=json.dumps(turn_and_traces, indent=2),
         downstream_gate=gate,
         downstream_milestones=listing,
+        independent_evidence=json.dumps(telemetry.get("independent_evidence", {}), indent=2),
         current_tech_stack_md=tech_stack_md,
         current_lessons_md=lessons_md,
     )
@@ -553,6 +620,15 @@ def generate_heuristic_proposal(telemetry: dict[str, Any]) -> str:
         f"Identified {len(friction)} high-latency or non-completed runs (>120s or failed/blocked).",
         f"Found {len(multi)} tasks requiring multi-run retries before verification passed.",
     ]
+    extra = telemetry.get("independent_evidence") or {}
+    commits = (extra.get("git_commits") or {}).get("count")
+    rounds = (extra.get("review_rounds") or {}).get("iterations")
+    if commits:
+        analysis_points.append(f"Git shows {commits} commits made during the recorded runs.")
+    if rounds:
+        analysis_points.append(f"The milestone needed {rounds} review iteration(s).")
+    if extra.get("recording_gap"):
+        analysis_points.append("Audit recording looks incomplete: " + extra["recording_gap"])
 
     proposal = f"""# Proposed Harness & Memory Bank Optimization
 

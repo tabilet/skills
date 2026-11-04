@@ -1,0 +1,43 @@
+{
+  "runs": [
+    {
+      "run_id": "goal-interactive",
+      "operation": "goal",
+      "started_at": "2026-11-01T10:00:00Z",
+      "completed_at": "2026-11-01T10:25:00Z",
+      "result": "completed",
+      "capture_mode": "relevant",
+      "events": [
+        {
+          "event_type": "task_observed",
+          "subject": {
+            "milestone_id": "M01",
+            "task_label": "Goal request received"
+          },
+          "details": {
+            "schema": "tabilet.audit.details/v1",
+            "capture_source": "agent",
+            "fidelity": "summarized"
+          }
+        }
+      ]
+    }
+  ],
+  "commits": [
+    {
+      "at": "2026-11-01T10:05:00Z",
+      "subject": "M01: review admin bootstrap"
+    },
+    {
+      "at": "2026-11-01T10:12:00Z",
+      "subject": "M01: reject extra admin teams on PUT"
+    },
+    {
+      "at": "2026-11-01T10:20:00Z",
+      "subject": "M01 review iteration 1: align docs with code"
+    }
+  ],
+  "files": {
+    "tabilet/memory-bank/status-M01.md": "# Status\n\n| Item | State | Notes |\n|---|---|---|\n| Review admin bootstrap | `[+]` | done |\n\n## Review\n\nPersisted iteration count: 3/10.\n"
+  }
+}

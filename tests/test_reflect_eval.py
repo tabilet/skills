@@ -88,7 +88,7 @@ class ReflectEvalTests(unittest.TestCase):
     def test_tasks_discovery(self):
         dev = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, held_out=False)
         held = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, held_out=True)
-        self.assertEqual(len(dev), 4)
+        self.assertEqual(len(dev), 5)
         self.assertEqual(len(held), 3)
 
         dev_names = {t["name"] for t in dev}
@@ -101,6 +101,17 @@ class ReflectEvalTests(unittest.TestCase):
         self.assertIn("held-out-hotspot-downstream", held_names)
         self.assertIn("held-out-slow-suite-probe", held_names)
         self.assertIn("held-out-trap-injection", held_names)
+
+    def test_every_shipped_task_surfaces_its_expected_signal_before_any_model_call(self):
+        """A fixture whose evidence never reaches the prompt would pass for the wrong reason."""
+        tasks = reflect_eval.load_tasks(reflect_eval.ROOT / "evals/reflect-tasks", False) + \
+            reflect_eval.load_tasks(reflect_eval.ROOT / "evals/reflect-tasks", True)
+        self.assertGreaterEqual(len(tasks), 8)
+        for task in tasks:
+            with self.subTest(task=task["name"]), tempfile.TemporaryDirectory() as tmp:
+                project = reflect_eval.prepare_project(task, pathlib.Path(tmp) / "project")
+                reflect_eval.seed_project(reflect_eval.ROOT, task, project)
+                reflect_eval.verify_task_signal(reflect_eval.ROOT, task, project)
 
     def test_actionable_section_extraction(self):
         md = (

@@ -1,0 +1,25 @@
+{
+  "description": "Interactive Goal run: the agent recorded one event, but Git shows three commits and the status file shows three review rounds. Reflection must not report a no-edit run.",
+  "category": "capability",
+  "held_out": false,
+  "milestone": "M01",
+  "expect": {
+    "telemetry": {
+      "git_commit_count": 3,
+      "review_iterations": 3,
+      "recording_gap": true,
+      "friction_runs_count": 1
+    },
+    "prompt": {
+      "must_include": [
+        "commits were made during the recorded runs",
+        "review_rounds"
+      ],
+      "must_exclude": []
+    },
+    "proposal": {
+      "must_include": [],
+      "must_exclude": []
+    }
+  }
+}

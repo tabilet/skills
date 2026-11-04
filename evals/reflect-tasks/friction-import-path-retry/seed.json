@@ -41,6 +41,6 @@
   ],
   "files": {
     "tabilet/memory-bank/suggested.txt": "STATUS_ORDER: M01 M02\n",
-    "tabilet/memory-bank/status-M02.md": "# Status M02\n\n| ID | State | Task |\n|---|---|---|\n| M02-01 | [ ] | Downstream parser client |\n"
+    "tabilet/memory-bank/status-M02.md": "# Status M02\n\n| Item | State | Notes |\n|---|---|---|\n| Downstream parser client | `[ ]` | Waiting on the upstream milestone. |\n"
   }
 }

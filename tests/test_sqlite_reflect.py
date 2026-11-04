@@ -569,6 +569,61 @@ class ReflectTests(unittest.TestCase):
             self.assertEqual(len(recorded_req), 1)
             self.assertEqual(recorded_req[0].full_url, "https://api.anthropic.com/v1/messages")
 
+    def interactive_run_with_commits(self, run_id='goal-1', commits=3, extra_event=None):
+        """An interactive run shaped like a real Goal run: commits exist, the agent recorded almost nothing."""
+        self.command('audit', 'enable', self.repo)
+        started = self.command('audit', 'begin', self.repo, 'goal', '--run-id', run_id)
+        self.command('audit', 'event', data={
+            'schema': 'tabilet.audit.event/v1', 'event_id': 'e-' + run_id, 'run_id': run_id,
+            'workspace_id': started['workspace_id'], 'operation': 'goal', 'event_type': 'task_observed',
+            'subject': {'milestone_id': 'M01', 'task_label': 'Goal request received'},
+            'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent', 'fidelity': 'summarized'}})
+        for number in range(commits):
+            (self.repo / f'work{number}.txt').write_text(str(number), encoding='utf-8')
+            subprocess.run(['git', 'add', '-A'], cwd=self.repo, check=True)
+            subprocess.run(['git', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', f'M01 work {number}'],
+                           cwd=self.repo, check=True)
+        self.command('audit', 'finish', run_id, 'completed')
+
+    def test_sparse_interactive_recording_cannot_hide_commits_or_review_rounds(self):
+        (self.repo / 'tabilet/memory-bank/status-M01.md').write_text(
+            '# Status\n\n| Item | State | Notes |\n|---|---|---|\n| Implement feature | `[+]` | done |\n\n'
+            '## Review\n\nPersisted iteration count: 3/10.\n', encoding='utf-8')
+        self.interactive_run_with_commits(commits=3)
+        evidence = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']['independent_evidence']
+        self.assertTrue(evidence['git_commits']['available'])
+        self.assertGreaterEqual(evidence['git_commits']['count'], 3)
+        self.assertTrue(any(c['subject'] == 'M01 work 2' for c in evidence['git_commits']['commits']))
+        self.assertEqual(evidence['review_rounds']['iterations'], 3)
+        self.assertIn('no task transitions', evidence['recording_gap'])
+        telemetry = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']
+        prompt = reflect.build_reflection_prompt(telemetry, self.repo)
+        self.assertIn('M01 work 2', prompt)
+        self.assertIn('Independent of Agent-Recorded Events', prompt)
+        summary = reflect.generate_heuristic_proposal(telemetry)
+        self.assertIn('commits made during the recorded runs', summary)
+        self.assertIn('3 review iteration', summary)
+
+    def test_a_run_that_recorded_its_transitions_has_no_recording_gap(self):
+        self.record_completed_task()
+        evidence = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']['independent_evidence']
+        self.assertIsNone(evidence['recording_gap'])
+
+    def test_review_rounds_come_from_the_retired_record_and_reject_odd_ids(self):
+        history = self.repo / 'tabilet/docs/history'
+        history.mkdir(parents=True)
+        (history / 'status-M01.md').write_text('# Retired\n\n**Review iterations.** 4\n', encoding='utf-8')
+        self.assertEqual(reflect.review_rounds(self.repo, 'M01'),
+                         {'iterations': 4, 'source': 'tabilet/docs/history/status-M01.md'})
+        self.assertEqual(reflect.review_rounds(self.repo, '../../etc/passwd')['iterations'], None)
+        self.assertEqual(reflect.review_rounds(self.repo, None)['iterations'], None)
+
+    def test_a_non_git_directory_reports_commits_as_unavailable(self):
+        outside = self.base / 'plain'
+        outside.mkdir()
+        result = reflect.git_commits_during(outside, [('2026-01-01T00:00:00Z', None)])
+        self.assertEqual(result['available'], False)
+
 
 if __name__ == '__main__':
     unittest.main()

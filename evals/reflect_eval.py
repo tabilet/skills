@@ -192,6 +192,15 @@ for rel_path, content in seed_data.get("files", {}).items():
     p = project_root / rel_path
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(content, encoding="utf-8")
+
+# Dated commits, so a task can model an interactive run whose work is visible only in Git.
+import os, subprocess
+for n, commit in enumerate(seed_data.get("commits", [])):
+    (project_root / f"seeded-work-{n}.txt").write_text(commit["subject"], encoding="utf-8")
+    env = dict(os.environ, GIT_AUTHOR_DATE=commit["at"], GIT_COMMITTER_DATE=commit["at"])
+    subprocess.run(["git", "add", "-A"], cwd=project_root, check=True, env=env)
+    subprocess.run(["git", "-c", "commit.gpgsign=false", "commit", "-qm", commit["subject"]],
+                   cwd=project_root, check=True, env=env)
 """
 
 
@@ -241,6 +250,17 @@ def verify_task_signal(tree: pathlib.Path, task: dict, project: pathlib.Path) ->
         expected = exp_telemetry["downstream_gate"]
         if actual != expected:
             raise EvalError(f"{task['name']}: expected downstream gate {expected!r}, got {actual!r}")
+    evidence = telemetry.get("independent_evidence", {})
+    if "git_commit_count" in exp_telemetry:
+        actual = (evidence.get("git_commits") or {}).get("count")
+        if actual != exp_telemetry["git_commit_count"]:
+            raise EvalError(f"{task['name']}: expected {exp_telemetry['git_commit_count']} commits in the run windows, got {actual}")
+    if "review_iterations" in exp_telemetry:
+        actual = (evidence.get("review_rounds") or {}).get("iterations")
+        if actual != exp_telemetry["review_iterations"]:
+            raise EvalError(f"{task['name']}: expected {exp_telemetry['review_iterations']} review iterations, got {actual}")
+    if "recording_gap" in exp_telemetry and bool(evidence.get("recording_gap")) != exp_telemetry["recording_gap"]:
+        raise EvalError(f"{task['name']}: recording_gap expected {exp_telemetry['recording_gap']}")
     if exp_telemetry.get("error_traces_nonempty"):
         traces = telemetry.get("bounded_error_traces", {})
         has_snippet = any(any(t.get("snippet") for t in trace_list) for trace_list in traces.values())

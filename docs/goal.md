@@ -464,6 +464,12 @@ finding (a task that needed several runs, or a failed, blocked or slow run), onl
 and still open, and spends at most 10% of the milestone's recorded time. Milestone graph changes count as corrective planning
 and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits.
 
+An interactive Goal run records its own events, so they can be sparse. Reflection therefore also reads
+evidence the agent does not write: the Git commits made during the recorded runs, and the review rounds
+from the retired record or the active status file. When commits exist but no task transitions were
+recorded, the prompt says the recording is incomplete. Review rounds are evidence only; they do not open
+the downstream gate.
+
 Three limits are worth knowing. `reflect --check` also lists the model backends it found (an agent CLI on
 `PATH`, or `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENAI_API_KEY`); with none, Goal warns at launch and each reflection is
 only a summary. A milestone with under 150 seconds of recorded time gets no model call at the default 10%.

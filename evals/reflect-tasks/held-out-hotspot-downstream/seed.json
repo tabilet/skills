@@ -51,6 +51,6 @@
   ],
   "files": {
     "tabilet/memory-bank/suggested.txt": "DOWNSTREAM_IMPACTS: M01 -> M03\n",
-    "tabilet/memory-bank/status-M03.md": "# Status M03\n\n| ID | State | Task |\n|---|---|---|\n| M03-01 | [ ] | Dependent downstream task |\n"
+    "tabilet/memory-bank/status-M03.md": "# Status M03\n\n| Item | State | Notes |\n|---|---|---|\n| Dependent downstream task | `[ ]` | Waiting on the upstream milestone. |\n"
   }
 }
