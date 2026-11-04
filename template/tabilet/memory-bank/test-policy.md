@@ -47,8 +47,9 @@ test on loopback fixtures with a throwaway profile is class O.
    authorization requires, such as fresh approval for a protected run whose
    input changed outside an approved envelope, still apply. Never rerun
    unchanged code hoping for a pass: a flaky test is a bug.
-3. **Run whole units.** Run whole packages, modules or project targets, not
-   per-test cohorts that each get their own plan, approval or review.
+3. **Run whole units.** Required gates run whole packages, modules or project
+   targets, not per-test cohorts that each get their own plan, approval or
+   review. Rule 7 covers checks made while changing code.
 4. **Review code, not test runs.** Task and milestone reviews cover product and
    test code together. No readiness review before a run; no separate review of
    a runner or harness fix.
@@ -65,6 +66,23 @@ test on loopback fixtures with a throwaway profile is class O.
    artifacts and product limits stay mandatory wherever the project or a
    specification requires them. Where a specification requires actual
    qualification, use the real built artifact or binary, not a mock.
+7. **Focused checks and required gates.** While changing code, run the
+   narrowest check that exercises the change, without race, sanitizer, coverage
+   or other slow variants. Before marking a row done or starting a task review
+   or re-review, run the affected whole units and their direct consumers, plus
+   the race or UI check when the row changes concurrency or UI. That result, with
+   any red-then-green regression, is the row's evidence; earlier narrow runs
+   are not.
+   Run required gates immediately before the whole review, not after each edit
+   or before each task review. Rerun them before a later iteration or closure
+   only when something a gate reads has changed: code, tests, build or tool
+   inputs, dependencies, a moved base, or the documents and data the gate
+   itself checks. Record the state they passed on (the commit, or the saved
+   diff hash for uncommitted work) and, when reusing a result, that those inputs
+   are unchanged. Run the cheapest tier first and report every failure in a tier
+   before stopping. Fix with focused checks, then rerun the affected gates.
+   Grants and class R runs are unchanged, and this adds no counters, budgets or
+   approvals.
 
 ## Use the project's own toolchain
 
@@ -110,8 +128,9 @@ Only when:
 Reviewers report as findings: an external controller or receipt reader around
 class O tests; an UNKNOWN class O outcome; per-run approvals or readiness
 reviews that this policy does not require and no effective authorization
-requires; class O attempt counters other than grant budgets; test runners or
-evidence generators in another language without approval. Approvals,
+requires; class O attempt counters other than grant budgets; a required-gate
+result reused after something the gate reads changed; test runners or evidence
+generators in another language without approval. Approvals,
 reservations and conditions required by effective authorization are not
 findings. A milestone cannot close on acceptance evidence that depends on the
 prohibited machinery: that acceptance line is unproven, which is P1.
