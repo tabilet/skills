@@ -399,10 +399,14 @@ language does not make a supervising controller acceptable.
 
 The policy also sets how often checks run. While changing code, agents run the
 narrowest check that exercises the change. Before a row is done or its task
-review starts, they run the affected whole units and direct consumers, and that
-result is the row's evidence. Required gates run immediately before the whole
+review starts, they build the whole project where the toolchain can, then run
+static checks and the affected whole units, and that result is the row's
+evidence. Direct consumers join when the row changes a public contract, a
+persisted format or behavior they rely on. This check may use the toolchain's
+test cache and says so. Required gates run fresh immediately before the whole
 review, and again only when something a gate reads has changed. A documentation
-change skips the rerun only if no gate reads that document.
+change skips the rerun only if no gate reads that document. A capacity fixture
+may skip an instrumented variant only under the policy's rule 8.
 
 The goal request may carry `TEST_POLICY: <path or none>`. `GOAL.md` resolves it
 in a fixed order: an explicit value in the human-approved request, otherwise

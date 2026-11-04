@@ -91,8 +91,9 @@ coverage. Required closure checks are not waived.
 - `browserlight`: use the project's existing language and test framework.
 - `golight`: Go-native `net/http/httptest.Server` / `NewTLSServer`, in-memory
   interfaces, `t.TempDir()` and standard contexts/`os/exec.CommandContext` when
-  an offline CLI child is necessary. Use `go test -count=1 -timeout=2m` for
-  focused packages and `go test -race -count=1 -timeout=5m` for affected races.
+  an offline CLI child is necessary. Use `go test -timeout=2m` for focused
+  packages and `go test -race -timeout=5m` for affected races, adding `-count=1`
+  for required gates and for tests whose inputs the cache cannot see.
   Prefer CGO off where the project permits;
   race tests may need CGO and the existing supported C toolchain. Do not disable
   required race coverage to keep CGO off.
