@@ -3078,6 +3078,7 @@ def stage_contract():
     for token in ("one implicit stage", "STG-01", "tentative name",
                   "future stage ideas have none", "stage label alone never defers",
                   "A stage carries no checks of its own", "includes a scope pass",
+                  "depends on every other milestone in the stage", "if a later milestone joins the stage",
                   "never narrows an existing acceptance line"):
         if token not in source:
             problems.append(f"stage reference lacks {token!r}")
@@ -3303,7 +3304,9 @@ V213_CONTRACTS = {
         "keep implementation and focused verification together",
         "consolidate related work and reuse still-valid verification",
         "Preserve mandatory reviews, acceptance coverage, grant budgets and class R attempt records",
-        "A row check is `go build ./...`", "A rule 8 fixture skip uses `t.Skip` with its reason"),
+        "A row check is `go build ./...`", "A rule 8 fixture skip uses `t.Skip` with its reason",
+        "run with `-v` so the log reports the skip", "when concurrent code or a concurrency contract changed",
+        "plus direct consumers when a public contract"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
@@ -3627,7 +3630,8 @@ def test_policy_and_convergent_review_gate():
             "## Guarantee levels", "**Advisory records.**", "but never assign one", "Project levels: none",
             "An example, not in force", "makes a supported flow fail when the record is lost or unreadable",
             "agent-authored text cannot prove the approval",
-            "names what protects that decision", "or if the level has no human approval source",
+            "names what protects that decision", "through an explicitly approved planning proposal",
+            "cites the specification's human approval source", "without both it keeps its ordinary severity",
             "breaks the record's size bound", "**Guarantee levels.** (Optional;"),
         TEST_POLICY_FILE: (
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
@@ -3640,7 +3644,7 @@ def test_policy_and_convergent_review_gate():
             "still runs in a required gate without the variant", "memory safety at a size boundary",
             "not added to get past a failure", "a required gate served from a test-result cache", "Compiler and dependency caches stay",
             "keeps the variant: no skip", "- **Stage qualification**:",
-            "it is a required gate of the stage's last active milestone", "- **Row checks**:",
+            "a required gate of the milestone that completes the stage", "- **Row checks**:",
             "## Capacity and unit size", "These are recommendations, not gates",
             "isolated stores and ports do not isolate CPU", "do not start it in the middle of a task",
             "Keep test helpers near the domain they serve",
@@ -3663,17 +3667,21 @@ def test_policy_and_convergent_review_gate():
             "## Project specifics", "[verification-attempt gate](milestone.md#verification-attempt-gate)"),
         "template/AGENTS.md": (
             "Every test follows the test policy in `tabilet/memory-bank/test-policy.md`; it grants no authority.",),
-        "template/tabilet/memory-bank/tech-stack.md": ("**Test policy**", "before each counted attempt of a check that uses the verification-attempt gate"),
+        "template/tabilet/memory-bank/tech-stack.md": ("**Test policy**", "- **Row checks**:", "- **Stage qualification**:",
+            "Run the row check before a row is done or a task review", "before each counted attempt of a check that uses the verification-attempt gate"),
         "template/tabilet/memory-bank/status-M01.md": ("fixes FND-nn", "class O gate", "says so when its result came from the toolchain's cache"),
         "AGENTS.md": (
             "Open review findings register", "`FND-`", "make no further review change",
             "it does not read the register", "class R", "`TEST_POLICY`",
             "Grant budgets bind independently of test class",
-            "refusals are Lower there", "`capacity limit` row ends through human deferral or a planned fix"),
+            "refusals are Lower there", "`capacity limit` row ends through human deferral or a planned fix",
+            "defining levels needs its own human-approved proposal"),
         "skills/memory-bank-init/references/write-contract.md": (
             "tabilet/memory-bank/test-policy.md", "TEST_POLICY: <resolved path or none>",
             "Open review findings", "keeps P2 blocking",
             "`Safe capacity refusals` and `Advisory records` paragraphs, which a project's own severity",
+            "the row checks, the required whole-unit gates, any stage qualification", "`Project levels: none`",
+            "Run the row check before a row is done or a task review",
             "`capacity limit` note, and its execution-path",
             "carry no controller, receipt or other-language method forward"),
         "skills/memory-bank-goal/references/subagents.md": (
@@ -3692,6 +3700,8 @@ def test_policy_and_convergent_review_gate():
             "carries no controller, receipt or other-language method forward",
             "for a path the stage cannot reach", "unless acceptance requires them",
             "an agent never assigns one", "including under standing corrective approval",
+            "never under standing corrective approval", "adopts it through Upgrade first",
+            "Run the row check before a row is done or a task review",
             "adds new ones only for real gaps"),
         "skills/memory-bank-reconcile/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
@@ -3701,9 +3711,14 @@ def test_policy_and_convergent_review_gate():
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review",
-                         "advisory level you approved is also Lower"),
+                         "advisory level you approved is also Lower", "the milestone that completes the stage"),
         "docs/propose.md": ("the proposal includes a scope pass", "An agent never assigns one"),
-        "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}",),
+        "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}", "是完成该阶段的里程碑的必需关卡",
+                            "这项检查可以使用工具链的测试缓存", "同样按 Lower 处理"),
+        "docs/zh/propose.md": ("范围审视", "agent 绝不自行指定"),
+        "docs/zh/upgrade.md": ("`test-policy.md` 中的第 7、8 条就在其中", "`Stage qualification`",
+                               "只随其他改动一起提出"),
+        "README.md": ("(toolchain, row checks, required gates, stage qualification, class R checks",),
         "docs/tabilet-controller.md": (
             "does not read the project's open review findings register", "keep P2 blocking"),
         "docs/RELEASE_NOTES.md": ("# memory-bank v2.17.0",),

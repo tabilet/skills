@@ -64,7 +64,10 @@ promise without explicit approval.
 
 A stage carries no checks of its own. When its outcome needs end-to-end
 qualification with real pinned artifacts, name that in the acceptance of the
-stage's last active milestone, as a required gate under the test policy.
+milestone that completes the stage, as a required gate under the test policy.
+That milestone depends on every other milestone in the stage, so plan it with the
+stage's final horizon, which an earlier partial horizon need not include. Move the
+obligation if a later milestone joins the stage or that milestone is cancelled.
 
 Revisit stages through an approved planning proposal. Distinguish enriching a
 stage's context from explicitly requesting executable milestones. When adopting

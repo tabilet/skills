@@ -215,10 +215,10 @@ For a light profile, include these rules in the proposed verification
 standards and assign the required evidence to the relevant milestone owners.
 `standard` adds none of them and keeps the project's existing commands:
 
-- **Execution cadence.** Run focused verification during task loops; run the
-  full suite once per unchanged closure candidate and race/UI checks when the
-  change touches concurrency or UI and at required closure; rerun the affected
-  checks after every review fix.
+- **Execution cadence.** Run the row check before a row is done or a task review;
+  run the full suite fresh once per unchanged closure candidate and race/UI checks
+  when the change touches concurrency or UI and at required closure; rerun the
+  affected checks after every review fix.
 - **Replacement coverage.** When retiring an implementation, preserve meaningful
   success and failure coverage for retained behavior through its successor.
   Distinguish executed behavior, mocks, compile-only checks and deferred
@@ -248,6 +248,10 @@ needs:
   one. Without that approval, including under standing corrective approval, the
   record keeps its ordinary treatment and no level. A project whose `Project
   levels` line says `none` gets no question about them.
+- Defining or changing the project's levels is a human decision shown in its own
+  approved proposal, never under standing corrective approval. Propose is the route
+  in an initialized project; a project without the section adopts it through
+  Upgrade first.
 <!-- END SHARED scope-control-planning -->
 
 When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.

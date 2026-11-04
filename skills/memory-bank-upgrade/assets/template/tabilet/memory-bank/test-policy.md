@@ -101,9 +101,10 @@ test on loopback fixtures with a throwaway profile is class O.
    After a failure, finish the other cheap gates, fix with focused checks, then
    rerun the failed and affected gates and
    run any gate that was skipped before the review.
-   Where a stage's acceptance requires end-to-end qualification with real pinned
-   artifacts, it is a required gate of the stage's last active milestone. Rule 6
-   governs those artifacts, and any class R part keeps its own authority.
+   Where a stage needs end-to-end qualification with real pinned artifacts, it
+   is a required gate of the milestone that completes the stage, which depends
+   on every other milestone in that stage. Rule 6 governs those artifacts, and
+   any class R part keeps its own authority.
    Grants and class R runs are unchanged, and this adds no counters, budgets or
    approvals.
 8. **Match the fixture to the variant.** A large capacity or maximum-size

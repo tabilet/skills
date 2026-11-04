@@ -373,7 +373,8 @@ Project levels: none
 
 While that line says `none`, every record keeps its ordinary treatment and none
 of this applies. A project that adopts levels replaces `none` with its own level
-names; the levels and their guarantees belong to it. An example, not in force:
+names through an explicitly approved planning proposal; the levels and their
+guarantees belong to it. An example, not in force:
 
 | Level | Records | Required guarantees |
 |---|---|---|
@@ -426,10 +427,12 @@ human approval, and the finding stays P1 until then.
 
 **Advisory records.** With project [guarantee levels](#guarantee-levels), a finding
 confined to a record at a human-approved advisory level, including its loss or an
-unreadable copy, is Lower. It keeps its ordinary severity if it is a privacy,
-credential or authority failure, breaks the record's size bound, makes a
-supported flow fail when the record is lost or unreadable, or leaves an acceptance
-line unmet, or if the level has no human approval source. A project
+unreadable copy, is Lower. Whatever its disposition, the review note cites the
+specification's human approval source and the evidence that losing the record
+breaks no supported flow; without both it keeps its ordinary severity. It also
+keeps its ordinary severity if it is a privacy, credential or authority failure,
+breaks the record's size bound, makes a supported flow fail when the record is
+lost or unreadable, or leaves an acceptance line unmet. A project
 whose own severity definitions differ keeps them.
 
 When the project's own severity definitions make P2 blocking, or it has no open
