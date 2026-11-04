@@ -72,6 +72,8 @@ class ReflectTests(unittest.TestCase):
     def test_check_lists_the_backends_reflection_could_use(self):
         with mock.patch.dict(os.environ, {'PATH': '', 'GEMINI_API_KEY': 'k'}, clear=True):
             self.assertEqual(reflect.available_backends(), ['rest:gemini'])
+        with mock.patch.dict(os.environ, {'PATH': '', 'OPENAI_API_KEY': 'k'}, clear=True):
+            self.assertEqual(reflect.available_backends(), ['rest:openai'])
         only = {'PATH': str(self.base / 'bin')}
         self.fake_cli('true\n')
         with mock.patch.dict(os.environ, only, clear=True):

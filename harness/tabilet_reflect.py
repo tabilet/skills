@@ -35,7 +35,7 @@ MIN_MODEL_BUDGET_SEC = 15
 # A milestone shorter than this gets no model call at the default budget share.
 MIN_MODEL_MILESTONE_SEC = round(MIN_MODEL_BUDGET_SEC * 100 / DEFAULT_BUDGET_PERCENT)
 CLI_BACKENDS = ("claude", "gemini", "codex")
-REST_KEYS = {"claude": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY"}
+REST_KEYS = {"claude": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
 
 
 class BudgetExceeded(audit.AuditError):

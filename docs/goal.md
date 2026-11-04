@@ -465,7 +465,7 @@ and still open, and spends at most 10% of the milestone's recorded time. Milesto
 and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits.
 
 Three limits are worth knowing. `reflect --check` also lists the model backends it found (an agent CLI on
-`PATH`, or `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`); with none, Goal warns at launch and each reflection is
+`PATH`, or `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENAI_API_KEY`); with none, Goal warns at launch and each reflection is
 only a summary. A milestone with under 150 seconds of recorded time gets no model call at the default 10%.
 Agent CLI backends run from a temporary directory, not your project, and `--probe` dry-runs at most 3 candidate test commands (the first is taken as your current baseline), repeats each run to average its duration, and counts the tests it runs. A command that fails or times out on the repeat is reported as unstable. The proposal recommends a replacement only when it is faster and runs at least as many tests as the baseline; a smaller subset is shown as a fast tier that does not replace it, and nothing is recommended when the baseline itself was not measured or a command's output reports no test count. The proposal is written to a Git-ignored path that `tabilet-audit audit enable` sets up; rerun it on a
 project enabled before this rule existed.
