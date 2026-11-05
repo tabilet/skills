@@ -960,6 +960,60 @@ class HistoryCorrectionsTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'identity is missing or ambiguous'):
                     core.historical_record(other, name, corrected(other, heading))
 
+    def test_an_unpadded_id_identifies_only_its_own_record_and_only_by_heading(self):
+        # The unpadded form counts only as the record's own first heading. A
+        # different ID of the same lane never passes because the body happens to
+        # mention the record's ID, and a title heading needs the canonical ID.
+        def build(name, heading, body):
+            identity = name[len('status-'):-len('.md')]
+            text = self.text.replace('M01', identity).replace('## %s - Delivery' % identity,
+                                                              heading + '\n\n' + body, 1)
+            quote = '# Retired milestone ' + identity
+            op = dict(kind='identify-specification', heading=heading,
+                      evidence=[dict(start_line=1, end_line=1, quote=quote)])
+            key = 'tabilet/docs/history/' + name
+            return text, core.history_corrections(manifest([entry(text, [op], identity)]))[key]
+
+        cases = (
+            ('status-M01.md', '## M2 - Delivery', 'Depends on M1 and M01.'),
+            ('status-M02.md', '## M1 - Delivery', 'Followed by M2.\n\n## M2 - Follow-up'),
+            ('status-M01.md', '## M10 - Delivery', 'Depends on M1.'),
+            ('status-M01.md', '## Delivery', 'Runs on Apple M1.'),
+            ('status-M01.md', '## Overview', 'Parts M1 and M2.\n\n## M1 - First\n\n## M2 - Second'),
+        )
+        for name, heading, body in cases:
+            with self.subTest(name=name, heading=heading):
+                text, correction = build(name, heading, body)
+                with self.assertRaisesRegex(ValueError, 'identity is missing or ambiguous'):
+                    core.historical_record(text, name, correction)
+        # A title heading still identifies the record through its canonical ID,
+        # and a title that merely starts like an ID of another lane is a title.
+        for heading in ('## Delivery', '## Q4 Results'):
+            with self.subTest(heading=heading):
+                text, correction = build('status-M01.md', heading, 'Part of M01.')
+                self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+        text, correction = build('status-M01.md', '## M1 - Delivery', 'Part one.')
+        self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+
+    def test_a_combined_record_may_declare_its_own_unpadded_id_in_its_status(self):
+        name = 'status-M01.md'
+        heading = '## M1 - Delivery'
+        key = 'tabilet/docs/history/' + name
+        for declaration, accepted in (('**Milestone.** M1', True), ('Milestone: M1', True),
+                                      ('**Milestone.** M01', True), ('**Milestone.** M2', False),
+                                      ('**Milestone.** M02', False)):
+            with self.subTest(declaration=declaration):
+                text = self.text.replace('## M01 - Delivery', heading, 1).replace(
+                    '| Task |', declaration + '\n\n| Task |', 1)
+                op = dict(kind='identify-specification', heading=heading,
+                          evidence=[dict(start_line=1, end_line=1, quote='# Retired milestone M01')])
+                correction = core.history_corrections(manifest([entry(text, [op])]))[key]
+                if accepted:
+                    self.assertEqual(core.historical_record(text, name, correction)['blockers'], [])
+                else:
+                    with self.assertRaisesRegex(ValueError, 'status.*identity'):
+                        core.historical_record(text, name, correction)
+
     def test_recovery_preserves_source_bytes_locations_and_refuses_modified_content(self):
         raw_status = '| Task | `[+]` | verified |\n'
         start = next(n for n, value in enumerate(self.text.splitlines(), 1) if value == raw_status.rstrip())

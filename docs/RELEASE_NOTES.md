@@ -1,3 +1,28 @@
+# memory-bank v2.21.1
+
+Tightens the v2.21.0 reader for combined legacy records. The stock `GOAL.md`
+protocol is unchanged.
+
+- **Identity by heading only.** The unpadded form of a record's own ID (`M1` for
+  `M01`) now identifies the record only as the specification's first heading. A
+  first heading that opens with any other ID of the record's lane, padded or not,
+  is rejected even when the body mentions the record's own ID, so `## M2` on
+  `status-M01` and `## M1` on `status-M02` no longer pass. A title heading needs
+  the padded ID in the specification, so an incidental mention such as "Apple M1"
+  no longer identifies a record. v2.21.0 accepted these cases.
+- **Unpadded status declaration.** A retained status that declares the record's
+  own unpadded ID (`**Milestone.** M1`, `Milestone: M1`) is now read. Any other
+  declared ID is still rejected.
+- **Wording.** The `milestone.md` paragraph says the record's own ID "may head its
+  specification" without padding, and the corrections guide describes the same
+  rule.
+
+**Scope.** The shared runner's historical reader, the `milestone.md` template and
+its upgrade copy, the corrections guide and the repository checks change. Records
+that v2.21.0 read through a correction whose first heading is the record's own
+unpadded ID or its padded ID keep working. Nothing is migrated, and installing the
+plugin and runner changes no project file.
+
 # memory-bank v2.21.0
 
 Lets a frozen legacy record that holds several milestones under one ID be read
