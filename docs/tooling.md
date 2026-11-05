@@ -82,10 +82,12 @@ when a correction has matching evidence, make retirement write the ID into combi
 explain at retirement. This changes shared runner behavior. Until then retire such milestones under their
 own IDs.
 
-`hcllight` (milestones `M1`-`M8` in one `status-M01.md`) hit the same index gap on 2026-11-04, so the
-defect is now seen in two projects. They share an owner, so this is still one ecosystem's evidence.
-Closing `M12` there on 2026-11-04 hit it a third time (same project, same legacy `M01` layout), so it is
-three sightings but still two projects.
+Correction (2026-11-04): `hcllight` does not share this defect. Its `M1`-`M8` ledger is still active in
+`status-M01.md`, and `tabilet-audit index sync` fails there with "active status missing specification:
+M01" because `milestone.md` has `## M1` sections and no `## M01` (`validate_projection` in
+`harness/tabilet_index.py`). An umbrella `## M01` heading makes the sync pass in a scratch clone. It is the
+same legacy layout but a different code path, so `golet` is the only retirement-reader case. The retirement
+reader now accepts the record's own unpadded ID through an explicit correction (`main`, `3da3c0c`).
 
 ### Pilot result: `hcllight`, one run over two milestones
 
