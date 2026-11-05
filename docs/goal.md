@@ -406,8 +406,10 @@ persisted format or behavior they rely on. This check may use the toolchain's
 test cache and says so. Required gates run fresh immediately before the whole
 review, and again only when something a gate reads has changed. A documentation
 change skips the rerun only if no gate reads that document. A capacity fixture
-may skip an instrumented variant only under the policy's rule 8. End-to-end
-qualification that a stage requires is a required gate of the milestone that
+may skip an instrumented variant only under the policy's rule 8. A project may
+also exclude third-party code from instrumentation under the policy's capacity
+advice, and the milestone that completes the stage then runs those gates without
+the exclusion. End-to-end qualification that a stage requires is a required gate of the milestone that
 completes the stage.
 
 The goal request may carry `TEST_POLICY: <path or none>`. `GOAL.md` resolves it

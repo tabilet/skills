@@ -102,6 +102,11 @@ coverage. Required closure checks are not waived.
   Prefer CGO off where the project permits;
   race tests may need CGO and the existing supported C toolchain. Do not disable
   required race coverage to keep CGO off.
+  Under the policy's instrumentation-scope advice,
+  `-gcflags='<dep pattern>=-d=checkptr=0 -race=false'` excludes third-party
+  modules only and leaves the project's own code under race. Overriding `-race`
+  per package is not a documented feature. It was measured on Go 1.26.6, so
+  recheck the build and the saving after each toolchain update.
 - `rustlight`: Rust-native mocks, such as existing `wiremock`/`mockito`,
   `tempfile::tempdir` and `tokio::process`.
 - `tslight` / `jslight`: existing TypeScript/JavaScript stubs, such as `msw`/`nock`,
