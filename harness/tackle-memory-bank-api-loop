@@ -1642,7 +1642,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         if heading and other_identity(heading[1]):
             raise ValueError('historical status identity does not match the record')
         declared = declaration.match(line)
-        if declared and declared[1].upper() != identity:
+        if declared and declared[1].upper() not in (identity, re.sub(r'^([A-Z])0+(?=[0-9])', r'\1', identity)):
             raise ValueError('historical status identity does not match the record')
     for row in status_task_rows:
         item = row['item'].lstrip('`*_ ')
@@ -2717,12 +2717,18 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     own_heading = re.match(r'^#{2,3} ' + re.escape(identity) + r'(?:\s|$)', first)
     if not own_heading:
         # A combined legacy milestone names its parts without padding (M1 for
-        # M01). Only the record's own ID in that form also identifies it.
+        # M01). The record's own ID in that form identifies it only as the
+        # first heading itself. A heading that opens with any other ID of the
+        # lane, padded or not, belongs to another milestone, and a title
+        # heading needs the canonical ID in the specification.
         unpadded = re.sub(r'^([A-Z])0+(?=[0-9])', r'\1', identity)
-        own_ids = '|'.join(re.escape(own) for own in dict.fromkeys((identity, unpadded)))
+        own_unpadded = re.match(r'^#{2,3} ' + re.escape(unpadded) + r'(?:\s|$)', first)
+        other_id = (re.match(r'^#{2,3} ' + ROOT_ID + r'(?:\s|$)', first)
+                    or re.match(r'^#{2,3} ' + re.escape(identity[0]) + r'0*[1-9][0-9]*(?:\s|$)', first))
         if (len(explicit) != 1 or explicit[0]['heading'] != first
-                or re.match(r'^#{2,3} ' + ROOT_ID + r'(?:\s|$)', first)
-                or not re.search(r'(?<![A-Za-z0-9])(?:' + own_ids + r')(?![A-Za-z0-9])', specification)):
+                or (other_id and not own_unpadded)
+                or (not own_unpadded and not re.search(
+                    r'(?<![A-Za-z0-9])' + re.escape(identity) + r'(?![A-Za-z0-9])', specification))):
             raise ValueError('historical specification identity is missing or ambiguous')
     elif any(re.match(r'^#{' + str(first.index(' ')) + r'} ' + ROOT_ID + r'(?:\s|$)', heading)
              for heading in spec_headings[1:]):
