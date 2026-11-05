@@ -1,3 +1,37 @@
+# memory-bank v2.21.0
+
+Lets a frozen legacy record that holds several milestones under one ID be read
+through an explicit correction. The stock `GOAL.md` protocol is unchanged.
+
+- **Combined legacy records.** Some older projects kept several milestones in one
+  status file, such as `M1` to `M5` in `status-M01.md`, with the milestones' own
+  headings in the specification. The shared historical reader rejected such a
+  record because no heading carried the padded ID `M01`. An
+  `identify-specification` correction in `tabilet/docs/history/corrections.json`
+  now also accepts the unpadded form of the record's own ID (`M1` for `M01`) as
+  the matching heading, so the reader, the index and dependency projection can use
+  the record. The correction is still explicit and hash-bound to the frozen bytes.
+  A heading with another ID, an ID-style first heading that does not match, and a
+  record with no correction stay rejected.
+- **Retiring one.** `milestone.md` now says that a status file holding several
+  milestones under one ID is not retired as one record: stop and report the
+  combined file, and the owner splits it under separate IDs or decides otherwise.
+  A combined record that already exists is frozen and is read only through the
+  correction above.
+- **Checks.** `check.py` locks the new `milestone.md` wording, and a new test
+  covers the accepted and rejected forms.
+
+**Scope.** The shared runner's historical reader, the `milestone.md` template and
+its upgrade copy, the repository checks and one row of the corrections guide
+change. New retirement records still use the strict envelope, and nothing is
+migrated. `GOAL.md`, its fingerprint and the audit tools do not change.
+
+**Upgrade note.** Installing the 2.21.0 plugin and runner changes no project file.
+A project with a combined legacy record still needs the correction entry in its
+own `corrections.json`, and the reader takes effect once it runs 2.21.0. An
+existing project receives the new `milestone.md` paragraph through
+`memory-bank-upgrade`, which writes only after you approve the complete proposal.
+
 # memory-bank v2.20.0
 
 Makes the per-row check cheaper and more precise, adds a rule for skipping an
