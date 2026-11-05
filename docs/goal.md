@@ -416,7 +416,8 @@ The goal request may also carry `INSTRUMENTATION_SCOPE`. It holds any options th
 narrow an instrumented gate to the project's own code, one `<tool> = <option>` line
 per tool. In a new launch proposal, planning pre-fills the stock defaults for the
 project's tools, each with its warning, so you can edit or clear them in
-`suggested.txt` before launch. Refreshing an approved launch keeps its value.
+`suggested.txt` before launch. Refreshing any existing launch, including an unapproved draft, keeps its value;
+omission stays `none`. Pre-filling happens only on initial creation.
 Approving the launch adopts them, and `none` turns them off. The milestone that
 completes the stage runs those gates without them.
 

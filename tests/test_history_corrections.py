@@ -994,10 +994,17 @@ class HistoryCorrectionsTests(unittest.TestCase):
                     core.historical_record(text, name, correction)
         # A title heading still identifies the record through its canonical ID,
         # and a title that merely starts like an ID of another lane is a title.
-        for heading in ('## Delivery', '## Q4 Results'):
+        for heading in ('## Delivery', '## Q4 Results', '## M1.2 Part', '## M2.1 Part',
+                        '## M01.2 Part', '## M02.1 Part'):
             with self.subTest(heading=heading):
                 text, correction = build('status-M01.md', heading, 'Part of M01.')
                 self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+        # A task prefix alone supplies no milestone identity, padded or not.
+        for heading in ('## M1.2 Part', '## M01.2 Part', '## M2.1 Part', '## M02.1 Part'):
+            with self.subTest(task_heading=heading):
+                text, correction = build('status-M01.md', heading, 'Part one.')
+                with self.assertRaisesRegex(ValueError, 'identity is missing or ambiguous'):
+                    core.historical_record(text, 'status-M01.md', correction)
         # The record's own ID identifies it before punctuation too, padded or not.
         for heading in ('## M1 - Delivery', '## M1: Delivery', '## M1. Delivery', '## M01: Delivery'):
             with self.subTest(heading=heading):

@@ -317,8 +317,11 @@ USE_CACHE = True
 
 
 def unit_suite_files() -> list[pathlib.Path]:
-    """The test files `unittest discover -s tests` would load, largest first so long ones start early."""
-    return sorted(ROOT.joinpath("tests").glob("test*.py"), key=lambda p: (-p.stat().st_size, p.name))
+    """Parallelize flat suites; let unittest discover packages and their load_tests hooks."""
+    tests = ROOT / "tests"
+    if any(path.is_dir() and (path / "__init__.py").is_file() for path in tests.iterdir()):
+        return [tests]
+    return sorted(tests.glob("test*.py"), key=lambda p: (-p.stat().st_size, p.name))
 
 
 def unit_suite_key() -> str | None:
@@ -372,8 +375,9 @@ def unit_suite_cache_store(key: str) -> None:
 
 
 def run_unit_test_file(path: pathlib.Path) -> tuple[str, int, str]:
+    selection = [] if path.is_dir() else ["-p", path.name]
     proc = subprocess.run(
-        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-p", path.name],
+        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", *selection],
         cwd=ROOT, capture_output=True, text=True,
     )
     return path.name, proc.returncode, (proc.stdout + proc.stderr).strip()
@@ -3313,7 +3317,7 @@ V213_CONTRACTS = {
         "| C/C++ TSan | No exclusion |", "| C/C++ MSan | No exclusion |",
         "| Rust sanitizers | No exclusion |", "**A project's own option.**",
         "says so as a warning", "**Filling the field.**", "Fill it only in a new launch proposal", "the field is `none`",
-        "say when it is unmeasured in this\nproject"),
+        "say when it is unmeasured in this\nproject", "including an unapproved draft"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
@@ -3726,11 +3730,12 @@ def test_policy_and_convergent_review_gate():
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review",
                          "advisory level you approved is also Lower", "the milestone that completes the stage",
-                         "exclude third-party code from instrumentation", "`INSTRUMENTATION_SCOPE`"),
+                         "exclude third-party code from instrumentation", "`INSTRUMENTATION_SCOPE`",
+                         "including an unapproved draft"),
         "docs/propose.md": ("the proposal includes a scope pass", "An agent never assigns one"),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}", "是完成该阶段的里程碑的必需关卡",
                             "这项检查可以使用工具链的测试缓存", "同样按 Lower 处理",
-                            "将第三方代码排除在插桩之外", "`INSTRUMENTATION_SCOPE`"),
+                            "将第三方代码排除在插桩之外", "`INSTRUMENTATION_SCOPE`", "包括尚未批准的草稿"),
         "docs/zh/propose.md": ("范围审视", "agent 绝不自行指定"),
         "docs/zh/upgrade.md": ("`test-policy.md` 中的第 7、8 条就在其中", "`Stage qualification`",
                                "只随其他改动一起提出", "`Project specifics` 或 `tech-stack.md` 缺少"),
@@ -3764,9 +3769,12 @@ def test_policy_and_convergent_review_gate():
             problems.append(f"{relative}: launch refresh does not preserve TEST_POLICY")
         if "preserve its resolved value, including an implicit `none`" not in (ROOT / relative).read_text():
             problems.append(f"{relative}: launch refresh does not preserve INSTRUMENTATION_SCOPE")
+        if "including an unapproved draft" not in (ROOT / relative).read_text():
+            problems.append(f"{relative}: launch refresh does not preserve unapproved drafts")
     for token in missing_contract_tokens((ROOT / "GOAL.md").read_text(), (
             "`INSTRUMENTATION_SCOPE` is optional: `none` (default when omitted)", "Planning pre-fills",
-            "in a new launch proposal", "including an implicit `none`", "carries a warning in the proposal",
+            "in a new launch proposal", "including an implicit `none`", "an unapproved draft",
+            "carries a warning in the proposal",
             "still runs those gates without it", "it never changes to get past a failure")):
         problems.append(f"GOAL.md: missing instrumentation-scope contract {token!r}")
 

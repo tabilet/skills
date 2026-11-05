@@ -468,6 +468,15 @@ def _endpoint_url(base: str, default_endpoint: str) -> str:
     return clean_base + default_endpoint
 
 
+def _response_usage(value, input_key: str, output_key: str) -> dict[str, int | None]:
+    """Optional accounting must not discard a usable proposal."""
+    value = value if isinstance(value, dict) else {}
+    def count(key):
+        item = value.get(key)
+        return item if type(item) is int and item >= 0 else None
+    return {"input_total": count(input_key), "output": count(output_key)}
+
+
 def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tuple[str, str, dict[str, int | None]]:
     """Zero-dependency urllib REST fallback if local CLI binaries are unavailable."""
     custom_base = os.environ.get("TABILET_REFLECT_API_BASE") if backend != "auto" else None
@@ -490,8 +499,7 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tu
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-            u = body.get("usage", {})
-            usage = {"input_total": u.get("input_tokens"), "output": u.get("output_tokens")}
+            usage = _response_usage(body.get("usage"), "input_tokens", "output_tokens")
             return body["content"][0]["text"], "rest:claude", usage
 
     if backend in ("auto", "gemini") and os.environ.get("GEMINI_API_KEY"):
@@ -507,8 +515,7 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tu
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-            u = body.get("usageMetadata", {})
-            usage = {"input_total": u.get("promptTokenCount"), "output": u.get("candidatesTokenCount")}
+            usage = _response_usage(body.get("usageMetadata"), "promptTokenCount", "candidatesTokenCount")
             return body["candidates"][0]["content"]["parts"][0]["text"], "rest:gemini", usage
 
     if backend in ("auto", "codex", "openai") and os.environ.get("OPENAI_API_KEY"):
@@ -529,8 +536,7 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tu
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-            u = body.get("usage", {})
-            usage = {"input_total": u.get("prompt_tokens"), "output": u.get("completion_tokens")}
+            usage = _response_usage(body.get("usage"), "prompt_tokens", "completion_tokens")
             return body["choices"][0]["message"]["content"], "rest:openai", usage
 
     raise LookupError(

@@ -688,6 +688,32 @@ class UnitSuiteRunnerTests(unittest.TestCase):
                 with mock.patch("builtins.print"):
                     self.assertEqual(repository_checks.harness_tests(), [])
 
+    def test_nested_package_failure_is_discovered_and_never_cached(self):
+        nested = self.root / "tests/nested"
+        nested.mkdir()
+        (nested / "__init__.py").write_text("")
+        # Reusing a top-level basename must neither hide nor duplicate a test.
+        (nested / "test_good.py").write_text(
+            "import unittest\nclass T(unittest.TestCase):\n"
+            "    def test_nested(self): self.fail('nested regression')\n")
+        with mock.patch.object(repository_checks, "unit_suite_key", return_value="nested"):
+            problems = repository_checks.harness_tests()
+        self.assertEqual(len(problems), 1)
+        self.assertIn("nested regression", problems[0])
+        self.assertFalse(repository_checks.unit_suite_cache_entry("nested").exists())
+
+    def test_package_load_tests_hook_is_preserved(self):
+        nested = self.root / "tests/nested"
+        nested.mkdir()
+        (nested / "__init__.py").write_text(
+            "import unittest\nclass T(unittest.TestCase):\n"
+            "    def runTest(self): self.fail('package hook')\n"
+            "def load_tests(loader, tests, pattern): return unittest.TestSuite([T()])\n")
+        with mock.patch.object(repository_checks, "USE_CACHE", False):
+            problems = repository_checks.harness_tests()
+        self.assertEqual(len(problems), 1)
+        self.assertIn("package hook", problems[0])
+
     def test_no_cache_flag_and_ci_force_a_real_run(self):
         with mock.patch.object(repository_checks, "unit_suite_key", return_value="k3"):
             self.assertEqual(repository_checks.harness_tests(), [])
