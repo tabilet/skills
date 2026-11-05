@@ -1,3 +1,68 @@
+# memory-bank v2.22.0
+
+Adds optional advice for keeping an instrumented run on the project's own code,
+with language defaults and a launch field to hold the options. The stock `GOAL.md`
+protocol changes, so its fingerprint is new.
+
+- **Instrumentation scope.** When a profile shows that an instrumented run spends
+  most of its time in third-party code, or a stock default applies, a project may
+  exclude that code from instrumentation. Its own code stays fully instrumented
+  and every test still runs, unlike a rule 8 fixture skip. On first use the project
+  measures and records the saving and what the exclusion can no longer detect in
+  `tech-stack.md`. The milestone that completes a stage runs its instrumented
+  gates without the exclusion, and an
+  exclusion is never changed to get past a failure. This sits under "Capacity and
+  unit size", so it is a recommendation, not a gate.
+- **Go note.** `testing-profiles.md` gives the `-gcflags` form for excluding
+  third-party modules from race instrumentation. Overriding `-race` per package is
+  not a documented Go feature. It was measured on Go 1.26.6, so recheck the build
+  and the saving after each toolchain update.
+- **Language defaults.** `testing-profiles.md` now has a table of conservative
+  defaults, each with its warning. Clang ASan and UBSan use an ignorelist. TSan,
+  MSan, GCC and Rust sanitizers default to no exclusion, because partial
+  instrumentation can produce false reports or has no documented form. Python,
+  JS/TS and Java keep to coverage settings. A project may pass its own option, and
+  records the default, its option, the saving and what is lost. Only the Go row has
+  been measured; the others come from each tool's documentation.
+- **`INSTRUMENTATION_SCOPE` launch field.** A new optional field in `suggested.txt`,
+  next to `TEST_POLICY`, holds a project's options as one `<tool> = <option>` line
+  per tool. In a new launch proposal, planning pre-fills the stock defaults for the
+  project's tools, each with its warning, and you can edit or clear them before
+  launch, like the other policies.
+  Approving the launch adopts them, and `none` turns them off. A value that departs
+  from a stock default also carries a warning. Changing it during a run needs
+  explicit human approval, and it never changes to get past a failure.
+- **Legacy record headings.** The combined-record reader now ends an ID at any
+  non-word character except a dotted numeric task suffix. Task-like titles
+  such as `M1.2` need the canonical milestone ID elsewhere in the specification,
+  and a task number such as `M01.2` no longer counts as that ID. A record whose only
+  evidence is its task numbers stops reading, where v2.21.1 accepted it.
+  `## M2: Delivery` on `status-M01` is rejected like
+  `## M2 - Delivery`, even when the body mentions `M01`. `## M1: Delivery` is read
+  again with its explicit correction, which v2.21.1 had stopped accepting.
+- **Evidence.** One project ran five whole packages with and without the exclusion
+  at the same source. Race time fell 34% overall, from 83% in one package to a
+  saving within run-to-run noise in another. No run in either form reported a data
+  race. One project is a signal, not proof, which is why the advice stays optional.
+- **Review fixes.** Reflection accepts absent or null token usage without losing
+  a valid proposal. The parallel test check falls back to recursive unittest
+  discovery when test packages exist, preserving package hooks and nested tests.
+  Launch refresh preserves instrumentation options in unapproved drafts too.
+- **Checks.** `check.py` locks the new wording in the policy, its upgrade copy, the
+  three testing profiles and the goal guides.
+
+**Scope.** `GOAL.md`, the goal skill, the write contracts and launch refresh rules,
+the test policy and its upgrade copy, the testing profiles, the English and Chinese
+goal guides, the runner's historical reader and the repository checks change. The
+reflection audit tool also gains defensive usage-metadata handling.
+
+**Upgrade note.** Installing the 2.22.0 plugin and runner changes no project file.
+An existing project is offered the new advice through `memory-bank-upgrade`, which
+writes only after you approve the complete proposal.
+A launch that records the old protocol fingerprint needs its identity re-approved
+before it runs on 2.22.0. A launch without the new field behaves as `none`, and a
+refresh keeps that unless you approve a change.
+
 # memory-bank v2.21.1
 
 Tightens the v2.21.0 reader for combined legacy records. The stock `GOAL.md`
