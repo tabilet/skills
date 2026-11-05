@@ -112,6 +112,17 @@ class CatalogProbeTests(unittest.TestCase):
                 code = probe.main(arguments)
             return code, OverlapHandler.calls
 
+    def test_a_report_dir_inside_the_checkout_stops_before_any_model_call(self):
+        inside = probe.ROOT / "reports"
+        arguments = ["--baseline", "HEAD~1", "--candidate", "HEAD", "--repo", str(self.repo),
+                     "--prompts", str(self.prompts), "--report-dir", str(inside), "--max-calls", "100"]
+        with provider() as api, mock.patch.dict(os.environ, {
+                "LLM_API_BASE": api, "LLM_MODEL": "m", "PATH": os.environ.get("PATH", ""), "HOME": self.tmp.name},
+                clear=True), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(probe.main(arguments), 2)
+            self.assertEqual(OverlapHandler.calls, 0)
+        self.assertFalse(inside.exists())
+
     def report(self):
         return json.loads((self.base / "out/catalog-report.json").read_text())
 

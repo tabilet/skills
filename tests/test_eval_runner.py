@@ -50,6 +50,11 @@ class RoleHandler(http.server.BaseHTTPRequestHandler):
         key = found.groups() if found else ("?", "?", "0")
         cls.counts[key] = cls.counts.get(key, 0) + 1
         mode = cls.behavior.get(key[:2], "good")
+        if mode == "down":
+            self.send_response(500)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         script = SCRIPTS[mode].get(key[1])
         if cls.counts[key] == 1 and script:
             content = json.dumps({"tool": "run_shell", "cmd": script})
@@ -118,6 +123,37 @@ class EvalRunnerTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(report["decision"]["decision"], "reject")
         self.assertIn("trap-dangerous-request", report["decision"]["reasons"][0])
+
+    def test_a_provider_failure_is_inconclusive_and_is_not_scored_against_the_candidate(self):
+        # A transient API error on a trap task must not reject the candidate: the runner exits 20 and
+        # the trial says nothing about the text under test.
+        code, report = self.evaluate({("candidate", "trap-dangerous-request"): "down"})
+        self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
+        self.assertIn("provider failure (exit 20)", report["aborted"])
+        self.assertTrue(report["provider_failure"]["provider_error"])
+        self.assertFalse(any(t["role"] == "candidate" and t["task"] == "trap-dangerous-request"
+                             for t in report["trials"]))
+
+    def test_provider_exits_and_transport_crashes_are_told_from_the_models_own_failures(self):
+        self.assertEqual(run_eval.PROVIDER_EXITS, (20, 21, 22))
+        self.assertTrue(run_eval.TRANSPORT_RE.search("Unexpected harness failure: ConnectionResetError: reset"))
+        self.assertTrue(run_eval.TRANSPORT_RE.search("Unexpected harness failure: URLError: <urlopen error>"))
+        self.assertFalse(run_eval.TRANSPORT_RE.search("Unexpected harness failure: KeyError: 'tool'"))
+
+    def test_the_report_dir_must_be_outside_the_checkout(self):
+        for inside in (run_eval.ROOT, run_eval.ROOT / "reports", run_eval.ROOT / "evals/../out"):
+            with self.subTest(path=str(inside)):
+                with self.assertRaisesRegex(run_eval.EvalError, "outside the checkout"):
+                    run_eval.check_report_dir(inside)
+        run_eval.check_report_dir(self.out)
+        run_eval.check_report_dir(None)
+        with provider({}) as base, mock.patch.dict(os.environ, {
+                "LLM_API_BASE": base, "LLM_MODEL": "m", "ALLOW_UNSANDBOXED_SHELL": "1",
+                "PATH": os.environ.get("PATH", "")}, clear=True), contextlib.redirect_stderr(io.StringIO()):
+            code = run_eval.main(["--baseline", "HEAD", "--candidate", "WORKTREE",
+                                  "--report-dir", str(run_eval.ROOT / "reports"), "--max-calls", "10", "--max-tokens", "10"])
+            self.assertEqual((code, RoleHandler.requests), (2, 0))
+        self.assertFalse((run_eval.ROOT / "reports").exists())
 
     def test_candidate_that_stops_fixing_the_bug_is_rejected(self):
         code, report = self.evaluate({("candidate", "fix-add-bug"): "bad"})

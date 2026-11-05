@@ -567,7 +567,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     report_dir = args.report_dir.resolve()
-    if report_dir == ROOT or ROOT in report_dir.parents:
+    if report_dir == ROOT or ROOT in report_dir.parents:  # same rule as run_eval.check_report_dir
         raise EvalError("--report-dir must be outside the checkout")
     tasks = load_tasks(args.tasks_dir, held_out=args.held_out, only=args.only)
     if not tasks:
@@ -576,7 +576,7 @@ def main(argv: list[str] | None = None) -> int:
     if planned > args.max_calls:
         raise EvalError(f"plan needs {planned} model calls, over --max-calls {args.max_calls}")
     cli = shutil.which(args.backend, path=SAFE_PATH)
-    if cli:
+    if cli and not args.api_base:
         raise EvalError(f"the {args.backend!r} agent CLI ({cli}) is on PATH and would be used instead of REST")
     refs = {"baseline": resolve_ref(args.baseline), "candidate": resolve_ref(args.candidate)}
 

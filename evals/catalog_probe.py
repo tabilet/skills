@@ -156,6 +156,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
+        run_eval.check_report_dir(args.report_dir)
         if args.repeats < 1:
             raise run_eval.EvalError("--repeats must be at least 1")
         with tempfile.TemporaryDirectory(prefix="tabilet-probe-") as tmp:

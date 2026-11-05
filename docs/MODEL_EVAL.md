@@ -204,9 +204,15 @@ python3 evals/run_eval.py --baseline <ref> --candidate <ref|WORKTREE> \
 - **Spend.** `--max-calls` and `--max-tokens` are required and checked between trials, so one
   trial can overshoot. The runner executes model-chosen host commands, so the tool needs
   `--allow-unsandboxed-shell` (or `ALLOW_UNSANDBOXED_SHELL=1`) and belongs in a disposable sandbox.
+- **Provider failures.** A trial whose runner exits `20`, `21` or `22` (HTTP error, API unreachable,
+  response of the wrong shape), or exits `1` on a transport error such as a connection reset, says
+  nothing about the text under test. It is kept out of the score, the run stops, and the decision is
+  `inconclusive`; the failed trial is reported as `provider_failure`. A refusal (`23`) stays scored.
 - **Output.** `eval-report.json` and `eval-report.md` list what changed, aggregates, improved,
   regressed and flaky tasks, cost, tokens the provider did not report, and the decision. Exit
-  codes: `0` promote or no difference, `1` reject, `2` setup error, `3` inconclusive.
+  codes: `0` promote or no difference, `1` reject, `2` setup error, `3` inconclusive. `--report-dir`
+  must be outside the checkout; the runner, the catalog probe and the skill eval refuse it before any
+  model call, because a report inside it dirties the worktree the optimizer gate pins.
 
 `tests/test_eval_runner.py` drives it with a scripted fake provider, so the decision logic is
 tested without credentials. The eval exercises the runner and the template files; the
@@ -368,8 +374,9 @@ project, so `ALLOW_UNSANDBOXED_SHELL=1` is set for the child and the tool belong
 
 - **Backend.** `--backend` is required and is `claude`, `openai` or `gemini`, never `auto`; the tool
   refuses to start if an agent CLI of that name is on its fixed `PATH`, which would be used instead of
-  REST. Only that backend's key reaches the child, from the environment or `--api-key-file` (never argv).
-  `--api-base` sets `TABILET_REFLECT_API_BASE` for a local or proxied endpoint.
+  REST, unless `--api-base` names the endpoint, which always selects REST. Only that backend's key
+  reaches the child, from the environment or `--api-key-file` (never argv). `--api-base` sets
+  `TABILET_REFLECT_API_BASE` for a local or proxied endpoint.
 - **Spend.** `--max-calls` and `--max-tokens` are required. A trial makes one model call, so a plan needs
   tasks x repeats x 2 calls and is refused when that exceeds `--max-calls`; tokens are checked between trials.
 - **Grading** is deterministic. A trial must contain the engine's own headings (`Contrastive Diagnosis`,
@@ -449,7 +456,7 @@ needs a separate explicit confirmation that names the provider, the model, and t
    instruction text, so a run says nothing about a Tabilet candidate until a maintainer writes that adapter.
    The benchmark's license excludes use within the European Union. It is informational: it does not replace
    the held-out decision, and Tabilet users never run it.
-6. **Review and release.** A human reads the diff and the reports, then the normal release steps apply.
+7. **Review and release.** A human reads the diff and the reports, then the normal release steps apply.
    Record the ceilings, the actual spend and the decision in the release notes.
 
 ## When To Run The Evals

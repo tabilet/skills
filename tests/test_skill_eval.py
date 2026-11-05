@@ -236,6 +236,16 @@ class SkillEvalTests(unittest.TestCase):
         path = self.out / "skill-eval-report.json"
         return code, (json.loads(path.read_text()) if path.exists() else None), requests
 
+    def test_a_report_dir_inside_the_checkout_stops_before_any_model_call(self):
+        inside = skill_eval.ROOT / "reports"
+        with provider({}) as base, mock.patch.dict(os.environ, {
+                "LLM_API_BASE": base, "LLM_MODEL": "m", "ALLOW_UNSANDBOXED_SHELL": "1",
+                "PATH": os.environ.get("PATH", "")}, clear=True), contextlib.redirect_stderr(io.StringIO()):
+            code = skill_eval.main(["--baseline", "HEAD", "--candidate", "WORKTREE", "--report-dir", str(inside),
+                                    "--max-calls", "10", "--max-tokens", "10"])
+            self.assertEqual((code, RoleHandler.requests), (2, 0))
+        self.assertFalse(inside.exists())
+
     def failed(self, report, role="candidate"):
         return {t["task"]: t["failed_checks"] for t in report["trials"] if t["role"] == role and t["failed_checks"]}
 

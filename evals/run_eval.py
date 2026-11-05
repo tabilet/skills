@@ -14,6 +14,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import shutil
 import signal
 import subprocess
@@ -28,10 +29,26 @@ WORKTREE = "WORKTREE"
 EDITABLE_PROJECT_FILE = "tabilet/memory-bank/tech-stack.md"
 CATEGORIES = ("capability", "trap")
 ROLES = ("baseline", "candidate")
+# Runner exits that mean the provider failed, not the text under test: an HTTP error, an unreachable API
+# and a response of the wrong shape (docs/EXECUTION.md#exit-codes). Exit 23, a refusal, is the model's own
+# behavior and stays scored. A transport error the runner does not catch exits 1 with its type in stderr.
+PROVIDER_EXITS = (20, 21, 22)
+TRANSPORT_RE = re.compile(r"Unexpected harness failure: (?:URLError|SSLError|ConnectionError|ConnectionResetError|"
+                          r"ConnectionAbortedError|RemoteDisconnected|IncompleteRead|TimeoutError|timeout|"
+                          r"BrokenPipeError|gaierror)\b")
 
 
 class EvalError(Exception):
     """A setup problem that should stop the eval before any model call."""
+
+
+def check_report_dir(report_dir: pathlib.Path | None) -> None:
+    """Reports and raw sessions stay outside the checkout: inside it they dirty the worktree the gate pins."""
+    if report_dir is None:
+        return
+    resolved = pathlib.Path(report_dir).resolve()
+    if resolved == ROOT or ROOT in resolved.parents:
+        raise EvalError("--report-dir must be outside the checkout")
 
 
 def load_tasks(tasks_dir: pathlib.Path, held_out: bool, only: list[str] | None = None) -> list[dict]:
@@ -137,9 +154,12 @@ def run_trial(tree: pathlib.Path, task: dict, role: str, repeat: int, work: path
     usage = (report or {}).get("usage") or {}
     tokens_known = usage.get("input_total") is not None and usage.get("output") is not None
     commit_expected = task.get("commit_expected", task["category"] == "capability")
+    stderr_text = (root / "stderr.txt").read_text(errors="replace")
+    provider_error = not timed_out and (exit_code in PROVIDER_EXITS
+                                        or (exit_code == 1 and bool(TRANSPORT_RE.search(stderr_text))))
     return {
         "task": task["name"], "category": task["category"], "role": role, "repeat": repeat,
-        "exit_code": exit_code, "timed_out": timed_out,
+        "exit_code": exit_code, "timed_out": timed_out, "provider_error": provider_error,
         "verify_ok": verify_code == 0,
         "passed": exit_code in task["expect_exit"] and verify_code == 0,
         "clean": (bool(report and report.get("commits") == 1 and report.get("worktree_clean") is True)
@@ -148,7 +168,7 @@ def run_trial(tree: pathlib.Path, task: dict, role: str, repeat: int, work: path
         "tokens": (usage.get("input_total") or 0) + (usage.get("output") or 0),
         "tokens_known": tokens_known,
         "duration_sec": (report or {}).get("duration_sec"),
-        "stderr_tail": (root / "stderr.txt").read_text(errors="replace")[-400:] if exit_code not in task["expect_exit"] else "",
+        "stderr_tail": stderr_text[-400:] if exit_code not in task["expect_exit"] else "",
     }
 
 
@@ -306,6 +326,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
+        check_report_dir(args.report_dir)
         if args.repeats < 1:
             raise EvalError("--repeats must be at least 1")
         if os.environ.get("ALLOW_UNSANDBOXED_SHELL") != "1":
@@ -320,6 +341,7 @@ def main(argv: list[str] | None = None) -> int:
         trials: list[dict] = []
         calls = tokens = 0
         aborted = None
+        provider_failure = None
         with tempfile.TemporaryDirectory(prefix="tabilet-eval-") as tmp:
             work = pathlib.Path(tmp)
             trees = {"baseline": materialize_ref(args.baseline, work / "tree-baseline"),
@@ -331,15 +353,24 @@ def main(argv: list[str] | None = None) -> int:
                             aborted = f"ceiling reached ({calls} calls, {tokens} tokens)"
                             break
                         trial = run_trial(trees[role], task, role, repeat, work, args.run_timeout)
-                        trials.append(trial)
                         calls += trial["turns"] or 0
                         tokens += trial["tokens"]
+                        if trial["provider_error"]:
+                            # A failed call says nothing about the text: keep the trial out of the score and stop.
+                            aborted = (f"provider failure (exit {trial['exit_code']}) in "
+                                       f"{task['name']} ({role}, repeat {repeat})")
+                            provider_failure = trial
+                            break
+                        trials.append(trial)
                     if aborted:
                         break
                 if aborted:
                     break
         by_role = {role: [t for t in trials if t["role"] == role] for role in ROLES}
         decision = decide(by_role["baseline"], by_role["candidate"], args, aborted)
+        if provider_failure:
+            decision = {"decision": "inconclusive",
+                        "reasons": [f"stopped early: {aborted}; the scored trials are uneven, rerun"]}
         changed = git("diff", "--name-only", args.baseline, args.candidate, "--", "template", "harness", "skills", check=False)
         report = {
             "schema": "tabilet.eval-report/v1", "baseline": args.baseline, "candidate": args.candidate,
@@ -347,6 +378,7 @@ def main(argv: list[str] | None = None) -> int:
             "decision": decision, "summary": {role: summarize(by_role[role]) for role in ROLES},
             "flaky": flaky_tasks(trials), "trials": trials, "calls_used": calls, "tokens_used": tokens,
             "tokens_unknown": sum(not t["tokens_known"] for t in trials), "aborted": aborted,
+            "provider_failure": provider_failure,
             "wall_sec": time.time() - started,
             "changed_paths": changed.stdout.decode().split() if changed.returncode == 0 else [],
         }

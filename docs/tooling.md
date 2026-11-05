@@ -228,6 +228,11 @@ Built, and kept only in the `maintainer-tooling` branch:
   directory are validated without a model: a compliant `pass.py` and any `alt-*.py` must grade
   clean, and each `fail-*.py` must fail its named check. A failing trial's report entry keeps the
   files its checks read, and a provider failure aborts the run as inconclusive instead of scoring it.
+- `evals/reflect_eval.py` with 8 reflection tasks (3 held out), which grades the reflection improver
+  (`tabilet-audit reflect`) from scratch repositories with backdated audit records: the telemetry and
+  prompt must surface the expected findings before any model call, and the grading is deterministic.
+  A provider failure, a timeout or a model-free proposal is not scored. See
+  [Reflection Eval](MODEL_EVAL.md#reflection-eval).
 - `evals/propose_candidate.py`, a plain-LLM proposer. With `--catalog-report` it proposes skill
   descriptions from dev routing misses. With `--skill-report` and `--target` it proposes exact-passage
   edits to one canonical editable-surface file from the failing dev trials of a `skill_eval.py` report

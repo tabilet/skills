@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import errno
 import http.client
 import json
 import os
@@ -249,19 +250,34 @@ def review_rounds(project_root: pathlib.Path, milestone_id: str | None) -> dict[
     if not milestone_id or not re.fullmatch(r"[A-Za-z][0-9]{2,}(-[0-9]{2})?", milestone_id):
         return {"iterations": None, "source": None}
     base = project_root / "tabilet"
-    history = base / f"docs/history/status-{milestone_id}.md"
-    if history.is_file():
-        match = _REVIEW_ITERATIONS.search(history.read_text(encoding="utf-8", errors="replace"))
-        if match:
-            return {"iterations": int(match.group(1)), "source": f"tabilet/docs/history/status-{milestone_id}.md"}
-    active = base / f"memory-bank/status-{milestone_id}.md"
-    if active.is_file():
-        text = active.read_text(encoding="utf-8", errors="replace")
-        counts = [int(m.group(1)) for pattern in _ACTIVE_ITERATIONS for m in pattern.finditer(text)]
-        counts = [n for n in counts if 0 < n <= 100]
-        if counts:
-            return {"iterations": max(counts), "source": f"tabilet/memory-bank/status-{milestone_id}.md"}
+    # A child milestone keeps its status in an amendment (or option) file, like milestone_spec reads it.
+    names = ((f"amend-{milestone_id}.md", f"option-{milestone_id}.md") if "-" in milestone_id
+             else (f"status-{milestone_id}.md",))
+    for name in names:
+        history = base / "docs/history" / name
+        if history.is_file():
+            text = history.read_text(encoding="utf-8", errors="replace")
+            match = _REVIEW_ITERATIONS.search(text)
+            if match:
+                return {"iterations": int(match.group(1)), "source": f"tabilet/docs/history/{name}"}
+            # An older record keeps the count inside its retained status section.
+            # Only the retained status counts: the specification beside it may quote a limit.
+            marks = list(re.finditer(r"^## (?:Status record|Status)[ \t]*$", text, re.M))
+            counts = _active_counts(text[marks[-1].end():] if marks else text)
+            if counts:
+                return {"iterations": max(counts), "source": f"tabilet/docs/history/{name}"}
+    for name in names:
+        active = base / "memory-bank" / name
+        if active.is_file():
+            counts = _active_counts(active.read_text(encoding="utf-8", errors="replace"))
+            if counts:
+                return {"iterations": max(counts), "source": f"tabilet/memory-bank/{name}"}
     return {"iterations": None, "source": None}
+
+
+def _active_counts(text: str) -> list[int]:
+    counts = [int(m.group(1)) for pattern in _ACTIVE_ITERATIONS for m in pattern.finditer(text)]
+    return [n for n in counts if 0 < n <= 100]
 
 
 def git_commits_during(project_root: pathlib.Path, windows: list[tuple[str, str | None]]) -> dict[str, Any]:
@@ -759,6 +775,14 @@ def _is_timeout(exc: BaseException) -> bool:
         isinstance(exc, urllib.error.URLError) and isinstance(exc.reason, TimeoutError))
 
 
+def _is_no_network(exc: BaseException) -> bool:
+    """True when a request failed because the host cannot resolve names or reach any network."""
+    import socket
+    reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    return isinstance(reason, socket.gaierror) or (
+        isinstance(reason, OSError) and reason.errno in (errno.ENETUNREACH, errno.EHOSTUNREACH))
+
+
 def available_backends() -> list[str]:
     """Backends reflection could use right now: agent CLIs on PATH, then REST APIs with a key."""
     found = [f"cli:{name}" for name in CLI_BACKENDS if shutil.which(name)]
@@ -831,6 +855,9 @@ def invoke_improver_llm(
 
     if backend != "auto":
         cli_candidates = [c for c in cli_candidates if c[0] == backend]
+        # A named endpoint is a REST backend: an agent CLI on PATH would ignore it.
+        if os.environ.get("TABILET_REFLECT_API_BASE"):
+            cli_candidates = []
 
     failures: list[str] = []
     timeouts = 0
@@ -852,10 +879,7 @@ def invoke_improver_llm(
             return ImproverResult(stdout.strip(), f"cli:{name}", {"input_total": None, "output": None})
         failures.append(f"{name} CLI: exit {returncode}" if returncode else f"{name} CLI: empty output")
 
-    if failures and unreachable == len(failures):
-        raise BackendUnreachable("reflection backend unreachable ("
-                                 + "; ".join(failures)
-                                 + "); the host probably blocks network, so run reflect with network access")
+    # A CLI whose host does not resolve says nothing about a configured REST backend, so that is tried too.
     try:
         text, actual_source, usage = _call_rest_fallback(prompt, backend=backend, timeout_sec=int(remaining()) or 1)
         return ImproverResult(text, actual_source, usage)
@@ -869,9 +893,16 @@ def invoke_improver_llm(
     except urllib.error.HTTPError as exc:
         failures.append(f"REST API: HTTP {exc.code}")
     except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError, KeyError, IndexError, TypeError) as exc:
-        timeouts += _is_timeout(exc)
-        failures.append(f"REST API: {type(exc).__name__}")
+        if _is_no_network(exc):
+            unreachable += 1
+            failures.append(f"REST API: no network ({getattr(exc, 'reason', exc)})")
+        else:
+            timeouts += _is_timeout(exc)
+            failures.append(f"REST API: {type(exc).__name__}")
     detail = "; ".join(failures)
+    if failures and unreachable == len(failures):
+        raise BackendUnreachable(f"reflection backend unreachable ({detail}); "
+                                 "the host probably blocks network, so run reflect with network access")
     if timeouts == len(failures):
         raise BudgetExceeded(f"reflection backend did not finish inside its time budget ({detail})")
     raise audit.AuditError(f"reflection backend failed ({detail}); no proposal was written")

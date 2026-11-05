@@ -233,12 +233,80 @@ class ReflectTests(unittest.TestCase):
     def test_missing_network_fails_fast_and_says_why(self):
         self.record_completed_task()
         telemetry = reflect.extract_telemetry(self.repo, 'M01')
-        with mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
+        with mock.patch.dict(os.environ, {}, clear=True), \
+                mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
                 mock.patch.object(reflect, '_host_resolves', return_value=False), \
                 mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')):
             with self.assertRaises(reflect.BackendUnreachable) as ctx:
                 reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=60)
         self.assertIn('claude CLI: no network', str(ctx.exception))
+
+    def test_a_rest_backend_without_network_is_unreachable_not_a_failure(self):
+        # A sandbox with only an API key fails name resolution; that must degrade
+        # to the model-free report like a CLI without network, not stop with exit 2.
+        import errno
+        import socket
+        import urllib.error
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        for reason in (socket.gaierror(socket.EAI_NONAME, 'Name or service not known'),
+                       OSError(errno.ENETUNREACH, 'Network is unreachable')):
+            with self.subTest(reason=type(reason).__name__, errno=getattr(reason, 'errno', None)):
+                with mock.patch.dict(os.environ, {'OPENAI_API_KEY': 'k'}, clear=True), \
+                        mock.patch.object(reflect.shutil, 'which', return_value=None), \
+                        mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError(reason)):
+                    with self.assertRaises(reflect.BackendUnreachable) as ctx:
+                        reflect.invoke_improver_llm(telemetry, self.repo, backend='openai', timeout_sec=60)
+                self.assertIn('REST API: no network', str(ctx.exception))
+        # A refused connection is a real failure of a reachable network, not a blocked sandbox.
+        with mock.patch.dict(os.environ, {'OPENAI_API_KEY': 'k'}, clear=True), \
+                mock.patch.object(reflect.shutil, 'which', return_value=None), \
+                mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError(
+                    ConnectionRefusedError(errno.ECONNREFUSED, 'refused'))):
+            with self.assertRaises(audit.AuditError) as ctx:
+                reflect.invoke_improver_llm(telemetry, self.repo, backend='openai', timeout_sec=60)
+        self.assertNotIsInstance(ctx.exception, reflect.BackendUnreachable)
+
+    def test_an_unreachable_cli_does_not_hide_a_working_rest_backend(self):
+        fake = {'content': [{'type': 'text', 'text': '## Proposed\nvia rest'}], 'usage': {}}
+        response = mock.MagicMock()
+        response.read.return_value = json.dumps(fake).encode('utf-8')
+        response.__enter__.return_value = response
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        with mock.patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'k'}, clear=True), \
+                mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
+                mock.patch.object(reflect, '_host_resolves', return_value=False), \
+                mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')), \
+                mock.patch('urllib.request.urlopen', return_value=response):
+            result = reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=60)
+        self.assertEqual(result.source, 'rest:claude')
+
+    def test_a_named_api_base_uses_rest_even_when_the_agent_cli_is_installed(self):
+        fake = {'content': [{'type': 'text', 'text': '## Proposed\nvia proxy'}], 'usage': {}}
+        response = mock.MagicMock()
+        response.read.return_value = json.dumps(fake).encode('utf-8')
+        response.__enter__.return_value = response
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        seen = []
+
+        def urlopen(request, timeout=120):
+            seen.append(request.full_url)
+            return response
+        env = {'ANTHROPIC_API_KEY': 'k', 'TABILET_REFLECT_API_BASE': 'http://proxy.local'}
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
+                mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')), \
+                mock.patch('urllib.request.urlopen', side_effect=urlopen):
+            result = reflect.invoke_improver_llm(telemetry, self.repo, backend='claude', timeout_sec=60)
+            self.assertEqual(result.source, 'rest:claude')
+            self.assertTrue(seen[0].startswith('http://proxy.local'))
+            # With auto the endpoint is never read, so the CLI is still used first.
+            with mock.patch.object(reflect, '_host_resolves', return_value=True), \
+                    mock.patch.object(reflect, '_run_cli', return_value=(0, 'cli text')):
+                self.assertEqual(reflect.invoke_improver_llm(
+                    telemetry, self.repo, backend='auto', timeout_sec=60).source, 'cli:claude')
 
     def test_unreachable_backend_degrades_to_the_model_free_report_with_reason(self):
         self.record_completed_task()
@@ -654,6 +722,25 @@ class ReflectTests(unittest.TestCase):
                          {'iterations': 4, 'source': 'tabilet/docs/history/status-M01.md'})
         self.assertEqual(reflect.review_rounds(self.repo, '../../etc/passwd')['iterations'], None)
         self.assertEqual(reflect.review_rounds(self.repo, None)['iterations'], None)
+
+    def test_review_rounds_read_a_child_milestone_and_an_older_retired_record(self):
+        history = self.repo / 'tabilet/docs/history'
+        history.mkdir(parents=True)
+        memory = self.repo / 'tabilet/memory-bank'
+        (memory / 'amend-M01-01.md').write_text('# Amendment\n\nPersisted iteration count: 2/10.\n', encoding='utf-8')
+        self.assertEqual(reflect.review_rounds(self.repo, 'M01-01'),
+                         {'iterations': 2, 'source': 'tabilet/memory-bank/amend-M01-01.md'})
+        (memory / 'amend-M01-01.md').unlink()
+        (history / 'amend-M01-01.md').write_text('# Retired\n\n**Review iterations.** 3\n', encoding='utf-8')
+        self.assertEqual(reflect.review_rounds(self.repo, 'M01-01')['iterations'], 3)
+        # An older record keeps the count in its retained status, not in a header line. The specification
+        # beside it quotes the limit, which is not a review round.
+        (history / 'status-M01.md').write_text(
+            '# Retired milestone M01\n\n## Milestone specification\n\nThe gate stops at iteration 10 of 10.\n\n'
+            '## Status record\n\n| Item | State |\n|---|---|\n| Task | `[+]` |\n\nIteration 2 of 10 passed.\n',
+            encoding='utf-8')
+        self.assertEqual(reflect.review_rounds(self.repo, 'M01'),
+                         {'iterations': 2, 'source': 'tabilet/docs/history/status-M01.md'})
 
     def test_a_non_git_directory_reports_commits_as_unavailable(self):
         outside = self.base / 'plain'

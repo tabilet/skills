@@ -503,8 +503,8 @@ project enabled before this rule existed.
 
 Two optional settings change where the model call goes. `TABILET_REFLECT_MODEL` picks the model for a REST
 backend. `TABILET_REFLECT_API_BASE` points a REST backend at another endpoint, such as a local or proxied
-server; it is read only when `--backend` names `claude`, `gemini` or `openai`, never with `auto`, and the
-chosen backend's API key is sent to that endpoint, so set it only to a host you trust. The result of a run
+server; it is read only when `--backend` names `claude`, `gemini` or `openai`, never with `auto`, it makes the
+REST call even when that backend's agent CLI is installed, and the chosen backend's API key is sent to that endpoint, so set it only to a host you trust. The result of a run
 reports the tokens the provider returned as `usage`.
 
 ## Standing corrective planning
