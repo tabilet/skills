@@ -138,8 +138,9 @@ default, including where the table says "No exclusion". Record the default, the
 project's option, the measured saving and what the option can no longer detect in
 `tech-stack.md`. A proposal that departs from the default says so as a warning.
 
-**Filling the field.** Write one `<tool> = <option>` line for each tool the project
-uses that has a concrete default. Resolve the placeholder from a profile if there
+**Filling the field.** Fill it only in a new launch proposal; a refresh of an approved
+launch keeps its resolved value. Write one `<tool> = <option>` line for each tool the
+project uses that has a concrete default. Resolve the placeholder from a profile if there
 is one, otherwise from the project's dependencies. Leave out a tool whose default
 is no exclusion or the tool's own default, and a tool with no target to name. If
 nothing remains, the field is `none`. An exclusion gives up some detection, so show

@@ -3312,7 +3312,7 @@ V213_CONTRACTS = {
         "## Instrumentation scope defaults", "Only the Go row has been measured",
         "| C/C++ TSan | No exclusion |", "| C/C++ MSan | No exclusion |",
         "| Rust sanitizers | No exclusion |", "**A project's own option.**",
-        "says so as a warning", "**Filling the field.**", "the field is `none`",
+        "says so as a warning", "**Filling the field.**", "Fill it only in a new launch proposal", "the field is `none`",
         "say when it is unmeasured in this\nproject"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
@@ -3762,13 +3762,13 @@ def test_policy_and_convergent_review_gate():
                      "skills/memory-bank-reconcile/references/plan-update.md"):
         if "Preserve an explicit `TEST_POLICY`" not in (ROOT / relative).read_text():
             problems.append(f"{relative}: launch refresh does not preserve TEST_POLICY")
-        if "Preserve an explicit `INSTRUMENTATION_SCOPE`" not in (ROOT / relative).read_text():
+        if "preserve its resolved value, including an implicit `none`" not in (ROOT / relative).read_text():
             problems.append(f"{relative}: launch refresh does not preserve INSTRUMENTATION_SCOPE")
-    goal_text = (ROOT / "GOAL.md").read_text()
-    for token in ("`INSTRUMENTATION_SCOPE` is optional: `none` (default when omitted)", "Planning pre-fills", "carries a warning in the proposal",
-                  "still runs those gates without it", "it never changes to\n  get past a failure"):
-        if token not in goal_text:
-            problems.append(f"GOAL.md: missing instrumentation-scope contract {token!r}")
+    for token in missing_contract_tokens((ROOT / "GOAL.md").read_text(), (
+            "`INSTRUMENTATION_SCOPE` is optional: `none` (default when omitted)", "Planning pre-fills",
+            "in a new launch proposal", "including an implicit `none`", "carries a warning in the proposal",
+            "still runs those gates without it", "it never changes to get past a failure")):
+        problems.append(f"GOAL.md: missing instrumentation-scope contract {token!r}")
 
     # Stock policy stays project- and language-neutral.
     policy = (ROOT / TEST_POLICY_FILE).read_text() if (ROOT / TEST_POLICY_FILE).is_file() else ""

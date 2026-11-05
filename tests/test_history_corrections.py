@@ -978,6 +978,12 @@ class HistoryCorrectionsTests(unittest.TestCase):
             ('status-M01.md', '## M2 - Delivery', 'Depends on M1 and M01.'),
             ('status-M02.md', '## M1 - Delivery', 'Followed by M2.\n\n## M2 - Follow-up'),
             ('status-M01.md', '## M10 - Delivery', 'Depends on M1.'),
+            ('status-M01.md', '## M2: Delivery', 'Depends on M01.'),
+            ('status-M01.md', '## M02: Delivery', 'Depends on M01.'),
+            ('status-M01.md', '## M10: Delivery', 'Depends on M01.'),
+            ('status-M01.md', '## M2. Delivery', 'Depends on M01.'),
+            ('status-M01.md', '## M02-Delivery', 'Depends on M01.'),
+            ('status-M02.md', '## M1: Delivery', 'Depends on M02.'),
             ('status-M01.md', '## Delivery', 'Runs on Apple M1.'),
             ('status-M01.md', '## Overview', 'Parts M1 and M2.\n\n## M1 - First\n\n## M2 - Second'),
         )
@@ -992,8 +998,15 @@ class HistoryCorrectionsTests(unittest.TestCase):
             with self.subTest(heading=heading):
                 text, correction = build('status-M01.md', heading, 'Part of M01.')
                 self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
-        text, correction = build('status-M01.md', '## M1 - Delivery', 'Part one.')
-        self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+        # The record's own ID identifies it before punctuation too, padded or not.
+        for heading in ('## M1 - Delivery', '## M1: Delivery', '## M1. Delivery', '## M01: Delivery'):
+            with self.subTest(heading=heading):
+                text, correction = build('status-M01.md', heading, 'Part one.')
+                self.assertEqual(core.historical_record(text, 'status-M01.md', correction)['blockers'], [])
+        # Punctuation does not remove the need for the explicit correction.
+        text, _ = build('status-M01.md', '## M1: Delivery', 'Part one.')
+        with self.assertRaisesRegex(ValueError, 'identity is missing or ambiguous'):
+            core.historical_record(text, 'status-M01.md')
 
     def test_a_combined_record_may_declare_its_own_unpadded_id_in_its_status(self):
         name = 'status-M01.md'
