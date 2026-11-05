@@ -770,6 +770,14 @@ evidence commit and does not claim a re-review of the original change. Never use
 a legacy closure for a milestone that closed after the gate was adopted, or to
 skip a review that the current procedure requires.
 
+A status file that holds several milestones under one ID, such as `M1` to `M5`
+in `status-M01.md`, is not retired as one record. The envelope takes exactly one
+specification section named by the record's ID, so stop and report the combined
+file; the owner splits it under separate IDs or decides otherwise. A combined
+record that already exists is frozen. The shared reader accepts it only through
+an `identify-specification` correction in `tabilet/docs/history/corrections.json`,
+and the record's own ID may appear without padding there (`M1` for `M01`).
+
 Retired milestone records are frozen. Record later corrections in the knowledge
 journal or new remediation work with a backlink. Preserve previous history
 index entries. No ID may exist in both active and retired storage or be reused.

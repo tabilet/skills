@@ -933,6 +933,33 @@ class HistoryCorrectionsTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'status.*identity'):
                     core.historical_record(text, 'status-M01.md')
 
+    def test_a_combined_legacy_record_is_identified_by_its_unpadded_id(self):
+        # A combined legacy milestone (M1 to M5 retired under the one ID M01)
+        # names its parts without padding. Only the record's own ID in that
+        # form identifies it, and only through an explicit correction.
+        name = 'status-M01.md'
+        key = 'tabilet/docs/history/' + name
+
+        def combined(heading):
+            return self.text.replace('## M01 - Delivery', heading, 1)
+
+        def corrected(text, heading):
+            quote = '# Retired milestone M01'
+            op = dict(kind='identify-specification', heading=heading,
+                      evidence=[dict(start_line=1, end_line=1, quote=quote)])
+            return core.history_corrections(manifest([entry(text, [op])]))[key]
+
+        text = combined('## M1 - Delivery')
+        record = core.historical_record(text, name, corrected(text, '## M1 - Delivery'))
+        self.assertEqual(record['blockers'], [])
+        with self.assertRaisesRegex(ValueError, 'identity is missing or ambiguous'):
+            core.historical_record(text, name)
+        for heading in ('## M2 - Delivery', '## M10 - Delivery', '## Delivery'):
+            with self.subTest(heading=heading):
+                other = combined(heading)
+                with self.assertRaisesRegex(ValueError, 'identity is missing or ambiguous'):
+                    core.historical_record(other, name, corrected(other, heading))
+
     def test_recovery_preserves_source_bytes_locations_and_refuses_modified_content(self):
         raw_status = '| Task | `[+]` | verified |\n'
         start = next(n for n, value in enumerate(self.text.splitlines(), 1) if value == raw_status.rstrip())

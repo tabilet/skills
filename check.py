@@ -3632,7 +3632,10 @@ def test_policy_and_convergent_review_gate():
             "agent-authored text cannot prove the approval",
             "names what protects that decision", "through an explicitly approved planning proposal",
             "cites the specification's human approval source", "without both it keeps its ordinary severity",
-            "breaks the record's size bound", "**Guarantee levels.** (Optional;"),
+            "breaks the record's size bound", "**Guarantee levels.** (Optional;",
+            "is not retired as one record", "so stop and report the combined",
+            "`identify-specification` correction in `tabilet/docs/history/corrections.json`",
+            "may appear without padding there (`M1` for `M01`)"),
         TEST_POLICY_FILE: (
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's focused verification and its evidence",
