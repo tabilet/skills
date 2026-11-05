@@ -113,3 +113,26 @@ coverage. Required closure checks are not waived.
   in-memory providers, fake timers and offline DOM/component tests.
 - `pythonlight`: existing Python stubs, such as `responses`/`aioresponses`,
   `tmp_path` and opt-in e2e markers excluded from routine loops.
+
+## Instrumentation scope defaults
+
+These apply only when a project adopts the test policy's instrumentation-scope
+advice. Without a profile showing third-party cost, keep the tool's normal scope.
+Only the Go row has been measured; the others come from each tool's documentation.
+
+| Language and tool | Default | Warning |
+|---|---|---|
+| Go race | The `golight` `-gcflags` form, for third-party modules | Recheck after each toolchain update |
+| C/C++ ASan, UBSan (Clang) | `-fsanitize-ignorelist=<file>` with `src:` or `fun:` entries for third-party code | A partly instrumented ASan binary can report false container overflows |
+| C/C++ TSan | No exclusion | TSan generally requires all code to be instrumented. Ignored functions can cause false positives from missed synchronization, and it may miss races |
+| C/C++ MSan | No exclusion | All program code and libraries must be instrumented, or reports can be false |
+| C/C++ with GCC | No exclusion | GCC's instrumentation options list no ignorelist equivalent |
+| Rust sanitizers | No exclusion | Sanitizers are unstable `-Z` options with no documented per-crate exclusion. `[profile.dev.package."*"] opt-level = 2` in the root manifest speeds dependencies but does not change instrumentation |
+| Python coverage | coverage.py `--source=<package>` or pytest-cov `--cov=<package>` | Code outside the named package is not measured |
+| JS/TS coverage | Keep the tool's default | Jest skips `/node_modules/` by default. Check what Vitest reports before setting `coverage.include` |
+| Java JaCoCo | Keep the default, all classes | Agent `includes` and `excludes` change what is analyzed. Report exclusions are set separately |
+
+**A project's own option.** A project may pass its own option instead of the
+default, including where the table says "No exclusion". Record the default, the
+project's option, the measured saving and what the option can no longer detect in
+`tech-stack.md`. A proposal that departs from the default says so as a warning.

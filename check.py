@@ -3308,7 +3308,11 @@ V213_CONTRACTS = {
         "run with `-v` so the log reports the skip", "when concurrent code or a concurrency contract changed",
         "plus direct consumers when a public contract",
         "instrumentation-scope advice", "excludes third-party\n  modules only",
-        "recheck the build and the saving after each toolchain update"),
+        "recheck the build and the saving after each toolchain update",
+        "## Instrumentation scope defaults", "Only the Go row has been measured",
+        "| C/C++ TSan | No exclusion |", "| C/C++ MSan | No exclusion |",
+        "| Rust sanitizers | No exclusion |", "**A project's own option.**",
+        "says so as a warning"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
