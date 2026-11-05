@@ -215,10 +215,10 @@ For a light profile, include these rules in the proposed verification
 standards and assign the required evidence to the relevant milestone owners.
 `standard` adds none of them and keeps the project's existing commands:
 
-- **Execution cadence.** Run focused verification during task loops; run the
-  full suite once per unchanged closure candidate and race/UI checks when the
-  change touches concurrency or UI and at required closure; rerun the affected
-  checks after every review fix.
+- **Execution cadence.** Run the row check before a row is done or a task review;
+  run the full suite fresh once per unchanged closure candidate and race/UI checks
+  when the change touches concurrency or UI and at required closure; rerun the
+  affected checks after every review fix.
 - **Replacement coverage.** When retiring an implementation, preserve meaningful
   success and failure coverage for retained behavior through its successor.
   Distinguish executed behavior, mocks, compile-only checks and deferred
@@ -229,6 +229,30 @@ standards and assign the required evidence to the relevant milestone owners.
   with its named owner and gate, preserving dependencies, intermediate acceptance
   and action limits. Use existing records. Run a fast preflight of fixtures,
   schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
+
+<!-- BEGIN SHARED scope-control-planning -->
+Keep each planned milestone to what its stage can reach and what its acceptance
+needs:
+
+- Do not plan fixtures, shadow systems or measurement for a path the stage cannot
+  reach. Defer them until it can.
+- An integration or final qualification milestone maps its list to existing tests
+  and adds new ones only for real gaps. It does not repeat coverage that owning
+  milestones already provide.
+- Prefer one check that refuses every unsupported case over logic that keeps rare
+  cases working, unless acceptance requires them. A rare path the owner needs may
+  stay, in one interface.
+- When a milestone adds a persisted record and `milestone.md` lists project
+  guarantee levels, propose the record's level in the milestone specification and
+  show it in the approval request. The user approves it; an agent never assigns
+  one. Without that approval, including under standing corrective approval, the
+  record keeps its ordinary treatment and no level. A project whose `Project
+  levels` line says `none` gets no question about them.
+- Defining or changing the project's levels is a human decision shown in its own
+  approved proposal, never under standing corrective approval. Propose is the route
+  in an initialized project; a project without the section adopts it through
+  Upgrade first.
+<!-- END SHARED scope-control-planning -->
 
 When a refactor cannot safely fit into one bounded green change or needs a compatibility transition, plan expand–contract: first add the new form beside the old, migrate callers in green batches with one row each, then remove the old form once no caller remains. A broad mechanical rename that is safely atomic may stay one bounded row; do not add compatibility scaffolding solely because many call sites change.
 

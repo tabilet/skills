@@ -42,7 +42,7 @@ Supported operations have these exact additional fields:
 |---|---|---|
 | `expand-evidence-commit` | `recorded`, `resolved` | Expand one recorded abbreviated commit to its verified full object ID. |
 | `resolve-evidence-set` | `commits`, `evidence` | Retain the full identities behind a recorded provenance list. This is not a claim that the first source was an observed HEAD. |
-| `identify-specification` | `heading`, `evidence` | Identify ownership in the complete retained shared or named specification. Explicitly mismatched IDs remain invalid. |
+| `identify-specification` | `heading`, `evidence` | Identify ownership in the complete retained shared or named specification. The record's own ID is found with or without padding (`M1` for `M01`), so a combined legacy record that names its parts `M1` to `M5` can be identified. Explicitly mismatched IDs remain invalid. |
 | `historical-successor` | `item`, `successor`, `evidence` | Resolve one historical row to one uniquely named completed row, preserving both task states and literal notes. |
 | `recover-document` | `document`, `content`, `sha256`, `source` | Supply the full literal `specification` or `status` from reviewed source evidence. |
 | `supply-metadata` | `field`, `value`, `evidence` | Interpret a missing closure field, or normalize an annotated review count without changing its number. |

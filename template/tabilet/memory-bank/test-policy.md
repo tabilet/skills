@@ -47,15 +47,18 @@ test on loopback fixtures with a throwaway profile is class O.
    authorization requires, such as fresh approval for a protected run whose
    input changed outside an approved envelope, still apply. Never rerun
    unchanged code hoping for a pass: a flaky test is a bug.
-3. **Run whole units.** Run whole packages, modules or project targets, not
-   per-test cohorts that each get their own plan, approval or review.
+3. **Run whole units.** Required gates run whole packages, modules or project
+   targets, not per-test cohorts that each get their own plan, approval or
+   review. Rule 7 covers checks made while changing code, and rule 8 covers
+   skipping a fixture under an instrumented variant.
 4. **Review code, not test runs.** Task and milestone reviews cover product and
    test code together. No readiness review before a run; no separate review of
    a runner or harness fix.
 5. **Light bookkeeping.** This policy adds no attempt counters, failure streaks
    or numeric allowances. For each required gate the status file records the
-   command, the source revision (and artifact identity when one is qualified),
-   PASS or FAIL, and one link to a log kept in ignored scratch. No per-attempt
+   command, the source revision or saved diff hash (and artifact identity when
+   one is qualified), PASS or FAIL, and one link to a log kept in ignored
+   scratch; a reused result says its inputs are unchanged. No per-attempt
    narrative. **Authorization is separate:** when a run needs an explicit
    grant, that grant's scope, reservations, budget and stop conditions bind as
    the goal protocol states. An exhausted budget pauses the run for human
@@ -65,6 +68,79 @@ test on loopback fixtures with a throwaway profile is class O.
    artifacts and product limits stay mandatory wherever the project or a
    specification requires them. Where a specification requires actual
    qualification, use the real built artifact or binary, not a mock.
+7. **Focused checks and required gates.** While changing code, run the
+   narrowest check that exercises the change, without race, sanitizer, coverage
+   or other slow variants. Before marking a row done or starting a task review
+   or re-review, run the row check: build or type-check the whole project where
+   the toolchain has such a step, which catches a broken signature in a unit
+   whose tests do not run, then the project's static checks and the affected
+   whole units. A project whose full build is slow names a narrower step in
+   `tech-stack.md`. Add direct consumers when the row changes a public
+   contract, a persisted format or behavior its consumers rely on, and the UI
+   check when it changes UI. When it changes concurrency, add the race check on
+   units whose concurrent code changed and on consumers of a changed
+   concurrency contract. This limits the row check, never a required gate; a
+   consumer broken in some other way surfaces at the required gates.
+   The row check is the row's focused verification and its evidence, with any
+   red-then-green regression; earlier narrow runs are not evidence. Record it
+   as rule 5 records a gate. It may use the toolchain's test cache unless a test
+   depends on inputs the cache cannot see, such as a pinned external artifact;
+   record a result served from the cache as cached.
+   Run required gates immediately before the whole review, not after each edit
+   or before each task review. Every gate run, rerun included, is fresh and not
+   served from a test-result cache: when a gate command can be served from one,
+   use the toolchain's option to bypass it. Compiler and dependency caches stay.
+   Rerun them before a later iteration or closure
+   only when something a gate reads has changed: code, tests, build or tool
+   inputs, dependencies, a moved base, or the documents and data the gate
+   itself checks.
+   If it is unclear what a gate reads, rerun it.
+   Record the state they passed on as the full `HEAD` commit ID, plus a saved
+   diff and its hash for uncommitted work. When comparing states, ignore status
+   and record bookkeeping unless a gate reads it. Run gates cheapest first.
+   After a failure, finish the other cheap gates, fix with focused checks, then
+   rerun the failed and affected gates and
+   run any gate that was skipped before the review.
+   Where a stage needs end-to-end qualification with real pinned artifacts, it
+   is a required gate of the milestone that completes the stage, which depends
+   on every other milestone in that stage. Rule 6 governs those artifacts, and
+   any class R part keeps its own authority.
+   Grants and class R runs are unchanged, and this adds no counters, budgets or
+   approvals.
+8. **Match the fixture to the variant.** A large capacity or maximum-size
+   fixture may skip an instrumented variant (race, sanitizer, coverage) when
+   all of these hold:
+   - the same fixture still runs in a required gate without the variant;
+   - the skip is written in the test with its reason, uses the toolchain's own
+     skip mechanism, and is reported as skipped, never a silent filter;
+   - anything the variant checks on the path the fixture exercises, such as
+     concurrency, including work that grows with the fixture, has its own
+     smaller test under the variant. A property that appears only at full size,
+     such as memory safety at a size boundary, keeps the variant: no skip;
+   - the skip is not added to get past a failure the variant reported. A
+     timeout is a FAIL with a cause: confirm the time is instrumentation
+     overhead before skipping.
+
+   The gate still runs whole units; only the named fixture is skipped.
+
+## Capacity and unit size
+
+These are recommendations, not gates. Numbers belong to each project, in
+`tech-stack.md`.
+
+- **Concurrency limits.** Run heavy instrumented targets serially on a shared
+  host: isolated stores and ports do not isolate CPU. Plain targets may run in
+  parallel. Record the measured reason for any limit in either direction; an
+  unexplained serial setting is worth challenging.
+- **Test unit size.** When one unit's gate becomes slow or the unit has many
+  importers, plan a split as its own milestone, and do not start it in the
+  middle of a task. The project sets the threshold. Scoped checks only pay off
+  when units are small. Keep test helpers near the domain they serve: a shared
+  helper unit that many tests import invalidates their cached results on every
+  edit.
+- **Parallel tests.** Prefer tests that can run in parallel, each with its own
+  disposable state. Note toolchain limits, such as tests that change the process
+  environment.
 
 ## Use the project's own toolchain
 
@@ -110,8 +186,10 @@ Only when:
 Reviewers report as findings: an external controller or receipt reader around
 class O tests; an UNKNOWN class O outcome; per-run approvals or readiness
 reviews that this policy does not require and no effective authorization
-requires; class O attempt counters other than grant budgets; test runners or
-evidence generators in another language without approval. Approvals,
+requires; class O attempt counters other than grant budgets; a required-gate
+result reused after something the gate reads changed; a required gate served
+from a test-result cache; an instrumented-variant skip that breaks a condition of rule 8; test runners or evidence
+generators in another language without approval. Approvals,
 reservations and conditions required by effective authorization are not
 findings. A milestone cannot close on acceptance evidence that depends on the
 prohibited machinery: that acceptance line is unproven, which is P1.
@@ -119,6 +197,8 @@ prohibited machinery: that acceptance line is unproven, which is P1.
 ## Project specifics
 
 - **Toolchain**: [Languages and the test entry points that run them.]
-- **Required gates**: [Whole-unit commands from tech-stack.md that closure requires.]
+- **Row checks**: [Whole-project build or type-check, static checks and whole-unit test commands from tech-stack.md.]
+- **Required gates**: [Whole-unit commands from tech-stack.md, run fresh, that closure requires.]
+- **Stage qualification**: [End-to-end qualification with real pinned artifacts and the milestone that owns it, or "none".]
 - **Class R checks**: [Named real-effect checks and owning milestones, or "none".]
 - **Approved other-language tools**: [Tool, scope, approval source, reason, or "none".]

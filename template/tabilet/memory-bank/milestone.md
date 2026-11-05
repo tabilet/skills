@@ -325,6 +325,11 @@ Last used ID: none
 - Disposition: `open`, `fixed in <commit or task row>`, `obsolete: <evidence>`,
   or `deferred by human: <approval source>`; never the last without that
   approval.
+- A `capacity limit` row is Lower. It keeps fix owner `unassigned` unless later work
+  builds on it, and then the fix-now and fix-owner rules for non-blocking findings
+  apply as usual. It never turns blocking when examined and needs no corrective
+  row. A human may defer it or plan a row that fixes it at any review, and must
+  at horizon closure.
 - In concurrent leases, children return register updates; only the goal owner
   writes them.
 - Horizon closure (the last active milestone of the current stage, or of the
@@ -359,6 +364,33 @@ approved direction. Record it here so the same idea is not proposed again.
 |---|---|
 | [Work the project will not do.] | [Why it is outside this project's boundary.] |
 
+## Guarantee levels
+
+Optional. A project may define levels for its persisted records, so that a hint
+or a rebuildable view does not receive the full durability set.
+
+Project levels: none
+
+While that line says `none`, every record keeps its ordinary treatment and none
+of this applies. A project that adopts levels replaces `none` with its own level
+names through an explicitly approved planning proposal; the levels and their
+guarantees belong to it. An example, not in force:
+
+| Level | Records | Required guarantees |
+|---|---|---|
+| Full | Records that grant authority or hold data the project must keep | Everything the project requires, such as privacy, crash recovery, quota, backup and legacy refusal |
+| Advisory | Records that grant nothing and can be rebuilt or lost | Privacy and a size bound only |
+
+- A milestone that adds a persisted record names the record's level in its
+  specification, with the human approval source. An agent may propose a level
+  but never assign one, and agent-authored text cannot prove the approval.
+- Losing or failing to read an advisory record must be acceptable, and restore
+  may bring it back empty.
+- A record that influences an authority decision names what protects that
+  decision: a separate record of the decision at the full level, or the full
+  level for itself.
+- Levels apply going forward. Finished work is not reworked for them.
+
 ## Review finding severity
 
 P1 and P2 are engineering review priorities. They describe the impact and
@@ -380,6 +412,28 @@ means P1 and any project severity above it. An unmet or unproven acceptance line
 is P1. A security, privacy or data-loss finding is P1 unless evidence clearly
 shows otherwise. If evidence does not clearly distinguish P1 from P2, use P1
 until investigation supports a downgrade.
+
+**Safe capacity refusals.** A case at extreme size or capacity is Lower, not P1 or
+P2, when all of these hold: no acceptance line, public contract or previously
+supported behavior promises that size; a test shows the refusal is deterministic
+and clear, with nothing leaked, corrupted, lost or rewritten; the stored data
+stays reachable through a supported path and no required flow dead-ends; and the
+limit is documented. Otherwise classify it normally. Carry it in the register
+labelled `capacity limit` in the Finding column, citing the test
+and the documentation that show each condition; without that evidence it keeps
+its ordinary severity. A project whose own severity definitions differ keeps
+them. If a promise covers that size, narrowing it needs explicit
+human approval, and the finding stays P1 until then.
+
+**Advisory records.** With project [guarantee levels](#guarantee-levels), a finding
+confined to a record at a human-approved advisory level, including its loss or an
+unreadable copy, is Lower. Whatever its disposition, the review note cites the
+specification's human approval source and the evidence that losing the record
+breaks no supported flow; without both it keeps its ordinary severity. It also
+keeps its ordinary severity if it is a privacy, credential or authority failure,
+breaks the record's size bound, makes a supported flow fail when the record is
+lost or unreadable, or leaves an acceptance line unmet. A project
+whose own severity definitions differ keeps them.
 
 When the project's own severity definitions make P2 blocking, or it has no open
 review findings register, that stricter gate applies (P2 blocks and every
@@ -573,8 +627,13 @@ notes identify the consumed attempt or supersession and its accepted successor:
    acceptance against the delivered outcome. Then consolidate and retire under
    the procedure below. During an ordered goal, the goal protocol finishes its
    downstream reconciliation before performing this retirement step.
-8. Run required verification again, including the retirement links and record,
-   then commit substantive closure changes under the governing commit policy.
+8. Check the retirement links and record, and run required verification again.
+   Under a test policy, a class O gate may reuse its result when nothing it
+   reads has changed since it passed; if that is unclear, rerun it. Class R checks
+   follow their own authority. State a reuse in the retired record's
+   `**Verification.**` when writing it; report a rerun made after freezing in the
+   step 9 summary, never in the frozen record. Then commit substantive closure
+   changes under the governing commit policy.
    Do not create an extra milestone commit when the review changes nothing.
 9. Report a short review summary: what was verified, the review-fix iteration
    count, what memory-bank files changed, any review commit, and whether an
@@ -711,6 +770,14 @@ evidence commit and does not claim a re-review of the original change. Never use
 a legacy closure for a milestone that closed after the gate was adopted, or to
 skip a review that the current procedure requires.
 
+A status file that holds several milestones under one ID, such as `M1` to `M5`
+in `status-M01.md`, is not retired as one record. The envelope takes exactly one
+specification section named by the record's ID, so stop and report the combined
+file; the owner splits it under separate IDs or decides otherwise. A combined
+record that already exists is frozen. The shared reader accepts it only through
+an `identify-specification` correction in `tabilet/docs/history/corrections.json`,
+and the record's own ID may appear without padding there (`M1` for `M01`).
+
 Retired milestone records are frozen. Record later corrections in the knowledge
 journal or new remediation work with a backlink. Preserve previous history
 index entries. No ID may exist in both active and retired storage or be reused.
@@ -760,6 +827,8 @@ instruction. Never initialize Git merely to make retirement possible.
 - [Scoped item.]
 
 **Acceptance.** [Clear completion condition.]
+
+**Guarantee levels.** (Optional; only when this milestone adds a persisted record and the project defines levels) [Record, level and human approval source.]
 
 **Boundaries and parallel safety.** (Optional; defaults to not parallel-safe)
 - Depends on: none

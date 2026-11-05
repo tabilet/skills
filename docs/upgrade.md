@@ -199,6 +199,20 @@ Each rewrite is method-only, limited to pending rows and specifications, and
 written only after your individual approval; frozen records stay literal. An in-flight gate keeps its counter and narrows its
 next iteration only when the prior reviewed state is recorded.
 
+A project that already has the policy is offered every stock rule it lacks or that
+differs, in the same approved proposal. In `test-policy.md`, rules 7 and 8 are
+among them, with rules 3 and 5 and the reviewer list: narrow checks while
+editing, a whole-project build and the affected whole units before a row is done,
+required gates once and fresh before the whole review, and a named capacity
+fixture may skip an instrumented variant only under rule 8's conditions. In `milestone.md`, the closure step reuses unchanged class O gate
+results and the safe capacity refusal rule and its register note are added. The
+status-file preamble gets the matching recording text.
+`Project specifics` and any edits the project made stay; a missing `Row checks`
+or `Stage qualification` line is offered without changing the others, in
+`Project specifics` and in `tech-stack.md`. The optional
+guarantee levels and advisory records rule is a separate decision, offered only
+alongside other changes, and declining it changes nothing.
+
 ## If DSH reports compatibility warnings
 
 You can prepare an Upgrade request even when the dashboard cannot read all the

@@ -29,6 +29,18 @@ or order changes. An initialized project can adopt stages without restarting
 Init; Propose places its existing approved horizon in the current stage by
 default.
 
+Before a new stage gets milestones, the proposal includes a scope pass. It lists
+each guarantee the stage would carry, with a keep, simplify or defer
+recommendation sized to the project's real risk. You decide, and "no change" is a
+valid one-line outcome. Planning also leaves out fixtures and measurement for
+paths the stage cannot reach, and a final qualification milestone maps to
+existing tests instead of repeating them.
+
+A project may define guarantee levels for its persisted records, so that a
+rebuildable hint does not get the full durability set. Propose then shows each new
+record's level in the approval request, and you approve it. An agent never assigns
+one.
+
 ## Corrective-planning preset
 
 For future execution, `--environment dangerous` proposes

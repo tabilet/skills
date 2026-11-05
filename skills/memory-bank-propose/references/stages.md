@@ -55,6 +55,20 @@ its description. A preliminary stage need not have a candidate's deferral
 reason or promotion trigger. A new stage does not automatically promote a
 candidate.
 
+Before a new stage gets milestones, its planning proposal includes a scope pass:
+each guarantee the stage would carry, with a keep, simplify or defer
+recommendation sized to the project's real risk, such as single-user or
+multi-user, local or hosted. A one-line `no change` outcome is allowed. The user
+decides, and a recommendation never narrows an existing acceptance line or
+promise without explicit approval.
+
+A stage carries no checks of its own. When its outcome needs end-to-end
+qualification with real pinned artifacts, name that in the acceptance of the
+milestone that completes the stage, as a required gate under the test policy.
+That milestone depends on every other milestone in the stage, so plan it with the
+stage's final horizon, which an earlier partial horizon need not include. Move the
+obligation if a later milestone joins the stage or that milestone is cancelled.
+
 Revisit stages through an approved planning proposal. Distinguish enriching a
 stage's context from explicitly requesting executable milestones. When adopting
 stages in an initialized project, preserve completed history, current row states,

@@ -57,7 +57,8 @@ Resolve resources relative to this skill's directory. The complete
 copy over the project. Read its [agent rules](assets/template/AGENTS.md),
 [milestone rules](assets/template/tabilet/memory-bank/milestone.md),
 [status rules](assets/template/tabilet/memory-bank/status-M01.md), and
-[lessons convention](assets/template/tabilet/memory-bank/lessons.md) before proposing.
+[lessons convention](assets/template/tabilet/memory-bank/lessons.md) and
+[test policy](assets/template/tabilet/memory-bank/test-policy.md) before proposing.
 Consult other bundled files only when their contract is relevant. Never apply
 example tasks, example IDs, or bracketed placeholders as project content.
 
@@ -208,9 +209,29 @@ project adopts them, its stricter text stays binding. The proposal:
 - Creates `tabilet/memory-bank/test-policy.md` from the bundled asset. If an
   equivalent project rule file exists, propose reducing it to `Project
   specifics`, or declaring its path in `AGENTS.md`.
+- For a project that already has the policy, compares `test-policy.md` with the
+  bundled one rule by rule and proposes merging every stock rule that is missing
+  or differs, including rule 3, rule 5, rule 7 on focused checks and required
+  gates, rule 8 on fixture skips, the capacity and unit size section, and the reviewer
+  list. Separately compares `milestone.md` with the
+  bundled one by content, not step number, for the closure step that reuses
+  class O gate results and the safe capacity refusal paragraph with its
+  `capacity limit` register note, and compares the status-file preamble for its
+  gate and focused-verification recording text. A project that lacks or differs
+  from any of these is not already compatible, so a repeat run is not a no-op
+  for it. `Project specifics`, project-made edits and the project's own
+  severity definitions stay; a missing `Row checks` or `Stage qualification` line
+  is offered without changing the others, in `Project specifics` and in
+  `tech-stack.md`'s verification standards.
+- Guarantee levels never count toward compatibility. Mention the `Guarantee levels`
+  section, its specification line and the `Advisory records` paragraph only in a
+  proposal that already has other changes, including first adoption, as their own
+  decision. A project with nothing else to change stays a no-op.
 - Merges into `milestone.md` the severity table, review procedure, attempt
-  gate, `Open review findings` register and execution-path note. Adds the
-  `tech-stack.md`, status-file preamble and `AGENTS.md` pointers, and adds
+  gate, `Open review findings` register and execution-path note, and the safe
+  capacity refusal paragraph with its `capacity limit` register note. Adds the
+  `tech-stack.md` pointers and its `Row checks` and `Stage qualification` lines, the
+  status-file preamble and `AGENTS.md` pointers, and adds
   `TEST_POLICY` to an existing launch reference.
 - Includes a compatibility assessment: if the project runs milestones through
   the optional `tabilet` controller, state that those milestones keep P2

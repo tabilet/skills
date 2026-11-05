@@ -98,7 +98,7 @@ Do not create a parallel `context.md` or duplicate the domain model elsewhere.
 
 Create `tabilet/memory-bank/test-policy.md` from the template. Keep the stock
 rules and fill only its `Project specifics` section from discovery: the
-toolchain and test entry points, the required whole-unit gates, any named class
+toolchain and test entry points, the row checks, the required whole-unit gates, any stage qualification, any named class
 R checks with their owning milestones (or "none"), and approved other-language
 tools (or "none"). Never invent a class R check. Declare its path in the
 `AGENTS.md` Hard Rules bullet so standalone Next and the API runner find it, and
@@ -121,10 +121,10 @@ For a light profile, include these rules in the proposed verification
 standards and assign the required evidence to the relevant milestone owners.
 `standard` adds none of them and keeps the project's existing commands:
 
-- **Execution cadence.** Run focused verification during task loops; run the
-  full suite once per unchanged closure candidate and race/UI checks when the
-  change touches concurrency or UI and at required closure; rerun the affected
-  checks after every review fix.
+- **Execution cadence.** Run the row check before a row is done or a task review;
+  run the full suite fresh once per unchanged closure candidate and race/UI checks
+  when the change touches concurrency or UI and at required closure; rerun the
+  affected checks after every review fix.
 - **Replacement coverage.** When retiring an implementation, preserve meaningful
   success and failure coverage for retained behavior through its successor.
   Distinguish executed behavior, mocks, compile-only checks and deferred
@@ -174,9 +174,11 @@ adopted gate and is fixed now or carried in `Open review findings`; Lower is
 fixed, carried or declined with rationale); let project-specific definitions in
 `AGENTS.md` or a linked review policy override those defaults. Classification
 must follow impact, likelihood, and affected scope rather than fix size. Include
-the template's `Open review findings` register with `Last used ID: none`, and
-its execution-path note that the optional `tabilet` controller keeps P2
-blocking.
+the template's `Safe capacity refusals` and `Advisory records` paragraphs, which a
+project's own severity definitions may override, and its `Guarantee levels`
+section with `Project levels: none` unless the user chose levels. Include the template's `Open review findings` register
+with `Last used ID: none` and its `capacity limit` note, and its execution-path
+note that the optional `tabilet` controller keeps P2 blocking.
 
 Include a separate `New review intake` procedure for reviews received after the
 harness exists. It must require current-state revalidation, preserve both source
@@ -224,6 +226,30 @@ Use the resolved value in every launch template, never a literal default over an
 explicit value. Apply the minimum of declared project/milestone caps; legacy fixed
 prose remains binding until explicit human adoption resolves the conflict.
 <!-- END SHARED review-limit-planning -->
+
+<!-- BEGIN SHARED scope-control-planning -->
+Keep each planned milestone to what its stage can reach and what its acceptance
+needs:
+
+- Do not plan fixtures, shadow systems or measurement for a path the stage cannot
+  reach. Defer them until it can.
+- An integration or final qualification milestone maps its list to existing tests
+  and adds new ones only for real gaps. It does not repeat coverage that owning
+  milestones already provide.
+- Prefer one check that refuses every unsupported case over logic that keeps rare
+  cases working, unless acceptance requires them. A rare path the owner needs may
+  stay, in one interface.
+- When a milestone adds a persisted record and `milestone.md` lists project
+  guarantee levels, propose the record's level in the milestone specification and
+  show it in the approval request. The user approves it; an agent never assigns
+  one. Without that approval, including under standing corrective approval, the
+  record keeps its ordinary treatment and no level. A project whose `Project
+  levels` line says `none` gets no question about them.
+- Defining or changing the project's levels is a human decision shown in its own
+  approved proposal, never under standing corrective approval. Propose is the route
+  in an initialized project; a project without the section adopts it through
+  Upgrade first.
+<!-- END SHARED scope-control-planning -->
 
 ## Handle the stock goal protocol
 

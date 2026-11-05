@@ -397,6 +397,19 @@ method it forbids, such as a controller or receipt reader around class O tests,
 the policy wins on method and the acceptance outcome stays. Using the project's
 language does not make a supervising controller acceptable.
 
+The policy also sets how often checks run. While changing code, agents run the
+narrowest check that exercises the change. Before a row is done or its task
+review starts, they build the whole project where the toolchain can, then run
+static checks and the affected whole units, and that result is the row's
+evidence. Direct consumers join when the row changes a public contract, a
+persisted format or behavior they rely on. This check may use the toolchain's
+test cache and says so. Required gates run fresh immediately before the whole
+review, and again only when something a gate reads has changed. A documentation
+change skips the rerun only if no gate reads that document. A capacity fixture
+may skip an instrumented variant only under the policy's rule 8. End-to-end
+qualification that a stage requires is a required gate of the milestone that
+completes the stage.
+
 The goal request may carry `TEST_POLICY: <path or none>`. `GOAL.md` resolves it
 in a fixed order: an explicit value in the human-approved request, otherwise
 the path `AGENTS.md` declares, otherwise `tabilet/memory-bank/test-policy.md`
@@ -447,6 +460,17 @@ non-blocking findings. A project that has not adopted the register keeps its
 stricter gate in which P2 also blocks. Milestones run by the optional `tabilet`
 controller keep P2 blocking, because the controller runs its own full review and
 does not read the register.
+
+A case at extreme size or capacity can be Lower instead of P1 or P2 when it is safely refused
+and documented and nothing promises that size; the conditions are in the
+[`Safe capacity refusals`](https://github.com/tabilet/skills/blob/main/template/tabilet/memory-bank/milestone.md)
+paragraph of `milestone.md`. Narrowing an acceptance line that promises such a size needs
+your explicit approval. A human ends the limit by deferring it or planning a fix.
+
+If the project defines guarantee levels, a finding confined to a record at an
+advisory level you approved is also Lower, unless it is a privacy, credential or
+authority failure, breaks the record's size bound, makes a supported flow fail or
+leaves acceptance unmet.
 
 A browser requirement declared for a `fixture` environment (disposable
 synthetic pages with no real origin, credential, saved session or user data) may
