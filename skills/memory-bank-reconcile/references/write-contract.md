@@ -210,6 +210,7 @@ DOWNSTREAM_IMPACTS:
 M01 -> M02
 
 TEST_POLICY: <resolved path or none>
+INSTRUMENTATION_SCOPE: <resolved options or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm

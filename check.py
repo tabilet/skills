@@ -3312,7 +3312,8 @@ V213_CONTRACTS = {
         "## Instrumentation scope defaults", "Only the Go row has been measured",
         "| C/C++ TSan | No exclusion |", "| C/C++ MSan | No exclusion |",
         "| Rust sanitizers | No exclusion |", "**A project's own option.**",
-        "says so as a warning"),
+        "says so as a warning", "**Filling the field.**", "the field is `none`",
+        "say when it is unmeasured in this\nproject"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
@@ -3659,6 +3660,7 @@ def test_policy_and_convergent_review_gate():
             "Keep test helpers near the domain they serve",
             "**Instrumentation scope.**", "Its own code stays fully instrumented",
             "gates without the exclusion", "Never change an exclusion to get past a failure",
+            "the `INSTRUMENTATION_SCOPE` launch field", "pre-filled with the stock defaults",
             "record a result served from the\n   cache as cached", "fresh and not served",
             "**Match the fixture to the variant.**", "has its\n     own smaller test under the variant",
             "The gate still runs whole units; only the named fixture is skipped.",
@@ -3724,11 +3726,11 @@ def test_policy_and_convergent_review_gate():
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review",
                          "advisory level you approved is also Lower", "the milestone that completes the stage",
-                         "exclude third-party code from instrumentation"),
+                         "exclude third-party code from instrumentation", "`INSTRUMENTATION_SCOPE`"),
         "docs/propose.md": ("the proposal includes a scope pass", "An agent never assigns one"),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}", "是完成该阶段的里程碑的必需关卡",
                             "这项检查可以使用工具链的测试缓存", "同样按 Lower 处理",
-                            "将第三方代码排除在插桩之外"),
+                            "将第三方代码排除在插桩之外", "`INSTRUMENTATION_SCOPE`"),
         "docs/zh/propose.md": ("范围审视", "agent 绝不自行指定"),
         "docs/zh/upgrade.md": ("`test-policy.md` 中的第 7、8 条就在其中", "`Stage qualification`",
                                "只随其他改动一起提出", "`Project specifics` 或 `tech-stack.md` 缺少"),
@@ -3754,10 +3756,19 @@ def test_policy_and_convergent_review_gate():
                      "skills/memory-bank-reconcile/references/write-contract.md"):
         if not re.search(r"(?m)^TEST_POLICY: \S", (ROOT / relative).read_text()):
             problems.append(f"{relative}: launch template lacks a TEST_POLICY line")
+        if not re.search(r"(?m)^INSTRUMENTATION_SCOPE: \S", (ROOT / relative).read_text()):
+            problems.append(f"{relative}: launch template lacks an INSTRUMENTATION_SCOPE line")
     for relative in ("skills/memory-bank-propose/references/plan-update.md",
                      "skills/memory-bank-reconcile/references/plan-update.md"):
         if "Preserve an explicit `TEST_POLICY`" not in (ROOT / relative).read_text():
             problems.append(f"{relative}: launch refresh does not preserve TEST_POLICY")
+        if "Preserve an explicit `INSTRUMENTATION_SCOPE`" not in (ROOT / relative).read_text():
+            problems.append(f"{relative}: launch refresh does not preserve INSTRUMENTATION_SCOPE")
+    goal_text = (ROOT / "GOAL.md").read_text()
+    for token in ("`INSTRUMENTATION_SCOPE` is optional: `none` (default when omitted)", "Planning pre-fills", "carries a warning in the proposal",
+                  "still runs those gates without it", "it never changes to\n  get past a failure"):
+        if token not in goal_text:
+            problems.append(f"GOAL.md: missing instrumentation-scope contract {token!r}")
 
     # Stock policy stays project- and language-neutral.
     policy = (ROOT / TEST_POLICY_FILE).read_text() if (ROOT / TEST_POLICY_FILE).is_file() else ""

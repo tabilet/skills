@@ -412,6 +412,13 @@ advice, and the milestone that completes the stage then runs those gates without
 the exclusion. End-to-end qualification that a stage requires is a required gate of the milestone that
 completes the stage.
 
+The goal request may also carry `INSTRUMENTATION_SCOPE`. It holds any options that
+narrow an instrumented gate to the project's own code, one `<tool> = <option>` line
+per tool. Planning pre-fills the stock defaults for the project's tools, each with
+its warning, so you can edit or clear them in `suggested.txt` before launch.
+Approving the launch adopts them, and `none` turns them off. The milestone that
+completes the stage runs those gates without them.
+
 The goal request may carry `TEST_POLICY: <path or none>`. `GOAL.md` resolves it
 in a fixed order: an explicit value in the human-approved request, otherwise
 the path `AGENTS.md` declares, otherwise `tabilet/memory-bank/test-policy.md`

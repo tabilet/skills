@@ -133,11 +133,15 @@ These are recommendations, not gates. Numbers belong to each project, in
   parallel. Record the measured reason for any limit in either direction; an
   unexplained serial setting is worth challenging.
 - **Instrumentation scope.** When a profile shows that an instrumented run spends
-  most of its time in third-party code, a project may exclude that code from
-  instrumentation. Its own code stays fully instrumented and every test still
-  runs. Record the measured saving and what the exclusion can no longer detect in
-  `tech-stack.md`. The milestone that completes a stage runs its instrumented
-  gates without the exclusion. Never change an exclusion to get past a failure.
+  most of its time in third-party code, or a stock default applies, a project may
+  exclude that code from instrumentation. Its own code stays fully instrumented
+  and every test still runs. Record the saving, measured on first use, and what
+  the exclusion can no longer detect in `tech-stack.md`. The milestone that
+  completes a stage runs its instrumented gates without the exclusion. Never
+  change an exclusion to get past a failure.
+  In a goal run the options go in the `INSTRUMENTATION_SCOPE` launch field,
+  pre-filled with the stock defaults, so the owner can edit or clear them before
+  launch.
 - **Test unit size.** When one unit's gate becomes slow or the unit has many
   importers, plan a split as its own milestone, and do not start it in the
   middle of a task. The project sets the threshold. Scoped checks only pay off
