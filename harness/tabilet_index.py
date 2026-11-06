@@ -25,7 +25,7 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 4
-INDEX_PROJECTION = 'v10'
+INDEX_PROJECTION = 'v11'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -263,6 +263,7 @@ def parse_document(path,kind,text,digest,corrections=None):
     specification_offset=0
     source_path=path
     legacy_completion_lines = set()
+    literal_task_lines = {}
     if kind in ('active_status','history_status'):
         identity=STATUS.fullmatch(pathlib.Path(path).name)[1]
         meta={}
@@ -275,6 +276,9 @@ def parse_document(path,kind,text,digest,corrections=None):
             offset = offsets['## Status record']
             specification_offset = offsets['## Milestone specification']
             legacy_completion_lines = set(record['legacy_completion_lines'])
+            literal_lines = record['status'].splitlines()
+            literal_task_lines = {n: literal_lines[n - 1] for n in
+                                  legacy_completion_lines | set(record['marker_spelling_lines'])}
         if kind == 'active_status' and not pathlib.Path(path).name.startswith('status-'):
             specification = status
         problems=p.status_marker_problems(status)
@@ -321,12 +325,8 @@ def parse_document(path,kind,text,digest,corrections=None):
                     explicit = embedded[0]
             parsed['index_tasks'].append(dict(sha256=digest,line=row['line']+offset,milestone_id=identity,
                 label=row['item'],state=row['state'],notes=' | '.join(row['cells'][2:]),explicit_id=explicit))
-            literal_cells = row['cells']
-            if row['line'] in legacy_completion_lines:
-                literal_cells = [*row['cells']]
-                literal_cells[1] = '`[x]`'
             parsed['index_search'].append(dict(line=row['line']+offset,kind='task',milestone_id=identity,
-                state=row['state'],text=' | '.join(literal_cells)))
+                state=row['state'],text=literal_task_lines.get(row['line'], ' | '.join(row['cells']))))
             # Explicit task IDs are scoped by their milestone. Keep that scope
             # in the disposable dependency key so two milestones may both use
             # conventional IDs such as T01 without colliding in SQLite.
@@ -468,11 +468,10 @@ def validate_projection(documents, parsed, corrections=None):
     if family_problems:raise AuditError('; '.join(family_problems))
     history=documents.get('tabilet/docs/history/index.md',{}).get('text','')
     history_rows={}
-    for row in p.table_rows(history):
+    for row in p.historical_index_rows(history):
         identity=row['cells'][0]
-        if re.fullmatch(p.MILESTONE_ID,identity):
-            if identity in history_rows:raise AuditError(f'duplicate history index ID: {identity}')
-            history_rows[identity]=p.historical_index_cells(row['cells'])
+        if identity in history_rows:raise AuditError(f'duplicate history index ID: {identity}')
+        history_rows[identity]=p.historical_index_cells(row['cells'])
     for identity,milestone in milestones.items():
         if milestone['lifecycle']=='active':
             if identity not in specs:raise AuditError(f'active status missing specification: {identity}')

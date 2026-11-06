@@ -1,3 +1,36 @@
+# memory-bank v2.22.2
+
+Adds explicit historical spelling corrections and fixes retirement-index table
+selection. Frozen source records remain unchanged, and the stock `GOAL.md`
+protocol is unchanged.
+
+- **Completed-marker spelling.** A hash-bound `quote-completed-marker`
+  correction may interpret one literal `[+]` State cell as `` `[+]` ``. It must
+  identify the exact status line and item and cite the complete physical source
+  row. Other task states, review rows and mismatched evidence are rejected.
+  Active task validation and strict new-retirement validation are unchanged.
+- **Worktree spelling.** A hash-bound `normalize-worktree-spelling` correction
+  may interpret `includes uncommitted closure changes` as
+  `includes uncommitted changes`, with an exact envelope-field citation. It
+  preserves dirty provenance and cannot claim a clean worktree.
+- **Historical sections.** The historical reader accepts `Milestone status`
+  as a status-section alias while retaining identity and duplicate-section
+  checks. The strict new-retirement envelope is unchanged.
+- **Retirement tables.** The standalone reader and SQLite projection now share
+  table selection. Explicit retirement tables use
+  `Milestone | Outcome | Retired | Record | Summary`; checkpoint and other
+  reference tables remain searchable without becoming retirement entries.
+  Headerless legacy rows, source locations and summary pipes remain supported.
+- **Literal evidence and cache refresh.** Search retains original task-row text
+  for corrected completion spellings and legacy `[x]` markers. Projection `v11`
+  rebuilds cached interpretations without changing the database schema.
+
+**Scope.** The shared runner, SQLite index, historical compatibility guide and
+regression tests change. Installing this release does not create correction
+manifests, rewrite project records, supply review acceptance or enable auditing.
+Update separately installed runner/audit executables to receive these fixes;
+updating the plugin alone does not replace them.
+
 # memory-bank v2.22.1
 
 Fixes task-state parsing for status tables whose State column follows a separate

@@ -47,6 +47,168 @@ class HistoryCorrectionsTests(unittest.TestCase):
         correction = entry(text, [dict(kind='expand-evidence-commit', recorded='abcdef0', resolved='abcdef0' + '1' * 33)])
         return text, correction
 
+    def marker_operation(self, text, item='Task'):
+        status = core.fenced_document(text.rsplit('\n## Status record\n', 1)[1])
+        row = next(row for row in core.status_table_rows(status) if row['cells'][0] == item)
+        quote = status.splitlines()[row['line'] - 1]
+        number = next(n for n, line in enumerate(text.splitlines(), 1) if line == quote)
+        return dict(kind='quote-completed-marker', line=row['line'], item=item,
+                    evidence=[dict(start_line=number, end_line=number, quote=quote)])
+
+    def test_explicit_marker_spelling_preserves_literal_and_index_source(self):
+        status = ('| ID | Task | State | Notes |\n|---|---|---|---|\n'
+                  '| Task | State | [+] | literal [+] and escaped \\| note |\n')
+        text = h.retirement_text(status)
+        operation = self.marker_operation(text)
+        correction = entry(text, [operation])
+        record = core.historical_record(text, 'status-M01.md', correction)
+        self.assertEqual(record['status'], status)
+        self.assertEqual(record['task_status'], status.replace('| [+] |', '| `[+]` |', 1))
+        self.assertEqual(record['blockers'], [])
+        self.assertEqual(record['marker_spelling_lines'], [3])
+        corrections = {correction['record_path']: correction}
+        parsed = index.parse_document(correction['record_path'], 'history_status', text, digest(text), corrections)
+        self.assertEqual(parsed['index_tasks'][0]['state'], 'completed')
+        self.assertIn('| State | [+] |', next(row['text'] for row in parsed['index_search'] if row['kind'] == 'task'))
+        self.assertEqual(text.splitlines()[parsed['index_tasks'][0]['line'] - 1], status.splitlines()[2])
+        with self.assertRaises(ValueError):
+            core.historical_record(text, 'status-M01.md')
+        with self.assertRaises(ValueError):
+            core.retired_record(text, 'status-M01.md')
+
+    def test_marker_spelling_is_bound_to_hash_line_item_and_literal_citation(self):
+        text = self.text.replace('`[+]`', '[+]')
+        operation = self.marker_operation(text)
+        for mutate in (
+            lambda c: c.update(record_sha256='0' * 64),
+            lambda c: c['corrections'][0].update(line=99),
+            lambda c: c['corrections'][0].update(item='Other'),
+            lambda c: c['corrections'][0]['evidence'][0].update(quote='[+]'),
+            lambda c: c['corrections'][0]['evidence'][0].update(start_line=1, end_line=1),
+        ):
+            with self.subTest(mutate=mutate):
+                correction = entry(text, [copy.deepcopy(operation)])
+                mutate(correction)
+                with self.assertRaises(ValueError):
+                    core.historical_record(text, 'status-M01.md', correction)
+
+    def test_marker_spelling_cannot_change_states_or_quote_non_task_cells(self):
+        for marker in ('[ ]', '[!]', '[~]', '[X]', '[x]', '[-]', '`[+]`'):
+            with self.subTest(marker=marker):
+                text = self.text.replace('`[+]`', marker)
+                with self.assertRaises(ValueError):
+                    core.historical_record(text, 'status-M01.md', entry(text, [self.marker_operation(text)]))
+        text = self.text.replace('| Task | `[+]` | verified |',
+                                 '| Iteration | State | Notes |\n|---|---|---|\n| Task | [+] | review |')
+        quote = '| Task | [+] | review |'
+        number = next(n for n, line in enumerate(text.splitlines(), 1) if line == quote)
+        operation = dict(kind='quote-completed-marker', line=3, item='Task',
+                         evidence=[dict(start_line=number, end_line=number, quote=quote)])
+        with self.assertRaises(ValueError):
+            core.historical_record(text, 'status-M01.md', entry(text, [operation]))
+
+    def test_marker_spelling_keeps_identity_review_and_legacy_gates(self):
+        text = self.text.replace('| Task | `[+]` |', '| M02.1 | [+] |')
+        with self.assertRaisesRegex(ValueError, 'identity'):
+            core.historical_record(text, 'status-M01.md', entry(text, [self.marker_operation(text, 'M02.1')]))
+        text = self.text.replace('`[+]`', '[+]').replace('**Review.** passed', '**Review.** failed')
+        with self.assertRaises(ValueError):
+            core.historical_record(text, 'status-M01.md', entry(text, [self.marker_operation(text)]))
+        text = self.text.replace('| Task | `[+]` | verified |',
+                                 '| Task | [+] | verified |\n| Legacy | `[x]` | retained |')
+        record = core.historical_record(text, 'status-M01.md', entry(text, [self.marker_operation(text)]))
+        self.assertIn('historical `[x]` markers are lookup only', record['blockers'])
+
+    def test_marker_spelling_schema_rejects_duplicate_lines_and_unknown_fields(self):
+        text = self.text.replace('`[+]`', '[+]')
+        operation = self.marker_operation(text)
+        for operations in ([operation, operation], [dict(operation, line=True)],
+                           [dict(operation, value='`[ ]`')]):
+            with self.subTest(operations=operations), self.assertRaises(ValueError):
+                core.history_corrections(manifest([entry(text, operations)]))
+
+    def test_corrected_marker_reaches_shared_history_dependency_and_index_paths(self):
+        text = h.retirement_text('| Done | [+] | verified |\n', 'M99')
+        correction = entry(text, [self.marker_operation(text, 'Done')], 'M99')
+        history = self.root / 'tabilet/docs/history'
+        history.mkdir(parents=True)
+        (history / 'status-M99.md').write_text(text)
+        (history / 'corrections.json').write_text(manifest([correction]))
+        (history / 'index.md').write_text(
+            '| Milestone | Outcome | Retired | Record | Summary |\n|---|---|---|---|---|\n'
+            '| M99 | completed | 2026-09-12 | [M99](status-M99.md) | fixture |\n')
+        bank = self.root / 'tabilet/memory-bank'
+        (bank / 'milestone.md').write_text('# Milestones\n\n[History](../docs/history/index.md)\n\n## M01 - Delivery\n\n**Depends on.** M99\n')
+        snapshot = core.row_snapshot(self.root)
+        self.assertEqual(snapshot['history']['problems'], [])
+        self.assertEqual(snapshot['history']['records']['status-M99.md']['status'], '| Done | [+] | verified |\n')
+        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+            state = index.sync(connection, self.root)
+            self.assertTrue(state['complete'])
+            rows = connection.execute("SELECT state FROM index_tasks WHERE milestone_id='M99'").fetchall()
+            self.assertEqual(rows, [('completed',)])
+            self.assertNotIn('milestone:M99', json.dumps(index.readiness(connection, state['workspace_id'], self.root).get('blockers', [])))
+
+    def test_marker_spelling_preserves_conflicting_review_evidence(self):
+        text = h.retirement_text('# Status M01\n\nReview gate iterations: 3\n\n| Task | [+] | verified |\n')
+        record = core.historical_record(text, 'status-M01.md', entry(text, [self.marker_operation(text)]))
+        self.assertIn('retained review counter conflicts with retirement metadata', record['blockers'])
+
+    def test_historical_milestone_status_alias_preserves_child_identity_and_strict_gate(self):
+        text = h.retirement_text('## M01-01 - Child\n\nParent: M01\n\n| Task | `[+]` | verified |\n',
+                                 'M01-01', **{'Source status': 'tabilet/memory-bank/amend-M01-01.md',
+                                             'Source specification': 'tabilet/memory-bank/amend-M01-01.md'})
+        text = text.replace('\n## Status record\n', '\n## Milestone status\n')
+        record = core.historical_record(text, 'amend-M01-01.md')
+        self.assertIn('Parent: M01', record['status'])
+        unquoted = text.replace('`[+]` | verified', '[+] | verified')
+        status = record['status'].replace('`[+]` | verified', '[+] | verified')
+        row = next(row for row in core.status_table_rows(status) if row['state_cell'] == '[+]')
+        quote = status.splitlines()[row['line'] - 1]
+        number = next(n for n, line in enumerate(unquoted.splitlines(), 1) if line == quote)
+        correction = dict(milestone_id='M01-01', record_path='tabilet/docs/history/amend-M01-01.md',
+                          record_sha256=digest(unquoted), corrections=[dict(
+                              kind='quote-completed-marker', line=row['line'], item='Task',
+                              evidence=[dict(start_line=number, end_line=number, quote=quote)])])
+        self.assertEqual(core.historical_record(unquoted, 'amend-M01-01.md', correction)['blockers'], [])
+        with self.assertRaises(ValueError):
+            core.retired_record(text, 'amend-M01-01.md')
+        with self.assertRaisesRegex(ValueError, 'identity'):
+            core.historical_record(text.replace('## M01-01 - Child', '# M02 - Other'), 'amend-M01-01.md')
+        with self.assertRaises(ValueError):
+            core.historical_record(text + '\n## Status record\n\n```markdown\nextra\n```\n', 'amend-M01-01.md')
+
+    def worktree_operation(self, text):
+        quote = '**Worktree.** includes uncommitted closure changes'
+        number = next(n for n, line in enumerate(text.splitlines(), 1) if line == quote)
+        return dict(kind='normalize-worktree-spelling', recorded='includes uncommitted closure changes',
+                    value='includes uncommitted changes',
+                    evidence=[dict(start_line=number, end_line=number, quote=quote)])
+
+    def test_worktree_spelling_normalizes_only_recorded_dirty_provenance(self):
+        text = self.text.replace('**Evidence.** unversioned', '**Evidence.** ' + 'a' * 40).replace(
+            '**Worktree.** unversioned', '**Worktree.** includes uncommitted closure changes')
+        record = core.historical_record(text, 'status-M01.md', entry(text, [self.worktree_operation(text)]))
+        self.assertEqual(record['literal_metadata']['Worktree'], 'includes uncommitted closure changes')
+        self.assertEqual(record['metadata']['Worktree'], 'includes uncommitted changes')
+        self.assertEqual(record['blockers'], [])
+        with self.assertRaisesRegex(ValueError, 'worktree provenance'):
+            core.historical_record(text, 'status-M01.md')
+        with self.assertRaisesRegex(ValueError, 'worktree provenance'):
+            core.retired_record(text, 'status-M01.md')
+        for changes in ({'value': 'clean'}, {'recorded': 'clean'},
+                        {'evidence': [dict(start_line=1, end_line=1, quote='# Retired milestone M01')]}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                operation = dict(self.worktree_operation(text), **changes)
+                core.historical_record(text, 'status-M01.md', entry(text, [operation]))
+        operation = self.worktree_operation(text)
+        contradictory = text.replace('**Worktree.** includes uncommitted closure changes', '**Worktree.** clean')
+        with self.assertRaises(ValueError):
+            core.historical_record(contradictory, 'status-M01.md', entry(contradictory, [operation]))
+        with self.assertRaises(ValueError):
+            core.history_corrections(manifest([entry(text, [operation,
+                dict(kind='supply-metadata', field='Worktree', value='clean', evidence=operation['evidence'])])]))
+
     def test_literal_m152_review_is_readable_but_missing_closure_blocks_readiness(self):
         name = 'status-M152.md'
         raw = (FIXTURES / (name + '.literal')).read_text()

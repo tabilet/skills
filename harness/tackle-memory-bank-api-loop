@@ -1178,6 +1178,8 @@ def history_corrections(text: str) -> dict:
         'historical-successor': {'item', 'successor', 'evidence'},
         'recover-document': {'document', 'content', 'sha256', 'source'},
         'supply-metadata': {'field', 'value', 'evidence'},
+        'quote-completed-marker': {'line', 'item', 'evidence'},
+        'normalize-worktree-spelling': {'recorded', 'value', 'evidence'},
         'blocker': {'message', 'evidence'},
     }
     for entry in value['records']:
@@ -1206,7 +1208,16 @@ def history_corrections(text: str) -> dict:
                 raise ValueError('unsupported metadata correction')
             if any(field in correction and not isinstance(correction[field], str) for field in ('field', 'document', 'item')):
                 raise ValueError('invalid correction discriminator')
-            key = (kind, correction.get('field', correction.get('document', correction.get('item', ''))))
+            if kind == 'quote-completed-marker' and (
+                    type(correction['line']) is not int or correction['line'] < 1
+                    or not isinstance(correction['item'], str) or not correction['item'].strip()):
+                raise ValueError('invalid completed-marker location')
+            if kind == 'normalize-worktree-spelling' and (
+                    correction['recorded'] != 'includes uncommitted closure changes'
+                    or correction['value'] != 'includes uncommitted changes'):
+                raise ValueError('unsupported worktree spelling normalization')
+            key = (kind, correction.get('line') if kind == 'quote-completed-marker' else
+                   correction.get('field', correction.get('document', correction.get('item', ''))))
             if key in seen:
                 raise ValueError('duplicate or conflicting history correction')
             seen.add(key)
@@ -1261,6 +1272,8 @@ def history_corrections(text: str) -> dict:
         if sum(key in seen for key in [('expand-evidence-commit', ''), ('resolve-evidence-set', ''),
                                       ('supply-metadata', 'Evidence')]) > 1:
             raise ValueError('conflicting evidence corrections')
+        if ('normalize-worktree-spelling', '') in seen and ('supply-metadata', 'Worktree') in seen:
+            raise ValueError('conflicting Worktree corrections')
         found[path] = entry
     return found
 
@@ -1577,7 +1590,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     documents, offsets, sources = {}, {}, {}
     aliases = {'Milestone specification': 'specification', 'Status record': 'status', 'Status': 'status',
                'Status document': 'status', 'Full status document': 'status', 'Final status': 'status',
-               'Source status ledger': 'status'}
+               'Source status ledger': 'status', 'Milestone status': 'status'}
     recovery = {op['document']: op for op in operations if op['kind'] == 'recover-document'}
     for index, (number, title) in enumerate(headings):
         key = aliases.get(title)
@@ -1637,12 +1650,41 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     if set(documents) != {'specification', 'status'}:
         raise ValueError('missing historical specification or status document')
 
+    # A correction may quote an already completed state cell, never change its
+    # meaning. Bind both the retained row and its physical frozen-source quote;
+    # keep literal documents intact and preserve line/column locations.
+    interpreted_lines = documents['status'].splitlines(keepends=True)
+    marker_spelling_lines = []
+    for op in operations:
+        if op['kind'] != 'quote-completed-marker':
+            continue
+        source = sources.get('status')
+        if source and source['path'] != 'tabilet/docs/history/' + name:
+            raise ValueError('completed-marker correction requires record-local status evidence')
+        matches = [row for row in status_table_rows(documents['status']) if row['line'] == op['line']]
+        if (len(matches) != 1 or matches[0]['cells'][0] != op['item']
+                or matches[0]['state_cell'] != '[+]'):
+            raise ValueError('completed-marker correction does not name an unquoted completed task cell')
+        row = matches[0]
+        literal = interpreted_lines[op['line'] - 1]
+        number = offsets['status'] + op['line']
+        if not any(c.get('start_line') == c.get('end_line') == number
+                   and 'content' not in c and c['quote'].strip() == literal.strip()
+                   and lines[number - 1].strip() == literal.strip() for c in op['evidence']):
+            raise ValueError('completed-marker correction requires the complete literal task-row citation')
+        cells = re.split(r'(?<!\\)\|', literal, maxsplit=row['state_index'] + 2)
+        cell = row['state_index'] + 1
+        cells[cell] = cells[cell].replace('[+]', '`[+]`', 1)
+        interpreted_lines[op['line'] - 1] = '|'.join(cells)
+        marker_spelling_lines.append(op['line'])
+    interpreted_status = ''.join(interpreted_lines)
+
     # When a retained status explicitly names its milestone or task IDs, they
     # must agree with the record identity. A hash binds bytes, not their owner.
     # Only well-formed milestone IDs count: "# Q4 results" or a legacy "M1.1"
     # row is not a claim about which milestone this record belongs to.
     status_unfenced = list(unfenced_lines(documents['status']))
-    status_task_rows = status_rows(documents['status'])
+    status_task_rows = status_rows(interpreted_status)
     declaration = re.compile(r'^(?:\*\*(?:Milestone|Status ID)\.\*\*|'
                              r'\*\*(?:Milestone|Status ID):\*\*|(?:Milestone|Status ID):)\s*'
                              r'`?([A-Z][0-9]+(?:-[0-9]+)?)`?(?=\s|$|[.,;—:–-])', re.I)
@@ -1711,7 +1753,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
                 or citation['quote'].strip() != item[0].strip()
                 or citation['quote'].strip() != lines[citation['start_line'] - 1].strip()):
             return False
-        tasks = status_rows(documents['status'])
+        tasks = status_rows(interpreted_status)
         rows = [row for row in tasks if row['line'] == number]
         if len(rows) != 1 or rows[0]['state'] != 'completed' or len(rows[0]['cells']) != 3:
             return False
@@ -2049,7 +2091,15 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     zero_defect_task_pass = False
     corrected_pass = False
     for op in operations:
-        if op['kind'] == 'supply-metadata':
+        if op['kind'] == 'normalize-worktree-spelling':
+            literal = '**Worktree.** ' + op['recorded']
+            if metadata.get('Worktree') != op['recorded'] or not any(
+                    'content' not in c and c['start_line'] == c['end_line'] <= metadata_end
+                    and c['quote'].strip() == literal
+                    and lines[c['start_line'] - 1].strip() == literal for c in op['evidence']):
+                raise ValueError('worktree normalization requires its exact recorded envelope field')
+            metadata['Worktree'] = op['value']
+        elif op['kind'] == 'supply-metadata':
             field, value = op['field'], op['value']
             old = metadata.get(field)
             if old and old != value and not (field == 'Review iterations' and re.match(re.escape(value) + r'\s+\(', old)):
@@ -2749,7 +2799,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     elif any(re.match(r'^#{' + str(first.index(' ')) + r'} ' + ROOT_ID + r'(?:\s|$)', heading)
              for heading in spec_headings[1:]):
         raise ValueError('ambiguous historical milestone specifications')
-    task_status = status
+    task_status = interpreted_status
     legacy = []
     task_lines = task_status.splitlines(keepends=True)
     for row in status_table_rows(status):
@@ -2835,7 +2885,34 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     return {'metadata': metadata, 'literal_metadata': literal_metadata, 'specification': specification,
             'status': status, 'task_status': task_status, 'offsets': offsets, 'sources': sources,
             'legacy_completion_lines': legacy, 'blockers': blockers, 'strict': strict,
+            'marker_spelling_lines': marker_spelling_lines,
             'warnings': list(dict.fromkeys(review_warnings))}
+
+
+def historical_index_rows(text: str) -> list[dict]:
+    """Select retirement rows, preserving headerless history and source locations.
+
+    Explicit headers require an adjacent, matching Markdown delimiter row.
+    Their table context survives blank lines, but ends at prose or code.
+    """
+    rows = {row['line']: row for row in table_rows(text)}
+    retirement_header = ['milestone', 'outcome', 'retired', 'record', 'summary']
+    selected = []
+    retirement_table = True  # Legacy headerless entries remain supported.
+    for number, line in enumerate(text.splitlines(), 1):
+        row = rows.get(number)
+        if row is None:
+            if line.strip():
+                retirement_table = True
+            continue
+        cells = row['cells']
+        following = rows.get(number + 1, {}).get('cells', [])
+        if len(following) == len(cells) and all(re.fullmatch(r':?-+:?', cell) for cell in following):
+            retirement_table = [' '.join(cell.split()).casefold() for cell in cells] == retirement_header
+            continue
+        if retirement_table and re.fullmatch(MILESTONE_ID, cells[0]):
+            selected.append(row)
+    return selected
 
 
 def historical_index_cells(cells: list[str]) -> list[str]:
@@ -2884,10 +2961,8 @@ def history_snapshot(repo: pathlib.Path) -> dict:
     index_path = history / "index.md"
     index = index_path.read_text(encoding="utf-8") if index_path.is_file() else ""
     entries, index_compatibility = {}, []
-    for row in table_rows(index):
+    for row in historical_index_rows(index):
         cells = historical_index_cells(row["cells"])
-        if not re.fullmatch(MILESTONE_ID, cells[0]):
-            continue
         name = next((p.name for p in paths if STATUS_NAME.fullmatch(p.name)
                      and status_identity(p.name) == cells[0]), f"status-{cells[0]}.md")
         if cells != row['cells']:
