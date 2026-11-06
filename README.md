@@ -155,6 +155,12 @@ agy plugin install https://github.com/tabilet/skills
 `agy` registers all seven skills as slash commands and installs them into
 `~/.gemini/config/plugins/memory-bank`. Verify with `agy plugin list`.
 
+Plugin installation stores skills and bundled Python sources in the agent's
+plugin cache. The optional Python tools in `~/.local/bin` are installed
+separately: follow the [toolkit instructions](#optional-sqlite-audit-and-lookup)
+for audit, index, reflection and Explorer, or the [runner-only instructions](#setup-and-run)
+for the API loop.
+
 **Plugin installations are namespaced.** This follows current [Claude Code
 skill namespacing](https://code.claude.com/docs/en/slash-commands), [Codex
 skill invocation](https://developers.openai.com/plugins/build/skills), and
@@ -255,6 +261,29 @@ after updating the skills.
   Follow [update or removal](docs/DSH.md#update-or-remove) to update the companion package or replace the filesystem bundles under `$DSH_HOME/skills` with complete folders from the new release.
 - **Plain-file installs:**
   Re-download or copy the updated `skills/` folders into `~/.agents/skills/` (or `~/.claude/skills/`).
+
+**Separately installed Python tools:** Plugin updates refresh the cached Python
+sources, but do not replace copies in `~/.local/bin`. An updated plugin can
+therefore coexist with an older `tabilet-audit`, index or reflection module.
+Update the source checkout as well. For a clean checkout tracking `origin/main`:
+
+```bash
+cd /path/to/skills
+git pull --ff-only
+```
+
+If the pull fails or the checkout has local changes, preserve them and resolve
+the checkout update before installing. To use a tagged release, select that
+revision in the checkout instead. Then rerun the complete
+[toolkit installation/update block](#optional-sqlite-audit-and-lookup), including
+`tabilet_index.py` and `tabilet_reflect.py`, or the
+[runner-only block](#setup-and-run) if that is all you installed. Keep the runner,
+modules, CLI and Explorer assets on the same revision so the parser and runtime
+interfaces agree. These commands preserve an existing runner symlink only when
+it points to the selected checkout; update that checkout to update the linked
+runner. See the [SQLite guide](docs/sqlite.md#install-and-use-the-optional-toolkit)
+for platform details and [index recovery](docs/sqlite.md#recover-a-failed-retirement-index)
+after a toolkit update.
 
 <a id="uninstall-or-remove-skills"></a>
 <a id="76-uninstall-or-remove-skills"></a>
@@ -766,8 +795,42 @@ email alerts, project addenda, and resume controls are described in the
 Markdown remains authoritative. Optional `tabilet-audit` records workflow
 evidence and maintains a rebuildable lookup index at `tabilet/audit.sqlite3`;
 linked worktrees share the primary checkout's database. The toolkit needs Python
-3.9 or later, including `sqlite3` with SQLite 3.24.0 or later. Recording is
-disabled by default and requires explicit per-project opt-in:
+3.9 or later, including `sqlite3` with SQLite 3.24.0 or later.
+
+Install or update the complete toolkit from one `skills` checkout at the desired
+revision. The runner supplies the shared Markdown parser; `tabilet_audit.py`,
+`tabilet_index.py` and `tabilet_reflect.py` supply audit, lookup and reflection.
+`tabilet-audit` is the CLI entrypoint, and Explorer needs its Python module and
+all three web assets. Copy them together to keep their runtime interfaces and
+parser behavior consistent:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+(
+  set -e
+  cd /path/to/skills
+  install -d "$HOME/.local/bin"
+  if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
+    test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
+  else
+    install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
+  fi
+  install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py "$HOME/.local/bin/"
+  install -m 755 harness/tabilet_explorer.py "$HOME/.local/bin/"
+  install -d "$HOME/.local/share/tabilet/explorer"
+  install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js "$HOME/.local/share/tabilet/explorer/"
+  install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
+)
+```
+
+The symlink check leaves a runner linked to this checkout intact. If it fails,
+inspect the link with `ls -l ~/.local/bin/tackle-memory-bank-api-loop` and select
+its checkout at the desired revision, or explicitly replace the link with a
+standalone copy before retrying. The block stops before copying the other
+runtime files when the link points elsewhere.
+
+Installing or updating the toolkit leaves project Markdown and audit settings
+unchanged. Recording is disabled by default and requires explicit per-project opt-in:
 
 ```bash
 tabilet-audit audit enable /absolute/path/to/project
@@ -823,14 +886,27 @@ does not update an installed runner or audit toolkit. See the
 <a id="82-setup-and-run"></a>
 ### 7.2 Setup and Run
 
-Install the standalone runner from a checkout:
+Install or update just the standalone runner from a checkout. If you also use
+the audit, index, reflection or Explorer tools, use the complete
+[toolkit block](#optional-sqlite-audit-and-lookup) above instead.
 
 ```bash
-mkdir -p ~/.local/bin
-cp /path/to/skills/harness/tackle-memory-bank-api-loop ~/.local/bin/
-chmod +x ~/.local/bin/tackle-memory-bank-api-loop
 export PATH="$HOME/.local/bin:$PATH"
+(
+  set -e
+  cd /path/to/skills
+  install -d "$HOME/.local/bin"
+  if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
+    test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
+  else
+    install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
+  fi
+)
 ```
+
+An existing symlink is preserved when it points to this checkout; updating that
+checkout updates the linked runner. If the check fails, inspect and resolve the
+link as described in the toolkit instructions above before retrying.
 
 An actionable run gives model-generated commands an unsandboxed host shell.
 `ALLOW_UNSANDBOXED_SHELL=1` acknowledges this risk; it does not isolate commands.
