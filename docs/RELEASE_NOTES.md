@@ -1,3 +1,23 @@
+# memory-bank v2.22.1
+
+Fixes task-state parsing for status tables whose State column follows a separate
+task ID and description. The stock `GOAL.md` protocol is unchanged.
+
+- **State column.** The shared runner reads each table's State header, supporting
+  both `Item | State | Notes` and `ID | Task | State | Notes`. Marker validation
+  and the historical `[x]` interpretation use the same column. Retired records
+  with the latter layout no longer appear to contain no task rows.
+- **Parser guards.** Column selection resets between tables, review tables stay
+  excluded, and a task's notes containing "State" do not change its state column.
+  A short row with a missing state is reported as malformed instead of crashing.
+- **Validation.** State markers still require backticks. Unsupported historical
+  sections, ambiguous identities and invalid provenance remain errors. Frozen
+  records and project files are not changed.
+
+**Scope.** The shared runner parser and its regression tests change. The index
+uses that parser; update the separately installed runner or `tabilet-audit` to
+receive the fix. Updating the plugin alone does not replace those executables.
+
 # memory-bank v2.22.0
 
 Adds optional advice for keeping an instrumented run on the project's own code,

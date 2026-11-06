@@ -953,20 +953,34 @@ def table_rows(text: str) -> list[dict]:
 
 
 def status_table_rows(status: str):
-    """Exclude review-iteration tables, whose State is not a task marker."""
+    """Exclude review-iteration tables, whose State is not a task marker.
+
+    Each yielded row carries the column index of its table's own State header,
+    so `Item | State` and `ID | Task | State` layouts are both read correctly.
+    """
     in_review_table = False
     previous_line = 0
+    state_index = 1
+    table_start = True
     for row in table_rows(status):
         if row["line"] != previous_line + 1:
             in_review_table = False
+            state_index = 1
+            table_start = True
         previous_line = row["line"]
         cells = row["cells"]
-        if cells[1].lower() == "state":
+        lowered = [cell.lower() for cell in cells]
+        if (table_start and "state" in lowered[1:]
+                and not re.search(r"\[[^\]]*\]", cells[1])):
+            state_index = lowered.index("state", 1)
+        table_start = False
+        state_cell = cells[state_index] if state_index < len(cells) else ""
+        if state_cell.lower() == "state":
             in_review_table = cells[0].lower() == "iteration"
-        elif [cell.lower() for cell in cells] == ['#', 'finding', 'severity', 'disposition']:
+        elif lowered == ['#', 'finding', 'severity', 'disposition']:
             in_review_table = True
         if not in_review_table:
-            yield row
+            yield dict(row, state_index=state_index, state_cell=state_cell)
 
 
 def status_rows(status: str) -> list[dict]:
@@ -974,7 +988,7 @@ def status_rows(status: str) -> list[dict]:
     rows = []
     for row in status_table_rows(status):
         cells = row["cells"]
-        state = STATE_MARKERS.get(cells[1])
+        state = STATE_MARKERS.get(row["state_cell"])
         if state:
             rows.append(
                 {
@@ -1005,7 +1019,7 @@ def status_marker_problems(status: str) -> list[str]:
         if row["line"] != previous_line + 1:
             in_task_table = False
         previous_line = row["line"]
-        state = cells[1]
+        state = row["state_cell"]
         if state.lower() == "state":
             in_task_table = True
             continue
@@ -2739,9 +2753,10 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     legacy = []
     task_lines = task_status.splitlines(keepends=True)
     for row in status_table_rows(status):
-        if row['cells'][1] == '`[x]`':
-            cells = re.split(r'(?<!\\)\|', task_lines[row['line'] - 1], maxsplit=3)
-            cells[2] = cells[2].replace('`[x]`', '`[+]`', 1)
+        if row['state_cell'] == '`[x]`':
+            state = row['state_index']
+            cells = re.split(r'(?<!\\)\|', task_lines[row['line'] - 1], maxsplit=state + 2)
+            cells[state + 1] = cells[state + 1].replace('`[x]`', '`[+]`', 1)
             task_lines[row['line'] - 1] = '|'.join(cells)
             legacy.append(row['line'])
     task_status = ''.join(task_lines)
