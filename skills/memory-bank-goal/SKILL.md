@@ -202,6 +202,7 @@ DOWNSTREAM_IMPACTS:
 <known source-to-pending-consumer impacts, or none>
 
 TEST_POLICY: <resolved path or none>
+INSTRUMENTATION_SCOPE: <resolved options or none>
 PARALLELISM: <resolved cap, or 1>
 INTEGRATION: <resolved authority, or none>
 COMMIT_POLICY: task
@@ -225,7 +226,8 @@ passes.
 
 Resolve `TEST_POLICY` as the protocol's Test Policy Resolution states, preserve
 an explicit value, and pass the resolved value to every implementation, review
-and reviewer brief. Preserve explicitly supplied `REVIEW_MAX_ITERATIONS`, commit, external-mutation, scope, and launch-update policies.
+and reviewer brief. Pass and preserve `INSTRUMENTATION_SCOPE` the same way.
+Preserve explicitly supplied `REVIEW_MAX_ITERATIONS`, commit, external-mutation, scope, and launch-update policies.
 `SUGGESTED_UPDATE: auto` permits refreshing `suggested.txt` across milestones without
 pausing for authorization; default `confirm` pauses whenever `suggested.txt` is updated.
 Approved `CORRECTIVE_PLANNING: auto` supplies the protocol's narrower corrective

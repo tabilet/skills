@@ -250,7 +250,7 @@ class FamilyTests(unittest.TestCase):
 '''
         (history/path.name).write_text(text)
         idx=history/'index.md'
-        old=idx.read_text() if idx.exists() else '# History\n| ID | Outcome | Retired | Record | Notes |\n|---|---|---|---|---|\n'
+        old=idx.read_text() if idx.exists() else '# History\n| Milestone | Outcome | Retired | Record | Summary |\n|---|---|---|---|---|\n'
         idx.write_text(old+f'| {identity} | completed | 2026-10-25 | [{identity}]({path.name}) | Preserved. |\n')
         path.unlink()
         roadmap=self.bank/'milestone.md'

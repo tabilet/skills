@@ -183,6 +183,7 @@ F01 -> P01, O01
 S01 -> P01, X01
 
 TEST_POLICY: tabilet/memory-bank/test-policy.md
+INSTRUMENTATION_SCOPE: none
 PARALLELISM: 3
 INTEGRATION: local-rebase-ff
 COMMIT_POLICY: task
@@ -303,6 +304,19 @@ Input rules:
   Resolve it as stated in Test Policy Resolution under Verify And Deep-Review.
   A project declaring its test policy in `AGENTS.md` normally omits this field.
   Preserve an explicit value on resume and launch refresh.
+- `INSTRUMENTATION_SCOPE` is optional: `none` (default when omitted), or one
+  `<tool> = <option>` line per tool under the field, each narrowing an instrumented
+  gate as the test policy's instrumentation-scope advice allows. Planning pre-fills
+  the testing profiles' stock defaults for the project's tools in a new launch
+  proposal, and the owner edits or clears them before launch; approving the launch
+  adopts them. A value that departs from a stock default carries a warning in the
+  proposal. Pass the resolved value to every implementation, review and reviewer
+  brief. It grants no authority, and the milestone that completes a stage still
+  runs those gates without it. Changing it during a run needs explicit human
+  approval, and it never changes to get past a failure. Preserve its resolved
+  value, including an implicit `none`, on resume and launch refresh, including
+  an unapproved draft. Pre-fill only when first creating a launch proposal;
+  replacing an existing draft never resets its options.
 - `OPTION_POLICY` is optional: `confirm` (default) or `ignore`. It governs
   post-parent option decisions as defined in Milestone families; it never
   activates work or grants permissions. Preserve its resolved value on resume

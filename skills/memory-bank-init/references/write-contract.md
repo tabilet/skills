@@ -102,7 +102,8 @@ toolchain and test entry points, the row checks, the required whole-unit gates, 
 R checks with their owning milestones (or "none"), and approved other-language
 tools (or "none"). Never invent a class R check. Declare its path in the
 `AGENTS.md` Hard Rules bullet so standalone Next and the API runner find it, and
-emit `TEST_POLICY: <resolved path or none>` in launch references.
+emit `TEST_POLICY: <resolved path or none>` in launch references. Also emit
+`INSTRUMENTATION_SCOPE`, pre-filled as `testing-profiles.md` says, or `none`.
 
 In `tabilet/memory-bank/tech-stack.md`, define the language floor, tools, dependencies,
 commands, runtime assumptions, and execution harnesses.
@@ -389,6 +390,7 @@ DOWNSTREAM_IMPACTS:
 M01 -> M02
 
 TEST_POLICY: <resolved path or none>
+INSTRUMENTATION_SCOPE: <resolved options or none>
 COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm

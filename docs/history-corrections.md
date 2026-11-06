@@ -6,8 +6,23 @@ The original specification, status text, metadata and source locations remain
 separate from interpreted metadata and task cells. New retirement records still
 use the strict envelope; historical compatibility cannot authorize a new format.
 
+Both the standalone reader and SQLite projection select historical index rows
+through the same table parser. An explicit Markdown header followed immediately
+by a matching delimiter row identifies its table. Only the retirement header
+`Milestone | Outcome | Retired | Record | Summary` (ignoring case and surrounding
+or repeated whitespace) admits retirement entries; explicitly headed checkpoint
+and other reference tables remain searchable literal text, not retirement entries.
+Headerless historical rows remain supported. Table context survives blank-only
+gaps and resets at headings, prose, code blocks or a new explicit header. Selected
+rows retain their original cells and physical line numbers, including legacy
+summary pipes; identity, duplicate, outcome, date, link and record checks still
+apply across all retirement tables. Hash-bound standalone citations and strict
+new-retirement parsing keep their existing rules. Disposable projection revision
+`v11` rebuilds cached interpretations without changing the database schema.
+
 Supported older envelopes include status-section aliases (`Status`, `Status
-document`, `Full status document`, `Final status`, `Source status ledger`), bare
+document`, `Full status document`, `Final status`, `Source status ledger`,
+`Milestone status`), bare
 Markdown fences, level-three milestone headings, annotated source anchors and
 the retained `Related approved correction context` section. A milestone heading
 with another explicit ID is never a format variation. Shared or unnamed
@@ -42,17 +57,29 @@ Supported operations have these exact additional fields:
 |---|---|---|
 | `expand-evidence-commit` | `recorded`, `resolved` | Expand one recorded abbreviated commit to its verified full object ID. |
 | `resolve-evidence-set` | `commits`, `evidence` | Retain the full identities behind a recorded provenance list. This is not a claim that the first source was an observed HEAD. |
-| `identify-specification` | `heading`, `evidence` | Identify ownership in the complete retained shared or named specification. The record's own ID may head the specification without padding (`M1` for `M01`), so a combined legacy record that names its parts `M1` to `M5` can be identified. A first heading that opens with another ID of the lane stays invalid, and a title heading needs the padded ID in the specification. Explicitly mismatched IDs remain invalid. |
+| `identify-specification` | `heading`, `evidence` | Identify ownership in the complete retained shared or named specification. The record's own ID may head the specification without padding (`M1` for `M01`), so a combined legacy record that names its parts `M1` to `M5` can be identified. A first heading that opens with another ID of the lane stays invalid, and a title heading needs the padded ID in the specification. Dotted task prefixes such as `M1.2` are title text rather than milestone IDs and need the canonical ID elsewhere in the specification. Explicitly mismatched IDs remain invalid. |
 | `historical-successor` | `item`, `successor`, `evidence` | Resolve one historical row to one uniquely named completed row, preserving both task states and literal notes. |
 | `recover-document` | `document`, `content`, `sha256`, `source` | Supply the full literal `specification` or `status` from reviewed source evidence. |
 | `supply-metadata` | `field`, `value`, `evidence` | Interpret a missing closure field, or normalize an annotated review count without changing its number. |
+| `quote-completed-marker` | `line`, `item`, `evidence` | Quote one literal `[+]` task-state cell as `` `[+]` `` in the interpreted status only. `line` is one-based within the complete retained status document; `item` must match the row's first cell. Evidence cites the complete physical frozen-record row. |
+| `normalize-worktree-spelling` | `recorded`, `value`, `evidence` | Normalize only `includes uncommitted closure changes` to `includes uncommitted changes`, citing the exact recorded envelope field. The literal provenance remains unchanged. |
 | `blocker` | `message`, `evidence` | Preserve an unresolved evidence gap. It cannot be removed by interpreting terminal task markers as acceptance. |
 
 Metadata fields are limited to the strict envelope's identity, outcome, date,
 source paths, provenance, review, verification and consolidation fields, plus
 review-limit evidence. Existing contradictory values cannot be overwritten.
 Multiline metadata, arbitrary field patches, task-state changes and authorization
-fields are unsupported. A passed-review correction requires an explicit,
+fields are unsupported. The two spelling operations above are explicit,
+hash-bound exceptions for presentation only: they neither change a task's
+meaning nor invent provenance. Marker corrections require the actual State
+column of a task row, reject review/example rows and all other markers, and
+cannot cite a different recovered document. Duplicate row corrections and
+conflicting Worktree operations fail closed. Strict new-retirement and active
+task-marker validation remain unchanged. Index search preserves the literal
+task row while the shared interpreted projection exposes its completed state.
+These corrections do not supply review acceptance or remove other blockers.
+
+A passed-review correction requires an explicit,
 standalone recorded result such as `Review: passed` or `| Review | passed |`;
 an instruction, a merely performed review, or a negative statement cannot
 support it. A literal `Whole review N/L PASS with no P1/P2.` is also supported

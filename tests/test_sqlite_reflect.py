@@ -646,6 +646,38 @@ class ReflectTests(unittest.TestCase):
             self.assertEqual(len(recorded_req), 1)
             self.assertEqual(recorded_req[0].full_url, "http://custom-proxy.local/v1/chat/completions")
 
+    def test_optional_usage_never_discards_a_valid_rest_proposal(self):
+        cases = (
+            ('openai', 'OPENAI_API_KEY', 'usage',
+             {'choices': [{'message': {'content': 'valid proposal'}}]},
+             {'prompt_tokens': 12, 'completion_tokens': 3}),
+            ('claude', 'ANTHROPIC_API_KEY', 'usage',
+             {'content': [{'text': 'valid proposal'}]},
+             {'input_tokens': 12, 'output_tokens': 3}),
+            ('gemini', 'GEMINI_API_KEY', 'usageMetadata',
+             {'candidates': [{'content': {'parts': [{'text': 'valid proposal'}]}}]},
+             {'promptTokenCount': 12, 'candidatesTokenCount': 3}),
+        )
+        for backend, key, field, body, valid in cases:
+            for kind, usage in [('absent', None), ('null', None), ('list', []),
+                                ('text', 'unknown'), ('valid', valid),
+                                ('invalid counts', {k: -1 for k in valid})]:
+                with self.subTest(backend=backend, usage=kind):
+                    response = dict(body)
+                    if kind != 'absent':
+                        response[field] = usage
+                    resp = mock.MagicMock()
+                    resp.__enter__.return_value = resp
+                    resp.read.return_value = json.dumps(response).encode()
+                    with mock.patch.dict(os.environ, {key: 'fake'}, clear=True), \
+                         mock.patch.object(reflect, 'build_reflection_prompt', return_value='prompt'), \
+                         mock.patch('shutil.which', return_value=None), \
+                         mock.patch('urllib.request.urlopen', return_value=resp):
+                        result = reflect.invoke_improver_llm({}, self.repo, backend=backend)
+                    self.assertEqual(result.text, 'valid proposal')
+                    self.assertEqual(result.usage, {'input_total': 12, 'output': 3} if kind == 'valid'
+                                     else {'input_total': None, 'output': None})
+
     def test_rest_fallback_ignores_custom_api_base_when_auto(self):
         self.record_completed_task()
         fake_response = {

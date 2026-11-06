@@ -320,8 +320,11 @@ USE_CACHE = True
 
 
 def unit_suite_files() -> list[pathlib.Path]:
-    """The test files `unittest discover -s tests` would load, largest first so long ones start early."""
-    return sorted(ROOT.joinpath("tests").glob("test*.py"), key=lambda p: (-p.stat().st_size, p.name))
+    """Parallelize flat suites; let unittest discover packages and their load_tests hooks."""
+    tests = ROOT / "tests"
+    if any(path.is_dir() and (path / "__init__.py").is_file() for path in tests.iterdir()):
+        return [tests]
+    return sorted(tests.glob("test*.py"), key=lambda p: (-p.stat().st_size, p.name))
 
 
 def unit_suite_key() -> str | None:
@@ -375,8 +378,9 @@ def unit_suite_cache_store(key: str) -> None:
 
 
 def run_unit_test_file(path: pathlib.Path) -> tuple[str, int, str]:
+    selection = [] if path.is_dir() else ["-p", path.name]
     proc = subprocess.run(
-        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-p", path.name],
+        [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", *selection],
         cwd=ROOT, capture_output=True, text=True,
     )
     return path.name, proc.returncode, (proc.stdout + proc.stderr).strip()
@@ -3309,7 +3313,14 @@ V213_CONTRACTS = {
         "Preserve mandatory reviews, acceptance coverage, grant budgets and class R attempt records",
         "A row check is `go build ./...`", "A rule 8 fixture skip uses `t.Skip` with its reason",
         "run with `-v` so the log reports the skip", "when concurrent code or a concurrency contract changed",
-        "plus direct consumers when a public contract"),
+        "plus direct consumers when a public contract",
+        "instrumentation-scope advice", "excludes third-party\n  modules only",
+        "recheck the build and the saving after each toolchain update",
+        "## Instrumentation scope defaults", "Only the Go row has been measured",
+        "| C/C++ TSan | No exclusion |", "| C/C++ MSan | No exclusion |",
+        "| Rust sanitizers | No exclusion |", "**A project's own option.**",
+        "says so as a warning", "**Filling the field.**", "Fill it only in a new launch proposal", "the field is `none`",
+        "say when it is unmeasured in this\nproject", "including an unapproved draft"),
     "skills/memory-bank-propose/references/plan-update.md": (
         "selected governing protocol is available and compatible",
         "Preserve explicit `GOAL_PROTOCOL` selection and its actual path/hash",
@@ -3842,6 +3853,9 @@ def test_policy_and_convergent_review_gate():
             "## Capacity and unit size", "These are recommendations, not gates",
             "isolated stores and ports do not isolate CPU", "do not start it in the middle of a task",
             "Keep test helpers near the domain they serve",
+            "**Instrumentation scope.**", "Its own code stays fully instrumented",
+            "gates without the exclusion", "Never change an exclusion to get past a failure",
+            "the `INSTRUMENTATION_SCOPE` launch field", "pre-filled with the stock defaults",
             "record a result served from the\n   cache as cached", "fresh and not served",
             "**Match the fixture to the variant.**", "has its\n     own smaller test under the variant",
             "The gate still runs whole units; only the named fixture is skipped.",
@@ -3906,10 +3920,13 @@ def test_policy_and_convergent_review_gate():
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review",
-                         "advisory level you approved is also Lower", "the milestone that completes the stage"),
+                         "advisory level you approved is also Lower", "the milestone that completes the stage",
+                         "exclude third-party code from instrumentation", "`INSTRUMENTATION_SCOPE`",
+                         "including an unapproved draft"),
         "docs/propose.md": ("the proposal includes a scope pass", "An agent never assigns one"),
         "docs/zh/goal.md": ("{#test-policy-and-real-effect-checks}", "是完成该阶段的里程碑的必需关卡",
-                            "这项检查可以使用工具链的测试缓存", "同样按 Lower 处理"),
+                            "这项检查可以使用工具链的测试缓存", "同样按 Lower 处理",
+                            "将第三方代码排除在插桩之外", "`INSTRUMENTATION_SCOPE`", "包括尚未批准的草稿"),
         "docs/zh/propose.md": ("范围审视", "agent 绝不自行指定"),
         "docs/zh/upgrade.md": ("`test-policy.md` 中的第 7、8 条就在其中", "`Stage qualification`",
                                "只随其他改动一起提出", "`Project specifics` 或 `tech-stack.md` 缺少"),
@@ -3935,10 +3952,22 @@ def test_policy_and_convergent_review_gate():
                      "skills/memory-bank-reconcile/references/write-contract.md"):
         if not re.search(r"(?m)^TEST_POLICY: \S", (ROOT / relative).read_text()):
             problems.append(f"{relative}: launch template lacks a TEST_POLICY line")
+        if not re.search(r"(?m)^INSTRUMENTATION_SCOPE: \S", (ROOT / relative).read_text()):
+            problems.append(f"{relative}: launch template lacks an INSTRUMENTATION_SCOPE line")
     for relative in ("skills/memory-bank-propose/references/plan-update.md",
                      "skills/memory-bank-reconcile/references/plan-update.md"):
         if "Preserve an explicit `TEST_POLICY`" not in (ROOT / relative).read_text():
             problems.append(f"{relative}: launch refresh does not preserve TEST_POLICY")
+        if "preserve its resolved value, including an implicit `none`" not in (ROOT / relative).read_text():
+            problems.append(f"{relative}: launch refresh does not preserve INSTRUMENTATION_SCOPE")
+        if "including an unapproved draft" not in (ROOT / relative).read_text():
+            problems.append(f"{relative}: launch refresh does not preserve unapproved drafts")
+    for token in missing_contract_tokens((ROOT / "GOAL.md").read_text(), (
+            "`INSTRUMENTATION_SCOPE` is optional: `none` (default when omitted)", "Planning pre-fills",
+            "in a new launch proposal", "including an implicit `none`", "an unapproved draft",
+            "carries a warning in the proposal",
+            "still runs those gates without it", "it never changes to get past a failure")):
+        problems.append(f"GOAL.md: missing instrumentation-scope contract {token!r}")
 
     # Stock policy stays project- and language-neutral.
     policy = (ROOT / TEST_POLICY_FILE).read_text() if (ROOT / TEST_POLICY_FILE).is_file() else ""
