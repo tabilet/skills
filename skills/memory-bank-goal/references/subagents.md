@@ -228,6 +228,14 @@ In each iteration of the bounded review-fix gate:
    lenses in the brief and supply the approved cross-milestone scope, baseline,
    final integrated state and owning review counter. If no integration milestone
    is planned, the stage or goal's last milestone owns that review.
+   Use the baseline captured before the first contributing task, including its
+   saved initial diff and relevant untracked contents or unversioned snapshot.
+   Reuse it across resumes; when it cannot be reconstructed, disclose the gap
+   and brief the full integrated implementation and acceptance fallback. Review
+   the final snapshot across all contributors, not only the owner's milestone
+   base, within the same iteration. Delegate under the ordinary reviewer
+   arrangement; independent reviewers are mandatory only when the approved
+   request, project policy or selected `MODEL_POLICY` requires them.
 2. Each reviewer produces classified findings (P1, P2, Lower).
 3. The owner records all findings in **one** iteration report in the milestone
    status notes, grouped by lens so one lens cannot hide another. Severity, not

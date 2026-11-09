@@ -841,12 +841,14 @@ formats, six markers and existing retirement requirements remain compatible.
 
 ## Standing Corrective Planning
 
+<!-- BEGIN SHARED repair-reconsideration -->
 Apply the project's repair-size and design-reconsideration rules before
 extending a repair; reconsideration does not reset counters or broaden standing
 authority. The stock trigger is the same class of consumer or reader gap found
 again in a later review round; projects may override it explicitly. Pause further
 instance fixes and prepare a revised proposal under the effective corrective
 planning authority. There is no stock numeric size threshold.
+<!-- END SHARED repair-reconsideration -->
 
 `CORRECTIVE_PLANNING: confirm` keeps the ordinary complete-proposal approval
 gate. Omission preserves that behavior. `auto` is effective only when the human
@@ -1006,7 +1008,17 @@ Before the first milestone:
    external-mutation authority before making changes. Resolve milestone
    requirements and human-approved grants using the authorization contract;
    materialize the request and approval context before execution.
-8. For concurrent leases, capture the integration worktree's symbolic `HEAD`
+8. Where the project has adopted integrated closure review, resolve its approved
+   owner, contributing milestones and acceptance scope. If no integration
+   milestone is planned, the last milestone owns that review. Order its closure
+   after every contributor, preserving approved dependencies and strict order;
+   surface a conflict instead of silently changing that order. Before the first
+   contributing task, capture or recover the integrated-review baseline using
+   the project's integrated-closure rules. Reuse it on resume and child dispatch,
+   including under `COMMIT_POLICY: none`. Missing historical baseline evidence
+   requires the project's full-implementation review fallback, never an invented
+   baseline or omitted acceptance review.
+9. For concurrent leases, capture the integration worktree's symbolic `HEAD`
    with `git symbolic-ref --quiet HEAD` and its full commit ID with
    `git rev-parse --verify HEAD`. Preserve that full `INTEGRATION_REF` (for
    example, `refs/heads/trunk`), primary worktree path, and baseline in existing
@@ -1340,6 +1352,12 @@ iteration 1. In each iteration:
      and requirements implemented wrongly, each quoting its acceptance line.
      Report findings grouped by concern so one concern cannot hide another; the
      severity rules decide the gate.
+     For the designated integrated-review owner, iteration 1 also covers the
+     full contributing scope through the project's integrated-closure lenses,
+     using its recorded starting and final states. Its own milestone base alone
+     is insufficient. Apply the project's full-implementation fallback when the
+     integrated baseline cannot be reconstructed, within this same iteration
+     and limit; preserve explicitly required reviewer independence.
    - **Iteration 2 and later** review only each blocking finding of the
      previous iteration (is it fixed?), every change since the state the
      previous iteration reviewed, including non-blocking fixes, and the direct

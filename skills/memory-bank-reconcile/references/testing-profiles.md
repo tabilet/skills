@@ -20,6 +20,26 @@ changes an existing profile. These are planning defaults for generated
   runner or authorization cap still wins; profiles grant no external action
   and never raise those caps.
 
+## Stock test-policy preflight
+
+For a project adopting the stock test policy, include this common preflight in
+its verification standards independently of the selected testing profile:
+
+<!-- BEGIN SHARED verification-environment-preflight -->
+`standard` adds no light-profile constraints. Independently adopted stock
+test-policy requirements, including this environment preflight, apply under
+every profile.
+
+Before costly verification, inspect the applicable toolchain pin, required
+offline caches, private temporary-path suitability and permissions, umask, disk
+capacity and selected concurrency. Check inherited environment and configuration
+precedence that could override offline or isolation settings. Use invocation-local
+corrections or refuse an unsafe setup; do not change global configuration, expose
+secrets, download missing inputs or broaden authority. Reuse the check while
+relevant environment inputs remain unchanged. Preserve the existing preflight
+before every counted protected attempt.
+<!-- END SHARED verification-environment-preflight -->
+
 ## Shared light-profile defaults
 
 Write a `Verification and testing standards` section containing the selected
@@ -35,14 +55,7 @@ unfilled placeholder.
 Keep `Risk-scaled verification contract`, `Milestone time estimates` and `Gate
 maintenance threshold` in the generated standards, using approved project values
 or `none`. A light profile does not itself approve reduced gates or set a
-milestone time estimate. Preserve the expanded acceptance-readiness preflight:
-before costly verification inspect the applicable toolchain pin, offline caches,
-private temporary-path suitability and permissions, umask, disk capacity and
-selected concurrency, including inherited environment/configuration overrides
-of offline or isolation settings. Correct only the invocation or refuse unsafe
-setup; never change global configuration, expose secrets, download missing
-inputs or broaden authority. Reuse unchanged environment checks, while preserving
-the preflight before every counted protected attempt.
+milestone time estimate.
 
 Include this execution guidance in the generated section: keep implementation
 and focused verification together for each coherent behavior change. When

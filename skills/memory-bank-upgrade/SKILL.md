@@ -247,6 +247,13 @@ project adopts them, its stricter text stays binding. The proposal:
   `Gate maintenance threshold` (default `none`). Add no numeric repair-size
   threshold or automatic reduced checks. Offer the author self-check only as a
   human-requested optional trial.
+  Include baseline capture before the first contributing task, resume reuse,
+  the full-implementation fallback for an unrecoverable historical baseline,
+  and the ordinary milestone procedure's integrated-review hook. Preserve
+  explicitly required reviewer independence; do not impose delegation on hosts
+  without such a requirement. A reduced-check contract cannot implicitly remove
+  required gates, and a P2 timing disposition cannot pass a failed required gate.
+  Keep stock test-policy preflight separate from light-profile-only additions.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the

@@ -97,6 +97,13 @@ authorized work continues. Keep deferred verification with its named owner and
 gate, preserving dependencies, intermediate acceptance and action limits. Use
 existing records.
 
+When the project has adopted integrated closure review, before the first
+contributing task capture or recover its baseline using the integrated-closure
+rules in `tabilet/memory-bank/milestone.md`. Reuse the recorded starting state
+across resumes, including uncommitted work; do not replace it with the current
+task's base. Missing historical baseline evidence requires the documented
+full-implementation review fallback, never omitted acceptance review.
+
 Tackle exactly one row:
 
 - For a defect or remediation row, prefer a command that goes red on the
@@ -107,9 +114,9 @@ Tackle exactly one row:
   limitation instead of forcing retries or inventing a failure. Required
   acceptance evidence and verification gates still apply; if missing, pause.
 - Establish the causal path and actual failing branch before choosing a repair,
-  using the cheapest decisive diagnostic and the owning milestone's diagnosis
-  guidance. Inspect same-pattern callers within approved scope and cover affected
-  consumers. Before adding a durable record or state, list its readers and
+  using the cheapest decisive diagnostic and the project's diagnosis guidance
+  in `tabilet/memory-bank/milestone.md`. Inspect same-pattern callers within
+  approved scope and cover affected consumers. Before adding a durable record or state, list its readers and
   compatibility requirements. Record uncertainty when reproduction is unavailable;
   this adds no per-fix approval or separate readiness-review gate.
 - Implement the change.
@@ -145,10 +152,12 @@ row to be `[~]`. The marker records the selected operation; it does not grant
 missing external-mutation authority.
 
 If completing this row completes a milestone, run the milestone review procedure
-from `tabilet/memory-bank/milestone.md` before final handoff, including its
-environment retro; report environment candidates, most severe first, as planning
-candidates only. Commit review fixes
-separately under the governing policy; a goal's commit-none restriction still
+from `tabilet/memory-bank/milestone.md` before final handoff. For the designated
+integrated-review owner, its initial iteration includes the five integrated
+lenses, recorded contributing scope and baseline/final states under that
+procedure's reviewer requirements. Include the environment retro; report
+environment candidates, most severe first, as planning candidates only. Commit
+review fixes separately under the governing policy; a goal's commit-none restriction still
 means no commits, and its milestone policy includes fixes in milestone closure.
 
 When the project has adopted retirement, follow that same milestone procedure:

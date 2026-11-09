@@ -1212,6 +1212,20 @@ SHARED_PLANNING_BLOCKS = {
         "GOAL.md",
         "skills/memory-bank-next/references/interactive-controls.md",
     ),
+    "repair-reconsideration": (
+        "GOAL.md",
+        "skills/memory-bank-next/references/interactive-controls.md",
+    ),
+    "verification-environment-preflight": (
+        "template/tabilet/memory-bank/tech-stack.md",
+        "skills/memory-bank-upgrade/assets/template/tabilet/memory-bank/tech-stack.md",
+        "skills/memory-bank-init/references/write-contract.md",
+        "skills/memory-bank-propose/references/plan-update.md",
+        "skills/memory-bank-reconcile/references/plan-update.md",
+        "skills/memory-bank-init/references/testing-profiles.md",
+        "skills/memory-bank-propose/references/testing-profiles.md",
+        "skills/memory-bank-reconcile/references/testing-profiles.md",
+    ),
 }
 
 
@@ -3691,7 +3705,7 @@ def test_policy_and_convergent_review_gate():
         TEST_POLICY_FILE: (
             "Classify verification needs by the change's behavioral effect",
             "approved risk-scaled verification contract in `tech-stack.md`",
-            "classification alone never removes a required gate",
+            "Classification alone never removes a required gate",
             "Demonstrate native cache invalidation", "Required gates remain fresh",
             "If diagnosis does not reproduce the failure, record the original failure",
             "Near-limit timing alone establishes neither cause nor eligibility",
@@ -3767,7 +3781,7 @@ def test_policy_and_convergent_review_gate():
             "defining levels needs its own human-approved proposal"),
         "skills/memory-bank-init/references/write-contract.md": (
             "Risk-scaled verification contract", "Milestone time estimates", "Gate maintenance threshold",
-            "verification-environment preflight beside `Acceptance readiness` under every profile",
+            "include this common preflight in the proposed `tech-stack.md` verification standards",
             "stock integrated-closure, durable-state-exit, repair-sizing and performance-disposition rules",
             "If no integration milestone is planned",
             "same class of consumer or reader gap found again in a later review round",
@@ -3856,8 +3870,8 @@ def test_policy_and_convergent_review_gate():
     required["skills/memory-bank-init/references/testing-profiles.md"] = (
         "Risk-scaled verification contract", "Milestone time estimates", "maintenance threshold",
         "A light profile does not itself approve reduced gates",
-        "inherited environment/configuration overrides of offline or isolation settings",
-        "preserving the preflight before every counted protected attempt",
+        "Check inherited environment and configuration precedence",
+        "Preserve the existing preflight before every counted protected attempt",
     )
     for relative, tokens in required.items():
         path = ROOT / relative
@@ -3866,6 +3880,69 @@ def test_policy_and_convergent_review_gate():
             continue
         for token in missing_contract_tokens(path.read_text(), tokens):
             problems.append(f"{relative}: missing test-policy/review contract {token!r}")
+
+    # Check obligations where executors encounter them, not merely somewhere
+    # in the document: baseline initialization and the ordinary closure path
+    # must both reach integrated review, including on single-agent hosts.
+    scoped = {
+        (milestone, "## Integrated closure review", "## Milestone review procedure"): (
+            "Before the first contributing task", "full HEAD commit",
+            "initial staged and unstaged diff and relevant untracked file contents, with hashes",
+            "Without Git, retain a snapshot", "hashed manifest",
+            "Reuse this baseline across resumes and child dispatch",
+            "including under `COMMIT_POLICY: none`", "recover the original baseline",
+            "disclose the missing baseline and review the full integrated implementation against acceptance",
+            "Require an independent read-only reviewer only when",
+            "Otherwise the executor may perform the review in a separate read-only phase",
+            "Missing explicitly required independence leaves the review pending",
+            "Use the owning milestone's existing severity rules, review counter and limit",
+        ),
+        (milestone, "## Milestone review procedure", "\n## "): (
+            "For the designated integrated-review owner, iteration 1 also performs",
+            "[Integrated closure review](#integrated-closure-review)",
+            "recorded contributing scope and starting/final states",
+            "keep this within the same iteration and limit"),
+        ("GOAL.md", "## Initialization", "## Milestone Loop"): (
+            "resolve its approved owner, contributing milestones and acceptance scope",
+            "Order its closure after every contributor",
+            "Before the first contributing task, capture or recover the integrated-review baseline",
+            "Reuse it on resume and child dispatch", "`COMMIT_POLICY: none`",
+            "full-implementation review fallback"),
+        ("GOAL.md", "#### Bounded Review-Fix Gate", "## Commit And External-Mutation Policy"): (
+            "For the designated integrated-review owner, iteration 1 also covers",
+            "Its own milestone base alone is insufficient",
+            "within this same iteration and limit",
+            "preserve explicitly required reviewer independence"),
+        (TEST_POLICY_FILE, "## Instrumented timing diagnosis", "## Capacity and unit size"): (
+            "A P2 disposition applies to the diagnosed defect, never to the failed gate result",
+            "Every still-required gate must pass before closure",
+            "must explicitly identify replacement evidence and any approved gate or policy change",
+            "retain the original FAIL", "Missing or unproven acceptance remains P1"),
+        (TEST_POLICY_FILE, "7. **Focused checks and required gates.**", "8. **Match the fixture to the variant.**"): (
+            "Unrelated changes need no separate non-trigger note",
+            "This never excuses a required race check",
+            "may tailor routine row checks only within the governing test policy and acceptance",
+            "Removing or replacing a required gate needs explicit human approval of that specific contract change",
+            "including any necessary policy or acceptance amendment",
+            "a Stack entry alone grants no exception"),
+    }
+    for (relative, start, end), tokens in scoped.items():
+        section = (ROOT / relative).read_text().partition(start)[2].partition(end)[0]
+        for token in missing_contract_tokens(section, tokens):
+            problems.append(f"{relative}: {start} lacks scoped obligation {token!r}")
+    for relative in SHARED_PLANNING_BLOCKS["verification-environment-preflight"]:
+        text = (ROOT / relative).read_text()
+        for token in missing_contract_tokens(text, (
+                "`standard` adds no light-profile constraints",
+                "Independently adopted stock test-policy requirements",
+                "apply under every profile")):
+            problems.append(f"{relative}: common preflight lacks {token!r}")
+        # Missing shared boundaries are reported by shared_planning_blocks.
+        end = text.find("<!-- END SHARED verification-environment-preflight -->")
+        light = text.find("## Shared light-profile defaults" if relative.endswith("testing-profiles.md")
+                          else "For a light profile, include these rules")
+        if end >= 0 and light >= 0 and end > light:
+            problems.append(f"{relative}: common preflight is inside light-only guidance")
 
     # Launch references and the protocol example all carry the field.
     for relative in ("GOAL.md", "skills/memory-bank-goal/SKILL.md",
@@ -3928,6 +4005,10 @@ def test_policy_and_convergent_review_gate():
     shared = shared_text.split("<!-- shared-execution-start -->", 1)[-1].split("<!-- shared-execution-end -->", 1)[0]
     for token in missing_contract_tokens(shared, (
             "Establish the causal path and actual failing branch",
+            "the project's diagnosis guidance in `tabilet/memory-bank/milestone.md`",
+            "before the first contributing task capture or recover its baseline",
+            "full-implementation review fallback, never omitted acceptance review",
+            "For the designated integrated-review owner, its initial iteration includes the five integrated lenses",
             "list its readers and compatibility requirements",
             "no per-fix approval or separate readiness-review gate",
             "test policy already resolved for this run", "`AGENTS.md` declares",

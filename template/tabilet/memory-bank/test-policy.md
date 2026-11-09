@@ -87,8 +87,10 @@ test on loopback fixtures with a throwaway profile is class O.
    concurrency contract. This limits the row check, never a required gate; a
    consumer broken in some other way surfaces at the required gates.
    Concurrency triggers include threads, tasks, channels, locks, atomics, shared
-   mutable state and job/cancellation lifecycles. When race checking is not
-   triggered, record that reason against the diff for review. Sanitizers and
+   mutable state and job/cancellation lifecycles. Explain a race-check exclusion
+   against the diff when concurrency-related changes or an applicable project
+   trigger make that scope decision relevant. Unrelated changes need no separate
+   non-trigger note. This never excuses a required race check. Sanitizers and
    other instrumented variants follow their own defect classes and project
    triggers; concurrency is not their universal trigger. Preserve required
    full instrumented integration gates and their reruns under this rule.
@@ -96,8 +98,13 @@ test on loopback fixtures with a throwaway profile is class O.
    extension or line count. Prompts, instructions, contracts, safety rules and
    test evidence can change behavior even when represented as text. A reviewer
    checks the classification against the full diff. Reduced checks require an
-   approved risk-scaled verification contract in `tech-stack.md`; classification
-   alone never removes a required gate.
+   approved risk-scaled verification contract in `tech-stack.md`; it may tailor
+   routine row checks only within the governing test policy and acceptance.
+   Removing or replacing a required gate needs explicit human approval of that
+   specific contract change and its replacement coverage, including any necessary
+   policy or acceptance amendment. Classification alone never removes a required
+   gate; a Stack entry alone grants no exception. Preserve the original failed
+   results and every still-required gate.
    The row check is the row's focused verification and its evidence, with any
    red-then-green regression; earlier narrow runs are not evidence. Record it
    as rule 5 records a gate. It may use the toolchain's test cache unless a test
@@ -151,10 +158,13 @@ Before a full instrumented pass, establish the applicable timing expectations
 and any human-approved acceptance arrangement. A plain pass, measured expiry
 of a product time guard on the failing branch, and no race or sanitizer report
 together support an instrumentation-overhead diagnosis; they do not turn a
-failed run into a pass. A P2 disposition is possible only under an approved
-acceptance arrangement that still proves required coverage. Missing or unproven
-acceptance remains P1. Other class O failures follow the ordinary fix-and-rerun
-rule; diagnosis adds no blanket owner-approval gate.
+failed run into a pass. A P2 disposition applies to the diagnosed defect, never
+to the failed gate result, and is possible only under an approved acceptance
+arrangement that still proves required coverage. Every still-required gate must
+pass before closure. A changed acceptance arrangement must explicitly identify
+replacement evidence and any approved gate or policy change; retain the original
+FAIL. Missing or unproven acceptance remains P1. Other class O failures follow
+the ordinary fix-and-rerun rule; diagnosis adds no blanket owner-approval gate.
 
 Specify how inconclusive diagnosis is handled before relying on a timing
 disposition. If diagnosis does not reproduce the failure, record the original

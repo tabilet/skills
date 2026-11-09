@@ -604,14 +604,33 @@ or minutes per run. For a row whose acceptance depends on one:
 
 ## Integrated closure review
 
-At planning, identify the milestone that owns integrated acceptance for the
-stage or multi-milestone goal, depending on all contributing milestones. If no
-integration milestone is planned, the stage or goal's last milestone owns this
-review. Resolve that ownership and closure ordering before execution. Before
-accepting the integrated outcome, the owner's initial whole-milestone review
-uses an independent read-only reviewer, the applicable model policy, and the
-recorded stage/goal baseline and final integrated state. Review across milestone
-boundaries for:
+The approved plan names the integrated-review owner, contributing milestones
+and acceptance scope. If no integration milestone is planned, the stage or
+goal's last milestone owns this review. This section defines that milestone's
+review; the selected execution protocol owns cross-milestone sequencing.
+
+Before the first contributing task, the execution owner records the scope,
+contributor IDs and starting state in existing goal state or the review owner's
+status notes. With Git, record the full HEAD commit and retain any initial staged
+and unstaged diff and relevant untracked file contents, with hashes, in authorized
+ignored scratch. Without Git, retain a snapshot of the in-scope sources and a
+hashed manifest. Preserve unrelated user work and existing filesystem authority.
+Reuse this baseline across resumes and child dispatch, including under
+`COMMIT_POLICY: none`; do not replace it with the latest milestone's base.
+On an already-started stage or goal, recover the original baseline when possible.
+If it cannot be reconstructed, disclose the missing baseline and review the full
+integrated implementation against acceptance. Do not claim historical diff
+coverage or omit current implementation and acceptance review.
+
+The owner's initial whole-milestone review uses the recorded stage/goal baseline
+and final integrated state, including saved final diffs and relevant untracked
+contents with hashes, or the corresponding unversioned snapshot. Use the ordinary
+milestone reviewer arrangement. Require an independent read-only reviewer only
+when the approved request, project policy or selected `MODEL_POLICY` requires
+one. Otherwise the executor may perform the review in a separate read-only
+phase. Missing explicitly required independence leaves the review pending.
+Review across the full contributing scope, not only the owner's milestone diff,
+for:
 
 - an authorized recovery or completion path from each durable non-terminal
   state, discoverable from every interface that creates it;
@@ -623,7 +642,7 @@ boundaries for:
 Record evidence or justified non-applicability for each lens. Use the owning
 milestone's existing severity rules, review counter and limit; fixes require
 subsequent review. This does not reopen frozen records or create an additional
-unbounded gate. An unavailable independent reviewer leaves this review pending.
+unbounded gate.
 
 ## Milestone review procedure
 
@@ -649,6 +668,11 @@ notes identify the consumed attempt or supersession and its accepted successor:
      and test-policy compliance. Review acceptance fidelity separately: requirements missing or
      partial, behavior nobody asked for, and requirements implemented wrongly,
      each quoting its acceptance line. Record findings grouped by concern.
+     For the designated integrated-review owner, iteration 1 also performs
+     [Integrated closure review](#integrated-closure-review) across the recorded
+     contributing scope and starting/final states. Its own milestone base alone
+     is insufficient. Use the full-implementation fallback when that baseline
+     cannot be reconstructed; keep this within the same iteration and limit.
      An empty implementation diff still needs acceptance review; do not
      manufacture changes. Lenses are coverage obligations: combine them or
      run batches within host capacity. When an interactive request selects

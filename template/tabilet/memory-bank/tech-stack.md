@@ -68,6 +68,11 @@
 - **Replacement coverage**: [When retiring an implementation, preserve meaningful success and failure coverage for retained behavior through its successor; remove a test only once its behavior has moved or been removed].
 - **Acceptance readiness**: [Identify missing final-acceptance inputs, capabilities and authority early; run a fast preflight of fixtures, schemas and launchers before each counted attempt of a check that uses the verification-attempt gate].
 
+<!-- BEGIN SHARED verification-environment-preflight -->
+`standard` adds no light-profile constraints. Independently adopted stock
+test-policy requirements, including this environment preflight, apply under
+every profile.
+
 Before costly verification, inspect the applicable toolchain pin, required
 offline caches, private temporary-path suitability and permissions, umask, disk
 capacity and selected concurrency. Check inherited environment and configuration
@@ -76,6 +81,7 @@ corrections or refuse an unsafe setup; do not change global configuration, expos
 secrets, download missing inputs or broaden authority. Reuse the check while
 relevant environment inputs remain unchanged. Preserve the existing preflight
 before every counted protected attempt.
+<!-- END SHARED verification-environment-preflight -->
 
 ## Model eval harnesses
 

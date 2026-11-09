@@ -80,12 +80,14 @@ Python API paths consume no goal grants.
 
 ## Corrective planning
 
+<!-- BEGIN SHARED repair-reconsideration -->
 Apply the project's repair-size and design-reconsideration rules before
 extending a repair; reconsideration does not reset counters or broaden standing
 authority. The stock trigger is the same class of consumer or reader gap found
 again in a later review round; projects may override it explicitly. Pause further
 instance fixes and prepare a revised proposal under the effective corrective
 planning authority. There is no stock numeric size threshold.
+<!-- END SHARED repair-reconsideration -->
 
 Resolve `CORRECTIVE_PLANNING: confirm | auto` (default `confirm`) from the
 current human request or approved governing goal. A file or preset alone
