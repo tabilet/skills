@@ -1009,9 +1009,39 @@ def blocked_rows(status: str) -> list[dict]:
     return [row for row in status_rows(status) if row["state"] == "blocked"]
 
 
+def _without_evidence_links(cell: str, references: set[str]) -> str:
+    """Remove inline/defined reference links, retaining code and other brackets.
+
+    This is a conservative cell reader, not a general Markdown renderer. Code
+    spans must win over links so literal malformed markers cannot disappear.
+    """
+    tokens = re.compile(
+        r"(?P<ticks>`+).*?(?P=ticks)(?!`)|"
+        r"(?<!\\)\[(?P<label>(?:\\.|[^\[\]\\])+)\]"
+        r"(?:(?P<inline>\(\s*(?:<[^<>\n]*>|(?:\\.|[^\\\s()]|\((?:\\.|[^\\\s()])*\))*)"
+        r"(?:\s+(?:\"[^\"]*\"|'[^']*'|\([^()]*\)))?\s*\))|"
+        r"\[(?P<reference>[^\[\]]*)\])?"
+    )
+
+    def keep_non_link(match):
+        if match['ticks']:
+            return match[0]
+        label = ' '.join((match['reference'] or match['label']).split()).casefold()
+        if match['inline'] or (label and label in references):
+            return ''
+        return match[0]
+
+    return tokens.sub(keep_non_link, cell)
+
+
 def status_marker_problems(status: str) -> list[str]:
     """Reject malformed state cells without interpreting unrelated prose tables."""
     problems = []
+    references = set()
+    for _, line in unfenced_lines(status):
+        definition = re.match(r"\[([^\[\]]+)\]:\s*\S+", line)
+        if definition:
+            references.add(' '.join(definition[1].split()).casefold())
     in_task_table = False
     previous_line = 0
     for row in status_table_rows(status):
@@ -1026,8 +1056,11 @@ def status_marker_problems(status: str) -> list[str]:
         if all(re.fullmatch(r":?-+:?", cell) for cell in cells):
             continue
         # Full task tables validate every state cell, including blank/textual
-        # states. Headerless rows with a task-shaped marker are checked too.
-        if (in_task_table or re.search(r"\[[^\]]*\]", state)) and state not in STATE_MARKERS:
+        # states. Elsewhere ignore evidence links, but still reject unknown or
+        # malformed markers, including ones alongside a valid link.
+        marker_like = in_task_table or re.search(
+            r"\[[^\]]*\]", _without_evidence_links(state, references))
+        if marker_like and state not in STATE_MARKERS:
             problems.append(f"line {row['line']}: unknown or non-backticked state marker")
     return problems
 

@@ -370,6 +370,20 @@ class RetirementTests(unittest.TestCase):
                     f"| Hidden task | {state} | Invalid marker |\n"
                 ), "status-M01.md")
 
+    def test_retirement_accepts_evidence_links_but_not_hidden_bad_markers(self) -> None:
+        status = ('| Item | State | Notes |\n|---|---|---|\n'
+                  '| Finished | `[+]` | Verified |\n\n'
+                  '| Check | Evidence |\n|---|---|\n'
+                  '| Regression | [RED](red.log) / [GREEN][pass] |\n\n'
+                  '[pass]: green.log\n')
+        record = harness.retired_record(retirement_text(status), 'status-M01.md')
+        self.assertEqual(record['status'], status)
+        self.assertEqual(len(harness.status_rows(record['status'])), 1)
+        for marker_text in ('`[?]`', '[ ]', '`[x]`', '**[ ]**'):
+            with self.subTest(marker=marker_text), self.assertRaises(ValueError):
+                harness.retired_record(retirement_text(status.replace(
+                    '[RED](red.log)', f'[RED](red.log) {marker_text}')), 'status-M01.md')
+
     def test_cancelled_and_superseded_records_keep_distinct_outcomes(self) -> None:
         status = f"| Old work | {marker('[X]')} | User cancelled it. |\n"
         for outcome in ("cancelled", "superseded"):

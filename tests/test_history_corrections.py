@@ -47,6 +47,21 @@ class HistoryCorrectionsTests(unittest.TestCase):
         correction = entry(text, [dict(kind='expand-evidence-commit', recorded='abcdef0', resolved='abcdef0' + '1' * 33)])
         return text, correction
 
+    def test_index_reads_retired_evidence_links_without_corrections(self):
+        status = ('| Item | State | Notes |\n|---|---|---|\n'
+                  '| Task | `[+]` | verified |\n\n'
+                  '| Check | Evidence |\n|---|---|\n'
+                  '| Regression | [RED](red.log) / [GREEN][pass] |\n\n'
+                  '[pass]: green.log\n')
+        text = h.retirement_text(status)
+        path = 'tabilet/docs/history/status-M01.md'
+        parsed = index.parse_document(path, 'history_status', text, digest(text))
+        self.assertEqual([row['state'] for row in parsed['index_tasks']], ['completed'])
+        self.assertEqual(core.historical_record(text, 'status-M01.md')['status'], status)
+        bad = text.replace('[RED](red.log)', '[RED](red.log) `[?]`')
+        with self.assertRaises(ValueError):
+            index.parse_document(path, 'history_status', bad, digest(bad))
+
     def marker_operation(self, text, item='Task'):
         status = core.fenced_document(text.rsplit('\n## Status record\n', 1)[1])
         row = next(row for row in core.status_table_rows(status) if row['cells'][0] == item)

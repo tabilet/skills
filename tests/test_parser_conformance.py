@@ -94,3 +94,44 @@ class StatusTableStateColumn(unittest.TestCase):
         self.assertEqual(harness.status_rows(text), [])
         self.assertEqual(harness.status_marker_problems(text),
                          ['line 3: unknown or non-backticked state marker'])
+
+
+class EvidenceTableLinks(unittest.TestCase):
+    def test_links_in_non_state_tables_are_not_markers(self):
+        for link in ('[RED](red.log)', '[RED](logs/run(1).log)',
+                     '[RED](red.log "failure evidence")', '[RED][log]',
+                     '[log][]', '[log]', '[RED](red.log) / [GREEN](green.log)'):
+            with self.subTest(link=link):
+                text = ('| Check | Evidence |\n|---|---|\n'
+                        f'| Regression | {link} |\n\n[log]: red.log\n')
+                self.assertEqual(harness.status_rows(text), [])
+                self.assertEqual(harness.status_marker_problems(text), [])
+
+    def test_links_do_not_hide_bad_markers_or_literal_code(self):
+        for state in ('[RED](red.log) `[?]`', '**[ ]** [RED](red.log)',
+                      '[RED][log] [x]', '[RED][missing]', '[missing][]',
+                      '`[RED](red.log)`', '``[RED](red.log)``', '`[?]`(red.log)',
+                      '`[log]`', '[RED](unclosed', '[RED](not a destination)'):
+            with self.subTest(state=state):
+                text = f'| Evidence | {state} |\n\n[log]: red.log\n'
+                self.assertEqual(harness.status_marker_problems(text),
+                                 ['line 1: unknown or non-backticked state marker'])
+
+    def test_state_headers_still_require_exact_markers(self):
+        for state in ('[RED](red.log)', '[RED][log]', '[log][]', '[log]'):
+            for header, row in (('| Item | State |', f'| Task | {state} |'),
+                                ('| ID | Task | State |', f'| M01.1 | Task | {state} |')):
+                with self.subTest(state=state, header=header):
+                    text = f'{header}\n{row}\n\n[log]: red.log\n'
+                    self.assertEqual(harness.status_marker_problems(text),
+                                     ['line 2: unknown or non-backticked state marker'])
+
+    def test_code_block_reference_definitions_cannot_hide_markers(self):
+        for definition in ('```markdown\n[unknown]: red.log\n```',
+                           '    [unknown]: red.log'):
+            with self.subTest(definition=definition):
+                text = f'| Task | [unknown] |\n\n{definition}\n'
+                self.assertTrue(harness.status_marker_problems(text))
+
+    def test_empty_reference_label_cannot_hide_pending_marker(self):
+        self.assertTrue(harness.status_marker_problems('| Task | [ ] |\n\n[ ]: red.log\n'))
