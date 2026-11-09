@@ -71,6 +71,8 @@ test on loopback fixtures with a throwaway profile is class O.
    artifacts and product limits stay mandatory wherever the project or a
    specification requires them. Where a specification requires actual
    qualification, use the real built artifact or binary, not a mock.
+   Follow the project's verification-environment preflight; it adds no separate
+   readiness review or approval gate.
 7. **Focused checks and required gates.** While changing code, run the
    narrowest check that exercises the change, without race, sanitizer, coverage
    or other slow variants. Before marking a row done or starting a task review
@@ -90,11 +92,22 @@ test on loopback fixtures with a throwaway profile is class O.
    other instrumented variants follow their own defect classes and project
    triggers; concurrency is not their universal trigger. Preserve required
    full instrumented integration gates and their reruns under this rule.
+   Classify verification needs by the change's behavioral effect, not its file
+   extension or line count. Prompts, instructions, contracts, safety rules and
+   test evidence can change behavior even when represented as text. A reviewer
+   checks the classification against the full diff. Reduced checks require an
+   approved risk-scaled verification contract in `tech-stack.md`; classification
+   alone never removes a required gate.
    The row check is the row's focused verification and its evidence, with any
    red-then-green regression; earlier narrow runs are not evidence. Record it
    as rule 5 records a gate. It may use the toolchain's test cache unless a test
    depends on inputs the cache cannot see, such as a pinned external artifact;
    record a result served from the cache as cached.
+   Prefer making an external artifact's identity part of inputs the toolchain
+   actually tracks. Demonstrate native cache invalidation when that artifact
+   changes before relying on cached row evidence; merely reading a file or
+   recording its hash does not establish that property. Otherwise bypass the
+   affected test-result cache. Required gates remain fresh.
    Run required gates immediately before the whole review, not after each edit
    or before each task review. Every gate run, rerun included, is fresh and not
    served from a test-result cache: when a gate command can be served from one,
@@ -143,6 +156,13 @@ acceptance arrangement that still proves required coverage. Missing or unproven
 acceptance remains P1. Other class O failures follow the ordinary fix-and-rerun
 rule; diagnosis adds no blanket owner-approval gate.
 
+Specify how inconclusive diagnosis is handled before relying on a timing
+disposition. If diagnosis does not reproduce the failure, record the original
+failure and reproduction limitation; measured expiry on the failing branch has
+not been established. Near-limit timing alone establishes neither cause nor
+eligibility for an exception. Continue only under ordinary failure handling and
+the approved stop rules.
+
 Avoid speculative product optimization solely to fit instrumentation overhead.
 Useful product optimizations still need causal evidence and normal review.
 Instrumented-only guard scaling is a project-specific design option requiring
@@ -183,13 +203,32 @@ These are recommendations, not gates. Numbers belong to each project, in
   when units are small. Keep test helpers near the domain they serve: a shared
   helper unit that many tests import invalidates their cached results on every
   edit.
+  Use native per-test timing output when available, retaining it with the
+  existing gate log. When a gate exceeds a project-set maintenance threshold,
+  or performance is the milestone's purpose, summarize up to ten measured slow
+  tests and distinguish overlapping test durations from gate wall time. Propose
+  scoped maintenance without starting it automatically. Consider reusable
+  immutable fixture preparation with isolated per-case mutable state, then safe
+  parallelism; verify coverage and isolation remain intact.
 - **Parallel tests.** Prefer tests that can run in parallel, each with its own
   disposable state. Note toolchain limits, such as tests that change the process
   environment.
+  Before increasing parallelism, inspect time guards and contention,
+  process-environment changes, mutable globals, fixed ports and shared observers.
+  Isolate those resources or serialize the affected tests; immutable shared data
+  does not itself require serialization. Measure plain and instrumented behavior
+  separately. Instrumented-only guard scaling requires its existing review and
+  approval conditions and cannot repair a plain-run contention failure. Treat
+  exposed product concurrency defects as ordinary findings, not test noise.
 - **Heavy fixtures.** Record the cost and owner of expensive qualification
   fixtures. When kept behind an opt-in qualification flag, name the required
   gate that enables it and retain smaller routine coverage. Never silently
   remove required coverage or use the flag to bypass a reported failure.
+  An approved move of heavy matrices to qualification-only execution lists each
+  fixture by name, its required gate and owner, and the smaller row coverage that
+  remains. Review that mapping; names and blanket filters alone do not establish
+  eligibility. Preserve whole-unit row checks and the approved qualification
+  contract.
 
 ## Use the project's own toolchain
 

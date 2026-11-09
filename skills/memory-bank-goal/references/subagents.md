@@ -224,6 +224,10 @@ In each iteration of the bounded review-fix gate:
    - **Acceptance & Scope**: Acceptance requirements missing or partial, behavior
      nobody asked for (scope creep), and requirements implemented wrongly, each
      quoting its acceptance line.
+   For an integrated closure review, quote the five governing integrated-closure
+   lenses in the brief and supply the approved cross-milestone scope, baseline,
+   final integrated state and owning review counter. If no integration milestone
+   is planned, the stage or goal's last milestone owns that review.
 2. Each reviewer produces classified findings (P1, P2, Lower).
 3. The owner records all findings in **one** iteration report in the milestone
    status notes, grouped by lens so one lens cannot hide another. Severity, not

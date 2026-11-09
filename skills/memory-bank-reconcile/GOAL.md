@@ -215,6 +215,12 @@ project that defines them.
 
 Input rules:
 
+- Any custom failure disposition names its failure class, affected work,
+  permitted recovery, evidence requirements and stop conditions. Preserve
+  explicit human stop rules; never infer an exception to "any failure." A
+  coordinator bookkeeping repair may continue only within existing scope and
+  when no applicable stop rule requires a pause. Effects on evidence, state
+  integrity or authorization require their ordinary assessment and safeguards.
 - `PROJECT_CONTEXT` is optional. Use it to identify additional project sources
   that repository instructions do not already name.
 - `GOAL_PROTOCOL` is optional and selects an alternative full protocol by path.
@@ -835,6 +841,13 @@ formats, six markers and existing retirement requirements remain compatible.
 
 ## Standing Corrective Planning
 
+Apply the project's repair-size and design-reconsideration rules before
+extending a repair; reconsideration does not reset counters or broaden standing
+authority. The stock trigger is the same class of consumer or reader gap found
+again in a later review round; projects may override it explicitly. Pause further
+instance fixes and prepare a revised proposal under the effective corrective
+planning authority. There is no stock numeric size threshold.
+
 `CORRECTIVE_PLANNING: confirm` keeps the ordinary complete-proposal approval
 gate. Omission preserves that behavior. `auto` is effective only when the human
 has approved the policy for this run, its delivery outcome, owning repositories,
@@ -1199,6 +1212,11 @@ no active writer, a merged branch and a clean worktree; never force removal.
   and failure-path checks for the changed surfaces.
 - Run required checks in every related repository changed by the milestone.
 - After automated checks pass, run the bounded review-fix gate below.
+- Before accepting an integrated stage or multi-milestone goal outcome, complete
+  its planned integrated closure review under the owning milestone's existing
+  bounded gate and the project's integrated-closure rules. If no integration
+  milestone is planned, the stage or goal's last milestone owns this review;
+  plan its closure after all contributing milestones.
 - Carry a non-blocking finding forward only in the project's open review
   findings register with its fix owner and rationale. A finding that is blocking
   under the governing gate cannot be carried forward.
@@ -1298,12 +1316,19 @@ does not replace it, and the controller does not read the open review findings
 register, so milestones it runs keep P2 blocking.
 
 A task review covers that task's diff (its own commit when commits are per
-task) and passes with no blocking finding. The initial deep-review pass is
+task) and passes with no blocking finding. For a one-task milestone, one review
+may satisfy both task and whole-milestone review only when it covers the complete
+milestone scope and acceptance, required gates have passed, and all independence,
+model and reviewed-state requirements are met. Record it once as the milestone's
+initial iteration. Later fixes retain the normal verification and review
+requirements. The initial deep-review pass is
 iteration 1. In each iteration:
 
 1. Read the persisted review count and findings before starting. Record the
    current iteration as started before review; an interrupted pass resumes that
    iteration, never resets to 1.
+   Record observed review start and end times in existing review notes when
+   available; unknown boundaries remain unknown.
    - **Iteration 1** pins the milestone's base commit and inspects the
      full diff against it, including staged, unstaged and relevant untracked
      work under the selected commit policy. An empty implementation diff does
@@ -1499,6 +1524,12 @@ At the end of each milestone, record:
   instruction that changes nothing. They are planning candidates, never
   unapproved rows; and
 - remaining blockers or external actions.
+
+Distinguish elapsed span, command execution, review intervals, rework and owner
+waits, identifying overlaps and capture gaps. Do not add overlapping intervals
+or infer model work from unexplained elapsed time. Explain material estimate
+overruns without skipping checks or accepting unmet requirements. This requires
+no new ledger, recorder or audit opt-in.
 
 Mark the overall goal complete only when every required status in the
 reconciled selection is complete and no required work remains.

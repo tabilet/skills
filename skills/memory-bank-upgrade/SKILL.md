@@ -235,6 +235,18 @@ project adopts them, its stricter text stays binding. The proposal:
   old failures, rewrite frozen evidence or infer acceptance from absent race
   reports. Reviewer briefs quote changed rules with their scope and approval
   source. No additional ledger or automatic protocol-identity approval is created.
+- Compare integrated lifecycle review, durable-state exits, repair sizing,
+  risk-scaled verification, cache invalidation, environment preflight and timing
+  reporting explicitly. Show changed gates, ownership, performance dispositions
+  and protocol identity in the proposal. Preserve project overrides, active
+  counters and frozen evidence; installation never activates adoption or resumes
+  work. Include the last milestone's integrated-review ownership when no
+  integration milestone is planned, the overridable repeated reader/consumer-gap
+  reconsideration trigger, and the `Risk-scaled verification contract` entry
+  (default `none`), plus optional advisory `Milestone time estimates` and a
+  `Gate maintenance threshold` (default `none`). Add no numeric repair-size
+  threshold or automatic reduced checks. Offer the author self-check only as a
+  human-requested optional trial.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the

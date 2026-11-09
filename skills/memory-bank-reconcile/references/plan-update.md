@@ -229,8 +229,26 @@ standards and assign the required evidence to the relevant milestone owners.
   with its named owner and gate, preserving dependencies, intermediate acceptance
   and action limits. Use existing records. Run a fast preflight of fixtures,
   schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
+  Before costly verification, inspect the applicable toolchain pin, required
+  offline caches, private temporary-path suitability and permissions, umask, disk
+  capacity and selected concurrency. Check inherited environment and configuration
+  precedence that could override offline or isolation settings. Use invocation-local
+  corrections or refuse an unsafe setup; do not change global configuration, expose
+  secrets, download missing inputs or broaden authority. Reuse the check while
+  relevant environment inputs remain unchanged. Preserve the existing preflight
+  before every counted protected attempt.
 
 <!-- BEGIN SHARED scope-control-planning -->
+Carry the stock integrated-closure, durable-state-exit, repair-sizing and
+performance-disposition rules into applicable milestone specifications. Identify
+their owners, dependencies and required evidence during planning; do not
+allocate duplicate gates or weaken existing acceptance. If no integration
+milestone is planned, the stage or goal's last milestone owns integrated closure
+review after all contributing milestones. Preserve the stock reconsideration
+trigger of the same class of consumer or reader gap found again in a later
+review round, unless the project explicitly overrides it; add no numeric size
+threshold.
+
 Keep each planned milestone to what its stage can reach and what its acceptance
 needs:
 

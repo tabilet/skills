@@ -30,6 +30,20 @@ milestone is parallel-safe only when unordered against other active work, its
 write set is disjoint, and its inputs are frozen. Parallel safety never prunes
 downstream impact reconciliation.
 
+A milestone introducing a durable non-terminal state lists its legal exits,
+authorized actors, supporting interfaces or documented handoffs, and the
+disposition when progress cannot continue. Map identified persistence boundaries
+and crash windows to recovery tests. Cover each exit's meaningful success and
+failure behavior; do not invent a one-test-per-exit correspondence where crash
+boundaries differ. Resolve missing required exits during planning.
+
+Distinguish advisory performance targets from required acceptance thresholds.
+Record the measured miss separately from correctness results. An
+"owner-accepted miss" cites the explicit acceptance change or disposition; it
+never relabels the measurement as a pass. "Target kept, further work proposed"
+preserves the target, and an unmet required threshold still prevents closure.
+Never lower a target silently. These are prose dispositions, not status markers.
+
 ## Milestone families
 
 Keep the original delivery outcome stable. Small directly related fixes stay in
@@ -295,8 +309,10 @@ the gate covers every expensive or protected check. For such a milestone:
   so that an unrelated failure cannot hide the milestone's own cases.
 
 For shared concurrency surfaces changed by multiple milestones, keep a race
-watch list in the final integration milestone's verification section. Map each
-surface to a named test that exercises the interacting changes. Close an entry
+watch list in the final integration milestone's verification section. When no
+integration milestone is planned, use the last milestone that owns integrated
+closure review. Map each surface to a named test that exercises the interacting
+changes. Close an entry
 only with evidence that its named test actually ran and passed instrumented;
 a clean full-suite summary alone is insufficient. Use this existing section,
 not a separate ledger, and preserve every required integration gate.
@@ -499,6 +515,16 @@ introducing a durable record or state, list its existing readers and their
 compatibility requirements; a shared projection is an option when it reduces
 reader drift, not a required abstraction.
 
+A repair proposal states its estimated scope, affected readers and consumers,
+verification cost and uncertainty, and compares at least one narrower
+alternative or explains why none meets acceptance. When observed growth or
+recurring consumer gaps undermine that design, pause further instance fixes
+and prepare a revised proposal. The stock reconsideration trigger is the same
+class of consumer or reader gap found again in a later review round; projects
+may override that trigger explicitly. There is no stock numeric size threshold.
+Apply the revised proposal under the effective corrective-planning authority,
+preserving acceptance, history, review counters and limits.
+
 ## New review intake
 
 A code, architecture, security, or other engineering review received outside a
@@ -576,6 +602,29 @@ or minutes per run. For a row whose acceptance depends on one:
   rescope or an environment change, and ask the user. Approval to continue sets
   a new explicit limit. Never repeat an unchanged failed attempt.
 
+## Integrated closure review
+
+At planning, identify the milestone that owns integrated acceptance for the
+stage or multi-milestone goal, depending on all contributing milestones. If no
+integration milestone is planned, the stage or goal's last milestone owns this
+review. Resolve that ownership and closure ordering before execution. Before
+accepting the integrated outcome, the owner's initial whole-milestone review
+uses an independent read-only reviewer, the applicable model policy, and the
+recorded stage/goal baseline and final integrated state. Review across milestone
+boundaries for:
+
+- an authorized recovery or completion path from each durable non-terminal
+  state, discoverable from every interface that creates it;
+- recovery at each identified persistence boundary and crash window;
+- loading supported earlier state formats, or clear refusal with a recovery path;
+- isolation of unrelated items from one item's failure;
+- protection of other tasks' in-flight work from user actions.
+
+Record evidence or justified non-applicability for each lens. Use the owning
+milestone's existing severity rules, review counter and limit; fixes require
+subsequent review. This does not reopen frozen records or create an additional
+unbounded gate. An unavailable independent reviewer leaves this review pending.
+
 ## Milestone review procedure
 
 When the last open row in a milestone's status file closes as `[+]`, `[X]`, or
@@ -607,10 +656,12 @@ notes identify the consumed attempt or supersession and its accepted successor:
      fresh read-only whole-milestone reviewers; the owner alone records results
      and fixes under `DEFAULT`. Absence preserves host model settings.
    - Record the iteration number and findings in the current status notes so a
-     continuation cannot reset the counter. The gate passes only under the pass
-     condition below. When blocking findings exist and the current iteration is
-     below the approved review limit, fix every blocking finding in the current
-     milestone, rerun affected verification, and begin the next iteration.
+     continuation cannot reset the counter. Record observed review start and end
+     times here when available; unknown boundaries remain unknown. The gate
+     passes only under the pass condition below. When blocking findings exist
+     and the current iteration is below the approved review limit, fix every
+     blocking finding in the current milestone, rerun affected verification, and
+     begin the next iteration.
    - Iteration 2 and later review only each blocking finding of the previous
      iteration (is it fixed?), every change since the state the previous
      iteration reviewed, including non-blocking fixes, and the direct
@@ -622,6 +673,12 @@ notes identify the consumed attempt or supersession and its accepted successor:
      full milestone diff instead. This holds under every commit policy.
    - A task review covers that task's diff (its own commit when commits are per
      task) and passes with no blocking finding.
+     For a one-task milestone, one review may satisfy both task and
+     whole-milestone review only when it covers the complete milestone scope and
+     acceptance, required gates have passed, and all independence, model and
+     reviewed-state requirements are met. Record it once as the milestone's
+     initial iteration. Later fixes retain the normal verification and review
+     requirements.
    - P2 and Lower findings never block on their own. For each one, choose to
      fix now when the fix is local, cheap and in scope, or when later work
      builds on the defect (a contract or interface, a persisted format such as
@@ -691,6 +748,11 @@ notes identify the consumed attempt or supersession and its accepted successor:
 9. Report a short review summary: what was verified, the review-fix iteration
    count, what memory-bank files changed, any review commit, and whether an
    evolution bump was made. Include the retired record and durable lessons.
+   Distinguish elapsed span, command execution, review intervals, rework and
+   owner waits, identifying overlaps and capture gaps. Do not add overlapping
+   intervals or infer model work from unexplained elapsed time. Explain material
+   estimate overruns without skipping checks or accepting unmet requirements.
+   This requires no new ledger, recorder or audit opt-in.
 
 ## Long-term memory and retirement
 

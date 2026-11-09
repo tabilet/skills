@@ -53,17 +53,29 @@
 
 - **Test policy**: every test follows [test-policy.md](test-policy.md); this section holds the commands and limits it refers to.
 - **Testing profile**: `[standard | browserlight | golight | rustlight | tslight | jslight | pythonlight]`.
+- **Risk-scaled verification contract**: [project contract, default none].
 - **Focused tests**: [Command, target and hard limit; light-profile default: 30-second target / 2-minute cap].
 - **Row checks**: [Whole-project build or type-check, static checks and affected whole-unit test commands, or the narrower step a slow build uses].
 - **Full regression**: [Project command and wall-clock limit; light-profile default: 20-minute cap].
 - **Race/UI checks**: [Applicable commands and limits; light-profile default: 5 minutes per invocation].
 - **Stage qualification**: [End-to-end qualification command with real pinned artifacts and its owning milestone, or "none"].
 - **Timing and repetition**: [Separate one-time compilation from uncached test execution; run full regression once per unchanged closure candidate, repeating only for changes, failures or unresolved coverage].
+- **Milestone time estimates**: [Optional advisory estimates, their measurement basis and timing scope; default none. These do not alter execution limits or acceptance].
+- **Gate maintenance threshold**: [Project-specific timing threshold and measurement conditions, or none].
 - **Budget precedence**: [Explicit project limits and smaller tool/authorization caps win; standard adds no extra constraints].
 - **Harness boundaries**: [e.g., Use in-memory/loopback mocks; no external supervisor daemons or multi-GB disk snapshots; defer physical/browser e2e to final release smoke tests].
 - **Execution cadence**: [Run the row check before a row is done or a task review; run the full suite fresh once per unchanged closure candidate and race/UI checks when the change touches concurrency or UI and at required closure; rerun the affected checks after every review fix].
 - **Replacement coverage**: [When retiring an implementation, preserve meaningful success and failure coverage for retained behavior through its successor; remove a test only once its behavior has moved or been removed].
 - **Acceptance readiness**: [Identify missing final-acceptance inputs, capabilities and authority early; run a fast preflight of fixtures, schemas and launchers before each counted attempt of a check that uses the verification-attempt gate].
+
+Before costly verification, inspect the applicable toolchain pin, required
+offline caches, private temporary-path suitability and permissions, umask, disk
+capacity and selected concurrency. Check inherited environment and configuration
+precedence that could override offline or isolation settings. Use invocation-local
+corrections or refuse an unsafe setup; do not change global configuration, expose
+secrets, download missing inputs or broaden authority. Reuse the check while
+relevant environment inputs remain unchanged. Preserve the existing preflight
+before every counted protected attempt.
 
 ## Model eval harnesses
 

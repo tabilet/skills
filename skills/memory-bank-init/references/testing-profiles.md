@@ -32,6 +32,18 @@ brackets: use the project's real commands and limits, and keep the stock
 plain, unbracketed text. A bracketed line left in a generated section is an
 unfilled placeholder.
 
+Keep `Risk-scaled verification contract`, `Milestone time estimates` and `Gate
+maintenance threshold` in the generated standards, using approved project values
+or `none`. A light profile does not itself approve reduced gates or set a
+milestone time estimate. Preserve the expanded acceptance-readiness preflight:
+before costly verification inspect the applicable toolchain pin, offline caches,
+private temporary-path suitability and permissions, umask, disk capacity and
+selected concurrency, including inherited environment/configuration overrides
+of offline or isolation settings. Correct only the invocation or refuse unsafe
+setup; never change global configuration, expose secrets, download missing
+inputs or broaden authority. Reuse unchanged environment checks, while preserving
+the preflight before every counted protected attempt.
+
 Include this execution guidance in the generated section: keep implementation
 and focused verification together for each coherent behavior change. When
 handoffs, repeated inspections, or fixture setup delay progress, consolidate

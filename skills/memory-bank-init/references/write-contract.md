@@ -107,6 +107,13 @@ emit `TEST_POLICY: <resolved path or none>` in launch references. Also emit
 
 In `tabilet/memory-bank/tech-stack.md`, define the language floor, tools, dependencies,
 commands, runtime assumptions, and execution harnesses.
+Keep a `Risk-scaled verification contract` entry, default `none` unless a
+project contract has been approved, plus optional advisory `Milestone time
+estimates` and a `Gate maintenance threshold`, default `none`. Preserve their
+measurement basis and scope; estimates never alter limits or acceptance.
+For projects adopting the stock test policy, include the template's
+verification-environment preflight beside `Acceptance readiness` under every
+profile; a light profile never removes it.
 Accept `--test standard` (the default when omitted), `browserlight`, `golight`,
 `rustlight`, `tslight`, `jslight` or `pythonlight`. Follow the bundle-local
 [testing profiles](testing-profiles.md) for selection, budget defaults and
@@ -136,6 +143,14 @@ standards and assign the required evidence to the relevant milestone owners.
   with its named owner and gate, preserving dependencies, intermediate acceptance
   and action limits. Use existing records. Run a fast preflight of fixtures,
   schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
+  Before costly verification, inspect the applicable toolchain pin, required
+  offline caches, private temporary-path suitability and permissions, umask, disk
+  capacity and selected concurrency. Check inherited environment and configuration
+  precedence that could override offline or isolation settings. Use invocation-local
+  corrections or refuse an unsafe setup; do not change global configuration, expose
+  secrets, download missing inputs or broaden authority. Reuse the check while
+  relevant environment inputs remain unchanged. Preserve the existing preflight
+  before every counted protected attempt.
 
 When a non-standard profile is chosen, add a rule under `AGENTS.md` Hard Rules:
 `- Follow the verification and testing standards defined in tabilet/memory-bank/tech-stack.md.`
@@ -186,7 +201,8 @@ programs` rules, plus `Diagnosis before repair`, preserving project overrides
 and required acceptance evidence. For shared concurrency surfaces changed by
 multiple milestones, put the race watch list in the final integration
 milestone's verification section with named tests and instrumented execution
-evidence; create no separate ledger.
+evidence; create no separate ledger. When no integration milestone is planned,
+use the last milestone that owns integrated closure review.
 
 Include a separate `New review intake` procedure for reviews received after the
 harness exists. It must require current-state revalidation, preserve both source
@@ -236,6 +252,16 @@ prose remains binding until explicit human adoption resolves the conflict.
 <!-- END SHARED review-limit-planning -->
 
 <!-- BEGIN SHARED scope-control-planning -->
+Carry the stock integrated-closure, durable-state-exit, repair-sizing and
+performance-disposition rules into applicable milestone specifications. Identify
+their owners, dependencies and required evidence during planning; do not
+allocate duplicate gates or weaken existing acceptance. If no integration
+milestone is planned, the stage or goal's last milestone owns integrated closure
+review after all contributing milestones. Preserve the stock reconsideration
+trigger of the same class of consumer or reader gap found again in a later
+review round, unless the project explicitly overrides it; add no numeric size
+threshold.
+
 Keep each planned milestone to what its stage can reach and what its acceptance
 needs:
 

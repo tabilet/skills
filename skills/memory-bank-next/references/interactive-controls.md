@@ -80,6 +80,13 @@ Python API paths consume no goal grants.
 
 ## Corrective planning
 
+Apply the project's repair-size and design-reconsideration rules before
+extending a repair; reconsideration does not reset counters or broaden standing
+authority. The stock trigger is the same class of consumer or reader gap found
+again in a later review round; projects may override it explicitly. Pause further
+instance fixes and prepare a revised proposal under the effective corrective
+planning authority. There is no stock numeric size threshold.
+
 Resolve `CORRECTIVE_PLANNING: confirm | auto` (default `confirm`) from the
 current human request or approved governing goal. A file or preset alone
 cannot grant this authority. Outside a goal, use this bounded contract without
@@ -140,6 +147,15 @@ iteration with its existing iteration counter, scoped as the gate defines. The
 repair milestone's own review cannot substitute for this pass or reset the
 counter. Non-blocking findings follow the open review findings register. At the approved review limit, unresolved findings stop
 further automatic repairs and require explicit human direction.
+
+## Optional author self-check
+
+When the human requests a self-check trial, the implementer checks applicable
+integrated-state lenses, readers and consumers, changed assertions and
+verification settings before review dispatch. Add a concise result and
+unresolved concerns to the existing brief. This is not an independent review,
+consumes no additional review iteration and replaces no required check. Compare
+its observed cost and first-review findings before proposing permanent adoption.
 
 ## Optional discoveries
 
