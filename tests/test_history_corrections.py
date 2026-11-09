@@ -51,16 +51,23 @@ class HistoryCorrectionsTests(unittest.TestCase):
         status = ('| Item | State | Notes |\n|---|---|---|\n'
                   '| Task | `[+]` | verified |\n\n'
                   '| Check | Evidence |\n|---|---|\n'
-                  '| Regression | [RED](red.log) / [GREEN][pass] |\n\n'
+                  '| Regression | [RED](red.log) / [GREEN][pass] |\n'
+                  '| Badge | [![CI](badge.svg)](run.log) |\n'
+                  '| Nested | [log [1]](a(b(c)).log) |\n'
+                  '| List reference | [list-log] |\n'
+                  '| Continued reference | [continued-log] |\n\n'
+                  '- [list-log]: red.log\n[continued-log]:\n  red.log\n'
                   '[pass]: green.log\n')
         text = h.retirement_text(status)
         path = 'tabilet/docs/history/status-M01.md'
         parsed = index.parse_document(path, 'history_status', text, digest(text))
         self.assertEqual([row['state'] for row in parsed['index_tasks']], ['completed'])
         self.assertEqual(core.historical_record(text, 'status-M01.md')['status'], status)
-        bad = text.replace('[RED](red.log)', '[RED](red.log) `[?]`')
-        with self.assertRaises(ValueError):
-            index.parse_document(path, 'history_status', bad, digest(bad))
+        for hidden in ('[RED](red.log) `[?]`', '[ ](notes.md)', '[x][]', '[!]', '[?]', '[+]'):
+            bad = text.replace('[RED](red.log)', hidden) + '\n'
+            bad = bad.replace('[pass]: green.log', '[pass]: green.log\n[x]: red.log\n[!]: blocked\n[?]: unknown\n[+]: done')
+            with self.subTest(hidden=hidden), self.assertRaises(ValueError):
+                index.parse_document(path, 'history_status', bad, digest(bad))
 
     def marker_operation(self, text, item='Task'):
         status = core.fenced_document(text.rsplit('\n## Status record\n', 1)[1])

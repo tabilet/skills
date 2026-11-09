@@ -100,25 +100,40 @@ class EvidenceTableLinks(unittest.TestCase):
     def test_links_in_non_state_tables_are_not_markers(self):
         for link in ('[RED](red.log)', '[RED](logs/run(1).log)',
                      '[RED](red.log "failure evidence")', '[RED][log]',
-                     '[log][]', '[log]', '[RED](red.log) / [GREEN](green.log)'):
+                     '[log][]', '[log]', '[RED](red.log) / [GREEN](green.log)',
+                     '[![CI](badge.svg)](run.log)', '[log [1]](run.log)',
+                     '[RED](a(b(c)).log)'):
             with self.subTest(link=link):
                 text = ('| Check | Evidence |\n|---|---|\n'
                         f'| Regression | {link} |\n\n[log]: red.log\n')
                 self.assertEqual(harness.status_rows(text), [])
                 self.assertEqual(harness.status_marker_problems(text), [])
 
-    def test_links_do_not_hide_bad_markers_or_literal_code(self):
+    def test_links_do_not_hide_reserved_markers(self):
         for state in ('[RED](red.log) `[?]`', '**[ ]** [RED](red.log)',
-                      '[RED][log] [x]', '[RED][missing]', '[missing][]',
-                      '`[RED](red.log)`', '``[RED](red.log)``', '`[?]`(red.log)',
-                      '`[log]`', '[RED](unclosed', '[RED](not a destination)'):
+                      '[RED][log] [x]', '`[?]`(red.log)', '[ ](notes.md)',
+                      '[+](abc123)', '[x](red.log)', '[~][log]', '[x][]',
+                      '[?](unknown.log)', '[!][log]', '[X](cancelled.log)',
+                      '[-](old.log)', '[ + ](spaced.log)', '[  ](pending.log)'):
             with self.subTest(state=state):
                 text = f'| Evidence | {state} |\n\n[log]: red.log\n'
                 self.assertEqual(harness.status_marker_problems(text),
                                  ['line 1: unknown or non-backticked state marker'])
 
+    def test_prose_link_syntax_and_definitions_do_not_control_state(self):
+        # This reader validates task state, not Markdown link syntax or citations.
+        for prose in ('[RED][missing]', '[missing][]', '[unknown]', '[1]', '[CI]',
+                      '`[RED](red.log)`', '``[RED](red.log)``', '`[log]`',
+                      '[RED](unclosed', '[RED](not a destination)'):
+            with self.subTest(prose=prose):
+                self.assertEqual(harness.status_marker_problems(f'| Evidence | {prose} |\n'), [])
+        for definition in ('- [log]: run.log', '[log]:\n  run.log'):
+            self.assertEqual(harness.status_marker_problems(
+                f'| Evidence | [log] |\n\n{definition}\n'), [])
+
     def test_state_headers_still_require_exact_markers(self):
-        for state in ('[RED](red.log)', '[RED][log]', '[log][]', '[log]'):
+        for state in ('[RED](red.log)', '[RED][log]', '[log][]', '[log]',
+                      '[unknown]', '[ ](notes.md)', '[]', 'done', ''):
             for header, row in (('| Item | State |', f'| Task | {state} |'),
                                 ('| ID | Task | State |', f'| M01.1 | Task | {state} |')):
                 with self.subTest(state=state, header=header):
@@ -126,12 +141,25 @@ class EvidenceTableLinks(unittest.TestCase):
                     self.assertEqual(harness.status_marker_problems(text),
                                      ['line 2: unknown or non-backticked state marker'])
 
-    def test_code_block_reference_definitions_cannot_hide_markers(self):
-        for definition in ('```markdown\n[unknown]: red.log\n```',
-                           '    [unknown]: red.log'):
-            with self.subTest(definition=definition):
-                text = f'| Task | [unknown] |\n\n{definition}\n'
-                self.assertTrue(harness.status_marker_problems(text))
+    def test_reference_definitions_cannot_hide_reserved_markers(self):
+        for label in (' ', 'x', '!', '?', '+', '~', 'X', '-'):
+            for definition in (f'[{label}]: red.log', f'<!--\n[{label}]: red.log\n-->',
+                               f'```markdown\n[{label}]: red.log\n```',
+                               f'    [{label}]: red.log'):
+                with self.subTest(label=label, definition=definition):
+                    text = f'| Task | [{label}] |\n\n{definition}\n'
+                    self.assertEqual(harness.status_marker_problems(text),
+                                     ['line 1: unknown or non-backticked state marker'])
 
-    def test_empty_reference_label_cannot_hide_pending_marker(self):
-        self.assertTrue(harness.status_marker_problems('| Task | [ ] |\n\n[ ]: red.log\n'))
+    def test_split_tables_require_a_state_header_for_nonlegacy_columns(self):
+        for title in ('Second', '[Second](spec.md)'):
+            text = ('| ID | Task | State |\n|---|---|---|\n'
+                    '| M01.1 | First | `[+]` |\n\n'
+                    f'| M01.2 | {title} | `[ ]` |\n')
+            with self.subTest(title=title):
+                self.assertEqual(harness.status_marker_problems(text),
+                                 ['line 5: state marker outside the legacy second column; repeat the State header'])
+                repaired = text.replace('\n\n', '\n\n| ID | Task | State |\n|---|---|---|\n')
+                self.assertEqual(harness.status_marker_problems(repaired), [])
+                self.assertEqual([r['state'] for r in harness.status_rows(repaired)],
+                                 ['completed', 'pending'])

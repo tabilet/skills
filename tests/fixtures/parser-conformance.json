@@ -377,5 +377,188 @@
       }
     ],
     "problems": []
+  },
+  {
+    "name": "evidence-prose-is-not-task-state",
+    "kind": "status",
+    "text": "| Check | Evidence |\n|---|---|\n| Check 1 | [RED](red.log) |\n| Check 2 | [![CI](badge.svg)](run.log) |\n| Check 3 | [log [1]](run.log) |\n| Check 4 | [RED](a(b(c)).log) |\n| Check 5 | [log][] |\n| Check 6 | [log] |\n| Check 7 | [list-log] |\n| Check 8 | [continued-log] |\n| Check 9 | [RED][missing] |\n| Check 10 | `[RED](red.log)` |\n\n[log]: red.log\n- [list-log]: red.log\n[continued-log]:\n  red.log\n",
+    "rows": [],
+    "problems": []
+  },
+  {
+    "name": "headerless-marker-links-rejected",
+    "kind": "status",
+    "text": "| Task 1 | [ ](notes.md) |\n| Task 2 | [+](abc123) |\n| Task 3 | [x](red.log) |\n| Task 4 | [~][log] |\n| Task 5 | [x][] |\n| Task 6 | [?](unknown.log) |\n| Task 7 | [!][log] |\n| Task 8 | [X](cancelled.log) |\n| Task 9 | [-](old.log) |\n\n[log]: red.log\n[x]: red.log\n",
+    "rows": [],
+    "problems": [
+      "line 1: unknown or non-backticked state marker",
+      "line 2: unknown or non-backticked state marker",
+      "line 3: unknown or non-backticked state marker",
+      "line 4: unknown or non-backticked state marker",
+      "line 5: unknown or non-backticked state marker",
+      "line 6: unknown or non-backticked state marker",
+      "line 7: unknown or non-backticked state marker",
+      "line 8: unknown or non-backticked state marker",
+      "line 9: unknown or non-backticked state marker"
+    ]
+  },
+  {
+    "name": "status-heading-marker-links-rejected",
+    "kind": "status",
+    "text": "| Item | Status |\n|---|---|\n| Task 1 | [ ](notes.md) |\n| Task 2 | [+](abc123) |\n| Task 3 | [x](red.log) |\n| Task 4 | [~][log] |\n| Task 5 | [x][] |\n| Task 6 | [?](unknown.log) |\n| Task 7 | [!][log] |\n| Task 8 | [X](cancelled.log) |\n| Task 9 | [-](old.log) |\n\n[log]: red.log\n[x]: red.log\n",
+    "rows": [],
+    "problems": [
+      "line 3: unknown or non-backticked state marker",
+      "line 4: unknown or non-backticked state marker",
+      "line 5: unknown or non-backticked state marker",
+      "line 6: unknown or non-backticked state marker",
+      "line 7: unknown or non-backticked state marker",
+      "line 8: unknown or non-backticked state marker",
+      "line 9: unknown or non-backticked state marker",
+      "line 10: unknown or non-backticked state marker",
+      "line 11: unknown or non-backticked state marker"
+    ]
+  },
+  {
+    "name": "legend-definitions-cannot-hide-markers",
+    "kind": "status",
+    "text": "| Task 1 | [ ] |\n| Task 2 | [x] |\n| Task 3 | [!] |\n| Task 4 | [?] |\n| Task 5 | [+] |\n\n[ ]: red.log\n[x]: red.log\n[!]: red.log\n[?]: red.log\n[+]: red.log\n",
+    "rows": [],
+    "problems": [
+      "line 1: unknown or non-backticked state marker",
+      "line 2: unknown or non-backticked state marker",
+      "line 3: unknown or non-backticked state marker",
+      "line 4: unknown or non-backticked state marker",
+      "line 5: unknown or non-backticked state marker"
+    ]
+  },
+  {
+    "name": "comment-definitions-cannot-hide-markers",
+    "kind": "status",
+    "text": "| Task 1 | [ ] |\n| Task 2 | [x] |\n| Task 3 | [!] |\n| Task 4 | [?] |\n| Task 5 | [+] |\n\n<!--\n[ ]: red.log\n[x]: red.log\n[!]: red.log\n[?]: red.log\n[+]: red.log\n-->\n",
+    "rows": [],
+    "problems": [
+      "line 1: unknown or non-backticked state marker",
+      "line 2: unknown or non-backticked state marker",
+      "line 3: unknown or non-backticked state marker",
+      "line 4: unknown or non-backticked state marker",
+      "line 5: unknown or non-backticked state marker"
+    ]
+  },
+  {
+    "name": "code-definitions-cannot-hide-markers",
+    "kind": "status",
+    "text": "| Task 1 | [ ] |\n| Task 2 | [x] |\n| Task 3 | [!] |\n| Task 4 | [?] |\n| Task 5 | [+] |\n\n```markdown\n[ ]: red.log\n[x]: red.log\n[!]: red.log\n[?]: red.log\n[+]: red.log\n```\n",
+    "rows": [],
+    "problems": [
+      "line 1: unknown or non-backticked state marker",
+      "line 2: unknown or non-backticked state marker",
+      "line 3: unknown or non-backticked state marker",
+      "line 4: unknown or non-backticked state marker",
+      "line 5: unknown or non-backticked state marker"
+    ]
+  },
+  {
+    "name": "declared-third-state-column",
+    "kind": "status",
+    "text": "| ID | Task | State | Evidence |\n|---|---|---|---|\n| M01.1 | First | `[+]` | [RED](red.log) |\n| M01.2 | Second | `[ ]` | [log] |\n",
+    "rows": [
+      {
+        "item": "M01.1",
+        "state": "completed",
+        "cells": [
+          "M01.1",
+          "First",
+          "`[+]`",
+          "[RED](red.log)"
+        ],
+        "line": 3
+      },
+      {
+        "item": "M01.2",
+        "state": "pending",
+        "cells": [
+          "M01.2",
+          "Second",
+          "`[ ]`",
+          "[log]"
+        ],
+        "line": 4
+      }
+    ],
+    "problems": []
+  },
+  {
+    "name": "split-third-state-column-plain",
+    "kind": "status",
+    "text": "| ID | Task | State | Evidence |\n|---|---|---|---|\n| M01.1 | First | `[+]` | [RED](red.log) |\n\n| M01.2 | Second | `[ ]` | todo |\n",
+    "rows": [
+      {
+        "item": "M01.1",
+        "state": "completed",
+        "cells": [
+          "M01.1",
+          "First",
+          "`[+]`",
+          "[RED](red.log)"
+        ],
+        "line": 3
+      }
+    ],
+    "problems": [
+      "line 5: state marker outside the legacy second column; repeat the State header"
+    ]
+  },
+  {
+    "name": "split-third-state-column-linked",
+    "kind": "status",
+    "text": "| ID | Task | State | Evidence |\n|---|---|---|---|\n| M01.1 | First | `[+]` | [RED](red.log) |\n\n| M01.2 | [Second](spec.md) | `[ ]` | todo |\n",
+    "rows": [
+      {
+        "item": "M01.1",
+        "state": "completed",
+        "cells": [
+          "M01.1",
+          "First",
+          "`[+]`",
+          "[RED](red.log)"
+        ],
+        "line": 3
+      }
+    ],
+    "problems": [
+      "line 5: state marker outside the legacy second column; repeat the State header"
+    ]
+  },
+  {
+    "name": "declared-state-remains-strict",
+    "kind": "status",
+    "text": "| ID | Task | State | Evidence |\n|---|---|---|---|\n| M01.1 | Task | [unknown] | evidence |\n| M01.2 | Task | [ ](notes.md) | evidence |\n",
+    "rows": [],
+    "problems": [
+      "line 3: unknown or non-backticked state marker",
+      "line 4: unknown or non-backticked state marker"
+    ]
+  },
+  {
+    "name": "review-table-state-is-not-task-state",
+    "kind": "status",
+    "text": "| Iteration | Findings | State |\n|---|---|---|\n| 1 | [notes](review.md) | `[~]` |\n",
+    "rows": [],
+    "problems": []
+  },
+  {
+    "name": "retirement-rejects-pending-link",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** completed\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n| Hidden | [ ](notes.md) | todo |\n\n[!]: blocked\n`````\n",
+    "invalid": true
+  },
+  {
+    "name": "retirement-rejects-reference-marker",
+    "kind": "retired",
+    "file": "status-M01.md",
+    "text": "# Retired milestone M01\n\n**Milestone.** M01\n**Outcome.** completed\n**Retired.** 2026-09-12\n**Source status.** memory-bank/status-M01.md\n**Source specification.** memory-bank/milestone.md#m01-delivery\n**Evidence.** unversioned\n**Worktree.** unversioned\n**Review.** passed\n**Review iterations.** 2\n**Verification.** tests passed; review found no blocking issues\n**Consolidated into.** no current-truth change\n**Disposition.** Owner approved\n**Successor.** M02\n\n## Milestone specification\n\n`````markdown\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n\nExample only:\n| Not a task | `[ ]` | Example |\n```text\n## Status record\n```\n`````\n\n## Status record\n\n`````markdown\n| 1 | `[+]` | done |\n| 2 | `[-]` | successor: M02 |\n| Hidden | [!] | todo |\n\n[!]: blocked\n`````\n",
+    "invalid": true
   }
 ]
