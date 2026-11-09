@@ -32,7 +32,19 @@ launch input or pending project text prescribes a verification method the
 policy forbids, the policy governs the method and the acceptance outcome stays.
 Under `none`, the verification-attempt gate covers every expensive or protected
 check.
+When verification rules change, every reviewer brief quotes the changed rules,
+their scope and approval source alongside the effective policy pointer. A brief
+never grants an unapproved exception or waives required acceptance evidence.
 <!-- END SHARED test-policy-resolution -->
+
+## Session continuity
+
+Keep unresolved owner questions and affected work in existing status notes as
+well as the conversation; use the findings register only for actual findings.
+On resume or after a known context reset, read those notes and inspect queued
+input when the host exposes it. Unsent or unanswered questions grant no approval;
+retain the original scope and continue independent authorized work. Under a goal,
+return questions to the owner instead of creating another shared-state writer.
 
 ## Model policy
 

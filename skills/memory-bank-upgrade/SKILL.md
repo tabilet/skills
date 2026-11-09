@@ -227,6 +227,14 @@ project adopts them, its stricter text stays binding. The proposal:
   section, its specification line and the `Advisory records` paragraph only in a
   proposal that already has other changes, including first adoption, as their own
   decision. A project with nothing else to change stays a no-op.
+- Include the bundled `Tool limits`, `Verification discrepancies`, `Test programs`
+  and `Diagnosis before repair` rules in the explicit adoption comparison, along
+  with instrumented timing diagnosis, the integration race watch list and heavy
+  fixture ownership. Preserve project overrides and stronger gates. Show any
+  acceptance or timing-policy conflict for individual approval; never downgrade
+  old failures, rewrite frozen evidence or infer acceptance from absent race
+  reports. Reviewer briefs quote changed rules with their scope and approval
+  source. No additional ledger or automatic protocol-identity approval is created.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the

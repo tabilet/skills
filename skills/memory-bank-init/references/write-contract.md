@@ -181,6 +181,13 @@ section with `Project levels: none` unless the user chose levels. Include the te
 with `Last used ID: none` and its `capacity limit` note, and its execution-path
 note that the optional `tabilet` controller keeps P2 blocking.
 
+Include the template's `Tool limits`, `Verification discrepancies` and `Test
+programs` rules, plus `Diagnosis before repair`, preserving project overrides
+and required acceptance evidence. For shared concurrency surfaces changed by
+multiple milestones, put the race watch list in the final integration
+milestone's verification section with named tests and instrumented execution
+evidence; create no separate ledger.
+
 Include a separate `New review intake` procedure for reviews received after the
 harness exists. It must require current-state revalidation, preserve both source
 and local severity, and obtain approval for dispositions and file actions before

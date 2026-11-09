@@ -43,6 +43,12 @@ from silence or process exit. Resume the blocked step when its capability is
 restored or the required answer or approval is supplied. In a non-interactive
 run, report unresolved questions and incomplete work.
 
+Keep unresolved owner questions and the affected work in existing goal/status
+notes as well as the conversation; use the findings register only for actual
+findings. On resume or after a known context reset, read those notes and inspect
+queued input when the host exposes it. An unsent or unanswered question grants
+no approval; preserve the original scope and continue independent authorized work.
+
 Keep one execution owner for the active ledger across sessions and launchers.
 Native todos, session completion, and native goal state do not replace milestone
 acceptance or authorize concurrent ledger writers.
@@ -1158,6 +1164,12 @@ no active writer, a merged branch and a clean worktree; never force removal.
   non-reproducible incidents, record existing evidence and the reproduction
   limitation instead of forcing retries or inventing a failure. Required
   acceptance evidence and verification gates still apply; if missing, pause.
+- Establish the causal path and actual failing branch before choosing a repair,
+  using the cheapest decisive diagnostic and the project's diagnosis guidance.
+  Inspect same-pattern callers within approved scope and cover affected consumers.
+  Before adding a durable record or state, list its readers and compatibility
+  requirements. Record uncertainty when reproduction is unavailable; this adds
+  no per-fix approval or separate readiness-review gate.
 - Maintain relevant reusable lessons with evidence. When a mistake recurs,
   classify it first: a mechanical one that a linter, test, or CI check could
   catch becomes a proposed deterministic check; a judgement call becomes a
@@ -1219,6 +1231,9 @@ launch input or pending project text prescribes a verification method the
 policy forbids, the policy governs the method and the acceptance outcome stays.
 Under `none`, the verification-attempt gate covers every expensive or protected
 check.
+When verification rules change, every reviewer brief quotes the changed rules,
+their scope and approval source alongside the effective policy pointer. A brief
+never grants an unapproved exception or waives required acceptance evidence.
 <!-- END SHARED test-policy-resolution -->
 
 #### Bounded Verification-Attempt Gate

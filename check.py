@@ -3620,12 +3620,25 @@ def test_policy_and_convergent_review_gate():
     )
     required = {
         "GOAL.md": gate_tokens + (
+            "Keep unresolved owner questions", "queued input when the host exposes it",
+            "Establish the causal path and actual failing branch",
+            "every reviewer brief quotes the changed rules",
+            "never grants an unapproved exception or waives required acceptance evidence",
             "review findings carried, fixed or deferred, by ID",
             "stays in force for a check that uses it", "the approved `budget` is the only count",
             "A preset never writes a budget above the gate's default",
             "Findings blocking under the originating gate's criteria remain attached",
             "TEST_POLICY: tabilet/memory-bank/test-policy.md"),
         milestone: gate_tokens + (
+            "**Tool limits.**", "labelled `tool limit`", "external tool ownership never excuses missing acceptance evidence",
+            "**Verification discrepancies.**", "A timeout is still FAIL",
+            "**Test programs.**", "Shared test helpers with meaningful logic need small focused tests",
+            "Weakened tests and removed assertions receive ordinary severity",
+            "consider removing that fix before adding another", "## Diagnosis before repair",
+            "no per-fix approval or separate readiness-review gate",
+            "list its existing readers and their compatibility requirements",
+            "a race watch list in the final integration milestone's verification section",
+            "its named test actually ran and passed instrumented",
             "## Open review findings", "Last used ID: none", "FND-01",
             "| ID | Finding | Severity | Origin | Fix owner | Disposition |",
             "Horizon closure", "carried as FND-03", "fixes FND-03", "deferred by human",
@@ -3648,6 +3661,15 @@ def test_policy_and_convergent_review_gate():
             "`identify-specification` correction in `tabilet/docs/history/corrections.json`",
             "may head its specification without padding there (`M1` for `M01`)"),
         TEST_POLICY_FILE: (
+            "It never converts a FAIL into a PASS",
+            "concurrency is not their universal trigger",
+            "## Instrumented timing diagnosis", "they do not turn a failed run into a pass",
+            "Missing or unproven acceptance remains P1",
+            "record residual coverage risks", "measurement does not authorize raising them",
+            "Measure the instrumented guard margin on an idle host",
+            "Verify that concurrency and timeout knobs affect the selected tests",
+            "**Heavy fixtures.**", "name the required gate that enables it",
+            "Reviewer briefs quote changed verification rules",
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's focused verification and its evidence",
             "not after each edit", "something a gate reads has changed",
@@ -3694,6 +3716,8 @@ def test_policy_and_convergent_review_gate():
             "refusals are Lower there", "`capacity limit` row ends through human deferral or a planned fix",
             "defining levels needs its own human-approved proposal"),
         "skills/memory-bank-init/references/write-contract.md": (
+            "`Tool limits`, `Verification discrepancies` and `Test programs`",
+            "`Diagnosis before repair`", "create no separate ledger",
             "tabilet/memory-bank/test-policy.md", "TEST_POLICY: <resolved path or none>",
             "Open review findings", "keeps P2 blocking",
             "`Safe capacity refusals` and `Advisory records` paragraphs, which a project's own severity",
@@ -3702,9 +3726,15 @@ def test_policy_and_convergent_review_gate():
             "`capacity limit` note, and its execution-path",
             "carry no controller, receipt or other-language method forward"),
         "skills/memory-bank-goal/references/subagents.md": (
+            "including bytes versus characters", "Verify receipt or observed turn start",
+            "inspect uncertain delivery before retrying", "Unresolved owner questions",
+            "Quote changed verification rules with their scope and approval source",
             "scopes the iteration as the governing gate", "resolved `TEST_POLICY`",
             "(P1, P2, Lower)", "review changes remain unreviewed", "register updates"),
         "skills/memory-bank-upgrade/SKILL.md": (
+            "`Tool limits`, `Verification discrepancies`, `Test programs`",
+            "instrumented timing diagnosis", "never downgrade old failures",
+            "No additional ledger or automatic protocol-identity approval is created",
             "explicit adoption", "keep P2 blocking", "Open review findings",
             "Earlier UNKNOWN, aborted and failed class O records stay literal",
             "prescribes a method the test policy forbids", "frozen records stay as they are",
@@ -3714,6 +3744,10 @@ def test_policy_and_convergent_review_gate():
             "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips", "a missing `Row checks` or `Stage qualification` line is offered",
             "in `tech-stack.md`'s verification standards", "`tech-stack.md` pointers and its `Row checks` and `Stage qualification` lines",
             "the capacity and unit size section", "Guarantee levels never count toward compatibility", "A project with nothing else to change stays a no-op"),
+        "skills/memory-bank-next/references/interactive-controls.md": (
+            "## Session continuity", "queued input when the host exposes it",
+            "every reviewer brief quotes the changed rules",
+            "Unsent or unanswered questions grant no approval"),
         "skills/memory-bank-propose/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",
             "for a path the stage cannot reach", "unless acceptance requires them",
@@ -3815,6 +3849,9 @@ def test_policy_and_convergent_review_gate():
     shared_text = (ROOT / "skills/memory-bank-next/SKILL.md").read_text()
     shared = shared_text.split("<!-- shared-execution-start -->", 1)[-1].split("<!-- shared-execution-end -->", 1)[0]
     for token in missing_contract_tokens(shared, (
+            "Establish the causal path and actual failing branch",
+            "list its readers and compatibility requirements",
+            "no per-fix approval or separate readiness-review gate",
             "test policy already resolved for this run", "`AGENTS.md` declares",
             "`tabilet/memory-bank/test-policy.md` when it exists",
             "declared policy file that is missing pauses verification",

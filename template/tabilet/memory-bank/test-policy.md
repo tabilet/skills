@@ -63,6 +63,9 @@ test on loopback fixtures with a throwaway profile is class O.
    grant, that grant's scope, reservations, budget and stop conditions bind as
    the goal protocol states. An exhausted budget pauses the run for human
    direction even though the test is class O.
+   For a harmless record or setting discrepancy, use the milestone's
+   [verification discrepancy rule](milestone.md#review-finding-severity), retaining
+   the actual result and required rerun. It never converts a FAIL into a PASS.
 6. **Keep the safety defaults.** Offline and credential-free fixtures,
    disposable stores, loopback-only networking, required sandboxes, pinned
    artifacts and product limits stay mandatory wherever the project or a
@@ -81,6 +84,12 @@ test on loopback fixtures with a throwaway profile is class O.
    units whose concurrent code changed and on consumers of a changed
    concurrency contract. This limits the row check, never a required gate; a
    consumer broken in some other way surfaces at the required gates.
+   Concurrency triggers include threads, tasks, channels, locks, atomics, shared
+   mutable state and job/cancellation lifecycles. When race checking is not
+   triggered, record that reason against the diff for review. Sanitizers and
+   other instrumented variants follow their own defect classes and project
+   triggers; concurrency is not their universal trigger. Preserve required
+   full instrumented integration gates and their reruns under this rule.
    The row check is the row's focused verification and its evidence, with any
    red-then-green regression; earlier narrow runs are not evidence. Record it
    as rule 5 records a gate. It may use the toolchain's test cache unless a test
@@ -123,6 +132,30 @@ test on loopback fixtures with a throwaway profile is class O.
 
    The gate still runs whole units; only the named fixture is skipped.
 
+## Instrumented timing diagnosis
+
+Before a full instrumented pass, establish the applicable timing expectations
+and any human-approved acceptance arrangement. A plain pass, measured expiry
+of a product time guard on the failing branch, and no race or sanitizer report
+together support an instrumentation-overhead diagnosis; they do not turn a
+failed run into a pass. A P2 disposition is possible only under an approved
+acceptance arrangement that still proves required coverage. Missing or unproven
+acceptance remains P1. Other class O failures follow the ordinary fix-and-rerun
+rule; diagnosis adds no blanket owner-approval gate.
+
+Avoid speculative product optimization solely to fit instrumentation overhead.
+Useful product optimizations still need causal evidence and normal review.
+Instrumented-only guard scaling is a project-specific design option requiring
+review and any necessary policy approval; keep shipped builds unchanged and
+record residual coverage risks. Code after an expired guard was not exercised
+under instrumentation. Neither scaling nor an absence of reports proves that
+unexecuted code is safe, and fixture skips still obey rule 8.
+
+Verify that concurrency and timeout knobs affect the selected tests before
+relying on them. Measure instrumented runtimes rather than deriving their
+timeouts from plain runs. Existing hard caps and authorization limits remain
+binding; measurement does not authorize raising them.
+
 ## Capacity and unit size
 
 These are recommendations, not gates. Numbers belong to each project, in
@@ -132,6 +165,8 @@ These are recommendations, not gates. Numbers belong to each project, in
   host: isolated stores and ports do not isolate CPU. Plain targets may run in
   parallel. Record the measured reason for any limit in either direction; an
   unexplained serial setting is worth challenging.
+  Measure the instrumented guard margin on an idle host before choosing a
+  serial fallback: serialization cannot repair a guard that expires while idle.
 - **Instrumentation scope.** When a profile shows that an instrumented run spends
   most of its time in third-party code, or a stock default applies, a project may
   exclude that code from instrumentation. Its own code stays fully instrumented
@@ -151,6 +186,10 @@ These are recommendations, not gates. Numbers belong to each project, in
 - **Parallel tests.** Prefer tests that can run in parallel, each with its own
   disposable state. Note toolchain limits, such as tests that change the process
   environment.
+- **Heavy fixtures.** Record the cost and owner of expensive qualification
+  fixtures. When kept behind an opt-in qualification flag, name the required
+  gate that enables it and retain smaller routine coverage. Never silently
+  remove required coverage or use the flag to bypass a reported failure.
 
 ## Use the project's own toolchain
 
@@ -192,6 +231,13 @@ Only when:
   policy.
 
 ## Reviewing against this policy
+
+Apply the milestone's [tool-limit, verification-discrepancy and test-program
+rules](milestone.md#review-finding-severity) and
+[diagnosis guidance](milestone.md#diagnosis-before-repair). Review changed
+assertions and coverage with the product; helper or tool ownership does not
+excuse invalid evidence. Reviewer briefs quote changed verification rules with
+their scope and approval source, alongside the effective policy pointer.
 
 Reviewers report as findings: an external controller or receipt reader around
 class O tests; an UNKNOWN class O outcome; per-run approvals or readiness

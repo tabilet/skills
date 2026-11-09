@@ -109,6 +109,14 @@ location with read-only access for consumers; use a location outside the workspa
 only if explicitly authorized. Briefs point to those notes and to existing specifications, status
 files, and commits instead of restating them.
 
+For relayed instructions, use a concise message pointing to the complete brief
+in an authorized location accessible to the recipient. Respect the transport's
+actual size limit, including bytes versus characters; do not truncate scope,
+grants or constraints. For raw terminal paste, inspect the destination and read
+back the input before submission when needed; use native submission acknowledgments
+where available. Verify receipt or observed turn start, and inspect uncertain
+delivery before retrying so the assignment is not submitted twice.
+
 The full request is context only beyond the child's effective subset. Children
 cannot expand or transfer grants. Read-only reviewers receive no mutation
 authority even when the full request contains mutation grants. Requirements,
@@ -157,6 +165,9 @@ report:
 - Discovered downstream notes or contract changes.
 - Grant IDs used, action outcomes, missing authority, and uncertain side effects;
   this report is execution evidence, not approval.
+- Unresolved owner questions and the work they affect, including on early return.
+  The owner persists them in existing goal/status notes; a findings-register
+  entry is used only when the question concerns an actual finding.
 
 The owner resumes active ownership, reviews the actual code diff, performs
 downstream reconciliation against consumer specifications, applies shared-memory
@@ -170,6 +181,8 @@ If a sub-agent terminates early (such as due to a timeout or server restart),
 its status file and Git commits remain the durable resume point. The next
 invocation reads the stored status rows and persisted review counter, resuming
 the incomplete iteration without resetting to 1.
+After a known context reset, also inspect queued input when the host exposes
+it and reconcile unresolved questions with their durable notes before dispatch.
 Status and commits describe progress, not permission. Resume only with the
 original approved goal/assignment scope and human approval context (from the
 conversation or existing trusted host state where supported). An audit record,
@@ -199,7 +212,9 @@ In each iteration of the bounded review-fix gate:
    under `WHOLE_MILESTONE_REVIEW` for each iteration. Lenses are coverage
    obligations: combine them or run batches within available host capacity.
    Each brief carries the resolved `TEST_POLICY`, the earlier findings and the
-   reviewed state. Cover the iteration scope through these lenses:
+   reviewed state. Quote changed verification rules with their scope and approval
+   source alongside the effective policy pointer; a brief cannot authorize an
+   exception. Cover the iteration scope through these lenses:
    - **Correctness & Reliability**: Logic errors, edge cases, failure semantics.
    - **Security & Privacy**: Access control, secret leaks, data validation.
    - **Compatibility & Contracts**: Public APIs, schema migrations, backwards

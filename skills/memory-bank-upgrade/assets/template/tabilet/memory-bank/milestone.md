@@ -294,6 +294,13 @@ the gate covers every expensive or protected check. For such a milestone:
 - Name the uncounted local diagnostic loop (the class O loop), and order cases
   so that an unrelated failure cannot hide the milestone's own cases.
 
+For shared concurrency surfaces changed by multiple milestones, keep a race
+watch list in the final integration milestone's verification section. Map each
+surface to a named test that exercises the interacting changes. Close an entry
+only with evidence that its named test actually ran and passed instrumented;
+a clean full-suite summary alone is insufficient. Use this existing section,
+not a separate ledger, and preserve every required integration gate.
+
 To defer already approved work through a stage rescope, present the exact
 untouched pending rows and affected downstream work for approval. After
 approval, retain their identity and original task text, mark them `[X]`, and
@@ -413,6 +420,36 @@ is P1. A security, privacy or data-loss finding is P1 unless evidence clearly
 shows otherwise. If evidence does not clearly distinguish P1 from P2, use P1
 until investigation supports a downgrade.
 
+**Tool limits.** A defect in a third-party tool that did not cause the task's
+issue is Lower, labelled `tool limit`, only when it leaves the task's evidence
+valid, is not caused by the project's own integration, and causes no supported-user
+harm covered by the severity table. Record evidence for those conditions and a
+proposed owner in the existing review notes or findings register. It does not
+block the task or require a workaround there. If any condition fails, classify
+it normally; external tool ownership never excuses missing acceptance evidence.
+Use the existing Lower dispositions and project overrides, not a new severity.
+
+**Verification discrepancies.** A record or setting difference is Lower when
+evidence proves it could not change the result: the required tests ran with
+equivalent coverage and passed within the prescribed limits. Record the actual
+command and result, the equivalence evidence, and rerun with the prescribed
+settings before closure. The discrepancy alone does not fail a review. A missing
+required check or a difference that could hide a failure remains P1. A timeout
+is still FAIL under the test policy; this rule never waives a required gate,
+weakens acceptance, or excuses an authorization breach.
+
+**Test programs.** Keep tests simple enough to check by reading. If a test
+seems to need a test of its own, simplify it and prove it against broken product
+behavior with red/green or a deliberate broken-product control. Shared test
+helpers with meaningful logic need small focused tests. Classify helper defects
+by their effect on this task's evidence and supported behavior, not merely by
+their existence elsewhere. Where a third-party adapter is needed, keep it thin
+and give it sufficient contract coverage; do not introduce a wrapper just to
+test it or impose a one-test ceiling. When an earlier fix caused a new finding,
+consider removing that fix before adding another. Weakened tests and removed
+assertions receive ordinary severity and review, including their effect on
+acceptance; being test code never lowers severity by itself.
+
 **Safe capacity refusals.** A case at extreme size or capacity is Lower, not P1 or
 P2, when all of these hold: no acceptance line, public contract or previously
 supported behavior promises that size; a test shows the refusal is deterministic
@@ -445,6 +482,22 @@ its own full milestone review, and any P0/P1/P2 finding reported in that review
 blocks retirement and starts another full review. An interactive review pass
 does not replace it, and the controller does not read the open review findings
 register, so milestones it runs keep P2 blocking.
+
+## Diagnosis before repair
+
+Establish the causal path before choosing a fix, especially for a P1: use the
+cheapest decisive diagnostic to identify the actual failing branch and reconcile
+it with the reported symptom. A plausible error message alone is insufficient.
+Respect reproduction permissions and limits; when reproduction is unavailable,
+record existing causal evidence and the uncertainty instead of forcing it.
+This adds no per-fix approval or separate readiness-review gate.
+
+For a shared-helper or repeated-pattern defect, inspect its callers and sibling
+occurrences within approved scope, then cover affected consumers in the fix and
+verification. Report necessary work outside that scope to its owner. Before
+introducing a durable record or state, list its existing readers and their
+compatibility requirements; a shared projection is an option when it reduces
+reader drift, not a required abstraction.
 
 ## New review intake
 

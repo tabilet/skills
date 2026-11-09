@@ -127,6 +127,12 @@ Tackle exactly one row:
   non-reproducible incidents, record existing evidence and the reproduction
   limitation instead of forcing retries or inventing a failure. Required
   acceptance evidence and verification gates still apply; if missing, pause.
+- Establish the causal path and actual failing branch before choosing a repair,
+  using the cheapest decisive diagnostic and the owning milestone's diagnosis
+  guidance. Inspect same-pattern callers within approved scope and cover affected
+  consumers. Before adding a durable record or state, list its readers and
+  compatibility requirements. Record uncertainty when reproduction is unavailable;
+  this adds no per-fix approval or separate readiness-review gate.
 - Implement the change.
 - When retiring an implementation, preserve meaningful success and failure
   coverage for retained behavior through its successor. Distinguish executed
