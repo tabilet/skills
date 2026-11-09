@@ -1,3 +1,67 @@
+# memory-bank v2.23.0
+
+Adds integrated closure and verification rules, and fixes status validation that
+could reject evidence links or silently miss malformed task state. The stock
+`GOAL.md` protocol changes and has a new fingerprint.
+
+- **Status and evidence tables (F).** Ordinary evidence links, badges, nested
+  labels and reference links remain readable. Reserved state tokens stay visible
+  inside links and formatting, and reference definitions cannot hide them.
+  Declared State columns still require exact backticked markers. A split table
+  with state outside the legacy second column stops with a request to repeat the
+  State header instead of silently reporting completion. Shared parser fixtures
+  and runner, retirement and historical-index regressions cover these cases.
+- **Review and diagnosis (A–E).** Tool-limit findings depend on their effect on
+  valid evidence and supported behavior. Test programs stay simple and cover
+  meaningful helper logic. Harmless verification discrepancies retain actual
+  results and prescribed reruns. Instrumented timing diagnosis needs causal
+  evidence and preserves failed results. Diagnose the failing branch before
+  repair, inspect affected readers and consumers, retain unresolved owner
+  questions, and verify agent handoffs within their granted scope.
+- **Integrated closure and repair scope (G–I).** The integration milestone, or
+  the last milestone when none is planned, owns five cross-milestone review
+  lenses: durable-state exits, persistence/crash recovery, earlier-format
+  compatibility, failure isolation and protection of other in-flight work.
+  Capture and retain its starting state before contributing tasks, including
+  uncommitted or unversioned sources. Missing historical baselines require full
+  implementation and acceptance review. Ordinary reviewer arrangements apply
+  unless independence is explicitly required. Repair proposals compare scope,
+  consumers, verification cost and a narrower alternative; a repeated class of
+  reader or consumer gap in a later review triggers reconsideration by default.
+  Projects may override that trigger; there is no numeric repair-size threshold.
+- **Verification contracts and evidence (J–Q).** Classify changes by behavioral
+  risk, including instruction changes. Stack gains an optional risk-scaled
+  verification contract; reducing required gates needs explicit approval of the
+  specific change and replacement coverage. A P2 timing disposition never passes
+  a failed required gate. Keep timing estimates advisory, measure expensive
+  tests, isolate mutable state before parallelism, prove native cache invalidation
+  for external inputs, and assign heavy fixtures to named qualification gates.
+  Environment preflight applies independently of light-profile selection and
+  permits only invocation-local corrections within existing authority. Required
+  performance thresholds still block closure; advisory targets retain their
+  actual measurements. Unrelated changes need no race non-trigger note.
+- **Optional author self-check (R).** A human may request a trial before review.
+  It uses the existing brief, adds no review iteration, and replaces neither
+  independent review nor required checks. Permanent adoption needs a proposal.
+- **Synchronized contracts.** Templates, upgrade assets, execution prompts,
+  planning references and goal bundles agree. Shared-block checks protect the
+  reconsideration and environment-preflight wording from drift.
+
+**Protocol identity.** The previous released fingerprint was `3bab1d4a…`.
+The initial A–E/G–R work changed it through the unreleased `dcf058fb…` build;
+review fixes produce the v2.23.0 fingerprint
+`0967349d8bbff76da80f3f1377e5732e4c4b30b94f432ea968c82774b8d0c4f6`.
+The five registries identify the current protocol and retain earlier tagged
+fingerprints. Intermediate development hashes are not recorded as releases.
+
+**Adoption.** Installing this release does not adopt its project rules or change
+project files. Existing projects adopt them through `memory-bank-upgrade` after
+approval of its complete proposal. A resumed goal whose recorded protocol
+identity differs must obtain approval of the new identity, preserving existing
+grants, denials, review counters and limits. Update separately installed runner
+or audit executables to receive the parser fixes; updating the plugin alone does
+not replace them. The DSH companion parser adaptation is a separate follow-up.
+
 # memory-bank v2.22.2
 
 Adds explicit historical spelling corrections and fixes retirement-index table
