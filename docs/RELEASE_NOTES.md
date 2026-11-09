@@ -1,3 +1,34 @@
+# memory-bank v2.23.1
+
+Patch release. It fixes regressions that v2.23.0 introduced in how frozen
+retired records and status tables are read, and one reflection crash. The stock
+`GOAL.md` protocol is unchanged, so its fingerprint is unchanged.
+
+- **Frozen records.** A retired record that v2.23.0 accepted is accepted again.
+  A non-task table with a marker in its first column no longer blocks it, and
+  marker legends are recognised by their header rather than one fixed wording.
+  Active status files keep the column-0 check.
+- **Notes columns.** Notes are read by column role, so `ID | Task | Notes | State`
+  keeps an accepted-successor or dependency note placed before State. A task
+  description that names a successor does not close the row. The index projection
+  is `v13`, so the next sync rebuilds cached task notes.
+- **Install guard.** The install snippets in the installation, SQLite and Chinese
+  guides run in a `set -e` block, so a runner symlink that points at another
+  checkout stops the block before other files are copied. `check_toolkit` also
+  refuses a runner whose parser interface differs from the index's.
+- **Reflection.** A REST reply that is not a JSON object is a controlled backend
+  failure, not an attribute error at milestone closure.
+- **Tests.** The history-correction tests build their Git repository only when
+  they need it. Regression tests cover each change above.
+
+**Scope.** The shared runner parser, the index, the reflection helper, the
+toolkit check, the installation guides and the repository tests change. The
+stock test policy, milestone template and `GOAL.md` do not.
+
+**Upgrade note.** Installing this plugin alone changes no project file. Update the
+separately installed runner and `tabilet-audit` together, since the toolkit check
+refuses a mismatch. A project's index rebuilds on its next sync.
+
 # memory-bank v2.23.0
 
 Adds integrated closure and verification rules, and fixes status validation that
