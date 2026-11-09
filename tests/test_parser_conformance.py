@@ -163,3 +163,66 @@ class EvidenceTableLinks(unittest.TestCase):
                 self.assertEqual(harness.status_marker_problems(repaired), [])
                 self.assertEqual([r['state'] for r in harness.status_rows(repaired)],
                                  ['completed', 'pending'])
+
+    def test_linked_task_headers_keep_state_column(self):
+        for task_header in ('[Task](spec.md)', 'Task [M01]', '[Task]'):
+            with self.subTest(task_header=task_header):
+                text = (f'| ID | {task_header} | State | Notes |\n'
+                        '|---|---|---|---|\n'
+                        '| M01.1 | First | `[+]` | done |\n')
+                self.assertEqual([(r['item'], r['state']) for r in harness.status_rows(text)],
+                                 [('M01.1', 'completed')])
+                self.assertEqual(harness.status_marker_problems(text), [])
+
+    def test_markers_in_column_zero_are_reported(self):
+        for cell in ('[ ] Task', '`[ ]` Task', '[ ]', '`[ ]`', '[ ](notes.md)', '[+]'):
+            with self.subTest(cell=cell):
+                text = f'| {cell} | notes |\n'
+                self.assertEqual(harness.status_marker_problems(text),
+                                 ['line 1: unknown or non-backticked state marker'])
+
+    def test_data_cell_with_literal_state_is_reported_as_invalid_marker(self):
+        text = ('| ID | Task | State | Notes |\n'
+                '|---|---|---|---|\n'
+                '| M01.1 | First | state | notes |\n')
+        self.assertEqual(harness.status_marker_problems(text),
+                         ['line 3: unknown or non-backticked state marker'])
+
+    def test_historical_row_successor_respects_state_index(self):
+        bad = ('| ID | Task naming successor: M02 | State | Notes |\n|---|---|---|---|\n'
+               '| M01.1 | Task naming successor: M02 | `[-]` | failed attempt |\n')
+        with self.assertRaises(ValueError):
+            harness.retired_record(retirement_text(bad), 'status-M01.md')
+
+        good = ('| ID | Task | State | Notes |\n|---|---|---|---|\n'
+                '| M01.1 | Task | `[-]` | Accepted successor: M02 |\n')
+        record = harness.retired_record(retirement_text(good), 'status-M01.md')
+        self.assertEqual(len(harness.status_rows(record['status'])), 1)
+
+    def test_legend_table_marker_exemption_and_task_detection(self):
+        legend = ('| Symbol | Suggested Status | Interpretation |\n'
+                  '|---|---|---|\n'
+                  '| `[ ]` | Pending | Item is actionable. |\n'
+                  '| `[+]` | Completed | Item is done. |\n')
+        self.assertEqual(harness.status_marker_problems(legend), [])
+        self.assertEqual(harness.status_rows(legend), [])
+
+        # Non-backticked marker in column 0 of legend table is still caught
+        bad_legend = legend.replace('`[ ]`', '[ ]')
+        self.assertEqual(harness.status_marker_problems(bad_legend),
+                         ['line 3: unknown or non-backticked state marker'])
+
+    def test_historical_successor_when_state_is_last_column(self):
+        status = ('| ID | Task | State |\n|---|---|---|\n'
+                  '| M01.1 | Task 1 | `[-]` |\n'
+                  '| M01.2 | Task 2 | `[+]` |\n')
+        text = retirement_text(status)
+        number = next(n for n, line in enumerate(text.splitlines(), 1) if '| M01.2 |' in line)
+        op = {'kind': 'historical-successor', 'item': 'M01.1', 'successor': 'M01.2',
+              'evidence': [{'start_line': number, 'end_line': number, 'quote': '| M01.2 | Task 2 | `[+]` |'}]}
+        from test_history_corrections import entry
+        correction = entry(text, [op])
+        record = harness.historical_record(text, 'status-M01.md', correction)
+        self.assertIn('| M01.1 | Task 1 | `[-]` | Accepted successor: M01.2 |', record['task_status'])
+        self.assertEqual([r['state'] for r in harness.status_rows(record['task_status'])],
+                         ['historical', 'completed'])

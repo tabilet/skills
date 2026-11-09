@@ -201,11 +201,15 @@ def _reconcile_task(core, repo, receipt, operation, store=None):
         if not isinstance(key[2], int) or not 1 <= key[2] <= len(rows):
             raise RecoveryError('resumed row identity cannot be reconstructed')
         row = rows[key[2]-1]
+        state_idx = next((r['state_index'] for r in core.status_table_rows(source) if r['line'] == row['line']), 1)
         lines = source.splitlines(keepends=True)
-        lines[row['line']-1] = lines[row['line']-1].replace('`[!]`','`[~]`',1)
+        parts = re.split(r'(?<!\\)\|', lines[row['line']-1], maxsplit=state_idx + 2)
+        if len(parts) > state_idx + 1:
+            parts[state_idx + 1] = ' `[~]` '
+            lines[row['line']-1] = '|'.join(parts)
         before['documents'][key[0]] = ''.join(lines)
         before['states'][key] = 'in_progress'
-        before['cells'][key][1] = '`[~]`'
+        before['cells'][key][state_idx] = '`[~]`'
         if not key[0].startswith('status-'):
             before['specifications'][key[0]] = before['documents'][key[0]]
         if horizon.snapshot_digest(before) != operation.get('before_snapshot_sha256'):

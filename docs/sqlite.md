@@ -230,7 +230,11 @@ Run from a checkout containing the SQLite feature:
 
 ```bash
 mkdir -p ~/.local/bin
-install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
+  test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
+else
+  install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+fi
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py ~/.local/bin/
 install -m 755 harness/tabilet_explorer.py ~/.local/bin/
 install -d ~/.local/share/tabilet/explorer
@@ -240,7 +244,8 @@ export PATH="$HOME/.local/bin:$PATH"
 ```
 
 The CLI works with Python 3.9+ and SQLite 3.24.0+ on Linux, macOS, and
-Windows. Without a shell launcher, run the existing source directly:
+Windows. An existing runner symlink pointing to this checkout is preserved.
+Without a shell launcher, run the existing source directly:
 
 ```bash
 python3 /path/to/skills/harness/tabilet_audit_host.py audit enable /path/to/project
@@ -339,8 +344,12 @@ modules together, then rebuild the affected project's index:
 
 ```bash
 install -d "$HOME/.local/bin"
-install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
-install -m 644 harness/tabilet_audit.py harness/tabilet_index.py "$HOME/.local/bin/"
+if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
+  test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
+else
+  install -m 755 harness/tackle-memory-bank-api-loop "$HOME/.local/bin/"
+fi
+install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py "$HOME/.local/bin/"
 install -m 755 harness/tabilet_audit_host.py "$HOME/.local/bin/tabilet-audit"
 export PATH="$HOME/.local/bin:$PATH"
 tabilet-audit index sync /absolute/path/to/project --rebuild

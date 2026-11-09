@@ -25,7 +25,7 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 4
-INDEX_PROJECTION = 'v11'
+INDEX_PROJECTION = 'v12'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -296,7 +296,9 @@ def parse_document(path,kind,text,digest,corrections=None):
             parsed['index_relationships'].append(dict(line=1, source='milestone:'+identity,
                 relation='parent', target='milestone:'+parent))
         all_rows=p.table_rows(status)
+        state_by_line = {item['line']: item['state_index'] for item in p.status_table_rows(status)}
         for row in rows:
+            state_index = state_by_line.get(row['line'], 1)
             headers=[]
             row_index=next((i for i,item in enumerate(all_rows) if item['line']==row['line']), None)
             if row_index is not None:
@@ -323,15 +325,15 @@ def parse_document(path,kind,text,digest,corrections=None):
                 embedded = re.match(r'^('+p.MILESTONE_ID+r')\.([1-9][0-9]*)(?=\s|:|—|–|-|$)', row['item'])
                 if embedded and embedded[1] == identity:
                     explicit = embedded[0]
+            notes = ' | '.join(row['cells'][state_index + 1:])
             parsed['index_tasks'].append(dict(sha256=digest,line=row['line']+offset,milestone_id=identity,
-                label=row['item'],state=row['state'],notes=' | '.join(row['cells'][2:]),explicit_id=explicit))
+                label=row['item'],state=row['state'],notes=notes,explicit_id=explicit))
             parsed['index_search'].append(dict(line=row['line']+offset,kind='task',milestone_id=identity,
                 state=row['state'],text=literal_task_lines.get(row['line'], ' | '.join(row['cells']))))
             # Explicit task IDs are scoped by their milestone. Keep that scope
             # in the disposable dependency key so two milestones may both use
             # conventional IDs such as T01 without colliding in SQLite.
             task_key=f'{identity}/{explicit}' if explicit else f'{path}#{row["line"]+offset}'
-            notes=' | '.join(row['cells'][2:])
             for target,reason in task_dependencies(notes):
                 target_milestone, target_id = dependency_target(target)
                 parsed['index_task_dependencies'].append(dict(

@@ -319,7 +319,11 @@ SQLite 的 FTS5，否则回退为字面匹配。同一 Python CLI 支持 Linux�
 
 ```bash
 mkdir -p ~/.local/bin
-install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
+  test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
+else
+  install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+fi
 install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py ~/.local/bin/
 install -m 755 harness/tabilet_explorer.py ~/.local/bin/
 install -d ~/.local/share/tabilet/explorer

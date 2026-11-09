@@ -1,4 +1,5 @@
 """Literal history, correction integrity, and the execution boundary."""
+import contextlib
 import copy
 import hashlib
 import json
@@ -164,7 +165,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         snapshot = core.row_snapshot(self.root)
         self.assertEqual(snapshot['history']['problems'], [])
         self.assertEqual(snapshot['history']['records']['status-M99.md']['status'], '| Done | [+] | verified |\n')
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             self.assertTrue(state['complete'])
             rows = connection.execute("SELECT state FROM index_tasks WHERE milestone_id='M99'").fetchall()
@@ -274,7 +275,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         self.assertEqual(len(snapshot['history']['records']), 3)
         live = horizon._live_projection(core, self.root)
         self.assertIn('M99', live['milestones'])
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             ready = index.readiness(connection, state['workspace_id'], self.root)
             self.assertEqual(len(ready['ready']), 1)
@@ -949,7 +950,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         snapshot = core.row_snapshot(self.root)
         self.assertEqual(snapshot['history']['problems'], [])
         self.assertIn('M144', horizon._live_projection(core, self.root)['milestones'])
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             ready = index.readiness(connection, state['workspace_id'], self.root)
             self.assertEqual(len(ready['ready']), 1)
@@ -1785,7 +1786,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         self.assertEqual(len(snapshot['history']['warnings']), 1)
         self.assertIn('tabilet/docs/history/status-M01.md: unrecognized review wording: "The review took two hours"',
                       snapshot['history']['warnings'][0])
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             diagnostics = index.status(connection, state['workspace_id'])['diagnostics']
         self.assertTrue(any('warning: unrecognized review wording' in item for item in diagnostics), diagnostics)
