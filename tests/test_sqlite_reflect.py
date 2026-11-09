@@ -132,6 +132,24 @@ class ReflectTests(unittest.TestCase):
         self.assertIn('HTTP 404', str(raised.exception))
         self.assertNotIn('secret-key', str(raised.exception))
 
+    def test_non_object_backend_reply_is_a_controlled_failure(self):
+        # A proxy may answer with `[]`, `null` or a string. That must stay an
+        # AuditError so closure bypasses reflection instead of crashing.
+        for backend, key in (('claude', 'ANTHROPIC_API_KEY'), ('gemini', 'GEMINI_API_KEY'),
+                             ('openai', 'OPENAI_API_KEY')):
+            for reply in ([], None, 'text', 3):
+                with self.subTest(backend=backend, reply=reply):
+                    resp = mock.MagicMock()
+                    resp.__enter__.return_value = resp
+                    resp.read.return_value = json.dumps(reply).encode()
+                    with mock.patch.dict(os.environ, {key: 'fake'}, clear=True), \
+                            mock.patch.object(reflect, 'build_reflection_prompt', return_value='prompt'), \
+                            mock.patch('shutil.which', return_value=None), \
+                            mock.patch('urllib.request.urlopen', return_value=resp):
+                        with self.assertRaises(audit.AuditError) as raised:
+                            reflect.invoke_improver_llm({}, self.repo, backend=backend)
+                    self.assertIn('ValueError', str(raised.exception))
+
     def test_gemini_key_travels_in_a_header_not_the_url(self):
         captured = []
 

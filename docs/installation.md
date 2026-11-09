@@ -384,23 +384,31 @@ API runner and skills report an audit gap and continue unchanged.
 From a checkout containing this feature:
 
 ```bash
-mkdir -p ~/.local/bin
-if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
-  test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
-else
-  install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
-fi
-install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py ~/.local/bin/
-install -m 755 harness/tabilet_explorer.py ~/.local/bin/
-install -d ~/.local/share/tabilet/explorer
-install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
-install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
+(
+  set -e
+  mkdir -p ~/.local/bin
+  if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
+    test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
+  else
+    install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+  fi
+  install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py ~/.local/bin/
+  install -m 755 harness/tabilet_explorer.py ~/.local/bin/
+  install -d ~/.local/share/tabilet/explorer
+  install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
+  install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
+)
 tabilet-audit audit enable /absolute/project
 tabilet-audit index sync /absolute/project
 tabilet-audit index search /absolute/project 'authentication' --kind task
 tabilet-audit explorer /absolute/project --port 8000
 ```
+
+The symlink check leaves a runner linked to this checkout intact. If it fails, the
+block stops before copying the other files, because the link points at another
+checkout; inspect it with `ls -l ~/.local/bin/tackle-memory-bank-api-loop`, then
+relink it or replace it with a standalone copy and run the block again.
 
 The user manually enables each project; the saved setting survives new sessions.
 Commit the generated `tabilet/.gitignore` with `/audit.sqlite3*` and the reflection proposal path;

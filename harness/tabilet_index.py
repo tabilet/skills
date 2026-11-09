@@ -25,7 +25,10 @@ TABLES = ('index_documents','index_sections','index_milestones','index_tasks','i
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
 TOOLKIT_INTERFACE = 4
-INDEX_PROJECTION = 'v12'
+# The runner parser contract this module reads (row state_index/headers and
+# status_notes). `check_toolkit` refuses a runner that declares another value.
+PARSER_INTERFACE = 2
+INDEX_PROJECTION = 'v13'
 EXTERNAL_DEPENDENCIES_SCHEMA = 'tabilet.index.external-dependencies/v1'
 
 
@@ -281,8 +284,10 @@ def parse_document(path,kind,text,digest,corrections=None):
                                   legacy_completion_lines | set(record['marker_spelling_lines'])}
         if kind == 'active_status' and not pathlib.Path(path).name.startswith('status-'):
             specification = status
-        problems=p.status_marker_problems(status)
-        rows=p.status_rows(status)
+        # A frozen retired record is read as released v2.23.0 read it: a non-task
+        # table with a marker in its first column does not invalidate it.
+        problems=p.status_marker_problems(status, first_column=kind != 'history_status')
+        rows=p.status_task_rows(status)
         if problems or (not rows and not pathlib.Path(path).name.startswith('option-')):raise AuditError(f'{path}: invalid task table: {problems or "no rows"}')
         parsed['index_milestones'].append(dict(milestone_id=identity,lifecycle='retired' if meta else 'active',
             line=1,specification=specification,outcome=meta.get('Outcome'),review=meta.get('Review')))
@@ -296,9 +301,7 @@ def parse_document(path,kind,text,digest,corrections=None):
             parsed['index_relationships'].append(dict(line=1, source='milestone:'+identity,
                 relation='parent', target='milestone:'+parent))
         all_rows=p.table_rows(status)
-        state_by_line = {item['line']: item['state_index'] for item in p.status_table_rows(status)}
         for row in rows:
-            state_index = state_by_line.get(row['line'], 1)
             headers=[]
             row_index=next((i for i,item in enumerate(all_rows) if item['line']==row['line']), None)
             if row_index is not None:
@@ -325,7 +328,7 @@ def parse_document(path,kind,text,digest,corrections=None):
                 embedded = re.match(r'^('+p.MILESTONE_ID+r')\.([1-9][0-9]*)(?=\s|:|—|–|-|$)', row['item'])
                 if embedded and embedded[1] == identity:
                     explicit = embedded[0]
-            notes = ' | '.join(row['cells'][state_index + 1:])
+            notes = ' | '.join(p.status_notes(row))
             parsed['index_tasks'].append(dict(sha256=digest,line=row['line']+offset,milestone_id=identity,
                 label=row['item'],state=row['state'],notes=notes,explicit_id=explicit))
             parsed['index_search'].append(dict(line=row['line']+offset,kind='task',milestone_id=identity,

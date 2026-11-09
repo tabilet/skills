@@ -38,9 +38,17 @@ class HistoryCorrectionsTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-        h.make_repo(self.root)
+        self._root = None
         self.text = h.retirement_text('| Task | `[+]` | verified |\n')
+
+    @property
+    def root(self):
+        # Most tests here only parse text. Building the Git repository costs five
+        # subprocesses, so it happens on first use rather than for every test.
+        if self._root is None:
+            self._root = Path(self.temp.name)
+            h.make_repo(self._root)
+        return self._root
 
     def expansion(self):
         text = self.text.replace('**Evidence.** unversioned', '**Evidence.** abcdef0').replace(

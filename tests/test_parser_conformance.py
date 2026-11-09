@@ -1,7 +1,14 @@
 """Portable reader fixtures, also consumed by the companion DSH plugin."""
 import json
+import sys
 import unittest
+from unittest import mock
 from test_harness import ROOT, harness, retirement_text
+
+sys.path.insert(0, str(ROOT / 'harness'))
+import tabilet_audit as audit
+import tabilet_audit_host as host
+import tabilet_index as index
 
 
 class ParserConformance(unittest.TestCase):
@@ -226,3 +233,102 @@ class EvidenceTableLinks(unittest.TestCase):
         self.assertIn('| M01.1 | Task 1 | `[-]` | Accepted successor: M01.2 |', record['task_status'])
         self.assertEqual([r['state'] for r in harness.status_rows(record['task_status'])],
                          ['historical', 'completed'])
+
+
+class FrozenRecordCompatibility(unittest.TestCase):
+    """A frozen retired record cannot be edited, so it is read as v2.23.0 read it."""
+
+    NON_TASK_TABLES = {
+        'marker-first row': '| [x] lint | ok |\n',
+        'marker legend': '| Marker | Meaning |\n|---|---|\n| `[ ]` | Pending |\n| `[+]` | Completed |\n',
+        'bold legend': '| **Symbol** | **Meaning** |\n|---|---|\n| `[ ]` | Pending |\n',
+        'unrecognised legend': '| Mark | What it means |\n|---|---|\n| [x] | Done |\n',
+    }
+
+    def test_non_task_tables_do_not_invalidate_a_frozen_record(self):
+        for name, table in self.NON_TASK_TABLES.items():
+            with self.subTest(table=name):
+                status = ('| Item | State | Notes |\n|---|---|---|\n| Task | `[+]` | done |\n\n' + table)
+                text = retirement_text(status)
+                record = harness.historical_record(text, 'status-M01.md')
+                self.assertTrue(record['strict'])
+                self.assertEqual(record['blockers'], [])
+                parsed = index.parse_document('tabilet/docs/history/status-M01.md', 'history_status',
+                                              text, 'x' * 64)
+                self.assertEqual([row['state'] for row in parsed['index_tasks']], ['completed'])
+
+    def test_active_files_still_report_a_marker_in_column_zero(self):
+        self.assertEqual(harness.status_marker_problems('| [x] lint | ok |\n'),
+                         ['line 1: unknown or non-backticked state marker'])
+        self.assertEqual(harness.status_marker_problems('| [x] lint | ok |\n', first_column=False), [])
+
+    def test_marker_legends_are_recognised_by_header_not_one_wording(self):
+        for header in ('Marker | Meaning', '**Symbol** | **Meaning**', 'Status | Meaning', 'Symbol | Suggested Status | Interpretation'):
+            with self.subTest(header=header):
+                text = f'| {header} |\n|---|---|\n| `[ ]` | Pending |\n| `[+]` | Completed |\n'.replace('|---|---|', '|' + '---|' * (header.count('|') + 1))
+                self.assertEqual(harness.status_marker_problems(text), [])
+        misplaced = '| Done | Task |\n|---|---|\n| `[+]` | Fix the bug |\n'
+        self.assertEqual(harness.status_marker_problems(misplaced),
+                         ['line 3: unknown or non-backticked state marker'])
+
+
+class NotesByColumnRole(unittest.TestCase):
+    LAYOUTS = {
+        'item-state-notes': ('| Item | State | Notes |\n|---|---|---|\n',
+                             '| M01.1 - Try | `[-]` | {note} |\n| M01.2 - Retry | `[+]` | done |\n'),
+        'id-task-state-notes': ('| ID | Task | State | Notes |\n|---|---|---|---|\n',
+                                '| M01.1 | Try | `[-]` | {note} |\n| M01.2 | Retry | `[+]` | done |\n'),
+        'id-task-notes-state': ('| ID | Task | Notes | State |\n|---|---|---|---|\n',
+                                '| M01.1 | Try | {note} | `[-]` |\n| M01.2 | Retry | done | `[+]` |\n'),
+        'linked-task-header': ('| ID | [Task](spec.md) | Notes | State |\n|---|---|---|---|\n',
+                               '| M01.1 | Try | {note} | `[-]` |\n| M01.2 | Retry | done | `[+]` |\n'),
+    }
+
+    def status(self, layout, note):
+        header, body = self.LAYOUTS[layout]
+        return header + body.format(note=note)
+
+    def test_successor_in_notes_is_read_wherever_the_notes_column_sits(self):
+        for layout in self.LAYOUTS:
+            with self.subTest(layout=layout):
+                status = self.status(layout, 'Accepted successor: M01.2')
+                record = harness.retired_record(retirement_text(status), 'status-M01.md')
+                self.assertEqual(len(harness.status_rows(record['status'])), 2)
+
+    def test_a_task_description_naming_a_successor_does_not_close_the_row(self):
+        status = ('| ID | Task | Notes | State |\n|---|---|---|---|\n'
+                  '| M01.1 | Task naming successor: M01.2 | failed attempt | `[-]` |\n'
+                  '| M01.2 | Retry | done | `[+]` |\n')
+        with self.assertRaises(ValueError):
+            harness.retired_record(retirement_text(status), 'status-M01.md')
+
+    def test_index_notes_and_dependencies_follow_the_notes_column(self):
+        for layout in self.LAYOUTS:
+            with self.subTest(layout=layout):
+                header, _ = self.LAYOUTS[layout]
+                sep_state = header.splitlines()[0].lower()
+                notes_first = sep_state.index('notes') < sep_state.index('state')
+                row = ('| M01.2 | Second | Depends on: M01.1 | `[ ]` |\n' if notes_first
+                       else '| M01.2 | Second | `[ ]` | Depends on: M01.1 |\n')
+                if layout == 'item-state-notes':
+                    row = '| M01.2 - Second | `[ ]` | Depends on: M01.1 |\n'
+                status = header + row
+                parsed = index.parse_document('tabilet/memory-bank/status-M01.md', 'active_status',
+                                              status, 'x' * 64)
+                self.assertEqual([task['notes'] for task in parsed['index_tasks']], ['Depends on: M01.1'])
+                self.assertEqual(len(parsed['index_task_dependencies']), 1)
+
+
+class RunnerToolkitCompatibility(unittest.TestCase):
+    def test_check_toolkit_accepts_the_shipped_runner(self):
+        host.check_toolkit()
+
+    def test_check_toolkit_refuses_a_runner_with_another_parser_interface(self):
+        with mock.patch.object(index.parser(), 'PARSER_INTERFACE', 1):
+            with self.assertRaises(audit.AuditError) as raised:
+                host.check_toolkit()
+        self.assertIn('incompatible runner', str(raised.exception))
+        index.parser.cache_clear()
+        with mock.patch.object(index, 'PARSER_INTERFACE', 3):
+            with self.assertRaises(audit.AuditError):
+                host.check_toolkit()

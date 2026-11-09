@@ -969,21 +969,45 @@ def table_rows(text: str) -> list[dict]:
 
 MARKER_LIKE = re.compile(r"\[(?:\s+|\s*[+~!Xx?-]\s*)\]")
 
+# Bump when the row dictionaries or the helpers below change in a way the
+# separately installed toolkit modules rely on. `tabilet_index` declares the
+# value it expects and the toolkit check refuses a runner that differs.
+PARSER_INTERFACE = 2
+
+
+def _plain_header(cell: str) -> str:
+    """A header cell without links, emphasis or code spans, lowercased."""
+    cell = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", cell)
+    return re.sub(r"[*_`\[\]]", "", cell).strip().lower()
+
+
+# Header names of a notes column. A successor or dependency named in a task's
+# own text describes the task, not its outcome, so only these columns, or the
+# columns after State when none is named, are read as notes.
+NOTES_HEADERS = frozenset({"notes", "note", "comment", "comments", "remark", "remarks",
+                           "evidence", "detail", "details", "reason"})
+# Headers of a marker legend, whose first column legitimately holds markers.
+LEGEND_HEADERS = frozenset({"symbol", "marker", "mark", "icon", "state", "status", "legend"})
+
 
 def status_table_rows(status: str):
     """Exclude review-iteration tables, whose State is not a task marker.
 
     Each yielded row carries the column index of its table's own State header,
     so `Item | State` and `ID | Task | State` layouts are both read correctly.
+    It also carries that table's header cells, empty when the table declares no
+    State column, so a consumer can tell a notes column from a task-text column.
     """
     in_review_table = False
     previous_line = 0
     state_index = 1
+    headers: list[str] = []
     table_start = True
     for row in table_rows(status):
         if row["line"] != previous_line + 1:
             in_review_table = False
             state_index = 1
+            headers = []
             table_start = True
         previous_line = row["line"]
         cells = row["cells"]
@@ -992,6 +1016,7 @@ def status_table_rows(status: str):
         if (is_header and "state" in lowered[1:]
                 and not MARKER_LIKE.search(cells[1])):
             state_index = lowered.index("state", 1)
+            headers = cells
         table_start = False
         state_cell = cells[state_index] if state_index < len(cells) else ""
         if is_header and state_cell.lower() == "state":
@@ -999,11 +1024,22 @@ def status_table_rows(status: str):
         elif is_header and lowered == ['#', 'finding', 'severity', 'disposition']:
             in_review_table = True
         if not in_review_table:
-            yield dict(row, state_index=state_index, state_cell=state_cell, is_header=is_header)
+            yield dict(row, state_index=state_index, state_cell=state_cell,
+                       is_header=is_header, headers=headers)
 
 
 def status_rows(status: str) -> list[dict]:
-    """Read state-bearing rows from Markdown tables outside fenced blocks."""
+    """Read state-bearing rows from Markdown tables outside fenced blocks.
+
+    The row shape is shared with the parser conformance fixtures, so it stays
+    four keys. `status_task_rows` adds the column context a notes reader needs.
+    """
+    return [{key: row[key] for key in ("item", "state", "cells", "line")}
+            for row in status_task_rows(status)]
+
+
+def status_task_rows(status: str) -> list[dict]:
+    """`status_rows` plus each row's State column index and table headers."""
     rows = []
     for row in status_table_rows(status):
         cells = row["cells"]
@@ -1015,9 +1051,31 @@ def status_rows(status: str) -> list[dict]:
                     "state": state,
                     "cells": cells,
                     "line": row["line"],
+                    "state_index": row["state_index"],
+                    "headers": row["headers"],
                 }
             )
     return rows
+
+
+def status_notes(row: dict) -> list[str]:
+    """The note cells of a task row, chosen by column role and not by position.
+
+    With a declared header, the columns named like notes are read wherever they
+    sit relative to State, so `Item | State | Notes`, `ID | Task | State | Notes`
+    and `ID | Task | Notes | State` all yield their Notes. When no column is named
+    like notes, the columns after State are read. A task-text column, the item
+    or ID cell and the State cell are never notes. Without a declared header the
+    cells after the State cell are read, as in the legacy two-column layout.
+    """
+    cells, state_index = row["cells"], row["state_index"]
+    headers = row.get("headers") or []
+    named = [index for index in range(1, len(cells))
+             if index != state_index and index < len(headers)
+             and _plain_header(headers[index]) in NOTES_HEADERS]
+    if named:
+        return [cells[index] for index in named]
+    return cells[state_index + 1:]
 
 
 def actionable_rows(status: str) -> list[dict]:
@@ -1028,13 +1086,18 @@ def blocked_rows(status: str) -> list[dict]:
     return [row for row in status_rows(status) if row["state"] == "blocked"]
 
 
-def status_marker_problems(status: str) -> list[str]:
+def status_marker_problems(status: str, *, first_column: bool = True) -> list[str]:
     """Reject malformed state cells without interpreting unrelated prose tables."""
     problems = []
     # Outside declared State columns reserve the six marker symbols and the
     # common invalid x/? spellings, even in links or formatting. Ordinary prose
     # labels (RED, CI, log, 1) and collapsed reference suffixes [] are not state.
     # No Markdown link parser or reference definition can hide a reserved token.
+    #
+    # `first_column` guards a task row whose marker sits in column 0, where it
+    # would otherwise be skipped as prose. A frozen retired record cannot be
+    # edited to repair such a row, so its reader passes False and reads
+    # non-task tables as released v2.23.0 did.
     in_task_table = False
     in_legend_table = False
     previous_line = 0
@@ -1046,9 +1109,8 @@ def status_marker_problems(status: str) -> list[str]:
         previous_line = row["line"]
         state = row["state_cell"]
         if row.get("is_header"):
-            in_legend_table = [c.lower() for c in cells] == [
-                "symbol", "suggested status", "interpretation"
-            ]
+            # A marker legend is recognised by its header, not one fixed wording.
+            in_legend_table = _plain_header(cells[0]) in LEGEND_HEADERS
             if state.lower() == "state":
                 in_task_table = True
                 continue
@@ -1059,7 +1121,7 @@ def status_marker_problems(status: str) -> list[str]:
         # cells remain prose; only unparsed rows need the misplaced-token check.
         if state in STATE_MARKERS:
             continue
-        col0_problem = MARKER_LIKE.search(cells[0]) and not (
+        col0_problem = first_column and MARKER_LIKE.search(cells[0]) and not (
             in_legend_table and cells[0] in STATE_MARKERS
         )
         if in_task_table or MARKER_LIKE.search(state) or col0_problem:
@@ -1083,7 +1145,7 @@ def fenced_document(section: str) -> str:
 
 
 def retired_record(text: str, name: str, *, allow_unfinished: bool = False,
-                   historical: bool = False) -> dict:
+                   historical: bool = False, first_column: bool = True) -> dict:
     """Validate the portable retirement envelope; original documents stay literal."""
     if not STATUS_NAME.fullmatch(name):
         raise ValueError("invalid retired status ID or child suffix")
@@ -1165,19 +1227,17 @@ def retired_record(text: str, name: str, *, allow_unfinished: bool = False,
         spec_pattern, spec_headings[0]
     ):
         raise ValueError("retired specification does not match its milestone ID")
-    rows = status_rows(status)
-    if problems := status_marker_problems(status):
+    rows = status_task_rows(status)
+    if problems := status_marker_problems(status, first_column=first_column):
         raise ValueError("retired task has an " + "; ".join(problems))
     # Lookup may preserve inconsistent frozen evidence, with diagnostics. Every
     # execution/retirement gate uses the strict default and rejects it.
     if (not rows and not rowless_disposition) or (not allow_unfinished and any(
             row["state"] in {"pending", "in_progress", "blocked"} for row in rows)):
         raise ValueError("retired status must contain only closed task rows")
-    state_by_line = {r["line"]: r["state_index"] for r in status_table_rows(status)}
     for row in rows:
-        state_idx = state_by_line.get(row["line"], 1)
         if row["state"] == "historical" and not re.search(
-            r"\bsuccessor\b\s*:?\s+\S", " ".join(row["cells"][state_idx + 1:]), re.I
+            r"\bsuccessor\b\s*:?\s+\S", " ".join(status_notes(row)), re.I
         ):
             raise ValueError("closed-historical row has no named successor")
     return {"metadata": metadata, "specification": specification, "status": status}
@@ -2899,7 +2959,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
         normalized += '\n'
     normalized += fence + '\n'
     try:
-        retired_record(normalized, name, allow_unfinished=True)
+        retired_record(normalized, name, allow_unfinished=True, first_column=False)
     except ValueError as exc:
         message = re.sub(r'\bline (\d+):', lambda m: f'line {int(m[1]) + offsets["status"]}:', str(exc))
         raise ValueError(message) from exc
@@ -2920,7 +2980,7 @@ def historical_record(text: str, name: str, correction: dict | None = None) -> d
     if counts and (len(set(counts)) != 1 or counts[0] != metadata['Review iterations'].lower()):
         blockers.append('retained review counter conflicts with retirement metadata')
     try:
-        retired_record(text, name)
+        retired_record(text, name, first_column=False)
         strict = True
     except ValueError:
         strict = False
