@@ -951,7 +951,7 @@ CORRECTIVE_EMAIL_CONTRACTS = {
                   "are corrective planning and need human-approved `CORRECTIVE_PLANNING: auto`",
                   "only with `--probe` and `ALLOW_UNSANDBOXED_SHELL=1`",
                   "only the downstream\n  milestones listed in `suggested.txt` that are still open",
-                  "within 10% of the milestone's recorded wall time",
+                  "within 10% of the milestone's recorded scoped elapsed time",
                   "`CORRECTIVE_PLANNING` defaults to `confirm`", "two helpers and references stay byte-identical",
                   "durably reserve attempts before sending", "scripts/email_notify.py",
                   "shared execution block alone matches the API prompt"),
@@ -2165,6 +2165,23 @@ def sqlite_bundle_contract():
         if not (ROOT / "harness" / name).is_file():
             problems.append(f"missing optional toolkit payload: {name}")
     return problems
+
+
+@check("typed audit observations preserve scope and missing evidence")
+def audit_observation_contract():
+    contracts = {
+        "harness/tabilet_audit.py": ("tabilet.audit.observation/v1", "def record_observation",
+                                    "reason_missing", "attempt task identity changed"),
+        "harness/tabilet_reflect.py": ("observed scoped intervals only", "outcome unknown",
+                                      "recorded milestone-scoped SHAs only", "Smoke checks only"),
+        "skills/memory-bank-goal/references/optional-audit.md": (
+            "audit task-start", "audit task-finish", "audit verification", "audit review",
+            "never reconstruct timestamps", "interface 5", "Recording failure remains nonfatal"),
+        "AGENTS.md": ("Missing boundaries remain unknown", "Unclosed runs never expire automatically",
+                      "Probe counts never prove", "recorded full SHAs"),
+    }
+    return [f"{path}: missing observation contract {token!r}" for path, tokens in contracts.items()
+            for token in tokens if token not in (ROOT / path).read_text()]
 
 
 @check("v2 layout and explicit v1.5 migration stay enforced")

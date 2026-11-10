@@ -24,7 +24,7 @@ from typing import Any
 
 import tabilet_audit as audit
 
-TOOLKIT_INTERFACE = 4
+TOOLKIT_INTERFACE = 5
 DEFAULT_PROPOSAL_PATH = "tabilet/memory-bank/suggested-harness-update.md"
 MAX_DOWNSTREAM = 3
 SLOW_RUN_SEC = 120
@@ -87,7 +87,7 @@ D. Turn-Level Efficiency & Truncated Error Traces (Capture mode: {capture_status
 E. Downstream Milestones (Gate: {downstream_gate}):
 {downstream_milestones}
 
-F. Evidence Independent of Agent-Recorded Events (Git commits made during the recorded runs, and the review rounds the milestone needed):
+F. Recorded SHA Evidence and Review Checkpoints (attribution remains observation-based; missing evidence is unknown):
 {independent_evidence}
 
 --- 2. CURRENT HARNESS STATE ---
@@ -101,13 +101,13 @@ Current `lessons.md`:
 YOUR TASK:
 1. CONTRAST: Compare the verification commands and turn patterns of the Fast Baseline Runs (1A) against the Friction/Multi-Attempt Runs (1B/1C). Identify why slow/failed tasks diverged.
 2. PROPOSE: Formulate concise, additive updates to `tabilet/memory-bank/tech-stack.md` and `tabilet/memory-bank/lessons.md`.
-3. PROBE COMMAND EXTRACTION: If you propose a faster test profile for `tech-stack.md`, list up to 3 candidate runnable test commands inside a fenced ```probe-commands``` block (one command per line). List the existing baseline test command FIRST, then your proposed faster alternative(s). The harness dry-runs at most 3 commands, each repeated, and counts the tests each one runs. It recommends a replacement only when it runs at least as many tests as the baseline; a smaller subset is reported as a fast tier that does not replace the baseline.
+3. PROBE COMMAND EXTRACTION: List at most 3 optional test commands in a fenced ```probe-commands``` block. These are short smoke checks only. Counts and timings cannot prove equivalent coverage, subset relationships, or a replacement test profile. Keep required verification unchanged.
 4. DOWNSTREAM: Only when the gate in 1E is open, and only for a milestone listed there, propose a
    concrete amendment (a narrower verification command, a split row, a missing prerequisite, a
    redundant step). Skip any finding already covered by the milestone's own text or by `lessons.md`.
    Name the milestone, cite the run or task evidence from section 1, and state the exact change.
    If the gate is closed or nothing is both new and evidenced, write exactly `No downstream changes.`
-5. RECORDING GAPS: Interactive runs record their own events, so they can be sparse, and reflection usually runs before the run is finished (1F says when a run was still open). Section 1F comes from Git and the Markdown records, not from the agent. When 1F shows commits or review rounds that sections 1A-1D do not, believe 1F and say the audit recording was incomplete. Never conclude that a run made no edits or had no friction when 1F shows otherwise, and treat extra review rounds as friction evidence.
+5. RECORDING GAPS: Task and verification observations can be incomplete. Unclosed runs have unknown outcomes. Missing events never prove missing work; run elapsed time never proves active task time. Section 1F verifies recorded commit SHAs in Git but does not independently prove their task attribution. Report gaps and conflicting review checkpoints explicitly.
 6. STRICT SAFETY CONSTRAINT: You must NOT modify, weaken, or remove any authorization blocks, security gates, review iteration limits, or verification attempt limits.
 
 OUTPUT FORMAT:
@@ -153,18 +153,13 @@ def truncate_middle(text: str | None, head: int = 400, tail: int = 800) -> str:
     return f"{text[:head]}\n... [truncated {omitted} chars] ...\n{text[-tail:]}"
 
 
-def significance_reasons(friction_runs: list[dict[str, Any]], multi_attempts: list[dict[str, Any]]) -> list[str]:
-    """Deterministic gate: what happened that is worth carrying forward to later milestones."""
-    reasons = []
-    for task in multi_attempts:
-        reasons.append(f"task `{task.get('task_label')}` needed {task.get('attempt_count')} runs")
+def significance_reasons(friction_runs, multi_attempts):
+    reasons = [f"task {t.get('task_label')!r} needed {t.get('attempt_count')} recorded attempts" for t in multi_attempts]
     for run in friction_runs:
-        if run.get("result") is None:
-            reasons.append(f"run {run.get('run_id')} was still open after {run.get('duration_sec')}s")
-        elif run.get("result") != "completed":
+        if run.get("result") in ("failed", "blocked", "interrupted"):
             reasons.append(f"run {run.get('run_id')} ended {run.get('result')}")
-        else:
-            reasons.append(f"run {run.get('run_id')} took {run.get('duration_sec')}s (over {SLOW_RUN_SEC}s)")
+        elif run.get("duration_sec") is not None and run["duration_sec"] > SLOW_RUN_SEC:
+            reasons.append(f"task in run {run.get('run_id')} took {run['duration_sec']}s (over {SLOW_RUN_SEC}s)")
     return reasons[:8]
 
 
@@ -236,88 +231,80 @@ def downstream_context(project_root: pathlib.Path, finished: str | None) -> tupl
 
 
 MAX_EVIDENCE_COMMITS = 25
-_REVIEW_ITERATIONS = re.compile(r"^\*\*Review iterations\.\*\*[ \t]*`?(\d+)", re.M)
-# Active status files word the counter differently from project to project, so accept the common forms
-# ("Persisted iteration count: 3/10", "Iteration 2 of 10", "iteration 2/10") and keep the highest.
-_ACTIVE_ITERATIONS = (
-    re.compile(r"Persisted (?:iteration|review) count:?[ \t]*`?(\d+)\s*/", re.I),
-    re.compile(r"\biteration[ \t]+(\d+)[ \t]*(?:of|/)[ \t]*(\d+)", re.I),
-)
-
-
-def review_rounds(project_root: pathlib.Path, milestone_id: str | None) -> dict[str, Any]:
-    """Review iterations the milestone needed, from its retired record or its active status file."""
-    if not milestone_id or not re.fullmatch(r"[A-Za-z][0-9]{2,}(-[0-9]{2})?", milestone_id):
-        return {"iterations": None, "source": None}
-    base = project_root / "tabilet"
-    # A child milestone keeps its status in an amendment (or option) file, like milestone_spec reads it.
-    names = ((f"amend-{milestone_id}.md", f"option-{milestone_id}.md") if "-" in milestone_id
-             else (f"status-{milestone_id}.md",))
-    for name in names:
-        history = base / "docs/history" / name
-        if history.is_file():
-            text = history.read_text(encoding="utf-8", errors="replace")
-            match = _REVIEW_ITERATIONS.search(text)
-            if match:
-                return {"iterations": int(match.group(1)), "source": f"tabilet/docs/history/{name}"}
-            # An older record keeps the count inside its retained status section.
-            # Only the retained status counts: the specification beside it may quote a limit.
-            marks = list(re.finditer(r"^## (?:Status record|Status)[ \t]*$", text, re.M))
-            counts = _active_counts(text[marks[-1].end():] if marks else text)
-            if counts:
-                return {"iterations": max(counts), "source": f"tabilet/docs/history/{name}"}
-    for name in names:
-        active = base / "memory-bank" / name
-        if active.is_file():
-            counts = _active_counts(active.read_text(encoding="utf-8", errors="replace"))
-            if counts:
-                return {"iterations": max(counts), "source": f"tabilet/memory-bank/{name}"}
-    return {"iterations": None, "source": None}
 
 
 def _active_counts(text: str) -> list[int]:
-    counts = [int(m.group(1)) for pattern in _ACTIVE_ITERATIONS for m in pattern.finditer(text)]
-    return [n for n in counts if 0 < n <= 100]
+    """Read standalone checkpoint fields, excluding fenced examples and prose mentions."""
+    counts, fenced = [], False
+    for line in text.splitlines():
+        if re.match(r"^\s*(\x60{3,}|~{3,})", line):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        plain = line.strip().replace("**", "").replace("\x60", "")
+        match = re.fullmatch(r"(?:Persisted (?:iteration|review) count[:.]?|Review (?:gate )?iterations[:.]?)\s*(\d+)(?:\s*/\s*\d+)?[.]?", plain, re.I)
+        if match:
+            counts.append(int(match.group(1)))
+    return counts
 
 
-def git_commits_during(project_root: pathlib.Path, windows: list[tuple[str, str | None]]) -> dict[str, Any]:
-    """Commits whose author time falls inside any recorded run window (Git is not agent-reported)."""
-    commits: dict[str, dict[str, str]] = {}
-    try:
-        for start, end in windows:
-            cmd = ["git", "log", "--all", "--no-merges", f"--since={start}", "--format=%H%x1f%aI%x1f%s"]
-            if end:
-                cmd.append(f"--until={end}")
-            proc = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True, timeout=20)
-            if proc.returncode != 0:
-                return {"available": False, "count": None, "commits": []}
-            for line in proc.stdout.splitlines():
-                sha, _, rest = line.partition("\x1f")
-                when, _, subject = rest.partition("\x1f")
-                commits[sha] = {"sha": sha[:10], "at": when, "subject": truncate_middle(subject, 90, 40)}
-    except (OSError, subprocess.SubprocessError):
-        return {"available": False, "count": None, "commits": []}
-    ordered = sorted(commits.values(), key=lambda c: c["at"])
-    return {"available": True, "count": len(ordered), "commits": ordered[:MAX_EVIDENCE_COMMITS]}
+def review_rounds(project_root: pathlib.Path, milestone_id: str | None) -> dict[str, Any]:
+    if not milestone_id or not re.fullmatch(r"[A-Z][0-9]{2,}(?:-[0-9]{2})?", milestone_id):
+        return {"iterations": None, "source": None}
+    names = (f"amend-{milestone_id}.md", f"option-{milestone_id}.md") if "-" in milestone_id else (f"status-{milestone_id}.md",)
+    for directory in ("tabilet/docs/history", "tabilet/memory-bank"):
+        for name in names:
+            path = project_root / directory / name
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8")
+            try:
+                if directory.endswith("history"):
+                    import tabilet_index
+                    record = tabilet_index.parser().historical_record(text, name)
+                    raw = record["metadata"].get("Review iterations", "")
+                    counts = [int(raw)] if raw.isdigit() and not record["blockers"] else []
+                else:
+                    counts = _active_counts(text)
+                if counts:
+                    return {"iterations": counts[0] if len(set(counts)) == 1 else None,
+                            "source": f"{directory}/{name}", "conflict": len(set(counts)) != 1}
+            except (ValueError, KeyError):
+                return {"iterations": None, "source": f"{directory}/{name}", "conflict": True}
+    return {"iterations": None, "source": None}
 
 
-def independent_evidence(project_root: pathlib.Path, milestone_id: str | None,
-                         windows: list[tuple[str, str | None]], recorded_transitions: int,
-                         open_run_ids: list[tuple[str, str | None]] = ()) -> dict[str, Any]:
-    """Facts from Git and the Markdown records, so sparse agent-recorded events cannot hide the work."""
-    git = git_commits_during(project_root, windows)
-    review = review_rounds(project_root, milestone_id)
-    gap = None
-    open_runs = [run_id for run_id, finished in open_run_ids if not finished]
-    if git.get("count") and not recorded_transitions:
-        gap = (f"{git['count']} commits were made during the recorded runs, but the audit recorded no task "
-               "transitions. The agent's own recording is incomplete; do not treat missing events as missing work.")
-    open_note = None
-    if open_runs:
-        open_note = (f"{len(open_runs)} run(s) were still open when reflection started ({', '.join(open_runs[:3])}); "
-                     "reflection normally runs at milestone closure, before the run is finished. A missing result, "
-                     "exit code or end time means the run had not been closed yet. It is not a stall or a failure.")
-    return {"git_commits": git, "review_rounds": review, "recording_gap": gap, "open_runs": open_note}
+def observed_commits(project_root: pathlib.Path, shas: list[str]) -> dict[str, Any]:
+    """Verify explicitly attributed full SHAs; dates never supply attribution."""
+    found, missing = [], []
+    for sha in sorted(set(shas)):
+        if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", sha):
+            missing.append(sha)
+            continue
+        try:
+            proc = subprocess.run(["git", "show", "-s", "--format=%H%x1f%cI%x1f%s", sha + "^{commit}"],
+                                  cwd=project_root, capture_output=True, text=True, timeout=5)
+            fields = proc.stdout.strip().split("\x1f", 2)
+            if proc.returncode or len(fields) != 3 or fields[0] != sha:
+                missing.append(sha)
+            else:
+                found.append({"sha": sha, "at": fields[1], "subject": truncate_middle(fields[2], 90, 40)})
+        except (OSError, subprocess.SubprocessError):
+            missing.append(sha)
+    return {"available": not missing, "count": len(found), "commits": found[:MAX_EVIDENCE_COMMITS],
+            "unverified": missing, "attribution": "recorded milestone-scoped SHAs only"}
+
+
+def _interval_seconds(intervals):
+    total, end = 0.0, None
+    for start, stop in sorted(intervals):
+        if end is None or start > end:
+            total += stop - start
+        elif stop > end:
+            total += stop - end
+        end = max(end or stop, stop)
+    return total
 
 
 def model_budget_sec(wall_sec: float, percent: float) -> float:
@@ -326,225 +313,161 @@ def model_budget_sec(wall_sec: float, percent: float) -> float:
 
 
 def extract_telemetry(project_path: str | pathlib.Path = ".", milestone_id: str | None = None) -> dict[str, Any]:
-    """Extract contrastive telemetry (fast baselines vs. friction runs) from v4 schema."""
+    """Read scoped observations; absent boundaries never become elapsed work."""
     project_root, db_path = resolve_project_db(project_path)
-    conn = get_readonly_connection(db_path)
-    with contextlib.closing(conn):
-        # 1A. Friction & Long Runs (Deduplicated per run_id via terminal sequence)
-        q_friction = """
-        SELECT r.run_id, r.operation, r.result, r.git_head,
-               (strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) AS duration_sec,
-               COALESCE(e.task_label, (
-                   SELECT e3.task_label FROM events e3
-                   WHERE e3.run_id = r.run_id AND e3.task_label IS NOT NULL
-                   ORDER BY e3.sequence DESC LIMIT 1
-               ), 'N/A') AS task_label,
-               COALESCE(e.event_type, 'N/A') AS terminal_event_type,
-               COALESCE(e.new_state, 'N/A') AS final_task_state,
-               json_extract(e.details_json, '$.exit_code') AS exit_code,
-               SUBSTR(
-                   COALESCE(json_extract(e.details_json, '$.reason'), json_extract(e.details_json, '$.summary'), ''),
-                   1, 600
-               ) AS failure_reason
-        FROM runs r
-        JOIN events e ON r.run_id = e.run_id
-        -- A run belongs to the milestone when any of its events names it: the runner's
-        -- run_failed and run_blocked events carry no subject, so the terminal event cannot decide.
-        WHERE (:m IS NULL OR r.run_id IN (SELECT run_id FROM events WHERE milestone_id = :m))
-          AND e.sequence = COALESCE(
-              (SELECT MAX(e2.sequence) FROM events e2
-               WHERE e2.run_id = r.run_id
-                 AND e2.event_type IN ('run_failed', 'run_blocked', 'task_transition')),
-              -- An interactive run may record none of those; its slow or failed run must still count.
-              (SELECT MAX(e4.sequence) FROM events e4 WHERE e4.run_id = r.run_id)
-          )
-          AND (
-              r.result != 'completed'
-              OR (strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) > 120
-          )
-        GROUP BY r.run_id
-        ORDER BY duration_sec DESC
-        LIMIT 10;
-        """
-        friction_runs = []
-        for row in conn.execute(q_friction, {"m": milestone_id}).fetchall():
-            item = dict(row)
-            item["failure_reason"] = truncate_middle(item.get("failure_reason"), 300, 500)
-            friction_runs.append(item)
-
-        # 1B. Contrastive Fast-Run Baselines (1st-attempt clean completions)
-        q_baseline = """
-        SELECT r.run_id, e.task_label,
-               (strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) AS duration_sec,
-               SUBSTR(COALESCE(e.verification_json, ''), 1, 500) AS verification_json
-        FROM runs r
-        JOIN events e ON r.run_id = e.run_id
-        WHERE (:m IS NULL OR e.milestone_id = :m)
-          AND r.result = 'completed'
-          AND e.event_type = 'task_transition'
-          AND e.new_state = 'completed'
-          AND e.task_label IN (
-              SELECT task_label FROM events
-              WHERE (:m IS NULL OR milestone_id = :m) AND task_label IS NOT NULL
-              GROUP BY task_label HAVING COUNT(DISTINCT run_id) = 1
-          )
-        GROUP BY r.run_id
-        ORDER BY duration_sec ASC
-        LIMIT 5;
-        """
-        fast_baselines = []
-        for row in conn.execute(q_baseline, {"m": milestone_id}).fetchall():
-            item = dict(row)
-            item["verification_json"] = truncate_middle(item.get("verification_json"), 250, 250)
-            fast_baselines.append(item)
-
-        # 2. Multi-Attempt Tasks (Approaching or hitting 3-attempt gate)
-        q_multi = """
-        SELECT e.task_label, e.milestone_id,
-               COUNT(DISTINCT e.run_id) AS attempt_count,
-               GROUP_CONCAT(DISTINCT r.result) AS observed_outcomes,
-               MAX(strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) AS max_attempt_duration_sec
-        FROM events e
-        JOIN runs r ON e.run_id = r.run_id
-        WHERE (:m IS NULL OR e.milestone_id = :m)
-          AND e.task_label IS NOT NULL
-        GROUP BY e.task_label, e.milestone_id
-        HAVING attempt_count > 1
-        ORDER BY attempt_count DESC
-        LIMIT 10;
-        """
-        multi_attempts = [dict(row) for row in conn.execute(q_multi, {"m": milestone_id}).fetchall()]
-
-        # 3. Turn-Level Efficiency & Captured Messages
-        has_v4 = "captured_message_content" in audit.schema_tables(conn)
-        message_expr = (
-            "CASE WHEN t.message_id IS NOT NULL THEN '' ELSE COALESCE(CAST(mc.content AS TEXT), m.text, '') END"
-            if has_v4 else "COALESCE(m.text, '')"
-        )
-        from_clause = (
-            "captured_messages m LEFT JOIN captured_message_content mc ON mc.message_id=m.message_id "
-            "LEFT JOIN message_content_tombstones t ON t.message_id=m.message_id"
-            if has_v4 else "captured_messages m"
-        )
-        q_turns = f"""
-        SELECT m.run_id,
-               COUNT(*) AS total_turns,
-               MIN(CASE WHEN {message_expr} LIKE '%edit_file%' OR {message_expr} LIKE '%write_file%' OR {message_expr} LIKE '%apply_patch%'
-                        THEN m.sequence END) AS first_edit_turn
-        FROM {from_clause}
-        WHERE m.run_id IN (
-            SELECT DISTINCT r.run_id FROM runs r
-            JOIN events e ON r.run_id = e.run_id
-            WHERE (:m IS NULL OR e.milestone_id = :m)
-        )
-        GROUP BY m.run_id;
-        """
-        turn_stats = [dict(row) for row in conn.execute(q_turns, {"m": milestone_id}).fetchall()]
-
-        error_traces: dict[str, list[dict[str, Any]]] = {}
-        if turn_stats and friction_runs:
-            for fr in friction_runs[:5]:
-                rid = fr["run_id"]
-                msgs = audit.query_messages(conn, rid, include_content=True, limit=3, descending=True)
-                error_traces[rid] = [
-                    {"turn": m["sequence"], "role": m["role"], "snippet": truncate_middle(m.get("text") or "", 300, 600)}
-                    for m in reversed(msgs)
-                ]
-
-        total_runs_row = conn.execute("""
-            SELECT COUNT(DISTINCT r.run_id) FROM runs r
-            JOIN events e ON r.run_id = e.run_id
-            WHERE (:m IS NULL OR e.milestone_id = :m)
-        """, {"m": milestone_id}).fetchone()
-        total_runs = total_runs_row[0] if total_runs_row else 0
-
-        wall_row = conn.execute("""
-            SELECT COALESCE(SUM(duration), 0) FROM (
-                SELECT (strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) AS duration
-                FROM runs r
-                WHERE r.run_id IN (SELECT DISTINCT e.run_id FROM events e WHERE (:m IS NULL OR e.milestone_id = :m))
-            )
-        """, {"m": milestone_id}).fetchone()
-        milestone_wall_sec = float(wall_row[0]) if wall_row else 0.0
-        run_rows = conn.execute(
-            "SELECT r.run_id, r.completed_at FROM runs r WHERE r.run_id IN "
-            "(SELECT DISTINCT e.run_id FROM events e WHERE (:m IS NULL OR e.milestone_id = :m))",
-            {"m": milestone_id}).fetchall()
-        windows = [(row[0], row[1]) for row in conn.execute(
-            "SELECT r.started_at, r.completed_at FROM runs r WHERE r.run_id IN "
-            "(SELECT DISTINCT e.run_id FROM events e WHERE (:m IS NULL OR e.milestone_id = :m))",
-            {"m": milestone_id}).fetchall()]
-        recorded_transitions = conn.execute(
-            "SELECT COUNT(*) FROM events e WHERE e.event_type IN ('task_transition', 'verification_observed') "
-            "AND (:m IS NULL OR e.milestone_id = :m)", {"m": milestone_id}).fetchone()[0]
-
-    capture_mode = "relevant" if turn_stats else "metadata-only"
-    reasons = significance_reasons(friction_runs, multi_attempts)
-    downstream, downstream_skipped = ([], [])
-    if reasons and milestone_id:
-        downstream, downstream_skipped = downstream_context(project_root, milestone_id)
-
-    # Read memory files
-    tech_stack_file = project_root / "tabilet" / "memory-bank" / "tech-stack.md"
-    current_tech_stack = tech_stack_file.read_text(encoding="utf-8") if tech_stack_file.is_file() else ""
-
-    lessons_file = project_root / "tabilet" / "memory-bank" / "lessons.md"
-    current_lessons = lessons_file.read_text(encoding="utf-8") if lessons_file.is_file() else ""
-
-    return {
-        "project_root": str(project_root),
-        "milestone": milestone_id or "ALL",
-        "capture_mode": capture_mode,
-        "total_runs_analyzed": total_runs,
-        "milestone_wall_sec": milestone_wall_sec,
-        "downstream": {
-            "gate": "open" if reasons and milestone_id else "closed",
-            "reasons": reasons,
-            "milestone_given": bool(milestone_id),
-            "milestones": downstream,
-            "skipped": downstream_skipped,
-        },
-        "contrastive_fast_baselines": fast_baselines,
-        "friction_runs": friction_runs,
-        "multi_attempts": multi_attempts,
-        "turn_efficiency": turn_stats,
-        "bounded_error_traces": error_traces,
-        "independent_evidence": independent_evidence(project_root, milestone_id, windows, recorded_transitions,
-                                                     [(row[0], row[1]) for row in run_rows]),
-        "tech_stack_present": bool(current_tech_stack),
-        "lessons_present": bool(current_lessons),
-    }
+    with contextlib.closing(get_readonly_connection(db_path)) as conn:
+        events = [dict(row) for row in conn.execute("""
+            SELECT * FROM events WHERE :m IS NULL OR run_id IN
+            (SELECT run_id FROM events WHERE milestone_id=:m) ORDER BY run_id,sequence
+        """, {"m": milestone_id})]
+        ids = {e["run_id"] for e in events}
+        runs = [dict(row) for row in conn.execute("SELECT * FROM runs") if row["run_id"] in ids]
+        scoped = [e for e in events if milestone_id is None or e["milestone_id"] == milestone_id]
+        attempts, verification, reviews, intervals, gaps = {}, [], [], [], []
+        for e in scoped:
+            details = json.loads(e["details_json"])
+            item = details.get("observation") or {}
+            if not isinstance(item, dict) or item.get("schema") != audit.OBSERVATION_SCHEMA:
+                continue
+            kind = item.get("kind")
+            if kind in ("task-start", "task-finish"):
+                ident = item.get("attempt_id")
+                if not isinstance(ident, str):
+                    gaps.append("observation missing attempt identity")
+                    continue
+                attempt = attempts.setdefault((e["run_id"], ident), {
+                    "run_id": e["run_id"], "attempt_id": ident, "task_label": e["task_label"],
+                    "milestone_id": e["milestone_id"], "status_path": e["status_path"],
+                    "duration_sec": None, "result": None, "failure_reason": None})
+                attempt["start" if kind == "task-start" else "finish"] = e["occurred_at"]
+                if kind == "task-finish":
+                    attempt.update(result=item.get("result"), failure_reason=item.get("reason"))
+            elif kind in ("verification", "review"):
+                observed = {**item, "run_id": e["run_id"]}
+                (verification if kind == "verification" else reviews).append(observed)
+                if item.get("started_at") and item.get("finished_at"):
+                    try:
+                        a, b = audit._instant(item["started_at"]), audit._instant(item["finished_at"])
+                        if b >= a:
+                            intervals.append((a, b))
+                            if observed.get("duration_sec") is None:
+                                observed.update(duration_sec=b - a, timing_basis="recorded_boundary")
+                    except (ValueError, TypeError):
+                        gaps.append("invalid recorded interval")
+        for attempt in attempts.values():
+            if attempt.get("start") and attempt.get("finish"):
+                try:
+                    a, b = audit._instant(attempt["start"]), audit._instant(attempt["finish"])
+                except (ValueError, TypeError, AttributeError):
+                    gaps.append("invalid task interval")
+                    continue
+                if b >= a:
+                    attempt["duration_sec"] = b - a
+                    intervals.append((a, b))
+            if attempt["duration_sec"] is None:
+                gaps.append("task attempt timing unavailable")
+        grouped = {}
+        for attempt in attempts.values():
+            grouped.setdefault((attempt["milestone_id"], attempt["status_path"], attempt["task_label"]), []).append(attempt)
+        multi = [{"milestone_id": k[0], "task_label": k[2], "attempt_count": len(v),
+                  "observed_outcomes": [a["result"] for a in v],
+                  "max_attempt_duration_sec": max((a["duration_sec"] for a in v if a["duration_sec"] is not None), default=None)}
+                 for k, v in grouped.items() if len(v) > 1]
+        friction = [a for a in attempts.values() if a["result"] in ("failed", "blocked", "interrupted")
+                    or (a["duration_sec"] is not None and a["duration_sec"] > SLOW_RUN_SEC)]
+        for item in verification + reviews:
+            duration = item.get("duration_sec")
+            if item.get("result") in ("failed", "blocked") or (isinstance(duration, (int, float)) and duration > SLOW_RUN_SEC):
+                friction.append({"run_id": item["run_id"], "task_label": item.get("task_label"),
+                                 "command": item.get("command"), "result": item["result"],
+                                 "duration_sec": duration, "failure_reason": None,
+                                 "scope": item["kind"]})
+        fast = [a for k, v in grouped.items() for a in v if len(v) == 1 and a["result"] == "completed"
+                and a["duration_sec"] is not None and a["duration_sec"] <= SLOW_RUN_SEC]
+        # Legacy terminal evidence remains useful only when its milestone attribution is unique.
+        for run in runs:
+            subjects = {e["milestone_id"] for e in events if e["run_id"] == run["run_id"] and e["milestone_id"]}
+            if len(subjects) == 1 and run["result"] in ("failed", "blocked", "interrupted"):
+                terminal = [e for e in events if e["run_id"] == run["run_id"] and e["event_type"] in
+                            ("run_finished", "run_failed", "run_blocked", "run_interrupted")]
+                reason = next((json.loads(e["details_json"]).get("reason") for e in reversed(terminal)
+                               if json.loads(e["details_json"]).get("reason")), None)
+                if not any(a["run_id"] == run["run_id"] for a in friction):
+                    friction.append({"run_id": run["run_id"], "result": run["result"],
+                                     "duration_sec": None, "failure_reason": reason, "scope": "single-milestone run",
+                                     "task_label": next((e["task_label"] for e in reversed(scoped) if e["run_id"] == run["run_id"] and e["task_label"]), None)})
+        open_runs = [{"run_id": r["run_id"], "outcome": "unknown",
+                      "last_observed_at": max((e["recorded_at"] for e in events if e["run_id"] == r["run_id"]), default=None)}
+                     for r in runs if r["completed_at"] is None]
+        if any(not json.loads(e["details_json"]).get("observation") for e in scoped
+               if e["event_type"] in ("task_transition", "verification_observed")):
+            gaps.append("legacy observations have incomplete task timing")
+        if runs and not attempts:
+            gaps.append("no typed task boundaries recorded")
+        shas = [e["commit_sha"] for e in scoped if e["event_type"] == "commit_observed" and e["commit_sha"]]
+        turns, traces = [], {}
+        for run in runs:
+            messages = audit.query_messages(conn, run["run_id"], include_content=True, limit=3, descending=True)
+            if messages:
+                # Context is run-scoped; it is not task-efficiency evidence.
+                turns.append({"run_id": run["run_id"], "scope": "run context", "sampled_turns": len(messages),
+                              "total_turns": conn.execute("SELECT count(*) FROM captured_messages WHERE run_id=?", (run["run_id"],)).fetchone()[0],
+                              "first_edit_turn": min((m["sequence"] for m in messages if any(word in (m.get("text") or "") for word in ("edit_file", "write_file", "apply_patch"))), default=None)})
+                if any(a["run_id"] == run["run_id"] for a in friction):
+                    traces[run["run_id"]] = [{"turn": m["sequence"], "role": m["role"],
+                                              "snippet": truncate_middle(m.get("text") or "", 300, 600)}
+                                             for m in reversed(messages)]
+    review = review_rounds(project_root, milestone_id)
+    rounds = [r["round"] for r in reviews if type(r.get("round")) is int and r["round"] > 0]
+    if rounds:
+        observed = max(rounds)
+        conflict = bool(review.get("conflict")) or review["iterations"] not in (None, observed)
+        review = {"iterations": None if conflict else observed, "source": "typed observations",
+                  "observed_rounds": sorted(set(rounds)), "conflict": conflict}
+    reasons = significance_reasons(friction, multi)
+    downstream, skipped = downstream_context(project_root, milestone_id) if reasons and milestone_id else ([], [])
+    extra = {"git_commits": observed_commits(project_root, shas), "review_rounds": review,
+             "recording_gap": "; ".join(sorted(set(gaps))) or None,
+             "open_runs": (f"{len(open_runs)} unclosed run(s); outcome unknown. No terminal outcome or duration is inferred."
+                           if open_runs else None)}
+    return {"project_root": str(project_root), "milestone": milestone_id or "ALL",
+            "capture_mode": "relevant" if turns else "metadata-only", "total_runs_analyzed": len(runs),
+            "milestone_wall_sec": _interval_seconds(intervals), "timing_coverage": "observed scoped intervals only",
+            "downstream": {"gate": "open" if reasons and milestone_id else "closed", "reasons": reasons,
+                           "milestone_given": bool(milestone_id), "milestones": downstream, "skipped": skipped},
+            "contrastive_fast_baselines": fast[:5], "friction_runs": friction[:10], "multi_attempts": multi[:10],
+            "task_attempts": list(attempts.values()), "verification_observations": verification,
+            "review_observations": reviews, "unclosed_runs": open_runs,
+            "turn_efficiency": turns, "bounded_error_traces": traces, "independent_evidence": extra,
+            "tech_stack_present": (project_root / "tabilet/memory-bank/tech-stack.md").is_file(),
+            "lessons_present": (project_root / "tabilet/memory-bank/lessons.md").is_file()}
 
 
-def export_trajectories(project_path: str | pathlib.Path = ".", milestone_id: str | None = None) -> dict[str, Any]:
-    """Export audit records as per-task trajectories (runs, verification, captured turns)."""
-    _, db_path = resolve_project_db(project_path)
-    conn = get_readonly_connection(db_path)
-    with contextlib.closing(conn):
-        runs = conn.execute("""
-            SELECT r.run_id, r.result, e.task_label, e.milestone_id,
-                   (strftime('%s', COALESCE(r.completed_at, 'now')) - strftime('%s', r.started_at)) AS duration_sec,
-                   e.verification_json, e.details_json
-            FROM runs r
-            JOIN events e ON r.run_id = e.run_id AND e.event_type IN ('task_transition', 'run_failed', 'run_blocked')
-            WHERE (:m IS NULL OR e.milestone_id = :m)
-            ORDER BY r.started_at ASC
-        """, {"m": milestone_id}).fetchall()
-
-        tasks = []
-        for r in runs:
-            turns = audit.query_messages(conn, r["run_id"], include_content=True)
-
-            tasks.append({
-                "task_id": r["task_label"],
-                "milestone_id": r["milestone_id"],
-                "status": r["result"],
-                "duration_sec": r["duration_sec"],
-                "verification": json.loads(r["verification_json"]) if r["verification_json"] else None,
-                "turns": [{"turn": t["sequence"], "role": t["role"], "text": t.get("text") or ""} for t in turns],
-            })
-
-    return {"milestone_id": milestone_id, "tasks": tasks}
+def export_trajectories(project_path=".", milestone_id=None):
+    """Export scoped records with explicit gaps; captured messages remain run context."""
+    telemetry = extract_telemetry(project_path, milestone_id)
+    _, database = resolve_project_db(project_path)
+    tasks = [{**attempt, "task_id": attempt["task_label"], "status": attempt["result"]}
+             for attempt in telemetry["task_attempts"]]
+    with contextlib.closing(get_readonly_connection(database)) as conn:
+        represented = {(t["run_id"], t["milestone_id"], t["task_id"]) for t in tasks}
+        for row in conn.execute("SELECT * FROM events WHERE event_type='task_transition' AND (:m IS NULL OR milestone_id=:m) ORDER BY run_id,sequence DESC",
+                                {"m": milestone_id}):
+            key = (row["run_id"], row["milestone_id"], row["task_label"])
+            if key not in represented:
+                represented.add(key)
+                tasks.append({"run_id": key[0], "milestone_id": key[1], "task_id": key[2],
+                              "status": row["new_state"], "duration_sec": None, "timing_coverage": "unavailable"})
+        for task in tasks:
+            messages = audit.query_messages(conn, task["run_id"], include_content=True)
+            task["turns"] = [{"turn": m["sequence"], "role": m["role"], "text": m.get("text") or "",
+                              "scope": "run context"} for m in messages]
+    return {"schema": "tabilet.trajectories/v1", "project_root": telemetry["project_root"],
+            "milestone": telemetry["milestone"], "tasks": tasks,
+            "verification": telemetry["verification_observations"],
+            "reviews": telemetry["review_observations"],
+            "unclosed_runs": telemetry["unclosed_runs"],
+            "recording_gap": telemetry["independent_evidence"]["recording_gap"]}
 
 
 def read_memory_file(project_root: pathlib.Path, rel_path: str, max_chars: int = 8000) -> str:
@@ -883,10 +806,6 @@ def invoke_improver_llm(
     for name, cmd in cli_candidates:
         if shutil.which(cmd[0]) is None:
             continue
-        if not _host_resolves(CLI_HOSTS[name]):
-            unreachable += 1
-            failures.append(f"{name} CLI: no network (cannot resolve {CLI_HOSTS[name]})")
-            continue
         try:
             returncode, stdout = _run_cli(cmd, prompt, remaining())
         except (subprocess.TimeoutExpired, OSError) as exc:
@@ -906,6 +825,8 @@ def invoke_improver_llm(
         timeouts += 1
         failures.append("REST API: no time left")
     except LookupError:
+        if os.environ.get("TABILET_REFLECT_API_BASE") and backend != "auto":
+            raise audit.AuditError("explicit reflection endpoint has no matching API credential")
         if not failures:
             return ImproverResult(generate_heuristic_proposal(telemetry), "heuristic", {"input_total": None, "output": None})
     except urllib.error.HTTPError as exc:
@@ -954,7 +875,7 @@ def _coverage(tests_run: int | None, summary: str) -> dict[str, Any]:
     return {"tests_run": tests_run, "has_coverage": None if tests_run is None else tests_run > 0, "summary": summary}
 
 
-def extract_coverage_evidence(output: str) -> dict[str, Any]:
+def extract_coverage_evidence(output: str, runner: str | None = None) -> dict[str, Any]:
     """Parse test runner output into a test count (`tests_run`, None when the runner prints none).
 
     Counts come from the runner's own totals: Cargo prints one total per test binary, so they are summed,
@@ -982,13 +903,18 @@ def extract_coverage_evidence(output: str) -> dict[str, Any]:
         passed, failed = sum(int(a) for a, _ in cargo), sum(int(b) for _, b in cargo)
         return _coverage(passed + failed, f"{passed} passed, {failed} failed")
 
-    # 4. Go prints no count: a package line "ok  pkg" ran tests unless it says "[no tests to run]", and
-    # "[no test files]" marks a package without any. One package without tests does not empty the run.
-    go_ok = [l for l in output.splitlines() if re.match(r"ok\s+\S+", l) and "[no tests to run]" not in l]
-    if go_ok:
-        return {"tests_run": None, "has_coverage": True, "summary": f"go test: {len(go_ok)} package(s) ok"}
-    if re.search(r"\[no test files\]|\[no tests to run\]", output):
-        return _coverage(0, "no test files")
+    # Go package output is interpreted only for a declared Go runner.
+    if runner == "go":
+        if re.search(r"^FAIL(?:\s|$)", output, re.M):
+            return _coverage(None, "go test failed; test count unknown")
+        go_ok = [line for line in output.splitlines()
+                 if re.match(r"ok\s+[^\s]+\s+(?:[0-9.]+s|\(cached\))", line)
+                 and "[no tests to run]" not in line]
+        if go_ok:
+            return {"tests_run": None, "has_coverage": True, "summary": f"go test: {len(go_ok)} package(s) ok"}
+        if re.search(r"\[no test files\]|\[no tests to run\]", output):
+            return _coverage(0, "no test files")
+        return _coverage(None, "unparsed Go output")
 
     # 5. Mocha: "22 passing", "1 failing"
     passing = re.search(r"^\s*(\d+)\s+passing\b", output, re.M)
@@ -1012,7 +938,7 @@ def extract_coverage_evidence(output: str) -> dict[str, Any]:
 
 def _run_probe(argv: list[str], cwd: pathlib.Path, timeout_sec: int) -> dict[str, Any]:
     """One probe run in its own session. A timeout kills the whole process group and reaps it."""
-    t0 = time.time()
+    t0 = time.monotonic()
     try:
         proc = subprocess.Popen(argv, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, text=True, start_new_session=True)
@@ -1028,7 +954,7 @@ def _run_probe(argv: list[str], cwd: pathlib.Path, timeout_sec: int) -> dict[str
                 proc.kill()
         proc.communicate()
         return {"timeout": True}
-    return {"exit_code": proc.returncode, "output": out + "\n" + err, "duration": time.time() - t0}
+    return {"exit_code": proc.returncode, "output": out + "\n" + err, "duration": time.monotonic() - t0}
 
 
 def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, timeout_sec: int = 15,
@@ -1087,15 +1013,15 @@ def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, 
                             "coverage": no_coverage, "output_snippet": f"Command exceeded probe timeout of {timeout_sec}s."})
             continue
 
-        coverage = extract_coverage_evidence(first["output"])
+        coverage = extract_coverage_evidence(first["output"], runner=argv[0])
         snippet = truncate_middle(first["output"], 200, 400).strip()
         entry = {"command": cmd, "exit_code": first["exit_code"], "duration_sec": round(first["duration"], 3),
                  "coverage": coverage, "output_snippet": snippet}
-        if coverage.get("has_coverage") is False:
-            results.append({**entry, "status": "ZERO_COVERAGE"})
-            continue
         if first["exit_code"] != 0:
             results.append({**entry, "status": "FAILED"})
+            continue
+        if coverage.get("has_coverage") is False:
+            results.append({**entry, "status": "ZERO_COVERAGE"})
             continue
 
         # Passed once. Every repeat must pass too: a flaky command is not a stable profile.
@@ -1121,50 +1047,12 @@ def probe_proposed_commands(markdown_proposal: str, project_root: pathlib.Path, 
     return results
 
 
-def _counted(probe: dict[str, Any]) -> bool:
-    """A passing probe whose output reported a positive test count: the only kind that can be compared."""
-    coverage = probe.get("coverage") or {}
-    return (probe["status"] == "PASSED" and isinstance(coverage.get("tests_run"), int)
-            and coverage.get("has_coverage") is True and probe.get("duration_sec") is not None)
-
-
-def _compare_to_baseline(probe_results: list[dict[str, Any]]) -> list[str]:
-    """Notes comparing each candidate with the first command, which the prompt asks to be the baseline.
-
-    A replacement is recommended only when it runs at least as many tests as the baseline and is faster.
-    A smaller subset is a fast tier. Nothing is compared with a baseline that was not measured."""
-    if len(probe_results) < 2:
+def _compare_to_baseline(probe_results):
+    if not probe_results:
         return []
-    baseline, others = probe_results[0], probe_results[1:]
-    notes = []
-    if not _counted(baseline):
-        reason = {"TIMEOUT": "it timed out at the probe limit, so its duration and test count are unknown",
-                  "SKIPPED": "it was not run", "FAILED": "it failed", "UNSTABLE": "it was unstable",
-                  "ZERO_COVERAGE": "it ran no tests"}.get(baseline["status"], "its output reported no test count")
-        return [f"> **NOTE:** The first command, `{baseline['command']}`, is taken as the baseline and was not measured: {reason}. "
-                "No candidate is compared with it and none is recommended; a short probe cannot time a long suite. "
-                "Compare test counts and durations yourself before changing `tech-stack.md`."]
-    base_n, base_t = baseline["coverage"]["tests_run"], baseline["duration_sec"]
-    faster = [p for p in others if _counted(p) and p["duration_sec"] < base_t]
-    full = [p for p in faster if p["coverage"]["tests_run"] >= base_n]
-    subset = [p for p in faster if p["coverage"]["tests_run"] < base_n]
-    if full:
-        best = min(full, key=lambda p: p["duration_sec"])
-        notes.append(f"> **Recommended Test Profile:** `{best['command']}` runs {best['coverage']['tests_run']} tests, "
-                     f"as many as the baseline's {base_n} or more, in {best['duration_sec']:.2f}s against {base_t:.2f}s.")
-    if subset:
-        best = min(subset, key=lambda p: p["duration_sec"])
-        n = best["coverage"]["tests_run"]
-        notes.append(f"> **Fast tier only:** `{best['command']}` runs {n} of the baseline's {base_n} tests "
-                     f"({round(100 * n / base_n)}%) in {best['duration_sec']:.2f}s against {base_t:.2f}s. It covers a subset, so it does "
-                     "not replace the baseline: keep the baseline as the full-regression gate, and the `Replacement coverage` rule applies.")
-    if not faster and any(_counted(p) for p in others):
-        notes.append("> **NOTE:** No verified candidate is faster than the baseline.")
-    for p in others:
-        if p["status"] == "PASSED" and not _counted(p):
-            notes.append(f"> **NOTE:** `{p['command']}` passed, but its output reported no test count, so its coverage is "
-                         "unverified and it was not compared.")
-    return notes
+    return ["> **Smoke checks only:** These commands report observed results and timings. "
+            "Test counts do not establish equivalent coverage or subset relationships, and short "
+            "probes do not establish a faster replacement profile. Preserve required verification."]
 
 
 def format_compose_report(proposal_md: str, probe_results: list[dict[str, Any]]) -> str:

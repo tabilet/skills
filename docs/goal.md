@@ -490,34 +490,65 @@ use `goal-policy`. Every other browser environment needs explicit authority.
 
 ## Offline reflection
 
-`OPTIMIZE_POLICY` is `none` by default. With `--optimize confirm` or `--optimize auto`, the Goal owner
-runs `tabilet-audit reflect` when a milestone closes, and only when `tabilet-audit audit status`
-reports auditing enabled and `tabilet-audit reflect --check` passes; otherwise it warns at launch and
-at the end and carries on. Reflection drafts a proposal for `tech-stack.md` and `lessons.md`. `confirm`
-pauses for approval of the whole proposal. `auto` applies only additive, evidence-linked edits and never
-touches authorization, review or verification limits. Reflection reads later milestones only after a significant
-finding (a task that needed several runs, or a failed, blocked or slow run), only those listed in `suggested.txt`
-and still open, and spends at most 10% of the milestone's recorded time. Milestone graph changes count as corrective planning
-and need `CORRECTIVE_PLANNING: auto`. A report made without a model proposes no edits. Reflection needs the network for its model call: a host sandbox without network access makes it stop with "backend unreachable" and write a report with no edits, so run `tabilet-audit reflect` with network access.
+`OPTIMIZE_POLICY: none` is the default. With `confirm` or `auto`, Goal checks
+that project auditing is enabled and `tabilet-audit reflect --check` succeeds.
+If either is unavailable, it warns and continues. Reflection drafts additive
+changes for `tech-stack.md` and `lessons.md`; it never changes authorization,
+review limits or verification caps. Graph changes follow `CORRECTIVE_PLANNING`.
+A model-free report proposes no edits.
 
-An interactive Goal run records its own events, so they can be sparse. Reflection therefore also reads
-evidence the agent does not write: the Git commits made during the recorded runs, and the review rounds
-from the retired record or the active status file. When commits exist but no task transitions were
-recorded, the prompt says the recording is incomplete. Reflection normally runs at milestone closure, before
-the run is finished, so a run with no result yet is reported as open and not as a stall. Review rounds are
-evidence only; they do not open the downstream gate.
+Reflection uses recorded task attempts, verification observations and review
+rounds. Repeated attempts, failed or blocked work, or scoped intervals over
+two minutes can open its downstream gate. Only still-open milestones listed
+in the stock `tabilet/memory-bank/suggested.txt` are included. Full Goal-run
+duration is never assigned to each milestone. For an API-runner pending row,
+the host retains its measured attempt-start timestamp and attributes that
+interval only after the one-row post-run gates verify the selected row.
+Unverified or ambiguous runs retain the recording gap.
 
-Three limits are worth knowing. `reflect --check` also lists the model backends it found (an agent CLI on
-`PATH`, or `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENAI_API_KEY`); with none, Goal warns at launch and each reflection is
-only a summary. A milestone with under 150 seconds of recorded time gets no model call at the default 10%.
-Agent CLI backends run from a temporary directory, not your project, and `--probe` dry-runs at most 3 candidate test commands (the first is taken as your current baseline), repeats each run to average its duration, and counts the tests it runs. A command that fails or times out on the repeat is reported as unstable. The proposal recommends a replacement only when it is faster and runs at least as many tests as the baseline; a smaller subset is shown as a fast tier that does not replace it, and nothing is recommended when the baseline itself was not measured or a command's output reports no test count. The proposal is written to a Git-ignored path that `tabilet-audit audit enable` sets up; rerun it on a
-project enabled before this rule existed.
+The model budget is at most 10% of recorded scoped elapsed time, capped at
+120 seconds. Overlapping intervals count once; missing boundaries remain
+unknown. Under 15 seconds of budget means no model call. This measures elapsed
+time, not active work. Unfinished runs remain unclosed with an unknown outcome
+and their last observation; reflection never expires them automatically.
 
-Two optional settings change where the model call goes. `TABILET_REFLECT_MODEL` picks the model for a REST
-backend. `TABILET_REFLECT_API_BASE` points a REST backend at another endpoint, such as a local or proxied
-server; it is read only when `--backend` names `claude`, `gemini` or `openai`, never with `auto`, it makes the
-REST call even when that backend's agent CLI is installed, and the chosen backend's API key is sent to that endpoint, so set it only to a host you trust. The result of a run
-reports the tokens the provider returned as `usage`.
+Git evidence consists of explicitly recorded full commit SHAs verified against
+the repository, without all-ref time windows. Attribution remains observation
+based. Review counts come from typed observations or supported Markdown
+checkpoints; conflicting evidence is reported. Sparse records never prove that
+work or review did not happen.
+
+The optional typed audit commands are `audit task-start`, `audit task-finish`,
+`audit verification` and `audit review`, each accepting `--input -`.
+`audit finish` accepts `--reason`. They record evidence and never execute tests
+or change task truth. Install the toolkit files together; interface 5 reads
+existing recordings without inventing missing observations.
+
+A model backend needs a usable CLI or API configuration. Actual bounded attempts
+determine availability; a DNS check does not veto a proxy-backed CLI. An explicit
+endpoint without its credential is a configuration error. Agent CLIs run from
+a temporary directory. No backend produces a model-free summary.
+
+`TABILET_REFLECT_MODEL` selects the REST model. `TABILET_REFLECT_API_BASE`
+selects a local or proxied REST endpoint when `--backend` explicitly names
+`claude`, `gemini` or `openai`; it does not override `auto`. The selected
+backend's API key is sent to that endpoint, so configure only a trusted host.
+REST backends accept `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENAI_API_KEY`
+for their corresponding provider. An explicit endpoint with no matching key
+is an error. A `backend unreachable` error calls for checking host network
+access under the existing grants and retrying the command. Results include
+the provider's returned token `usage`.
+
+`--probe` also requires `ALLOW_UNSANDBOXED_SHELL=1`. It runs at most three
+allowed test commands without a shell, with bounded repeated smoke checks.
+Failures and timeouts are retained. Counts and short timings establish neither
+equivalent coverage nor a faster replacement profile.
+
+The proposal is written to a Git-ignored path prepared by `tabilet-audit audit
+enable`. Under `confirm`, approve an actionable complete proposal before
+applying it. Under `auto`, only additive evidence-linked edits within the
+existing grants and limits may be applied. Empty and model-free reports do
+not require approval.
 
 ## Standing corrective planning
 

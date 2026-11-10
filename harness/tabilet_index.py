@@ -24,7 +24,7 @@ EVOLUTION = re.compile(r'(prompt|result)-v([1-9][0-9]*)\.md$')
 TABLES = ('index_documents','index_sections','index_milestones','index_tasks','index_relationships','index_search')
 EXPLORER_TABLES = ('index_milestone_projection','index_task_dependencies')
 DERIVED_TABLES = TABLES + EXPLORER_TABLES
-TOOLKIT_INTERFACE = 4
+TOOLKIT_INTERFACE = 5
 # The runner parser contract this module reads (row state_index/headers and
 # status_notes). `check_toolkit` refuses a runner that declares another value.
 PARSER_INTERFACE = 2

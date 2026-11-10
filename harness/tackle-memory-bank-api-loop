@@ -4088,6 +4088,11 @@ class AuditRun:
         self.closed = False
         self.failure = None
         self.observed_commits = set()
+        self.terminal_reason = None
+        self.task_subject = {}
+        self.commit_subject = {}
+        self.task_attempt = None
+        self.task_final_state = "in_progress"
         self.usage = UsageTotals()
         self.capture = args.audit_capture
         self.invocation_kind = invocation_kind
@@ -4108,8 +4113,8 @@ class AuditRun:
                     "built with SQLite 3.24.0 or later"
                 ) from exc
             import tabilet_index
-            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 4
-                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 4):
+            if (getattr(tabilet_audit, "TOOLKIT_INTERFACE", None) != 5
+                    or getattr(tabilet_index, "TOOLKIT_INTERFACE", None) != 5):
                 raise RuntimeError("incompatible audit toolkit modules; reinstall the toolkit files together")
             self.recorder = tabilet_audit
             setting = self.recorder.audit_status(repo)
@@ -4172,6 +4177,11 @@ class AuditRun:
     def emit(self, event_type, *, subject=None, details=None):
         if not self.recording():
             return
+        if event_type == "task_transition" and subject and self.task_subject:
+            if all(subject.get(k) == v for k, v in self.task_subject.items()):
+                self.task_final_state = subject.get("new_state", "in_progress")
+        if event_type in ("run_failed", "run_blocked", "run_interrupted"):
+            self.terminal_reason = (details or {}).get("reason")
         timestamp = self.recorder.utc_now()
         event = {"schema": "tabilet.audit.event/v1", "event_id": str(uuid.uuid4()),
                  "run_id": self.run_id, "workspace_id": self.workspace_id, "operation": self.operation,
@@ -4195,7 +4205,39 @@ class AuditRun:
         except Exception as exc:
             self.gap("record message", exc)
 
-    def observe_commits(self):
+    def begin_task(self, subject, occurred_at=None):
+        if not self.recording() or not subject:
+            return
+        self.task_subject = {k: subject[k] for k in ("milestone_id", "task_label", "status_path")}
+        self.task_attempt = str(uuid.uuid4())
+        self.task_initial_state = subject.get("old_state", "in_progress")
+        try:
+            self.recorder.record_observation(self.connection, "task-start", {
+                "schema": self.recorder.OBSERVATION_SCHEMA, "event_id": self.task_attempt + ":start",
+                "run_id": self.run_id, "attempt_id": self.task_attempt, **self.task_subject,
+                **({"occurred_at": occurred_at} if occurred_at else {"live": True}),
+                "capture_source": "host", "fidelity": "exact"})
+        except Exception as exc:
+            self.gap("record task start", exc)
+            self.task_attempt = None
+
+    def verification(self, subject, start, duration, success):
+        if not self.recording() or not subject:
+            return
+        try:
+            self.recorder.record_observation(self.connection, "verification", {
+                "schema": self.recorder.OBSERVATION_SCHEMA, "event_id": str(uuid.uuid4()),
+                "run_id": self.run_id, **{k: subject[k] for k in ("milestone_id", "task_label", "status_path")},
+                "command": "runner post_run_gates", "result": "passed" if success else "failed",
+                "started_at": start, "finished_at": self.recorder.utc_now(),
+                "duration_sec": duration, "timing_basis": "monotonic", "source_identity": git_head(self.repo),
+                "capture_source": "host", "fidelity": "exact"})
+        except Exception as exc:
+            self.gap("record verification", exc)
+
+    def observe_commits(self, subject=None):
+        if subject:
+            self.commit_subject = subject
         if not self.recording() or self.failure:
             return
         try:
@@ -4208,9 +4250,11 @@ class AuditRun:
             history = git_local(["rev-list", "--reverse", f"{self.git_ref}..{current}"], self.repo) if self.git_ref else None
             commits = history.stdout.splitlines() if history and history.returncode == 0 else [current]
             for commit in commits:
-                if commit not in self.observed_commits:
-                    self.emit("commit_observed", details={"commit_sha": commit})
-                    self.observed_commits.add(commit)
+                attribution = self.commit_subject
+                key = (commit, attribution.get("milestone_id"), attribution.get("task_label"))
+                if key not in self.observed_commits:
+                    self.emit("commit_observed", subject=attribution, details={"commit_sha": commit})
+                    self.observed_commits.add(key)
         except Exception as exc:
             self.gap("observe commits", exc)
 
@@ -4232,6 +4276,19 @@ class AuditRun:
         try:
             if self.recording():
                 self.observe_commits()
+                if self.task_attempt:
+                    try:
+                        task_result = result
+                        if result in ("completed", "blocked", "cancelled") and self.task_final_state != result:
+                            task_result = "unknown"
+                        self.recorder.record_observation(self.connection, "task-finish", {
+                            "schema": self.recorder.OBSERVATION_SCHEMA, "event_id": self.task_attempt + ":finish",
+                            "run_id": self.run_id, "attempt_id": self.task_attempt, **self.task_subject,
+                            "old_state": self.task_initial_state, "new_state": self.task_final_state,
+                            "result": task_result, "reason": self.terminal_reason,
+                            "live": True, "capture_source": "host", "fidelity": "exact"})
+                    except Exception as exc:
+                        self.gap("record task finish", exc)
                 self.emit_usage()
                 if self.failure:
                     self.emit("audit_gap", details={"error": self.failure})
@@ -4262,7 +4319,8 @@ class AuditRun:
                 except Exception as exc:
                     self.gap("record capture coverage", exc)
                 try:
-                    self.recorder.finish_run(self.connection, self.run_id, result)
+                    self.recorder.finish_run(self.connection, self.run_id, result,
+                                             reason=self.terminal_reason or ("verified runner closure" if result == "completed" else "terminal cause unavailable"))
                 except Exception as exc:
                     self.gap("record run result", exc)
                 try:
@@ -4660,6 +4718,8 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
                                                           "relationship": "observed", "path": f"tabilet/memory-bank/{in_progress['file']}"}]
                                                          if in_progress else [])}},
             )
+            measured_attempt_start = audit.recorder.utc_now() if audit.recording() else None
+            audit.begin_task(observed_subject)
             print(f"Run {run}/{args.max_runs}: asking LLM to tackle one row.")
             started = time.time()
 
@@ -4676,10 +4736,9 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
                 audit.finish("interrupted")
                 raise
             except SystemExit as exc:
-                audit.emit("run_failed", details={"exit_code": exc.code})
+                audit.emit("run_failed", details={"exit_code": exc.code, "reason": f"runner exited {exc.code}"})
                 audit.finish("failed")
                 raise
-            audit.observe_commits()
             if isinstance(run_result, dict) and isinstance(run_result.get("final"), str):
                 audit.message("assistant", run_result["final"], source="host", fidelity="exact")
             print(f"Run duration: {time.time() - started:.1f}s")
@@ -4723,6 +4782,8 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
                 )
                 transition_recorded = True
 
+            gate_start = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            gate_clock = time.monotonic()
             gates = post_run_gates(
                 repo,
                 before,
@@ -4731,6 +4792,15 @@ def run_locked_loop(args: argparse.Namespace, repo: pathlib.Path) -> None:
                 after_rows,
                 in_progress["key"] if in_progress else None,
             )
+            gate_duration = time.monotonic() - gate_clock
+            verified_subject = observed_subject
+            if gates["exit_code"] == 0 and transition:
+                verified_subject = {"milestone_id": status_identity(transition[0][0]), "task_label": transition[0][1],
+                                    "status_path": f"tabilet/memory-bank/{transition[0][0]}"}
+                if not audit.task_attempt:
+                    audit.begin_task({**verified_subject, "old_state": transition[1]}, occurred_at=measured_attempt_start)
+                audit.observe_commits(verified_subject)
+            audit.verification(verified_subject, gate_start, gate_duration, gates["exit_code"] == 0)
             if gates["exit_code"] == 5:
                 record_transition()
                 audit.emit("verification_observed", details={"checks": ["git_clean"], "success": False})

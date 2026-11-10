@@ -26,7 +26,7 @@ from urllib.parse import quote
 SCHEMA_NAME = "tabilet.audit/v4"
 SCHEMA_VERSION = 4
 RECORDER_VERSION = "tabilet-audit/4"
-TOOLKIT_INTERFACE = 4
+TOOLKIT_INTERFACE = 5
 PROJECT_ROOT_KEY = 'project_root'
 PROJECT_WORKSPACE_PREFIX = 'project_workspace:'
 AUDIT_ENABLED_KEY = 'audit_enabled'
@@ -39,6 +39,7 @@ WORKTREE_STATES = frozenset({"clean", "dirty", "unversioned"})
 EVENT_TYPES = frozenset({
     "run_started",
     "task_observed",
+    "task_started", "task_finished", "review_observed",
     "task_transition",
     "verification_observed",
     "usage_observed",
@@ -1473,8 +1474,11 @@ def _store_explorer_details(connection, normalized):
 
 
 @atomic
-def append_event(connection, event, *, sequence=None):
+def append_event(connection, event, *, sequence=None, observation_validated=False):
     normalized = validate_event(event)
+    if (normalized["event_type"] in ("task_started", "task_finished", "review_observed")
+            or "observation" in normalized["details"]) and not observation_validated:
+        raise AuditValidationError("typed observations require record_observation or the typed audit commands")
     payload = canonical_json(normalized)
     prior = connection.execute('SELECT sequence,payload_json FROM events WHERE event_id=?', (normalized['event_id'],)).fetchone()
     if prior:
@@ -1552,10 +1556,139 @@ def capture_message(connection, run_id, role, text, *, capture_source, fidelity,
     return message_id
 
 
+OBSERVATION_SCHEMA = "tabilet.audit.observation/v1"
+OBSERVATION_TYPES = {"task-start": "task_started", "task-finish": "task_finished",
+                     "verification": "verification_observed", "review": "review_observed"}
+
+
 @atomic
-def finish_run(connection, run_id, result, *, completed_at=None):
+def record_observation(connection, kind, value):
+    """Record a typed observation, never execute a command or change task truth."""
+    if kind not in OBSERVATION_TYPES or not isinstance(value, dict):
+        raise AuditValidationError("unknown observation kind or non-object input")
+    item = dict(value)
+    if item.get("schema") != OBSERVATION_SCHEMA:
+        raise AuditValidationError(f"observation schema must be {OBSERVATION_SCHEMA}")
+    common = {"schema", "event_id", "run_id", "milestone_id", "task_label", "status_path",
+              "capture_source", "fidelity", "occurred_at", "live"}
+    extras = {"task-start": {"attempt_id"},
+              "task-finish": {"attempt_id", "old_state", "new_state", "result", "reason"},
+              "verification": {"command", "result", "duration_sec", "timing_basis",
+                               "started_at", "finished_at", "source_identity", "runner"},
+              "review": {"round", "result", "findings", "duration_sec", "timing_basis",
+                         "started_at", "finished_at"}}
+    if set(item) - common - extras[kind]:
+        raise AuditValidationError("unknown observation fields: " + ", ".join(sorted(set(item) - common - extras[kind])))
+    for field in ("event_id", "run_id", "milestone_id"):
+        _text(item.get(field), field)
+    if not re.fullmatch(r"[A-Z](?:0[1-9]|[1-9][0-9]+)(?:-(?:0[1-9]|[1-9][0-9]))?", item["milestone_id"]):
+        raise AuditValidationError("invalid milestone identity")
+    if item.get("capture_source") not in CAPTURE_SOURCES or item.get("fidelity") not in FIDELITIES:
+        raise AuditValidationError("observations require capture_source and fidelity")
+    if "live" in item and type(item["live"]) is not bool:
+        raise AuditValidationError("live must be boolean")
+    if item.get("live") and item.get("occurred_at") is not None:
+        raise AuditValidationError("choose live or an explicit occurred_at")
+    run = connection.execute("SELECT workspace_id,operation,result FROM runs WHERE run_id=?", (item["run_id"],)).fetchone()
+    if not run:
+        raise AuditValidationError("unknown observation run")
+    prior = connection.execute("SELECT payload_json FROM events WHERE event_id=?", (item["event_id"],)).fetchone()
+    timestamp = strict_json_loads(prior[0])["recorded_at"] if prior else utc_now()
+    if run[2] is not None and not prior:
+        raise AuditValidationError("cannot append an observation to a finished run")
+    occurred = timestamp if item.get("live") else item.get("occurred_at")
+    _timestamp(occurred, "occurred_at", optional=True)
+    subject = {k: item[k] for k in ("milestone_id", "task_label", "status_path", "old_state", "new_state") if k in item}
+    for field in ("task_label", "status_path", "reason"):
+        if item.get(field) is not None:
+            _text(item[field], field)
+    if kind.startswith("task-"):
+        for field in ("attempt_id", "task_label", "status_path"):
+            _text(item.get(field), field)
+        observations = connection.execute(
+            "SELECT event_type,payload_json FROM events WHERE run_id=? AND event_type IN ('task_started','task_finished')",
+            (item["run_id"],)).fetchall()
+        matching = [strict_json_loads(payload) for _, payload in observations
+                    if strict_json_loads(payload)["details"].get("observation", {}).get("attempt_id") == item["attempt_id"]]
+        starts = [e for e in matching if e["event_type"] == "task_started"]
+        finishes = [e for e in matching if e["event_type"] == "task_finished"]
+        if kind == "task-start" and starts and starts[0]["event_id"] != item["event_id"]:
+            raise AuditConflict("attempt already started")
+        if kind == "task-finish":
+            if len(starts) != 1:
+                raise AuditValidationError("task finish requires its recorded start")
+            if finishes and finishes[0]["event_id"] != item["event_id"]:
+                raise AuditConflict("attempt already finished")
+            start = starts[0]
+            if any(start["subject"].get(k) != subject.get(k) for k in ("milestone_id", "task_label", "status_path")):
+                raise AuditConflict("attempt task identity changed")
+            if occurred and start.get("occurred_at") and _instant(occurred) < _instant(start["occurred_at"]):
+                raise AuditValidationError("task finish precedes start")
+            if item.get("result") not in RUN_RESULTS:
+                raise AuditValidationError("invalid task result")
+            if item.get("old_state") not in STATES or item.get("new_state") not in STATES:
+                raise AuditValidationError("task finish requires observed old_state and new_state")
+            if item["result"] in ("completed", "blocked", "cancelled") and item["new_state"] != item["result"]:
+                raise AuditValidationError("task result disagrees with its observed state")
+    if kind in ("verification", "review"):
+        if item.get("result") not in ("passed", "failed", "blocked", "unknown"):
+            raise AuditValidationError("invalid observation result")
+        duration = item.get("duration_sec")
+        if duration is not None and (type(duration) not in (int, float) or not 0 <= duration < float("inf")):
+            raise AuditValidationError("duration_sec must be finite and nonnegative")
+        basis = item.get("timing_basis", "unknown")
+        if basis not in ("unknown", "reported", "monotonic", "recorded_boundary"):
+            raise AuditValidationError("invalid timing_basis")
+        if duration is not None and basis == "unknown":
+            raise AuditValidationError("duration requires timing provenance")
+        begin, end = item.get("started_at"), item.get("finished_at")
+        if bool(begin) != bool(end):
+            raise AuditValidationError("timed intervals require both boundaries")
+        if begin is not None:
+            _timestamp(begin, "started_at"); _timestamp(end, "finished_at")
+            if _instant(end) < _instant(begin):
+                raise AuditValidationError("finish precedes start")
+    if kind == "verification":
+        _text(item.get("command"), "command")
+        for field in ("runner", "source_identity"):
+            if item.get(field) is not None:
+                _text(item[field], field)
+    if kind == "review":
+        if type(item.get("round")) is not int or item["round"] < 1:
+            raise AuditValidationError("review round must be a positive integer")
+        findings = item.get("findings")
+        if not isinstance(findings, dict) or any(not isinstance(k, str) or type(v) is not int or v < 0 for k, v in findings.items()):
+            raise AuditValidationError("review findings must map priorities to nonnegative counts")
+    details = {"schema": "tabilet.audit.details/v1", "capture_source": item["capture_source"],
+               "fidelity": item["fidelity"], "observation": {**item, "kind": kind}}
+    event = {"schema": "tabilet.audit.event/v1", "event_id": item["event_id"],
+             "run_id": item["run_id"], "workspace_id": run[0], "operation": run[1],
+             "event_type": OBSERVATION_TYPES[kind], "recorded_at": timestamp,
+             "occurred_at": occurred, "subject": subject, "details": details}
+    sequence = append_event(connection, event, observation_validated=True)
+    existing_transition = connection.execute(
+        "SELECT 1 FROM events WHERE run_id=? AND event_type='task_transition' AND milestone_id=? "
+        "AND task_label=? AND status_path=? AND old_state=? AND new_state=? "
+        "AND sequence > COALESCE((SELECT sequence FROM events WHERE event_id=?), -1)",
+        (item["run_id"], subject.get("milestone_id"), subject.get("task_label"), subject.get("status_path"),
+         subject.get("old_state"), subject.get("new_state"),
+         starts[0]["event_id"] if kind == "task-finish" else "")).fetchone()
+    if kind == "task-finish" and not existing_transition:
+        append_event(connection, {**event, "event_id": item["event_id"] + ":transition",
+                                 "event_type": "task_transition"}, observation_validated=True)
+    return {"event_id": item["event_id"], "sequence": sequence, "recorded_at": timestamp}
+
+
+def _instant(value):
+    return _datetime.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+
+
+@atomic
+def finish_run(connection, run_id, result, *, completed_at=None, reason=None):
     if result not in RUN_RESULTS:
         raise AuditValidationError(f'unknown run result: {result}')
+    if reason is not None:
+        _text(reason, "reason")
     prior = connection.execute('SELECT completed_at,result,workspace_id,operation FROM runs WHERE run_id=?', (run_id,)).fetchone()
     if not prior:
         raise AuditValidationError(f'unknown run: {run_id}')
@@ -1564,11 +1697,15 @@ def finish_run(connection, run_id, result, *, completed_at=None):
     if prior[1] is not None:
         if prior[:2] != (timestamp, result):
             raise AuditConflict('run already has a different terminal result')
+        terminal = connection.execute("SELECT details_json FROM events WHERE event_id=?", (f"{run_id}:finished",)).fetchone()
+        if reason is not None and (not terminal or strict_json_loads(terminal[0]).get("reason") != reason):
+            raise AuditConflict('run already has a different terminal reason')
         return
     append_event(connection, {'schema':'tabilet.audit.event/v1', 'event_id':f'{run_id}:finished',
         'run_id':run_id, 'workspace_id':prior[2], 'operation':prior[3], 'event_type':'run_finished',
         'recorded_at':timestamp, 'occurred_at':timestamp, 'subject':{},
-        'details':{'schema':'tabilet.audit.details/v1','result':result}})
+        'details':{'schema':'tabilet.audit.details/v1','result':result,
+                   'reason':reason, 'reason_missing':reason is None}})
     connection.execute('UPDATE runs SET completed_at=?,result=? WHERE run_id=?', (timestamp,result,run_id))
 
 

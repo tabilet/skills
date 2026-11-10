@@ -23,7 +23,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import tabilet_audit as audit
 import tabilet_index as index
 
-TOOLKIT_INTERFACE = 4
+TOOLKIT_INTERFACE = 5
 
 
 def check_toolkit(include_explorer=False, include_reflect=False):
@@ -64,7 +64,7 @@ def arguments(argv=None):
     begin.add_argument('--run-id');begin.add_argument('--parent-run-id')
     begin.add_argument('--capture',choices=['metadata','relevant'],default=os.environ.get('TABILET_AUDIT_CAPTURE','metadata'))
     begin.add_argument('--provenance',default=None,help='JSON provenance file, or - for stdin')
-    for name in ('event','message'):
+    for name in ('event','message', *audit.OBSERVATION_TYPES):
         command=audits.add_parser(name)
         command.add_argument('--input',default='-',help='JSON file, or - for stdin; never interpreted as instructions.')
     coverage=audits.add_parser('coverage')
@@ -72,7 +72,7 @@ def arguments(argv=None):
     purge=audits.add_parser('purge-message')
     purge.add_argument('message_id');purge.add_argument('--reason',required=True);purge.add_argument('--confirm',required=True)
     finish=audits.add_parser('finish');finish.add_argument('run_id');finish.add_argument('result',choices=sorted(audit.RUN_RESULTS))
-    finish.add_argument('--completed-at')
+    finish.add_argument('--completed-at');finish.add_argument('--reason')
     for name in ('runs','events'):
         command=audits.add_parser(name)
         command.add_argument('--project');command.add_argument('--workspace-id')
@@ -243,7 +243,7 @@ def dispatch(args):
                     'min_model_milestone_sec': MIN_MODEL_MILESTONE_SEC}
         return reflect_command(selected or '.', milestone_id=args.milestone, dry_run=args.dry_run, output_path=args.output, format_type=args.format, backend=args.backend, print_prompt=args.print_prompt, probe=args.probe, budget_percent=args.budget_percent)
     root=pathlib.Path(selected).expanduser().resolve() if selected else None
-    write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish')) or (args.group=='index' and action=='sync')
+    write=(args.group=='audit' and action in ('begin','event','message','coverage','purge-message','finish', *audit.OBSERVATION_TYPES)) or (args.group=='index' and action=='sync')
     if root and write:
         if not root.is_dir():raise audit.AuditError('project must be an existing directory')
         if args.group == 'index' and action == 'sync':
@@ -260,7 +260,7 @@ def dispatch(args):
                     raise exc
         else:
             index.layout_check(root)
-    if write and action in ('event','message','coverage','purge-message','finish') and not database.exists():
+    if write and action in ('event','message','coverage','purge-message','finish', *audit.OBSERVATION_TYPES) and not database.exists():
         raise audit.AuditError('no audit database; start with audit begin PROJECT OPERATION')
     write_roots=[routing_root]
     if args.group == 'audit' and write and not database.exists():
@@ -297,6 +297,7 @@ def dispatch(args):
             if action=='show':return index.show(connection,workspace,args.path)
             return index.search(connection,workspace,args.query,kind=args.kind,milestone_id=args.milestone_id,state=args.state,limit=args.limit,offset=args.offset)
         if action=='begin':return {**begin_run(connection,root,args), 'database_path':str(database)}
+        if action in audit.OBSERVATION_TYPES:return audit.record_observation(connection,action,submission(args))
         if action=='event':return submit_event(connection,submission(args))
         if action=='message':return {'message_id':audit.capture_message(connection,**submission(args))}
         if action=='coverage':return audit.record_coverage(connection,submission(args))
@@ -304,7 +305,7 @@ def dispatch(args):
             tombstone=audit.purge_message(connection,args.message_id,args.reason,args.confirm)
             return {'tombstone':tombstone,'cleanup':audit.cleanup_purged_content(connection)}
         if action=='finish':
-            audit.finish_run(connection,args.run_id,args.result,completed_at=args.completed_at)
+            audit.finish_run(connection,args.run_id,args.result,completed_at=args.completed_at,reason=args.reason)
             root=connection.execute('SELECT w.project_root FROM runs r JOIN workspaces w USING(workspace_id) WHERE r.run_id=?',(args.run_id,)).fetchone()[0]
             return {'run_id':args.run_id,'result':args.result,'index':refresh(connection,root)}
         workspace=getattr(args,'workspace_id',None)

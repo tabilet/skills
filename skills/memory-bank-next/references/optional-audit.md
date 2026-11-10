@@ -138,9 +138,11 @@ credentials, or claims of a write that was not observed in this extension.
    JSON
    ```
 
-4. Finish with `tabilet-audit --project /absolute/project audit finish RUN_ID RESULT`. Results are
+4. Finish with `tabilet-audit --project /absolute/project audit finish RUN_ID RESULT --reason "observed outcome"`. Results are
    `completed`, `blocked`, `failed`, `cancelled`, `interrupted`, or `unknown`.
    Choose from observed evidence, independently of process exit or a commit.
+   Supply the observed reason, especially for a non-completed result. Legacy
+   calls without a reason are accepted and explicitly marked as missing it.
    Finish refreshes the current Markdown index; failures are reported as gaps.
    Waiting for user approval is not successful completion. Retain the run while
    waiting, or close it as blocked and start a new run when work resumes. Abrupt
@@ -149,6 +151,48 @@ credentials, or claims of a write that was not observed in this extension.
 Logging failure never undoes work, changes status, retries a task, or changes the
 commit policy. Report gaps in the final handoff. Before execution or a planning
 write, reread the live Markdown even if an index lookup helped locate it.
+
+### Typed task, verification and review observations
+
+When auditing is enabled, prefer the typed commands below to free-form event
+details. They record observations only: they do not execute tests, update
+Markdown, advance a review counter or grant authority. Keep the event and
+attempt IDs for retries. Identical retries are idempotent; conflicting reuse
+fails. A missing event remains a recording gap.
+
+All four commands accept a JSON object through `--input -`, with
+`schema: "tabilet.audit.observation/v1"`, `event_id`, `run_id`,
+`milestone_id`, `capture_source` and `fidelity`. Agent observations use
+source `agent` and fidelity `summarized` or `incomplete`; exact host
+observations require host provenance.
+
+| Command | Additional fields |
+|---|---|
+| `audit task-start --input -` | `attempt_id`, `task_label`, `status_path` |
+| `audit task-finish --input -` | The same attempt and task identity, observed `old_state` and `new_state`, `result` and optional `reason` |
+| `audit verification --input -` | `command`, `result`; optional task identity, `runner` and `source_identity` |
+| `audit review --input -` | `round` (positive integer), `result` and `findings` (priority-to-count object) |
+
+At an observed task boundary, pass `live: true` to record that boundary's
+time. For a known earlier boundary supply `occurred_at` instead. Omit both
+when its time is unknown; never reconstruct timestamps from memory. A task
+finish requires its matching start. Finish an attempt when work blocks or
+waits; resume with a new attempt ID. Task results use the run-result vocabulary
+above. Completed, blocked and cancelled results must agree with the observed
+new state.
+
+Verification and review results are `passed`, `failed`, `blocked` or
+`unknown`. Record available elapsed time as `duration_sec` with
+`timing_basis` of `monotonic`, `recorded_boundary` or `reported`.
+Unknown timing uses `unknown` and no duration. An available interval supplies
+both `started_at` and `finished_at` in UTC. Record the actual command and
+source identity when known; never infer equivalent test coverage from counts.
+
+Task identity is the milestone ID, original status path and exact row label.
+A review observation records the authoritative round after reading Markdown;
+it cannot increment that counter. Recording failure remains nonfatal and must
+be reported as a gap. These commands need a consistently installed toolkit
+interface 5; legacy generic events and old recordings remain supported.
 
 ## Explorer
 

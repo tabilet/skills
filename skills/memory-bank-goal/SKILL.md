@@ -89,7 +89,7 @@ When it is not `none`, run these preflight checks before milestone execution:
    `WARNING: OPTIMIZE_POLICY is configured, but no reflection model is available (tabilet-audit reflect --check lists no backends). Reflection will only produce a summary with no edits. Install claude, gemini or codex, or set ANTHROPIC_API_KEY, GEMINI_API_KEY or OPENAI_API_KEY.`
    and continue; milestones shorter than the `min_model_milestone_sec` it reports get no model call either.
 When both pass, run `tabilet-audit reflect . --milestone <ID>` upon milestone closure and read its proposal
-(`proposal_source` of `heuristic` means no model ran; treat it as a summary with no edits). A "backend unreachable" note means the host sandbox blocks network: request network access for this command and rerun it. Probe commands
+(`proposal_source` of `heuristic` means no model ran; treat it as a summary with no edits). A "backend unreachable" error means this host could not reach the backend. Request any needed network access under the governing grants, then rerun the command. Probe commands
 are not run unless you pass `--probe` with the host-shell acknowledgment. A failed reflection,
 model-free report or empty proposal makes no edits and does not pause execution.
 Under `confirm`, pause for human approval only of an actionable complete proposal.
@@ -98,11 +98,12 @@ and `lessons.md`, never touching authorization, review or verification limits. A
 (amending downstream scopes, adding repair milestones, or marking obsolete pending milestones `[X]` with a
 named successor) only under human-approved `CORRECTIVE_PLANNING: auto`; otherwise propose them and pause.
 Refresh `suggested.txt` (recalculating its SHA256 checksum) only for changes made this way.
-Reflection reads later milestones only when it found something significant (a task that needed several runs,
-or a run that failed, blocked, or ran over two minutes), and then only the downstream milestones listed in
+Reflection reads later milestones only when it found something significant (recorded repeated task attempts,
+a failed or blocked task or check, or a scoped interval over two minutes), and then only the downstream milestones listed in
 `suggested.txt`, each re-checked against its live status file; a quiet milestone feeds nothing downstream.
-It spends at most 10% of the milestone's recorded wall time (`--budget-percent`), skips the model below
-15 seconds of budget, and never delays the run: a timeout leaves a model-free report and no edits.
+It spends at most 10% of the milestone's recorded scoped elapsed time (`--budget-percent`), skips the model below
+15 seconds of budget. Missing task boundaries remain unknown; overlapping intervals count once.
+An unclosed run is never automatically finished or treated as evidence of task duration. A timeout leaves a model-free report and no edits.
 
 Accept optional `--email ADDRESS` from the current human request, including a
 native goal objective that invokes this skill. Read

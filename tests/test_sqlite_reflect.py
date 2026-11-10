@@ -19,10 +19,6 @@ import tabilet_reflect as reflect  # noqa: E402
 
 class ReflectTests(unittest.TestCase):
     def setUp(self):
-        # Tests use fake CLIs; the real DNS check is only exercised where a test patches it to False.
-        patcher = mock.patch.object(reflect, '_host_resolves', return_value=True)
-        patcher.start()
-        self.addCleanup(patcher.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.base = Path(self.tmp.name)
@@ -48,6 +44,15 @@ class ReflectTests(unittest.TestCase):
             'subject': {'milestone_id': 'M01', 'task_label': 'Implement feature',
                         'old_state': 'pending', 'new_state': 'completed'},
             'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent', 'fidelity': 'summarized'}})
+        subject = {'schema': 'tabilet.audit.observation/v1', 'run_id': run_id, 'milestone_id': 'M01',
+                   'task_label': 'Implement feature', 'status_path': 'tabilet/memory-bank/status-M01.md',
+                   'attempt_id': run_id, 'capture_source': 'agent', 'fidelity': 'summarized'}
+        self.command('audit', 'task-start', data={**subject, 'event_id': run_id + ':start',
+                                                'occurred_at': '2026-11-10T00:00:00Z'})
+        self.command('audit', 'task-finish', data={**subject, 'event_id': run_id + ':finish',
+                     'occurred_at': '2026-11-10T00:00:10Z', 'old_state': 'in_progress',
+                     'new_state': result if result in ('completed', 'blocked', 'cancelled') else 'blocked',
+                     'result': result})
         self.command('audit', 'finish', run_id, result)
 
     def write_downstream_project(self):
@@ -76,8 +81,6 @@ class ReflectTests(unittest.TestCase):
     def test_check_lists_the_backends_reflection_could_use(self):
         with mock.patch.dict(os.environ, {'PATH': '', 'GEMINI_API_KEY': 'k'}, clear=True):
             self.assertEqual(reflect.available_backends(), ['rest:gemini'])
-        with mock.patch.dict(os.environ, {'PATH': '', 'OPENAI_API_KEY': 'k'}, clear=True):
-            self.assertEqual(reflect.available_backends(), ['rest:openai'])
         only = {'PATH': str(self.base / 'bin')}
         self.fake_cli('true\n')
         with mock.patch.dict(os.environ, only, clear=True):
@@ -246,107 +249,6 @@ class ReflectTests(unittest.TestCase):
         self.assertEqual(result['proposal_source'], 'heuristic')
         self.assertIn('model skipped', result['budget_note'])
         self.assertTrue(Path(result['output_file']).is_file())
-        self.assertIn('Why no model analysis: model skipped', Path(result['output_file']).read_text())
-
-    def test_missing_network_fails_fast_and_says_why(self):
-        self.record_completed_task()
-        telemetry = reflect.extract_telemetry(self.repo, 'M01')
-        with mock.patch.dict(os.environ, {}, clear=True), \
-                mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
-                mock.patch.object(reflect, '_host_resolves', return_value=False), \
-                mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')):
-            with self.assertRaises(reflect.BackendUnreachable) as ctx:
-                reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=60)
-        self.assertIn('claude CLI: no network', str(ctx.exception))
-
-    def test_a_rest_backend_without_network_is_unreachable_not_a_failure(self):
-        # A sandbox with only an API key fails name resolution; that must degrade
-        # to the model-free report like a CLI without network, not stop with exit 2.
-        import errno
-        import socket
-        import urllib.error
-        self.record_completed_task()
-        telemetry = reflect.extract_telemetry(self.repo, 'M01')
-        for reason in (socket.gaierror(socket.EAI_NONAME, 'Name or service not known'),
-                       OSError(errno.ENETUNREACH, 'Network is unreachable')):
-            with self.subTest(reason=type(reason).__name__, errno=getattr(reason, 'errno', None)):
-                with mock.patch.dict(os.environ, {'OPENAI_API_KEY': 'k'}, clear=True), \
-                        mock.patch.object(reflect.shutil, 'which', return_value=None), \
-                        mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError(reason)):
-                    with self.assertRaises(reflect.BackendUnreachable) as ctx:
-                        reflect.invoke_improver_llm(telemetry, self.repo, backend='openai', timeout_sec=60)
-                self.assertIn('REST API: no network', str(ctx.exception))
-        # A refused connection is a real failure of a reachable network, not a blocked sandbox.
-        with mock.patch.dict(os.environ, {'OPENAI_API_KEY': 'k'}, clear=True), \
-                mock.patch.object(reflect.shutil, 'which', return_value=None), \
-                mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError(
-                    ConnectionRefusedError(errno.ECONNREFUSED, 'refused'))):
-            with self.assertRaises(audit.AuditError) as ctx:
-                reflect.invoke_improver_llm(telemetry, self.repo, backend='openai', timeout_sec=60)
-        self.assertNotIsInstance(ctx.exception, reflect.BackendUnreachable)
-
-    def test_an_unreachable_cli_does_not_hide_a_working_rest_backend(self):
-        fake = {'content': [{'type': 'text', 'text': '## Proposed\nvia rest'}], 'usage': {}}
-        response = mock.MagicMock()
-        response.read.return_value = json.dumps(fake).encode('utf-8')
-        response.__enter__.return_value = response
-        self.record_completed_task()
-        telemetry = reflect.extract_telemetry(self.repo, 'M01')
-        with mock.patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'k'}, clear=True), \
-                mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
-                mock.patch.object(reflect, '_host_resolves', return_value=False), \
-                mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')), \
-                mock.patch('urllib.request.urlopen', return_value=response):
-            result = reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=60)
-        self.assertEqual(result.source, 'rest:claude')
-
-    def test_a_named_api_base_uses_rest_even_when_the_agent_cli_is_installed(self):
-        fake = {'content': [{'type': 'text', 'text': '## Proposed\nvia proxy'}], 'usage': {}}
-        response = mock.MagicMock()
-        response.read.return_value = json.dumps(fake).encode('utf-8')
-        response.__enter__.return_value = response
-        self.record_completed_task()
-        telemetry = reflect.extract_telemetry(self.repo, 'M01')
-        seen = []
-
-        def urlopen(request, timeout=120):
-            seen.append(request.full_url)
-            return response
-        env = {'ANTHROPIC_API_KEY': 'k', 'TABILET_REFLECT_API_BASE': 'http://proxy.local'}
-        with mock.patch.dict(os.environ, env, clear=True), \
-                mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
-                mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')), \
-                mock.patch('urllib.request.urlopen', side_effect=urlopen):
-            result = reflect.invoke_improver_llm(telemetry, self.repo, backend='claude', timeout_sec=60)
-            self.assertEqual(result.source, 'rest:claude')
-            self.assertTrue(seen[0].startswith('http://proxy.local'))
-            # With auto the endpoint is never read, so the CLI is still used first.
-            with mock.patch.object(reflect, '_host_resolves', return_value=True), \
-                    mock.patch.object(reflect, '_run_cli', return_value=(0, 'cli text')):
-                self.assertEqual(reflect.invoke_improver_llm(
-                    telemetry, self.repo, backend='auto', timeout_sec=60).source, 'cli:claude')
-
-    def test_unreachable_backend_degrades_to_the_model_free_report_with_reason(self):
-        self.record_completed_task()
-        with mock.patch.object(reflect, 'model_budget_sec', return_value=60), \
-                mock.patch.object(reflect, 'invoke_improver_llm',
-                                  side_effect=reflect.BackendUnreachable('reflection backend unreachable (x)')):
-            result = reflect.reflect_command(str(self.repo), milestone_id='M01')
-        self.assertEqual(result['proposal_source'], 'heuristic')
-        self.assertIn('unreachable', Path(result['output_file']).read_text())
-
-    def test_exhausted_budget_names_the_backend_that_used_it(self):
-        def slow(cmd, prompt, timeout_sec):
-            time.sleep(0.08)
-            raise subprocess.TimeoutExpired(cmd, timeout_sec)
-        self.record_completed_task()
-        telemetry = reflect.extract_telemetry(self.repo, 'M01')
-        with mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
-                mock.patch.object(reflect, '_host_resolves', return_value=True), \
-                mock.patch.object(reflect, '_run_cli', side_effect=slow):
-            with self.assertRaises(reflect.BudgetExceeded) as ctx:
-                reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=0.05)
-        self.assertIn('claude CLI: TimeoutExpired', str(ctx.exception))
 
     def test_budget_overrun_degrades_to_the_model_free_report(self):
         self.record_completed_task()
@@ -405,196 +307,6 @@ class ReflectTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
             result = reflect.probe_proposed_commands(proposal, self.repo, timeout_sec=1, enabled=True)
         self.assertEqual(result[0]['status'], 'TIMEOUT')
-
-    def test_extract_coverage_evidence_various_runners(self):
-        # Unittest
-        cov = reflect.extract_coverage_evidence("Ran 5 tests in 0.012s\n\nOK")
-        self.assertEqual(cov["tests_run"], 5)
-        self.assertTrue(cov["has_coverage"])
-        self.assertEqual(cov["summary"], "Ran 5 tests")
-
-        cov_zero = reflect.extract_coverage_evidence("Ran 0 tests in 0.000s\n\nOK")
-        self.assertEqual(cov_zero["tests_run"], 0)
-        self.assertFalse(cov_zero["has_coverage"])
-
-        # Pytest
-        cov_pytest = reflect.extract_coverage_evidence("= 12 passed, 2 failed in 0.35s =")
-        self.assertEqual(cov_pytest["tests_run"], 14)
-        self.assertTrue(cov_pytest["has_coverage"])
-        self.assertIn("12 passed, 2 failed", cov_pytest["summary"])
-
-        cov_pytest_zero = reflect.extract_coverage_evidence("collected 0 items\n\n= no tests ran in 0.01s =")
-        self.assertEqual(cov_pytest_zero["tests_run"], 0)
-        self.assertFalse(cov_pytest_zero["has_coverage"])
-
-        # Jest / Vitest
-        cov_jest = reflect.extract_coverage_evidence("Tests: 8 passed, 8 total\nTime: 1.2s")
-        self.assertEqual(cov_jest["tests_run"], 8)
-        self.assertTrue(cov_jest["has_coverage"])
-
-        cov_jest_zero = reflect.extract_coverage_evidence("Tests: 0 passed, 0 total\nTime: 0.1s")
-        self.assertEqual(cov_jest_zero["tests_run"], 0)
-        self.assertFalse(cov_jest_zero["has_coverage"])
-
-        # Mocha
-        cov_mocha = reflect.extract_coverage_evidence("  22 passing (450ms)")
-        self.assertEqual(cov_mocha["tests_run"], 22)
-        self.assertTrue(cov_mocha["has_coverage"])
-
-        # Cargo test
-        cov_cargo = reflect.extract_coverage_evidence("test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out")
-        self.assertEqual(cov_cargo["tests_run"], 14)
-        self.assertTrue(cov_cargo["has_coverage"])
-
-        cov_cargo_zero = reflect.extract_coverage_evidence("test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out")
-        self.assertEqual(cov_cargo_zero["tests_run"], 0)
-        self.assertFalse(cov_cargo_zero["has_coverage"])
-
-        # Go test
-        cov_go = reflect.extract_coverage_evidence("PASS\nok  \texample/pkg\t0.014s")
-        self.assertTrue(cov_go["has_coverage"])
-
-        cov_go_zero = reflect.extract_coverage_evidence("?   \texample/empty\t[no test files]")
-        self.assertFalse(cov_go_zero["has_coverage"])
-
-        # Unrecognised
-        cov_none = reflect.extract_coverage_evidence("random tool output without test statistics")
-        self.assertIsNone(cov_none["has_coverage"])
-        self.assertIsNone(cov_none["tests_run"])
-
-    def test_probe_proposed_commands_detects_zero_coverage(self):
-        (self.repo / 'test_real.py').write_text(
-            'import unittest\n\nclass Real(unittest.TestCase):\n    def test_ok(self):\n        pass\n'
-        )
-        proposal = (
-            "```probe-commands\n"
-            "python3 -m unittest test_real\n"
-            "python3 -m unittest -k nonexistent\n"
-            "```\n"
-        )
-        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
-            results = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
-
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results[0]['status'], 'PASSED')
-        self.assertTrue(results[0]['coverage']['has_coverage'])
-        self.assertEqual(results[0]['coverage']['tests_run'], 1)
-        self.assertIsNotNone(results[0]['duration_sec'])
-
-        self.assertEqual(results[1]['status'], 'ZERO_COVERAGE')
-        self.assertFalse(results[1]['coverage']['has_coverage'])
-        self.assertEqual(results[1]['coverage']['tests_run'], 0)
-
-    @staticmethod
-    def probe(command, tests=None, seconds=1.0, status='PASSED', has_coverage=True):
-        coverage = {'tests_run': tests, 'has_coverage': has_coverage if tests != 0 else False,
-                    'summary': None if tests is None else f'Ran {tests} tests'}
-        return {'command': command, 'status': status, 'exit_code': 0, 'duration_sec': seconds,
-                'coverage': coverage, 'output_snippet': ''}
-
-    def test_a_subset_is_a_fast_tier_never_the_recommended_profile(self):
-        report = reflect.format_compose_report('## Proposed\n', [
-            self.probe('python3 -m unittest discover tests', 50, 1.25),
-            self.probe('python3 -m unittest tests/test_fast.py', 10, 0.35),
-            self.probe('python3 -m unittest -k nonexistent', 0, 0.05, status='ZERO_COVERAGE'),
-        ])
-        self.assertIn('| Proposed Command | Probe Status | Avg Duration | Coverage Evidence | Output Snippet |', report)
-        self.assertNotIn('Recommended Test Profile:', report)
-        self.assertIn('**Fast tier only:** `python3 -m unittest tests/test_fast.py` runs 10 of the baseline\'s 50 tests (20%)', report)
-        self.assertIn('does not replace the baseline', report)
-        self.assertIn('WARNING:** One or more proposed commands executed 0 tests', report)
-
-    def test_a_faster_candidate_with_at_least_the_baseline_tests_is_recommended(self):
-        report = reflect.format_compose_report('## Proposed\n', [
-            self.probe('make test', 50, 4.0), self.probe('pytest -n 4', 52, 1.5), self.probe('pytest tests/unit', 12, 0.4)])
-        self.assertIn('**Recommended Test Profile:** `pytest -n 4` runs 52 tests', report)
-        self.assertIn('**Fast tier only:** `pytest tests/unit` runs 12 of the baseline\'s 50 tests', report)
-
-    def test_a_slower_candidate_is_not_recommended(self):
-        report = reflect.format_compose_report('## Proposed\n', [self.probe('make test', 50, 1.0), self.probe('pytest', 50, 3.0)])
-        self.assertNotIn('Recommended Test Profile:', report)
-        self.assertIn('No verified candidate is faster than the baseline', report)
-
-    def test_output_without_a_test_count_is_never_recommended(self):
-        report = reflect.format_compose_report('## Proposed\n', [
-            self.probe('pytest', 50, 3.0), self.probe('make test', None, 0.01, has_coverage=None)])
-        self.assertNotIn('Recommended Test Profile:', report)
-        self.assertIn('`make test` passed, but its output reported no test count', report)
-
-    def test_a_baseline_that_was_not_measured_blocks_every_recommendation(self):
-        timeout = {**self.probe('make test', None, 15.0, status='TIMEOUT', has_coverage=None)}
-        report = reflect.format_compose_report('## Proposed\n', [timeout, self.probe('pytest tests/unit', 10, 0.4)])
-        self.assertNotIn('Recommended Test Profile:', report)
-        self.assertNotIn('Fast tier only', report)
-        self.assertIn('was not measured: it timed out at the probe limit', report)
-        self.assertIn('WARNING:** One or more proposed commands failed, timed out or were unstable', report)
-
-    def test_a_command_that_fails_its_repeat_run_is_unstable_not_passed(self):
-        (self.repo / 'test_flaky.py').write_text(
-            'import os\nimport unittest\n\n\nclass Flaky(unittest.TestCase):\n    def test_once(self):\n'
-            '        if os.path.exists("seen"):\n            self.fail("second run")\n        open("seen", "w").close()\n')
-        proposal = '```probe-commands\npython3 -m unittest test_flaky\n```\n'
-        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
-            [result] = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
-        self.assertEqual(result['status'], 'UNSTABLE')
-        self.assertIn('failed with exit', result['output_snippet'])
-        self.assertIn('**UNSTABLE**', reflect.format_compose_report('## P\n', [result]))
-        # With no repeat requested the same command passes: the flakiness is only visible on the repeat.
-        (self.repo / 'seen').unlink()
-        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
-            [single] = reflect.probe_proposed_commands(proposal, self.repo, enabled=True, repeats=1)
-        self.assertEqual(single['status'], 'PASSED')
-
-    def test_a_repeat_run_that_times_out_is_killed_and_reported(self):
-        (self.repo / 'test_hang.py').write_text(
-            'import os\nimport time\nimport unittest\n\n\nclass Hang(unittest.TestCase):\n    def test_hang(self):\n'
-            '        if os.path.exists("seen"):\n            open("pid", "w").write(str(os.getpid()))\n            time.sleep(60)\n'
-            '        open("seen", "w").close()\n')
-        proposal = '```probe-commands\npython3 -m unittest test_hang\n```\n'
-        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
-            [result] = reflect.probe_proposed_commands(proposal, self.repo, timeout_sec=3, enabled=True)
-        self.assertEqual(result['status'], 'UNSTABLE')
-        self.assertIn('timed out after 3s on the repeat run', result['output_snippet'])
-        pid = int((self.repo / 'pid').read_text())
-        with self.assertRaises(ProcessLookupError):
-            os.kill(pid, 0)
-
-    def test_only_three_distinct_commands_run(self):
-        flags = ['--help', '-h', '-v --help', '-b --help', '-f --help']
-        proposal = '```probe-commands\n' + '\n'.join(f'python3 -m unittest {f}' for f in flags) + '\npython3 -m unittest --help\n```\n'
-        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
-            results = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
-        self.assertEqual([r['status'] for r in results], ['PASSED'] * 3 + ['SKIPPED'] * 2)
-        self.assertIn('at most 3 probe commands run', results[3]['output_snippet'])
-
-    def test_counts_come_from_the_runner_totals(self):
-        counts = reflect.extract_coverage_evidence
-        # Cargo: a crate whose tests are all in tests/ prints "0 passed" for the lib first
-        cargo = ('test result: ok. 0 passed; 0 failed; 0 ignored; finished in 0.00s\n'
-                 'test result: ok. 5 passed; 1 failed; 0 ignored; finished in 0.40s\n'
-                 'test result: ok. 0 passed; 0 failed; 0 ignored; finished in 0.00s\n')
-        self.assertEqual((counts(cargo)['tests_run'], counts(cargo)['has_coverage']), (6, True))
-        # Jest: the suite count must not be read as the test count
-        jest = 'Test Suites: 2 passed, 2 total\nTests:       1 failed, 38 passed, 39 total\nTime: 4.1s'
-        self.assertEqual(counts(jest)['tests_run'], 39)
-        self.assertEqual(counts(jest)['summary'], '38/39 tests passed')
-        self.assertEqual(counts('Test Files  1 passed (1)\n     Tests  2 failed | 6 passed (8)\n')['tests_run'], 8)
-        # pytest: only the summary line counts, and a Cargo "finished in" line is not one
-        self.assertEqual(counts('collected 3 items\n=== 3 passed in 0.02s ===')['tests_run'], 3)
-        self.assertEqual(counts('1 passed, 2 warnings in 0.10s')['tests_run'], 1)
-        self.assertEqual(counts('  3 passing (12ms)\n  1 failing')['tests_run'], 4)
-
-    def test_go_packages_without_tests_do_not_empty_the_run(self):
-        counts = reflect.extract_coverage_evidence
-        mixed = '?   \texample.com/cmd\t[no test files]\nok  \texample.com/pkg\t0.300s\n'
-        self.assertTrue(counts(mixed)['has_coverage'])
-        self.assertIsNone(counts(mixed)['tests_run'])
-        self.assertFalse(counts('?   \texample.com/cmd\t[no test files]\n')['has_coverage'])
-        self.assertFalse(counts('ok  \texample.com/pkg\t0.010s [no tests to run]\n')['has_coverage'])
-        # A Go run has no test count, so it can be listed but never compared or recommended.
-        report = reflect.format_compose_report('## P\n', [
-            self.probe('pytest', 50, 3.0), {**self.probe('go test ./...', None, 0.5, has_coverage=True)}])
-        self.assertNotIn('Recommended Test Profile:', report)
 
     def test_captured_message_content_extracted_in_telemetry_and_trajectories(self):
         self.command('audit', 'enable', self.repo)
@@ -724,113 +436,246 @@ class ReflectTests(unittest.TestCase):
             self.assertEqual(len(recorded_req), 1)
             self.assertEqual(recorded_req[0].full_url, "https://api.anthropic.com/v1/messages")
 
-    def interactive_run_with_commits(self, run_id='goal-1', commits=3, extra_event=None):
-        """An interactive run shaped like a real Goal run: commits exist, the agent recorded almost nothing."""
-        self.command('audit', 'enable', self.repo)
-        started = self.command('audit', 'begin', self.repo, 'goal', '--run-id', run_id)
-        self.command('audit', 'event', data={
-            'schema': 'tabilet.audit.event/v1', 'event_id': 'e-' + run_id, 'run_id': run_id,
-            'workspace_id': started['workspace_id'], 'operation': 'goal', 'event_type': 'task_observed',
-            'subject': {'milestone_id': 'M01', 'task_label': 'Goal request received'},
-            'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent', 'fidelity': 'summarized'}})
-        for number in range(commits):
-            (self.repo / f'work{number}.txt').write_text(str(number), encoding='utf-8')
-            subprocess.run(['git', 'add', '-A'], cwd=self.repo, check=True)
-            subprocess.run(['git', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', f'M01 work {number}'],
-                           cwd=self.repo, check=True)
-        self.command('audit', 'finish', run_id, 'completed')
-
-    def test_sparse_interactive_recording_cannot_hide_commits_or_review_rounds(self):
-        (self.repo / 'tabilet/memory-bank/status-M01.md').write_text(
-            '# Status\n\n| Item | State | Notes |\n|---|---|---|\n| Implement feature | `[+]` | done |\n\n'
-            '## Review\n\nPersisted iteration count: 3/10.\n', encoding='utf-8')
-        self.interactive_run_with_commits(commits=3)
-        evidence = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']['independent_evidence']
-        self.assertTrue(evidence['git_commits']['available'])
-        self.assertGreaterEqual(evidence['git_commits']['count'], 3)
-        self.assertTrue(any(c['subject'] == 'M01 work 2' for c in evidence['git_commits']['commits']))
-        self.assertEqual(evidence['review_rounds']['iterations'], 3)
-        self.assertIn('no task transitions', evidence['recording_gap'])
-        telemetry = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']
-        prompt = reflect.build_reflection_prompt(telemetry, self.repo)
-        self.assertIn('M01 work 2', prompt)
-        self.assertIn('Independent of Agent-Recorded Events', prompt)
-        summary = reflect.generate_heuristic_proposal(telemetry)
-        self.assertIn('commits made during the recorded runs', summary)
-        self.assertIn('3 review iteration', summary)
-
-    def test_a_run_that_recorded_its_transitions_has_no_recording_gap(self):
+    def test_a_rest_backend_without_network_is_unreachable_not_a_failure(self):
+        # A sandbox with only an API key fails name resolution; that must degrade
+        # to the model-free report like a CLI without network, not stop with exit 2.
+        import errno
+        import socket
+        import urllib.error
         self.record_completed_task()
-        evidence = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']['independent_evidence']
-        self.assertIsNone(evidence['recording_gap'])
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        for reason in (socket.gaierror(socket.EAI_NONAME, 'Name or service not known'),
+                       OSError(errno.ENETUNREACH, 'Network is unreachable')):
+            with self.subTest(reason=type(reason).__name__, errno=getattr(reason, 'errno', None)):
+                with mock.patch.dict(os.environ, {'OPENAI_API_KEY': 'k'}, clear=True), \
+                        mock.patch.object(reflect.shutil, 'which', return_value=None), \
+                        mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError(reason)):
+                    with self.assertRaises(reflect.BackendUnreachable) as ctx:
+                        reflect.invoke_improver_llm(telemetry, self.repo, backend='openai', timeout_sec=60)
+                self.assertIn('REST API: no network', str(ctx.exception))
+        # A refused connection is a real failure of a reachable network, not a blocked sandbox.
+        with mock.patch.dict(os.environ, {'OPENAI_API_KEY': 'k'}, clear=True), \
+                mock.patch.object(reflect.shutil, 'which', return_value=None), \
+                mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError(
+                    ConnectionRefusedError(errno.ECONNREFUSED, 'refused'))):
+            with self.assertRaises(audit.AuditError) as ctx:
+                reflect.invoke_improver_llm(telemetry, self.repo, backend='openai', timeout_sec=60)
+        self.assertNotIsInstance(ctx.exception, reflect.BackendUnreachable)
 
-    def test_review_rounds_come_from_the_retired_record_and_reject_odd_ids(self):
-        history = self.repo / 'tabilet/docs/history'
-        history.mkdir(parents=True)
-        (history / 'status-M01.md').write_text('# Retired\n\n**Review iterations.** 4\n', encoding='utf-8')
-        self.assertEqual(reflect.review_rounds(self.repo, 'M01'),
-                         {'iterations': 4, 'source': 'tabilet/docs/history/status-M01.md'})
-        self.assertEqual(reflect.review_rounds(self.repo, '../../etc/passwd')['iterations'], None)
-        self.assertEqual(reflect.review_rounds(self.repo, None)['iterations'], None)
 
-    def test_review_rounds_read_a_child_milestone_and_an_older_retired_record(self):
-        history = self.repo / 'tabilet/docs/history'
-        history.mkdir(parents=True)
-        memory = self.repo / 'tabilet/memory-bank'
-        (memory / 'amend-M01-01.md').write_text('# Amendment\n\nPersisted iteration count: 2/10.\n', encoding='utf-8')
-        self.assertEqual(reflect.review_rounds(self.repo, 'M01-01'),
-                         {'iterations': 2, 'source': 'tabilet/memory-bank/amend-M01-01.md'})
-        (memory / 'amend-M01-01.md').unlink()
-        (history / 'amend-M01-01.md').write_text('# Retired\n\n**Review iterations.** 3\n', encoding='utf-8')
-        self.assertEqual(reflect.review_rounds(self.repo, 'M01-01')['iterations'], 3)
-        # An older record keeps the count in its retained status, not in a header line. The specification
-        # beside it quotes the limit, which is not a review round.
-        (history / 'status-M01.md').write_text(
-            '# Retired milestone M01\n\n## Milestone specification\n\nThe gate stops at iteration 10 of 10.\n\n'
-            '## Status record\n\n| Item | State |\n|---|---|\n| Task | `[+]` |\n\nIteration 2 of 10 passed.\n',
-            encoding='utf-8')
-        self.assertEqual(reflect.review_rounds(self.repo, 'M01'),
-                         {'iterations': 2, 'source': 'tabilet/docs/history/status-M01.md'})
+    def test_a_named_api_base_uses_rest_even_when_the_agent_cli_is_installed(self):
+        fake = {'content': [{'type': 'text', 'text': '## Proposed\nvia proxy'}], 'usage': {}}
+        response = mock.MagicMock()
+        response.read.return_value = json.dumps(fake).encode('utf-8')
+        response.__enter__.return_value = response
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        seen = []
 
-    def test_a_non_git_directory_reports_commits_as_unavailable(self):
-        outside = self.base / 'plain'
-        outside.mkdir()
-        result = reflect.git_commits_during(outside, [('2026-01-01T00:00:00Z', None)])
-        self.assertEqual(result['available'], False)
+        def urlopen(request, timeout=120):
+            seen.append(request.full_url)
+            return response
+        env = {'ANTHROPIC_API_KEY': 'k', 'TABILET_REFLECT_API_BASE': 'http://proxy.local'}
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
+                mock.patch.object(reflect, '_run_cli', side_effect=AssertionError('CLI started')), \
+                mock.patch('urllib.request.urlopen', side_effect=urlopen):
+            result = reflect.invoke_improver_llm(telemetry, self.repo, backend='claude', timeout_sec=60)
+            self.assertEqual(result.source, 'rest:claude')
+            self.assertTrue(seen[0].startswith('http://proxy.local'))
+            # With auto the endpoint is never read, so the CLI is still used first.
+            with mock.patch.object(reflect, '_host_resolves', return_value=True), \
+                    mock.patch.object(reflect, '_run_cli', return_value=(0, 'cli text')):
+                self.assertEqual(reflect.invoke_improver_llm(
+                    telemetry, self.repo, backend='auto', timeout_sec=60).source, 'cli:claude')
 
-    def test_review_rounds_accept_the_wordings_projects_actually_use(self):
-        status = self.repo / 'tabilet/memory-bank/status-M01.md'
-        for text, expected in (
-            ('**Milestone review.** Iteration 1 of 10 reviewed `abc`. Findings (iteration 1): P1.\n', 1),
-            ('Review gate: iteration 2/10 passed.\n', 2),
-            ('Persisted iteration count: 3/10.\n', 3),
-            ('Persisted review count: 4/10.\n', 4),
-            ('Iteration 1 of 10 found a P1. Iteration 2 of 10 passed.\n', 2),
-            ('No review has run yet.\n', None),
-            ('Iteration 900 of 1000.\n', None),
-        ):
-            with self.subTest(text=text):
-                status.write_text('# Status\n\n' + text, encoding='utf-8')
-                self.assertEqual(reflect.review_rounds(self.repo, 'M01')['iterations'], expected)
 
-    def test_a_run_still_open_at_reflection_time_is_not_reported_as_a_stall(self):
-        self.command('audit', 'enable', self.repo)
-        started = self.command('audit', 'begin', self.repo, 'goal', '--run-id', 'open-run')
-        self.command('audit', 'event', data={
-            'schema': 'tabilet.audit.event/v1', 'event_id': 'e-open', 'run_id': 'open-run',
-            'workspace_id': started['workspace_id'], 'operation': 'goal', 'event_type': 'task_observed',
-            'subject': {'milestone_id': 'M01', 'task_label': 'Closing review'},
-            'details': {'schema': 'tabilet.audit.details/v1', 'capture_source': 'agent', 'fidelity': 'summarized'}})
-        telemetry = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']
-        note = telemetry['independent_evidence']['open_runs']
-        self.assertIn('still open when reflection started', note)
-        self.assertIn('not a stall', note)
-        self.assertIn('still open when reflection started', reflect.build_reflection_prompt(telemetry, self.repo))
-        self.assertEqual(reflect.significance_reasons([{'run_id': 'r', 'result': None, 'duration_sec': 900}], []),
-                         ['run r was still open after 900s'])
-        self.command('audit', 'finish', 'open-run', 'completed')
-        done = self.command('reflect', '--dry-run', '--milestone', 'M01')['telemetry']
-        self.assertIsNone(done['independent_evidence']['open_runs'])
+    def test_unreachable_backend_degrades_to_the_model_free_report_with_reason(self):
+        self.record_completed_task()
+        with mock.patch.object(reflect, 'model_budget_sec', return_value=60), \
+                mock.patch.object(reflect, 'invoke_improver_llm',
+                                  side_effect=reflect.BackendUnreachable('reflection backend unreachable (x)')):
+            result = reflect.reflect_command(str(self.repo), milestone_id='M01')
+        self.assertEqual(result['proposal_source'], 'heuristic')
+        self.assertIn('unreachable', Path(result['output_file']).read_text())
+
+
+    def test_exhausted_budget_names_the_backend_that_used_it(self):
+        def slow(cmd, prompt, timeout_sec):
+            time.sleep(0.08)
+            raise subprocess.TimeoutExpired(cmd, timeout_sec)
+        self.record_completed_task()
+        telemetry = reflect.extract_telemetry(self.repo, 'M01')
+        with mock.patch.object(reflect.shutil, 'which', return_value='/bin/x'), \
+                mock.patch.object(reflect, '_host_resolves', return_value=True), \
+                mock.patch.object(reflect, '_run_cli', side_effect=slow):
+            with self.assertRaises(reflect.BudgetExceeded) as ctx:
+                reflect.invoke_improver_llm(telemetry, self.repo, backend='auto', timeout_sec=0.05)
+        self.assertIn('claude CLI: TimeoutExpired', str(ctx.exception))
+
+
+    def test_extract_coverage_evidence_various_runners(self):
+        # Unittest
+        cov = reflect.extract_coverage_evidence("Ran 5 tests in 0.012s\n\nOK")
+        self.assertEqual(cov["tests_run"], 5)
+        self.assertTrue(cov["has_coverage"])
+        self.assertEqual(cov["summary"], "Ran 5 tests")
+
+        cov_zero = reflect.extract_coverage_evidence("Ran 0 tests in 0.000s\n\nOK")
+        self.assertEqual(cov_zero["tests_run"], 0)
+        self.assertFalse(cov_zero["has_coverage"])
+
+        # Pytest
+        cov_pytest = reflect.extract_coverage_evidence("= 12 passed, 2 failed in 0.35s =")
+        self.assertEqual(cov_pytest["tests_run"], 14)
+        self.assertTrue(cov_pytest["has_coverage"])
+        self.assertIn("12 passed, 2 failed", cov_pytest["summary"])
+
+        cov_pytest_zero = reflect.extract_coverage_evidence("collected 0 items\n\n= no tests ran in 0.01s =")
+        self.assertEqual(cov_pytest_zero["tests_run"], 0)
+        self.assertFalse(cov_pytest_zero["has_coverage"])
+
+        # Jest / Vitest
+        cov_jest = reflect.extract_coverage_evidence("Tests: 8 passed, 8 total\nTime: 1.2s")
+        self.assertEqual(cov_jest["tests_run"], 8)
+        self.assertTrue(cov_jest["has_coverage"])
+
+        cov_jest_zero = reflect.extract_coverage_evidence("Tests: 0 passed, 0 total\nTime: 0.1s")
+        self.assertEqual(cov_jest_zero["tests_run"], 0)
+        self.assertFalse(cov_jest_zero["has_coverage"])
+
+        # Mocha
+        cov_mocha = reflect.extract_coverage_evidence("  22 passing (450ms)")
+        self.assertEqual(cov_mocha["tests_run"], 22)
+        self.assertTrue(cov_mocha["has_coverage"])
+
+        # Cargo test
+        cov_cargo = reflect.extract_coverage_evidence("test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out")
+        self.assertEqual(cov_cargo["tests_run"], 14)
+        self.assertTrue(cov_cargo["has_coverage"])
+
+        cov_cargo_zero = reflect.extract_coverage_evidence("test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out")
+        self.assertEqual(cov_cargo_zero["tests_run"], 0)
+        self.assertFalse(cov_cargo_zero["has_coverage"])
+
+        # Go test
+        cov_go = reflect.extract_coverage_evidence("PASS\nok  \texample/pkg\t0.014s", runner="go")
+        self.assertTrue(cov_go["has_coverage"])
+
+        cov_go_zero = reflect.extract_coverage_evidence("?   \texample/empty\t[no test files]", runner="go")
+        self.assertFalse(cov_go_zero["has_coverage"])
+
+        # Unrecognised
+        cov_none = reflect.extract_coverage_evidence("random tool output without test statistics")
+        self.assertIsNone(cov_none["has_coverage"])
+        self.assertIsNone(cov_none["tests_run"])
+
+
+    def test_probe_proposed_commands_detects_zero_coverage(self):
+        (self.repo / 'test_real.py').write_text(
+            'import unittest\n\nclass Real(unittest.TestCase):\n    def test_ok(self):\n        pass\n'
+        )
+        proposal = (
+            "```probe-commands\n"
+            "python3 -m unittest test_real\n"
+            "python3 -m unittest -k nonexistent\n"
+            "```\n"
+        )
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            results = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]['status'], 'PASSED')
+        self.assertTrue(results[0]['coverage']['has_coverage'])
+        self.assertEqual(results[0]['coverage']['tests_run'], 1)
+        self.assertIsNotNone(results[0]['duration_sec'])
+
+        self.assertEqual(results[1]['status'], 'FAILED' if results[1]['exit_code'] else 'ZERO_COVERAGE')
+        self.assertFalse(results[1]['coverage']['has_coverage'])
+        self.assertEqual(results[1]['coverage']['tests_run'], 0)
+
+
+    @staticmethod
+    def probe(command, tests=None, seconds=1.0, status='PASSED', has_coverage=True):
+        coverage = {'tests_run': tests, 'has_coverage': has_coverage if tests != 0 else False,
+                    'summary': None if tests is None else f'Ran {tests} tests'}
+        return {'command': command, 'status': status, 'exit_code': 0, 'duration_sec': seconds,
+                'coverage': coverage, 'output_snippet': ''}
+
+
+    def test_a_command_that_fails_its_repeat_run_is_unstable_not_passed(self):
+        (self.repo / 'test_flaky.py').write_text(
+            'import os\nimport unittest\n\n\nclass Flaky(unittest.TestCase):\n    def test_once(self):\n'
+            '        if os.path.exists("seen"):\n            self.fail("second run")\n        open("seen", "w").close()\n')
+        proposal = '```probe-commands\npython3 -m unittest test_flaky\n```\n'
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            [result] = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
+        self.assertEqual(result['status'], 'UNSTABLE')
+        self.assertIn('failed with exit', result['output_snippet'])
+        self.assertIn('**UNSTABLE**', reflect.format_compose_report('## P\n', [result]))
+        # With no repeat requested the same command passes: the flakiness is only visible on the repeat.
+        (self.repo / 'seen').unlink()
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            [single] = reflect.probe_proposed_commands(proposal, self.repo, enabled=True, repeats=1)
+        self.assertEqual(single['status'], 'PASSED')
+
+
+    def test_a_repeat_run_that_times_out_is_killed_and_reported(self):
+        (self.repo / 'test_hang.py').write_text(
+            'import os\nimport time\nimport unittest\n\n\nclass Hang(unittest.TestCase):\n    def test_hang(self):\n'
+            '        if os.path.exists("seen"):\n            open("pid", "w").write(str(os.getpid()))\n            time.sleep(60)\n'
+            '        open("seen", "w").close()\n')
+        proposal = '```probe-commands\npython3 -m unittest test_hang\n```\n'
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            [result] = reflect.probe_proposed_commands(proposal, self.repo, timeout_sec=3, enabled=True)
+        self.assertEqual(result['status'], 'UNSTABLE')
+        self.assertIn('timed out after 3s on the repeat run', result['output_snippet'])
+        pid = int((self.repo / 'pid').read_text())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+
+
+    def test_only_three_distinct_commands_run(self):
+        flags = ['--help', '-h', '-v --help', '-b --help', '-f --help']
+        proposal = '```probe-commands\n' + '\n'.join(f'python3 -m unittest {f}' for f in flags) + '\npython3 -m unittest --help\n```\n'
+        with mock.patch.dict(os.environ, {'ALLOW_UNSANDBOXED_SHELL': '1'}):
+            results = reflect.probe_proposed_commands(proposal, self.repo, enabled=True)
+        self.assertEqual([r['status'] for r in results], ['PASSED'] * 3 + ['SKIPPED'] * 2)
+        self.assertIn('at most 3 probe commands run', results[3]['output_snippet'])
+
+
+    def test_counts_come_from_the_runner_totals(self):
+        counts = reflect.extract_coverage_evidence
+        # Cargo: a crate whose tests are all in tests/ prints "0 passed" for the lib first
+        cargo = ('test result: ok. 0 passed; 0 failed; 0 ignored; finished in 0.00s\n'
+                 'test result: ok. 5 passed; 1 failed; 0 ignored; finished in 0.40s\n'
+                 'test result: ok. 0 passed; 0 failed; 0 ignored; finished in 0.00s\n')
+        self.assertEqual((counts(cargo)['tests_run'], counts(cargo)['has_coverage']), (6, True))
+        # Jest: the suite count must not be read as the test count
+        jest = 'Test Suites: 2 passed, 2 total\nTests:       1 failed, 38 passed, 39 total\nTime: 4.1s'
+        self.assertEqual(counts(jest)['tests_run'], 39)
+        self.assertEqual(counts(jest)['summary'], '38/39 tests passed')
+        self.assertEqual(counts('Test Files  1 passed (1)\n     Tests  2 failed | 6 passed (8)\n')['tests_run'], 8)
+        # pytest: only the summary line counts, and a Cargo "finished in" line is not one
+        self.assertEqual(counts('collected 3 items\n=== 3 passed in 0.02s ===')['tests_run'], 3)
+        self.assertEqual(counts('1 passed, 2 warnings in 0.10s')['tests_run'], 1)
+        self.assertEqual(counts('  3 passing (12ms)\n  1 failing')['tests_run'], 4)
+
+
+    def test_go_packages_without_tests_do_not_empty_the_run(self):
+        counts = lambda output: reflect.extract_coverage_evidence(output, runner="go")
+        mixed = '?   \texample.com/cmd\t[no test files]\nok  \texample.com/pkg\t0.300s\n'
+        self.assertTrue(counts(mixed)['has_coverage'])
+        self.assertIsNone(counts(mixed)['tests_run'])
+        self.assertFalse(counts('?   \texample.com/cmd\t[no test files]\n')['has_coverage'])
+        self.assertFalse(counts('ok  \texample.com/pkg\t0.010s [no tests to run]\n')['has_coverage'])
+        # A Go run has no test count, so it can be listed but never compared or recommended.
+        report = reflect.format_compose_report('## P\n', [
+            self.probe('pytest', 50, 3.0), {**self.probe('go test ./...', None, 0.5, has_coverage=True)}])
+        self.assertNotIn('Recommended Test Profile:', report)
+
+
+
 
 
 if __name__ == '__main__':

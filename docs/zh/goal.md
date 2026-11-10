@@ -307,31 +307,6 @@ O 类检查从不使用它，但授权的预算和停止条件仍然有效。有
 声明为 `fixture` 环境的浏览器要求（一次性合成页面，不含真实来源、凭据、已保存会话或用户数据）
 可以使用 `goal-policy`。其他浏览器环境仍需明确授权。
 
-## 离线反思 {#offline-reflection}
-
-`OPTIMIZE_POLICY` 默认为 `none`。使用 `--optimize confirm` 或 `--optimize auto` 时，Goal 所有者会在里程碑收尾时运行
-`tabilet-audit reflect`，且只有在 `tabilet-audit audit status` 报告审计已启用、并且 `tabilet-audit reflect --check` 通过时才运行；
-否则它会在启动时和结束时发出警告，然后继续执行。反思会为 `tech-stack.md` 和 `lessons.md` 起草一份提案。`confirm` 会暂停，
-等待你批准整份提案。`auto` 只应用可追加、有证据支撑的编辑，绝不触碰授权、审查或验证限制。只有出现显著发现（某个任务需要多次运行，
-或出现失败、受阻或缓慢的运行）之后，反思才会读取后续里程碑，且只读取 `suggested.txt` 中列出且仍然开放的那些，并且最多花费该里程碑
-所记录时间的 10%。修改里程碑图属于纠正规划，需要 `CORRECTIVE_PLANNING: auto`。不使用模型生成的报告不提出任何编辑。反思的模型调用需要网络：
-主机沙箱没有网络时，它会以“backend unreachable”停止，并写出一份不含任何编辑的报告，因此请在有网络的环境下运行 `tabilet-audit reflect`。
-
-交互式 Goal 运行只记录它自己写下的事件，所以这些记录可能很稀疏。因此反思还会读取代理没有写下的证据：已记录运行期间产生的 Git 提交，
-以及来自已退役记录或活动状态文件的审查轮数。如果存在提交但没有记录任何任务转换，提示会说明记录不完整。反思通常在里程碑收尾时运行，
-此时该运行尚未结束，所以尚无结果的运行会被报告为“仍在进行”，而不是“停滞”。审查轮数只作为证据，不会打开后续里程碑的门槛。
-
-有三点限制值得了解。`reflect --check` 还会列出它找到的模型后端（`PATH` 上的代理 CLI，或 `ANTHROPIC_API_KEY`、`GEMINI_API_KEY`、
-`OPENAI_API_KEY`）；一个都没有时，Goal 会在启动时发出警告，每次反思都只是一份摘要。在默认的 10% 下，记录时间不足 150 秒的里程碑不会发起模型调用。
-代理 CLI 后端从临时目录运行，而不是从你的项目目录运行；`--probe` 最多对 3 条候选测试命令做试运行（第一条视为你当前的基线），重复运行每条命令以求平均耗时，
-并统计它运行的测试数。在重复运行中失败或超时的命令会被报告为不稳定。只有当某条命令更快、且运行的测试数不少于基线时，提案才会推荐替换；
-较小的子集会作为不替换基线的快速层展示；基线本身未被测量，或某条命令的输出没有报告测试数时，不会给出任何推荐。提案写入一个由
-`tabilet-audit audit enable` 设置的、被 Git 忽略的路径；如果项目是在此规则出现之前启用的，请重新运行它。
-
-有两个可选设置会改变模型调用的去向。`TABILET_REFLECT_MODEL` 为 REST 后端选择模型。`TABILET_REFLECT_API_BASE` 把 REST 后端指向另一个端点，
-例如本地或代理服务器；它只在 `--backend` 指定为 `claude`、`gemini` 或 `openai` 时才会被读取，`auto` 时从不读取，并且所选后端的 API 密钥会发送到该端点，
-因此只能把它设置为你信任的主机。设置它之后，即使该后端的代理 CLI 已安装，也会改用 REST 调用。运行结果会把提供方返回的令牌数作为 `usage` 报告。
-
 ## 真正起决定作用的是 COMMIT_POLICY
 
 !!! note "把提交策略写清楚"
@@ -434,3 +409,51 @@ status is complete, and every milestone's documented verification passes.
 [标准协议](https://github.com/tabilet/skills/blob/main/GOAL.md#milestone-families)。
 优先级调度保留家族优先级，但不增加依赖边；家族阻塞时，独立且就绪的工作仍可执行。原有根里程碑计划保持兼容。
 归档子文件时保留原文件名及父关系；父里程碑归档后，延后的可选工作仍可保留。
+
+
+## 离线反思 {#offline-reflection}
+
+默认 `OPTIMIZE_POLICY: none`。选择 `confirm` 或 `auto` 后，Goal 检查项目审计已启用，
+且 `tabilet-audit reflect --check` 成功；否则警告并继续。反思只起草增量提案，
+不更改权限、审查限制或验证上限。里程碑图修改仍遵循 `CORRECTIVE_PLANNING`。
+
+反思使用已记录的任务尝试、验证观察和审查轮数。重复尝试、失败或受阻的工作、
+超过两分钟的已知作用域区间可开启后续分析；只纳入
+`tabilet/memory-bank/suggested.txt` 列出且仍开放的里程碑。
+整个 Goal 的运行时长不能分摊成每个里程碑的工作时间。
+
+模型预算最多为已记录作用域内经过时间的 10%，上限 120 秒。重叠区间只计算一次，
+缺失边界保持未知；预算不足 15 秒不调用模型。经过时间不等于活跃工作时间。
+未结束的运行显示最后观察时间和未知结果，绝不自动过期或关闭。
+
+Git 证据仅使用明确记录并经仓库验证的完整提交 SHA，不扫描所有引用的时间窗口；
+任务归属仍依赖观察记录。审查次数来自类型化记录或受支持的 Markdown 检查点，
+冲突会明确报告。记录稀疏不代表没有工作或审查。
+
+可选命令 `audit task-start`、`audit task-finish`、`audit verification` 和
+`audit review` 均通过 `--input -` 接受 JSON；`audit finish` 支持 `--reason`。
+这些命令只记录证据，不执行测试或修改任务事实。工具文件应一起安装；
+接口版本 5 支持旧记录，不补造缺失观察。
+
+后端是否可用由有时限的实际调用决定；DNS 检查不会阻止可用的代理 CLI。
+明确配置端点却缺少凭据时报告配置错误。CLI 从临时目录运行；没有后端时只生成摘要。
+
+`--probe` 还要求 `ALLOW_UNSANDBOXED_SHELL=1`，不经 shell 执行最多三条允许的测试命令，
+进行有时限的重复冒烟检查。保留失败和超时结果；测试数量和短时测量不能证明覆盖等价，
+也不能据此推荐替代验证方案。
+
+提案写入 `tabilet-audit audit enable` 准备的 Git 忽略路径。`confirm` 下需先批准完整的
+可执行提案；`auto` 下仅可在已有授权和限制内应用有证据的增量修改。
+空提案和无模型摘要无需审批。
+
+REST 模型可通过 `TABILET_REFLECT_MODEL` 选择。显式使用 `--backend claude`、
+`--backend gemini` 或 `--backend openai` 时，`TABILET_REFLECT_API_BASE`
+可指定本地或代理 REST 端点；该设置不覆盖 `auto`。所选后端的 API 密钥会发送给
+该端点，因此只应配置可信主机。对应密钥为 `ANTHROPIC_API_KEY`、
+`GEMINI_API_KEY` 或 `OPENAI_API_KEY`。显式端点缺少匹配密钥会报错。
+遇到 `backend unreachable` 错误时，应在现有授权范围内检查主机网络访问后重试。
+结果中的 `usage` 包含提供方返回的令牌用量。
+
+
+对于 API 运行器的待处理行，主机会保留实际测得的尝试开始时间；只有单行运行后检查
+确认所选行后，才将该时间段归属给该行。未验证或归属不明确的运行仍保留记录缺口。

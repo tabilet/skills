@@ -1267,14 +1267,64 @@ class HarnessIntegrationTests(unittest.TestCase):
                 [row[0] for row in connection.execute(
                     "SELECT event_type FROM events ORDER BY sequence"
                 )],
-                ["run_started", "task_observed", "commit_observed", "task_transition",
-                 "verification_observed", "run_finished"],
+                ["run_started", "task_observed", "task_started", "commit_observed",
+                 "verification_observed", "task_transition", "verification_observed",
+                 "task_finished", "run_finished"],
             )
             self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "completed")
             self.assertEqual(
                 connection.execute("SELECT COUNT(*) FROM captured_messages").fetchone()[0], 2
             )
             connection.close()
+
+    def test_pending_row_gets_verified_typed_attempt_and_measured_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(pathlib.Path(tmp) / "repo", marker("[ ]"))
+            database = enable_audit(repo)
+            import tabilet_audit
+            import tabilet_reflect
+            now = ["2026-11-10T12:00:00Z"]
+
+            def close_row(args, target, number, summary, current, **kwargs):
+                source = target / "tabilet/memory-bank" / "status-M01.md"
+                source.write_text(source.read_text().replace(marker("[ ]"), marker("[+]")))
+                run("git", "add", "-A", cwd=target)
+                committed = run(
+                    "git", "-c", "user.name=Harness Test", "-c", "user.email=harness@example.test",
+                    "commit", "-qm", "complete row", cwd=target,
+                )
+                self.assertEqual(committed.returncode, 0, committed.stderr)
+                now[0] = "2026-11-10T12:03:00Z"
+                return {"final": "Completed the row."}
+
+            with mock.patch.object(sys, "argv", [
+                str(HARNESS), str(repo), "--audit-capture", "relevant",
+            ]), mock.patch.dict(
+                os.environ, self.harness_env(tmp, ALLOW_UNSANDBOXED_SHELL="1"), clear=True
+            ), mock.patch.object(tabilet_audit, "utc_now", side_effect=lambda: now[0]), mock.patch.object(harness, "one_agent_run", side_effect=close_row), self.assertRaises(
+                SystemExit
+            ) as stopped:
+                harness.main()
+            self.assertEqual(stopped.exception.code, 7)
+
+            connection = sqlite3.connect(database)
+            self.assertEqual(
+                [row[0] for row in connection.execute(
+                    "SELECT event_type FROM events ORDER BY sequence"
+                )],
+                ["run_started", "task_observed", "task_started", "commit_observed",
+                 "verification_observed", "task_transition", "verification_observed",
+                 "task_finished", "run_finished"],
+            )
+            self.assertEqual(connection.execute("SELECT result FROM runs").fetchone()[0], "completed")
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM captured_messages").fetchone()[0], 2
+            )
+            connection.close()
+            telemetry = tabilet_reflect.extract_telemetry(repo, "M01")
+            self.assertEqual(telemetry["task_attempts"][0]["duration_sec"], 180)
+            self.assertEqual(telemetry["task_attempts"][0]["result"], "completed")
+            self.assertGreaterEqual(tabilet_reflect.model_budget_sec(telemetry["milestone_wall_sec"], 10), 18)
 
     def test_opt_in_audit_records_blocked_gate_without_model_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
