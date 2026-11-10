@@ -1,3 +1,31 @@
+# memory-bank v2.23.2
+
+Patch release. It adds a timing record to the stock test policy and an inactive
+example of risk-scaled verification tiers. The stock `GOAL.md` protocol is
+unchanged, so its fingerprint is unchanged.
+
+- **Gate timing.** A required gate's record carries its elapsed wall-clock time,
+  and a reused result keeps its original time. The time is a measurement for
+  planning and never an acceptance limit. The status-file preamble says the same.
+  The gate maintenance threshold is unchanged.
+- **Example risk tiers.** `test-policy.md` gains an `Example risk tiers (not in
+  force)` table. It applies only if a project approves a risk-scaled verification
+  contract that adopts it, and classification alone still never reduces a check.
+  Every required gate stays required. Text inside a source file, such as a
+  comment, directive, pragma or string, is classed by what a toolchain does with
+  it, and the second tier keeps the UI check. `tech-stack.md` points to the table.
+- **Upgrade.** `memory-bank-upgrade` treats both additions as optional. They never
+  count toward compatibility and are offered only in a proposal that already has
+  other changes, so a project with nothing else to change stays a no-op.
+
+**Scope.** The stock test policy, the status-file preamble, `tech-stack.md`, the
+upgrade skill and its bundled assets, the goal guides, `AGENTS.md` and the
+repository checks change. The runner, the harness and `GOAL.md` do not.
+
+**Upgrade note.** Installing this plugin alone changes no project file. An
+existing project adopts the timing record and the example tiers through
+`memory-bank-upgrade`, which writes only after you approve the complete proposal.
+
 # memory-bank v2.23.1
 
 Patch release. It fixes regressions that v2.23.0 introduced in how frozen
