@@ -18,7 +18,7 @@ rows retain their original cells and physical line numbers, including legacy
 summary pipes; identity, duplicate, outcome, date, link and record checks still
 apply across all retirement tables. Hash-bound standalone citations and strict
 new-retirement parsing keep their existing rules. Disposable projection revision
-`v11` rebuilds cached interpretations without changing the database schema.
+`v12` rebuilds cached interpretations without changing the database schema.
 
 Supported older envelopes include status-section aliases (`Status`, `Status
 document`, `Full status document`, `Final status`, `Source status ledger`,

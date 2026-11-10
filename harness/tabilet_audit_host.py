@@ -43,6 +43,11 @@ def check_toolkit(include_explorer=False, include_reflect=False):
         versions['tabilet_reflect'] = reflect_interface
     if any(value != TOOLKIT_INTERFACE for value in versions.values()):
         raise audit.AuditError(f'incompatible toolkit modules: expected interface {TOOLKIT_INTERFACE}, got {versions}; reinstall the toolkit files together')
+    # The index reads the runner installed beside it, so a stale runner (for
+    # example a symlink to an older checkout) must be refused here as well.
+    runner_interface = getattr(index.parser(), 'PARSER_INTERFACE', None)
+    if runner_interface != index.PARSER_INTERFACE:
+        raise audit.AuditError(f'incompatible runner: expected parser interface {index.PARSER_INTERFACE}, got {runner_interface}; reinstall the runner with the toolkit files together')
 
 
 def arguments(argv=None):

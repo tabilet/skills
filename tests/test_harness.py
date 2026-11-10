@@ -363,12 +363,36 @@ class RetirementTests(unittest.TestCase):
         self.assertIn("successor: M02", record["status"])
 
     def test_malformed_marker_cannot_hide_an_open_retired_task(self) -> None:
-        for state in ("[ ]", "`[?]`", "`[x]`", "**[ ]**"):
+        for state in ("[ ]", "`[?]`", "`[x]`", "**[ ]**", "[ ](notes.md)",
+                      "[+](abc123)", "[x](red.log)", "[~][log]", "[x][]", "[!]", "[?]"):
             with self.subTest(state=state), self.assertRaises(ValueError):
                 harness.retired_record(retirement_text(
                     f"| Finished | {marker('[+]')} | Verified |\n"
-                    f"| Hidden task | {state} | Invalid marker |\n"
+                    f"| Hidden task | {state} | Invalid marker |\n\n"
+                    "[log]: red.log\n[x]: red.log\n[!]: blocked\n[?]: unknown\n"
                 ), "status-M01.md")
+
+    def test_split_table_cannot_hide_an_open_retired_task(self) -> None:
+        for title in ('Second', '[Second](spec.md)'):
+            with self.subTest(title=title), self.assertRaisesRegex(ValueError, 'repeat the State header'):
+                harness.retired_record(retirement_text(
+                    '| ID | Task | State |\n|---|---|---|\n'
+                    '| M01.1 | First | `[+]` |\n\n'
+                    f'| M01.2 | {title} | `[ ]` |\n'), 'status-M01.md')
+
+    def test_retirement_accepts_evidence_links_but_not_hidden_bad_markers(self) -> None:
+        status = ('| Item | State | Notes |\n|---|---|---|\n'
+                  '| Finished | `[+]` | Verified |\n\n'
+                  '| Check | Evidence |\n|---|---|\n'
+                  '| Regression | [RED](red.log) / [GREEN][pass] |\n\n'
+                  '[pass]: green.log\n')
+        record = harness.retired_record(retirement_text(status), 'status-M01.md')
+        self.assertEqual(record['status'], status)
+        self.assertEqual(len(harness.status_rows(record['status'])), 1)
+        for marker_text in ('`[?]`', '[ ]', '`[x]`', '**[ ]**'):
+            with self.subTest(marker=marker_text), self.assertRaises(ValueError):
+                harness.retired_record(retirement_text(status.replace(
+                    '[RED](red.log)', f'[RED](red.log) {marker_text}')), 'status-M01.md')
 
     def test_cancelled_and_superseded_records_keep_distinct_outcomes(self) -> None:
         status = f"| Old work | {marker('[X]')} | User cancelled it. |\n"
@@ -915,6 +939,28 @@ class ProjectLockTests(unittest.TestCase):
 
 
 class HarnessIntegrationTests(unittest.TestCase):
+    def test_links_and_split_tables_cannot_hide_active_work(self) -> None:
+        finished = '| Finished | `[+]` | verified |\n'
+        cases = [finished + f'| Hidden | {state} | todo |\n\n'
+                 '[log]: red.log\n[x]: red.log\n[!]: blocked\n[?]: unknown\n[+]: done\n'
+                 for state in ('[ ](notes.md)', '[+](abc123)', '[x](red.log)', '[~][log]',
+                               '[x][]', '[!]', '[?]', '[+]')]
+        cases += [finished + '\n<!--\n[!]: blocked\n-->\n\n| Hidden | [!] | todo |\n',
+                  '| Item | Status |\n|---|---|\n' + finished + '| Hidden | [ ](notes.md) |\n']
+        cases += ['| ID | Task | State |\n|---|---|---|\n'
+                  '| M01.1 | First | `[+]` |\n\n'
+                  f'| M01.2 | {title} | `[ ]` |\n' for title in ('Second', '[Second](spec.md)')]
+        with tempfile.TemporaryDirectory() as tmp, fake_api([]) as (base, api):
+            repo = make_repo(pathlib.Path(tmp) / 'repo', marker('[+]'))
+            for content in cases:
+                with self.subTest(content=content):
+                    (repo / 'tabilet/memory-bank/status-M01.md').write_text(content)
+                    proc = run(sys.executable, str(HARNESS), str(repo), cwd=ROOT,
+                               env=self.harness_env(tmp, LLM_API_BASE=base, OPENAI_API_KEY='test-only'))
+                    self.assertEqual(proc.returncode, 11, proc.stderr)
+                    self.assertNotIn('No actionable', proc.stdout)
+            self.assertEqual(api.requests, [])
+
     def test_invalid_active_state_stops_before_api_or_completion(self) -> None:
         for hidden in ("[ ]", "`[?]`", "`[x]`", "**[ ]**", "pending", ""):
             with self.subTest(marker=hidden), tempfile.TemporaryDirectory() as tmp:

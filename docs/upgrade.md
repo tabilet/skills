@@ -213,6 +213,8 @@ or `Stage qualification` line is offered without changing the others, in
 guarantee levels and advisory records rule is a separate decision, offered only
 alongside other changes, and declining it changes nothing.
 
+Version 2.23.0 adds the five cross-milestone review lenses (durable-state legal exits, crash windows, earlier reader formats, failure isolation, and in-flight task protection), the tool-limit, verification-discrepancy, and test-program rules to the convergent review gate, diagnosis guidance before repair, and instrumented timing diagnosis to `test-policy.md`. It also clarifies concurrency triggers and introduces the risk-scaled verification contract. These additions are offered to existing projects in the same complete upgrade proposal, preserving project-specific rules, approved overrides, and frozen history.
+
 ## If DSH reports compatibility warnings
 
 You can prepare an Upgrade request even when the dashboard cannot read all the

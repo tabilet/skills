@@ -211,6 +211,25 @@ record until ordinary review, disposition, and retirement close it.
 
 For a milestone whose acceptance depends on a class R (real-effect) check, or on an expensive or protected check when no test policy applies, apply the milestone file's real-effect check rule: acceptance covers only behavior the milestone owns, proved with the smallest workload; real producer or consumer pairing belongs to the adopting milestone; needed host capabilities get a cheap readiness probe as the first row; and an uncounted local diagnostic loop is named. Review intake must not move downstream pairing evidence into such a milestone. When the project has a test policy, a new or amended milestone names its required whole-unit gates and their check class without restating a test method, and carries no controller, receipt or other-language method forward from earlier stages or milestones. Pre-fill `INSTRUMENTATION_SCOPE` as `testing-profiles.md` says only in a new launch proposal. When refreshing any existing launch, including an unapproved draft, preserve its resolved value, including an implicit `none`, unless the owner explicitly approves a change. Preserve an explicit `TEST_POLICY` on launch refresh and emit `TEST_POLICY: <resolved path or none>` in a new launch reference. Ordinary review intake is unchanged. When an intake is an adopted active gate's next pass, apply that gate's blocking criteria and iteration scope; approved file actions may add, update or deduplicate rows in the milestone file's Open review findings register, which is approved planning state and not a review copy.
 
+For projects adopting the stock test policy, include this common preflight in
+the proposed `tech-stack.md` verification standards, separately from the
+light-profile defaults and preserving approved project restrictions:
+
+<!-- BEGIN SHARED verification-environment-preflight -->
+`standard` adds no light-profile constraints. Independently adopted stock
+test-policy requirements, including this environment preflight, apply under
+every profile.
+
+Before costly verification, inspect the applicable toolchain pin, required
+offline caches, private temporary-path suitability and permissions, umask, disk
+capacity and selected concurrency. Check inherited environment and configuration
+precedence that could override offline or isolation settings. Use invocation-local
+corrections or refuse an unsafe setup; do not change global configuration, expose
+secrets, download missing inputs or broaden authority. Reuse the check while
+relevant environment inputs remain unchanged. Preserve the existing preflight
+before every counted protected attempt.
+<!-- END SHARED verification-environment-preflight -->
+
 For a light profile, include these rules in the proposed verification
 standards and assign the required evidence to the relevant milestone owners.
 `standard` adds none of them and keeps the project's existing commands:
@@ -231,6 +250,25 @@ standards and assign the required evidence to the relevant milestone owners.
   schemas and launchers before each counted attempt of a check that uses the verification-attempt gate.
 
 <!-- BEGIN SHARED scope-control-planning -->
+Carry the stock integrated-closure, durable-state-exit, repair-sizing and
+performance-disposition rules into applicable milestone specifications. Identify
+their owners, dependencies and required evidence during planning; do not
+allocate duplicate gates or weaken existing acceptance. If no integration
+milestone is planned, the stage or goal's last milestone owns integrated closure
+review after all contributing milestones. Preserve the stock reconsideration
+trigger of the same class of consumer or reader gap found again in a later
+review round, unless the project explicitly overrides it; add no numeric size
+threshold.
+
+Record the integrated-review owner, contributor IDs and acceptance scope in the
+owner's specification. Plan baseline capture by the execution owner before the
+first contributing task, including uncommitted or unversioned starting state;
+the closing milestone alone cannot recover that state later. Preserve explicit
+reviewer independence requirements; otherwise use the ordinary reviewer
+arrangement. Keep dependency declarations in the plan; the selected execution
+protocol owns sequencing. An unavailable historical baseline requires the
+full-implementation review fallback, never omitted acceptance review.
+
 Keep each planned milestone to what its stage can reach and what its acceptance
 needs:
 

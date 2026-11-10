@@ -107,16 +107,39 @@ emit `TEST_POLICY: <resolved path or none>` in launch references. Also emit
 
 In `tabilet/memory-bank/tech-stack.md`, define the language floor, tools, dependencies,
 commands, runtime assumptions, and execution harnesses.
+Keep a `Risk-scaled verification contract` entry, default `none` unless a
+project contract has been approved, plus optional advisory `Milestone time
+estimates` and a `Gate maintenance threshold`, default `none`. Preserve their
+measurement basis and scope; estimates never alter limits or acceptance.
 Accept `--test standard` (the default when omitted), `browserlight`, `golight`,
 `rustlight`, `tslight`, `jslight` or `pythonlight`. Follow the bundle-local
 [testing profiles](testing-profiles.md) for selection, budget defaults and
 language-specific fixtures. `standard` records existing commands without extra
-constraints. Light profiles generate `## Verification and testing standards`
+light-profile constraints. Light profiles generate `## Verification and testing standards`
 with separate focused, full-regression and race/UI budgets: 30-second focused
 target / two-minute cap, 20-minute full-suite cap and five-minute race/UI cap,
 subject to explicit project limits. Do not impose a 30-second full-suite ceiling.
 Keep compilation and test execution timing distinct. Required physical evidence
 gets a named final gate and explicit handoff in the approved plan.
+
+For projects adopting the stock test policy, include this common preflight in
+the proposed `tech-stack.md` verification standards, separately from the
+light-profile defaults and preserving approved project restrictions:
+
+<!-- BEGIN SHARED verification-environment-preflight -->
+`standard` adds no light-profile constraints. Independently adopted stock
+test-policy requirements, including this environment preflight, apply under
+every profile.
+
+Before costly verification, inspect the applicable toolchain pin, required
+offline caches, private temporary-path suitability and permissions, umask, disk
+capacity and selected concurrency. Check inherited environment and configuration
+precedence that could override offline or isolation settings. Use invocation-local
+corrections or refuse an unsafe setup; do not change global configuration, expose
+secrets, download missing inputs or broaden authority. Reuse the check while
+relevant environment inputs remain unchanged. Preserve the existing preflight
+before every counted protected attempt.
+<!-- END SHARED verification-environment-preflight -->
 
 For a light profile, include these rules in the proposed verification
 standards and assign the required evidence to the relevant milestone owners.
@@ -181,6 +204,14 @@ section with `Project levels: none` unless the user chose levels. Include the te
 with `Last used ID: none` and its `capacity limit` note, and its execution-path
 note that the optional `tabilet` controller keeps P2 blocking.
 
+Include the template's `Tool limits`, `Verification discrepancies` and `Test
+programs` rules, plus `Diagnosis before repair`, preserving project overrides
+and required acceptance evidence. For shared concurrency surfaces changed by
+multiple milestones, put the race watch list in the final integration
+milestone's verification section with named tests and instrumented execution
+evidence; create no separate ledger. When no integration milestone is planned,
+use the last milestone that owns integrated closure review.
+
 Include a separate `New review intake` procedure for reviews received after the
 harness exists. It must require current-state revalidation, preserve both source
 and local severity, and obtain approval for dispositions and file actions before
@@ -229,6 +260,25 @@ prose remains binding until explicit human adoption resolves the conflict.
 <!-- END SHARED review-limit-planning -->
 
 <!-- BEGIN SHARED scope-control-planning -->
+Carry the stock integrated-closure, durable-state-exit, repair-sizing and
+performance-disposition rules into applicable milestone specifications. Identify
+their owners, dependencies and required evidence during planning; do not
+allocate duplicate gates or weaken existing acceptance. If no integration
+milestone is planned, the stage or goal's last milestone owns integrated closure
+review after all contributing milestones. Preserve the stock reconsideration
+trigger of the same class of consumer or reader gap found again in a later
+review round, unless the project explicitly overrides it; add no numeric size
+threshold.
+
+Record the integrated-review owner, contributor IDs and acceptance scope in the
+owner's specification. Plan baseline capture by the execution owner before the
+first contributing task, including uncommitted or unversioned starting state;
+the closing milestone alone cannot recover that state later. Preserve explicit
+reviewer independence requirements; otherwise use the ordinary reviewer
+arrangement. Keep dependency declarations in the plan; the selected execution
+protocol owns sequencing. An unavailable historical baseline requires the
+full-implementation review fallback, never omitted acceptance review.
+
 Keep each planned milestone to what its stage can reach and what its acceptance
 needs:
 

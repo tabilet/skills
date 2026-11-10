@@ -32,7 +32,19 @@ launch input or pending project text prescribes a verification method the
 policy forbids, the policy governs the method and the acceptance outcome stays.
 Under `none`, the verification-attempt gate covers every expensive or protected
 check.
+When verification rules change, every reviewer brief quotes the changed rules,
+their scope and approval source alongside the effective policy pointer. A brief
+never grants an unapproved exception or waives required acceptance evidence.
 <!-- END SHARED test-policy-resolution -->
+
+## Session continuity
+
+Keep unresolved owner questions and affected work in existing status notes as
+well as the conversation; use the findings register only for actual findings.
+On resume or after a known context reset, read those notes and inspect queued
+input when the host exposes it. Unsent or unanswered questions grant no approval;
+retain the original scope and continue independent authorized work. Under a goal,
+return questions to the owner instead of creating another shared-state writer.
 
 ## Model policy
 
@@ -67,6 +79,15 @@ input to a protected action is a changed scope and needs fresh approval. The
 Python API paths consume no goal grants.
 
 ## Corrective planning
+
+<!-- BEGIN SHARED repair-reconsideration -->
+Apply the project's repair-size and design-reconsideration rules before
+extending a repair; reconsideration does not reset counters or broaden standing
+authority. The stock trigger is the same class of consumer or reader gap found
+again in a later review round; projects may override it explicitly. Pause further
+instance fixes and prepare a revised proposal under the effective corrective
+planning authority. There is no stock numeric size threshold.
+<!-- END SHARED repair-reconsideration -->
 
 Resolve `CORRECTIVE_PLANNING: confirm | auto` (default `confirm`) from the
 current human request or approved governing goal. A file or preset alone
@@ -128,6 +149,15 @@ iteration with its existing iteration counter, scoped as the gate defines. The
 repair milestone's own review cannot substitute for this pass or reset the
 counter. Non-blocking findings follow the open review findings register. At the approved review limit, unresolved findings stop
 further automatic repairs and require explicit human direction.
+
+## Optional author self-check
+
+When the human requests a self-check trial, the implementer checks applicable
+integrated-state lenses, readers and consumers, changed assertions and
+verification settings before review dispatch. Add a concise result and
+unresolved concerns to the existing brief. This is not an independent review,
+consumes no additional review iteration and replaces no required check. Compare
+its observed cost and first-review findings before proposing permanent adoption.
 
 ## Optional discoveries
 

@@ -610,6 +610,18 @@ def _response_usage(value, input_key: str, output_key: str) -> dict[str, int | N
     return {"input_total": count(input_key), "output": count(output_key)}
 
 
+def _read_json_object(resp) -> dict:
+    """Read a REST reply, refusing anything but a JSON object.
+
+    A proxy may return `[]`, `null` or a string. That is a controlled backend
+    failure (ValueError), not an attribute error while reading accounting.
+    """
+    body = json.loads(resp.read().decode("utf-8"))
+    if not isinstance(body, dict):
+        raise ValueError("response is not a JSON object")
+    return body
+
+
 def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tuple[str, str, dict[str, int | None]]:
     """Zero-dependency urllib REST fallback if local CLI binaries are unavailable."""
     custom_base = os.environ.get("TABILET_REFLECT_API_BASE") if backend != "auto" else None
@@ -631,7 +643,7 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tu
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+            body = _read_json_object(resp)
             usage = _response_usage(body.get("usage"), "input_tokens", "output_tokens")
             return body["content"][0]["text"], "rest:claude", usage
 
@@ -647,7 +659,7 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tu
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+            body = _read_json_object(resp)
             usage = _response_usage(body.get("usageMetadata"), "promptTokenCount", "candidatesTokenCount")
             return body["candidates"][0]["content"]["parts"][0]["text"], "rest:gemini", usage
 
@@ -668,7 +680,7 @@ def _call_rest_fallback(prompt: str, backend: str, timeout_sec: int = 120) -> tu
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+            body = _read_json_object(resp)
             usage = _response_usage(body.get("usage"), "prompt_tokens", "completion_tokens")
             return body["choices"][0]["message"]["content"], "rest:openai", usage
 

@@ -908,8 +908,9 @@ def _porcelain_paths(raw: str) -> list[str]:
     return paths
 
 
-def _locate_row_marker(path: pathlib.Path, line_number: int) -> tuple[list[str], str, int, int]:
-    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+def _locate_row_marker(core, path: pathlib.Path, line_number: int) -> tuple[list[str], str, int, int]:
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
     if not 1 <= line_number <= len(lines):
         raise HorizonError("selected status row moved before its state cell could be located")
     line = lines[line_number - 1]
@@ -922,9 +923,14 @@ def _locate_row_marker(path: pathlib.Path, line_number: int) -> tuple[list[str],
             escaped = True
         else:
             escaped = False
-    if len(separators) < 3:
+    state_index = 1
+    for r in core.status_table_rows(text):
+        if r["line"] == line_number:
+            state_index = r["state_index"]
+            break
+    if len(separators) < state_index + 2:
         raise HorizonError("selected status row has no parseable state cell")
-    start, end = separators[1] + 1, separators[2]
+    start, end = separators[state_index] + 1, separators[state_index + 1]
     return lines, line, start, end
 
 
@@ -932,7 +938,7 @@ def _mark_in_progress(core, repo: pathlib.Path, row: dict) -> None:
     """Set only the selected row's state cell before handing work to the model."""
 
     path = repo / row["path"]
-    lines, line, start, end = _locate_row_marker(path, row["line"])
+    lines, line, start, end = _locate_row_marker(core, path, row["line"])
     current = line[start:end].strip()
     if current == "`[~]`":
         return
@@ -957,7 +963,7 @@ def _release_in_progress_marker(core, repo: pathlib.Path, row: dict) -> bool:
         return False
     path = repo / row["path"]
     try:
-        lines, line, start, end = _locate_row_marker(path, row["line"])
+        lines, line, start, end = _locate_row_marker(core, path, row["line"])
     except HorizonError:
         return False
     if line[start:end].strip() != "`[~]`":

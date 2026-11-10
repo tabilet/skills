@@ -1,4 +1,5 @@
 """Literal history, correction integrity, and the execution boundary."""
+import contextlib
 import copy
 import hashlib
 import json
@@ -37,15 +38,45 @@ class HistoryCorrectionsTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-        h.make_repo(self.root)
+        self._root = None
         self.text = h.retirement_text('| Task | `[+]` | verified |\n')
+
+    @property
+    def root(self):
+        # Most tests here only parse text. Building the Git repository costs five
+        # subprocesses, so it happens on first use rather than for every test.
+        if self._root is None:
+            self._root = Path(self.temp.name)
+            h.make_repo(self._root)
+        return self._root
 
     def expansion(self):
         text = self.text.replace('**Evidence.** unversioned', '**Evidence.** abcdef0').replace(
             '**Worktree.** unversioned', '**Worktree.** clean')
         correction = entry(text, [dict(kind='expand-evidence-commit', recorded='abcdef0', resolved='abcdef0' + '1' * 33)])
         return text, correction
+
+    def test_index_reads_retired_evidence_links_without_corrections(self):
+        status = ('| Item | State | Notes |\n|---|---|---|\n'
+                  '| Task | `[+]` | verified |\n\n'
+                  '| Check | Evidence |\n|---|---|\n'
+                  '| Regression | [RED](red.log) / [GREEN][pass] |\n'
+                  '| Badge | [![CI](badge.svg)](run.log) |\n'
+                  '| Nested | [log [1]](a(b(c)).log) |\n'
+                  '| List reference | [list-log] |\n'
+                  '| Continued reference | [continued-log] |\n\n'
+                  '- [list-log]: red.log\n[continued-log]:\n  red.log\n'
+                  '[pass]: green.log\n')
+        text = h.retirement_text(status)
+        path = 'tabilet/docs/history/status-M01.md'
+        parsed = index.parse_document(path, 'history_status', text, digest(text))
+        self.assertEqual([row['state'] for row in parsed['index_tasks']], ['completed'])
+        self.assertEqual(core.historical_record(text, 'status-M01.md')['status'], status)
+        for hidden in ('[RED](red.log) `[?]`', '[ ](notes.md)', '[x][]', '[!]', '[?]', '[+]'):
+            bad = text.replace('[RED](red.log)', hidden) + '\n'
+            bad = bad.replace('[pass]: green.log', '[pass]: green.log\n[x]: red.log\n[!]: blocked\n[?]: unknown\n[+]: done')
+            with self.subTest(hidden=hidden), self.assertRaises(ValueError):
+                index.parse_document(path, 'history_status', bad, digest(bad))
 
     def marker_operation(self, text, item='Task'):
         status = core.fenced_document(text.rsplit('\n## Status record\n', 1)[1])
@@ -142,7 +173,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         snapshot = core.row_snapshot(self.root)
         self.assertEqual(snapshot['history']['problems'], [])
         self.assertEqual(snapshot['history']['records']['status-M99.md']['status'], '| Done | [+] | verified |\n')
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             self.assertTrue(state['complete'])
             rows = connection.execute("SELECT state FROM index_tasks WHERE milestone_id='M99'").fetchall()
@@ -252,7 +283,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         self.assertEqual(len(snapshot['history']['records']), 3)
         live = horizon._live_projection(core, self.root)
         self.assertIn('M99', live['milestones'])
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             ready = index.readiness(connection, state['workspace_id'], self.root)
             self.assertEqual(len(ready['ready']), 1)
@@ -927,7 +958,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         snapshot = core.row_snapshot(self.root)
         self.assertEqual(snapshot['history']['problems'], [])
         self.assertIn('M144', horizon._live_projection(core, self.root)['milestones'])
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             ready = index.readiness(connection, state['workspace_id'], self.root)
             self.assertEqual(len(ready['ready']), 1)
@@ -1763,7 +1794,7 @@ class HistoryCorrectionsTests(unittest.TestCase):
         self.assertEqual(len(snapshot['history']['warnings']), 1)
         self.assertIn('tabilet/docs/history/status-M01.md: unrecognized review wording: "The review took two hours"',
                       snapshot['history']['warnings'][0])
-        with audit.open_database(self.root / 'tabilet/audit.sqlite3') as connection:
+        with contextlib.closing(audit.open_database(self.root / 'tabilet/audit.sqlite3')) as connection:
             state = index.sync(connection, self.root)
             diagnostics = index.status(connection, state['workspace_id'])['diagnostics']
         self.assertTrue(any('warning: unrecognized review wording' in item for item in diagnostics), diagnostics)

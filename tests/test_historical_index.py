@@ -151,7 +151,7 @@ class HistoricalIndexIntegrationTests(unittest.TestCase):
             state = index.sync(self.c, self.root)
             self.assertEqual(parse.call_count, len(index.inventory(self.root)))
         self.assertNotEqual(state['generation'], baseline['generation'])
-        self.assertEqual(self.c.execute('SELECT value FROM schema_meta WHERE key=?', (key,)).fetchone(), ('v11',))
+        self.assertEqual(self.c.execute('SELECT value FROM schema_meta WHERE key=?', (key,)).fetchone(), (index.INDEX_PROJECTION,))
 
     def test_external_history_headings_are_excluded_and_duplicate_local_specs_fail(self):
         self.milestone.write_text(self.milestone.read_text() +

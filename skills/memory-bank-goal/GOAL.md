@@ -43,6 +43,12 @@ from silence or process exit. Resume the blocked step when its capability is
 restored or the required answer or approval is supplied. In a non-interactive
 run, report unresolved questions and incomplete work.
 
+Keep unresolved owner questions and the affected work in existing goal/status
+notes as well as the conversation; use the findings register only for actual
+findings. On resume or after a known context reset, read those notes and inspect
+queued input when the host exposes it. An unsent or unanswered question grants
+no approval; preserve the original scope and continue independent authorized work.
+
 Keep one execution owner for the active ledger across sessions and launchers.
 Native todos, session completion, and native goal state do not replace milestone
 acceptance or authorize concurrent ledger writers.
@@ -209,6 +215,12 @@ project that defines them.
 
 Input rules:
 
+- Any custom failure disposition names its failure class, affected work,
+  permitted recovery, evidence requirements and stop conditions. Preserve
+  explicit human stop rules; never infer an exception to "any failure." A
+  coordinator bookkeeping repair may continue only within existing scope and
+  when no applicable stop rule requires a pause. Effects on evidence, state
+  integrity or authorization require their ordinary assessment and safeguards.
 - `PROJECT_CONTEXT` is optional. Use it to identify additional project sources
   that repository instructions do not already name.
 - `GOAL_PROTOCOL` is optional and selects an alternative full protocol by path.
@@ -829,6 +841,15 @@ formats, six markers and existing retirement requirements remain compatible.
 
 ## Standing Corrective Planning
 
+<!-- BEGIN SHARED repair-reconsideration -->
+Apply the project's repair-size and design-reconsideration rules before
+extending a repair; reconsideration does not reset counters or broaden standing
+authority. The stock trigger is the same class of consumer or reader gap found
+again in a later review round; projects may override it explicitly. Pause further
+instance fixes and prepare a revised proposal under the effective corrective
+planning authority. There is no stock numeric size threshold.
+<!-- END SHARED repair-reconsideration -->
+
 `CORRECTIVE_PLANNING: confirm` keeps the ordinary complete-proposal approval
 gate. Omission preserves that behavior. `auto` is effective only when the human
 has approved the policy for this run, its delivery outcome, owning repositories,
@@ -987,7 +1008,17 @@ Before the first milestone:
    external-mutation authority before making changes. Resolve milestone
    requirements and human-approved grants using the authorization contract;
    materialize the request and approval context before execution.
-8. For concurrent leases, capture the integration worktree's symbolic `HEAD`
+8. Where the project has adopted integrated closure review, resolve its approved
+   owner, contributing milestones and acceptance scope. If no integration
+   milestone is planned, the last milestone owns that review. Order its closure
+   after every contributor, preserving approved dependencies and strict order;
+   surface a conflict instead of silently changing that order. Before the first
+   contributing task, capture or recover the integrated-review baseline using
+   the project's integrated-closure rules. Reuse it on resume and child dispatch,
+   including under `COMMIT_POLICY: none`. Missing historical baseline evidence
+   requires the project's full-implementation review fallback, never an invented
+   baseline or omitted acceptance review.
+9. For concurrent leases, capture the integration worktree's symbolic `HEAD`
    with `git symbolic-ref --quiet HEAD` and its full commit ID with
    `git rev-parse --verify HEAD`. Preserve that full `INTEGRATION_REF` (for
    example, `refs/heads/trunk`), primary worktree path, and baseline in existing
@@ -1158,6 +1189,12 @@ no active writer, a merged branch and a clean worktree; never force removal.
   non-reproducible incidents, record existing evidence and the reproduction
   limitation instead of forcing retries or inventing a failure. Required
   acceptance evidence and verification gates still apply; if missing, pause.
+- Establish the causal path and actual failing branch before choosing a repair,
+  using the cheapest decisive diagnostic and the project's diagnosis guidance.
+  Inspect same-pattern callers within approved scope and cover affected consumers.
+  Before adding a durable record or state, list its readers and compatibility
+  requirements. Record uncertainty when reproduction is unavailable; this adds
+  no per-fix approval or separate readiness-review gate.
 - Maintain relevant reusable lessons with evidence. When a mistake recurs,
   classify it first: a mechanical one that a linter, test, or CI check could
   catch becomes a proposed deterministic check; a judgement call becomes a
@@ -1187,6 +1224,11 @@ no active writer, a merged branch and a clean worktree; never force removal.
   and failure-path checks for the changed surfaces.
 - Run required checks in every related repository changed by the milestone.
 - After automated checks pass, run the bounded review-fix gate below.
+- Before accepting an integrated stage or multi-milestone goal outcome, complete
+  its planned integrated closure review under the owning milestone's existing
+  bounded gate and the project's integrated-closure rules. If no integration
+  milestone is planned, the stage or goal's last milestone owns this review;
+  plan its closure after all contributing milestones.
 - Carry a non-blocking finding forward only in the project's open review
   findings register with its fix owner and rationale. A finding that is blocking
   under the governing gate cannot be carried forward.
@@ -1219,6 +1261,9 @@ launch input or pending project text prescribes a verification method the
 policy forbids, the policy governs the method and the acceptance outcome stays.
 Under `none`, the verification-attempt gate covers every expensive or protected
 check.
+When verification rules change, every reviewer brief quotes the changed rules,
+their scope and approval source alongside the effective policy pointer. A brief
+never grants an unapproved exception or waives required acceptance evidence.
 <!-- END SHARED test-policy-resolution -->
 
 #### Bounded Verification-Attempt Gate
@@ -1283,12 +1328,19 @@ does not replace it, and the controller does not read the open review findings
 register, so milestones it runs keep P2 blocking.
 
 A task review covers that task's diff (its own commit when commits are per
-task) and passes with no blocking finding. The initial deep-review pass is
+task) and passes with no blocking finding. For a one-task milestone, one review
+may satisfy both task and whole-milestone review only when it covers the complete
+milestone scope and acceptance, required gates have passed, and all independence,
+model and reviewed-state requirements are met. Record it once as the milestone's
+initial iteration. Later fixes retain the normal verification and review
+requirements. The initial deep-review pass is
 iteration 1. In each iteration:
 
 1. Read the persisted review count and findings before starting. Record the
    current iteration as started before review; an interrupted pass resumes that
    iteration, never resets to 1.
+   Record observed review start and end times in existing review notes when
+   available; unknown boundaries remain unknown.
    - **Iteration 1** pins the milestone's base commit and inspects the
      full diff against it, including staged, unstaged and relevant untracked
      work under the selected commit policy. An empty implementation diff does
@@ -1300,6 +1352,12 @@ iteration 1. In each iteration:
      and requirements implemented wrongly, each quoting its acceptance line.
      Report findings grouped by concern so one concern cannot hide another; the
      severity rules decide the gate.
+     For the designated integrated-review owner, iteration 1 also covers the
+     full contributing scope through the project's integrated-closure lenses,
+     using its recorded starting and final states. Its own milestone base alone
+     is insufficient. Apply the project's full-implementation fallback when the
+     integrated baseline cannot be reconstructed, within this same iteration
+     and limit; preserve explicitly required reviewer independence.
    - **Iteration 2 and later** review only each blocking finding of the
      previous iteration (is it fixed?), every change since the state the
      previous iteration reviewed, including non-blocking fixes, and the direct
@@ -1484,6 +1542,12 @@ At the end of each milestone, record:
   instruction that changes nothing. They are planning candidates, never
   unapproved rows; and
 - remaining blockers or external actions.
+
+Distinguish elapsed span, command execution, review intervals, rework and owner
+waits, identifying overlaps and capture gaps. Do not add overlapping intervals
+or infer model work from unexplained elapsed time. Explain material estimate
+overruns without skipping checks or accepting unmet requirements. This requires
+no new ledger, recorder or audit opt-in.
 
 Mark the overall goal complete only when every required status in the
 reconciled selection is complete and no required work remains.

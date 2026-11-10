@@ -318,19 +318,28 @@ SQLite 的 FTS5，否则回退为字面匹配。同一 Python CLI 支持 Linux�
 在包含此功能的仓库检出目录中运行：
 
 ```bash
-mkdir -p ~/.local/bin
-install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
-install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py ~/.local/bin/
-install -m 755 harness/tabilet_explorer.py ~/.local/bin/
-install -d ~/.local/share/tabilet/explorer
-install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
-install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
 export PATH="$HOME/.local/bin:$PATH"
+(
+  set -e
+  mkdir -p ~/.local/bin
+  if [ -L "$HOME/.local/bin/tackle-memory-bank-api-loop" ]; then
+    test harness/tackle-memory-bank-api-loop -ef "$HOME/.local/bin/tackle-memory-bank-api-loop"
+  else
+    install -m 755 harness/tackle-memory-bank-api-loop ~/.local/bin/
+  fi
+  install -m 644 harness/tabilet_audit.py harness/tabilet_index.py harness/tabilet_reflect.py ~/.local/bin/
+  install -m 755 harness/tabilet_explorer.py ~/.local/bin/
+  install -d ~/.local/share/tabilet/explorer
+  install -m 644 harness/explorer/index.html harness/explorer/explorer.css harness/explorer/explorer.js ~/.local/share/tabilet/explorer/
+  install -m 755 harness/tabilet_audit_host.py ~/.local/bin/tabilet-audit
+)
 tabilet-audit audit enable /absolute/project
 tabilet-audit index sync /absolute/project
 tabilet-audit index search /absolute/project 'authentication' --kind task
 tabilet-audit explorer /absolute/project --port 8000
 ```
+
+符号链接检查会保留已指向此检出目录的运行器。若检查失败，说明该链接指向另一个检出目录，代码块会在复制其余文件之前停止；请用 `ls -l ~/.local/bin/tackle-memory-bank-api-loop` 查看，重新建立链接或换成独立副本，然后再次运行该代码块。
 
 用户必须为每个项目手动启用审计；数据库保存该设置，新会话沿用它。
 提交 `tabilet/.gitignore` 中的 `/audit.sqlite3*` 与离线反思提案路径，让数据库、旁文件和提案保持未跟踪。

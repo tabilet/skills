@@ -1215,6 +1215,20 @@ SHARED_PLANNING_BLOCKS = {
         "GOAL.md",
         "skills/memory-bank-next/references/interactive-controls.md",
     ),
+    "repair-reconsideration": (
+        "GOAL.md",
+        "skills/memory-bank-next/references/interactive-controls.md",
+    ),
+    "verification-environment-preflight": (
+        "template/tabilet/memory-bank/tech-stack.md",
+        "skills/memory-bank-upgrade/assets/template/tabilet/memory-bank/tech-stack.md",
+        "skills/memory-bank-init/references/write-contract.md",
+        "skills/memory-bank-propose/references/plan-update.md",
+        "skills/memory-bank-reconcile/references/plan-update.md",
+        "skills/memory-bank-init/references/testing-profiles.md",
+        "skills/memory-bank-propose/references/testing-profiles.md",
+        "skills/memory-bank-reconcile/references/testing-profiles.md",
+    ),
 }
 
 
@@ -3808,15 +3822,56 @@ def test_policy_and_convergent_review_gate():
         "Recording findings, dispositions, review counters, reviewed state, register rows and owner notes is not a review change",
         "A class O check never uses this gate", "reservations, budget and stop conditions bind",
         "fix now", "carry", "decline", "test-policy compliance",
+        "For a one-task milestone", "required gates have passed",
+        "all independence, model and reviewed-state requirements are met",
+        "Record it once as the milestone's initial iteration",
+        "unknown boundaries remain unknown", "Do not add overlapping intervals",
+        "no new ledger, recorder or audit opt-in",
     )
     required = {
         "GOAL.md": gate_tokens + (
+            "Any custom failure disposition names its failure class",
+            'never infer an exception to "any failure."',
+            "when no applicable stop rule requires a pause",
+            "same class of consumer or reader gap found again in a later review round",
+            "projects may override it explicitly", "There is no stock numeric size threshold",
+            "the stage or goal's last milestone owns this review",
+            "Keep unresolved owner questions", "queued input when the host exposes it",
+            "Establish the causal path and actual failing branch",
+            "every reviewer brief quotes the changed rules",
+            "never grants an unapproved exception or waives required acceptance evidence",
             "review findings carried, fixed or deferred, by ID",
             "stays in force for a check that uses it", "the approved `budget` is the only count",
             "A preset never writes a budget above the gate's default",
             "Findings blocking under the originating gate's criteria remain attached",
             "TEST_POLICY: tabilet/memory-bank/test-policy.md"),
         milestone: gate_tokens + (
+            "A milestone introducing a durable non-terminal state lists its legal exits",
+            "Map identified persistence boundaries and crash windows to recovery tests",
+            "Distinguish advisory performance targets from required acceptance thresholds",
+            "an unmet required threshold still prevents closure",
+            "never relabels the measurement as a pass",
+            "compares at least one narrower alternative or explains why none meets acceptance",
+            "same class of consumer or reader gap found again in a later review round",
+            "projects may override that trigger explicitly", "There is no stock numeric size threshold",
+            "## Integrated closure review", "If no integration milestone is planned",
+            "the stage or goal's last milestone owns this review",
+            "independent read-only reviewer", "recorded stage/goal baseline and final integrated state",
+            "discoverable from every interface that creates it",
+            "recovery at each identified persistence boundary and crash window",
+            "loading supported earlier state formats, or clear refusal with a recovery path",
+            "isolation of unrelated items from one item's failure",
+            "protection of other tasks' in-flight work from user actions",
+            "does not reopen frozen records or create an additional unbounded gate",
+            "**Tool limits.**", "labelled `tool limit`", "external tool ownership never excuses missing acceptance evidence",
+            "**Verification discrepancies.**", "A timeout is still FAIL",
+            "**Test programs.**", "Shared test helpers with meaningful logic need small focused tests",
+            "Weakened tests and removed assertions receive ordinary severity",
+            "consider removing that fix before adding another", "## Diagnosis before repair",
+            "no per-fix approval or separate readiness-review gate",
+            "list its existing readers and their compatibility requirements",
+            "a race watch list in the final integration milestone's verification section",
+            "its named test actually ran and passed instrumented",
             "## Open review findings", "Last used ID: none", "FND-01",
             "| ID | Finding | Severity | Origin | Fix owner | Disposition |",
             "Horizon closure", "carried as FND-03", "fixes FND-03", "deferred by human",
@@ -3839,9 +3894,37 @@ def test_policy_and_convergent_review_gate():
             "`identify-specification` correction in `tabilet/docs/history/corrections.json`",
             "may head its specification without padding there (`M1` for `M01`)"),
         TEST_POLICY_FILE: (
+            "Classify verification needs by the change's behavioral effect",
+            "approved risk-scaled verification contract in `tech-stack.md`",
+            "Classification alone never removes a required gate",
+            "Demonstrate native cache invalidation", "Required gates remain fresh",
+            "If diagnosis does not reproduce the failure, record the original failure",
+            "Near-limit timing alone establishes neither cause nor eligibility",
+            "Use native per-test timing output when available", "up to ten measured slow tests",
+            "Propose scoped maintenance without starting it automatically",
+            "immutable fixture preparation with isolated per-case mutable state",
+            "immutable shared data does not itself require serialization",
+            "cannot repair a plain-run contention failure",
+            "exposed product concurrency defects as ordinary findings",
+            "lists each fixture by name, its required gate and owner",
+            "names and blanket filters alone do not establish eligibility",
+            "verification-environment preflight; it adds no separate readiness review or approval gate",
+            "It never converts a FAIL into a PASS",
+            "concurrency is not their universal trigger",
+            "## Instrumented timing diagnosis", "they do not turn a failed run into a pass",
+            "Missing or unproven acceptance remains P1",
+            "record residual coverage risks", "measurement does not authorize raising them",
+            "Measure the instrumented guard margin on an idle host",
+            "Verify that concurrency and timeout knobs affect the selected tests",
+            "**Heavy fixtures.**", "name the required gate that enables it",
+            "Reviewer briefs quote changed verification rules",
             "PASS or FAIL, never UNKNOWN", "It grants no authority",
             "**Focused checks and required gates.**", "is the row's focused verification and its evidence",
             "not after each edit", "something a gate reads has changed",
+            "the elapsed wall-clock time", "Elapsed time is a measurement for planning, not an acceptance limit",
+            "## Example risk tiers (not in force)", "Nothing here applies until `tech-stack.md` records an approved contract",
+            "classification alone never reduces a check", "Every required gate stays required",
+            "is classed by what a toolchain does with it",
             "build or type-check the whole project", "behavior its consumers rely on",
             "consumers of a changed concurrency contract", "This limits the row check, never a required gate",
             "where the toolchain has such a step", "the project's static checks and the affected whole units",
@@ -3876,15 +3959,32 @@ def test_policy_and_convergent_review_gate():
         "template/AGENTS.md": (
             "Every test follows the test policy in `tabilet/memory-bank/test-policy.md`; it grants no authority.",),
         "template/tabilet/memory-bank/tech-stack.md": ("**Test policy**", "- **Row checks**:", "- **Stage qualification**:",
+            "**Risk-scaled verification contract**: [project contract, default none; the example tiers in test-policy.md are not in force]",
+            "**Milestone time estimates**", "**Gate maintenance threshold**",
+            "Check inherited environment and configuration precedence",
+            "Use invocation-local corrections or refuse an unsafe setup",
+            "do not change global configuration, expose secrets, download missing inputs or broaden authority",
+            "Reuse the check while relevant environment inputs remain unchanged",
+            "before every counted protected attempt",
             "Run the row check before a row is done or a task review", "before each counted attempt of a check that uses the verification-attempt gate"),
-        "template/tabilet/memory-bank/status-M01.md": ("fixes FND-nn", "class O gate", "says so when its result came from the toolchain's cache"),
+        "template/tabilet/memory-bank/status-M01.md": ("fixes FND-nn", "class O gate", "says so when its result came from the toolchain's cache",
+            "the elapsed wall-clock time and one log link"),
         "AGENTS.md": (
             "Open review findings register", "`FND-`", "make no further review change",
+            "Gate records carry elapsed time as a planning measurement, never a limit",
             "it does not read the register", "class R", "`TEST_POLICY`",
             "Grant budgets bind independently of test class",
             "refusals are Lower there", "`capacity limit` row ends through human deferral or a planned fix",
             "defining levels needs its own human-approved proposal"),
         "skills/memory-bank-init/references/write-contract.md": (
+            "Risk-scaled verification contract", "Milestone time estimates", "Gate maintenance threshold",
+            "include this common preflight in the proposed `tech-stack.md` verification standards",
+            "stock integrated-closure, durable-state-exit, repair-sizing and performance-disposition rules",
+            "If no integration milestone is planned",
+            "same class of consumer or reader gap found again in a later review round",
+            "Check inherited environment and configuration precedence",
+            "`Tool limits`, `Verification discrepancies` and `Test programs`",
+            "`Diagnosis before repair`", "create no separate ledger",
             "tabilet/memory-bank/test-policy.md", "TEST_POLICY: <resolved path or none>",
             "Open review findings", "keeps P2 blocking",
             "`Safe capacity refusals` and `Advisory records` paragraphs, which a project's own severity",
@@ -3893,9 +3993,23 @@ def test_policy_and_convergent_review_gate():
             "`capacity limit` note, and its execution-path",
             "carry no controller, receipt or other-language method forward"),
         "skills/memory-bank-goal/references/subagents.md": (
+            "quote the five governing integrated-closure lenses",
+            "final integrated state and owning review counter",
+            "the stage or goal's last milestone owns that review",
+            "including bytes versus characters", "Verify receipt or observed turn start",
+            "inspect uncertain delivery before retrying", "Unresolved owner questions",
+            "Quote changed verification rules with their scope and approval source",
             "scopes the iteration as the governing gate", "resolved `TEST_POLICY`",
             "(P1, P2, Lower)", "review changes remain unreviewed", "register updates"),
         "skills/memory-bank-upgrade/SKILL.md": (
+            "Show changed gates, ownership, performance dispositions and protocol identity",
+            "installation never activates adoption or resumes work",
+            "overridable repeated reader/consumer-gap reconsideration trigger",
+            "`Risk-scaled verification contract`", "`Milestone time estimates`", "`Gate maintenance threshold`",
+            "author self-check only as a human-requested optional trial",
+            "`Tool limits`, `Verification discrepancies`, `Test programs`",
+            "instrumented timing diagnosis", "never downgrade old failures",
+            "No additional ledger or automatic protocol-identity approval is created",
             "explicit adoption", "keep P2 blocking", "Open review findings",
             "Earlier UNKNOWN, aborted and failed class O records stay literal",
             "prescribes a method the test policy forbids", "frozen records stay as they are",
@@ -3904,8 +4018,22 @@ def test_policy_and_convergent_review_gate():
             "compares `test-policy.md` with the", "Separately compares `milestone.md`", "by content, not step number",
             "is not\n  already compatible, so a repeat run is not a no-op", "rule 8 on fixture skips", "a missing `Row checks` or `Stage qualification` line is offered",
             "in `tech-stack.md`'s verification standards", "`tech-stack.md` pointers and its `Row checks` and `Stage qualification` lines",
-            "the capacity and unit size section", "Guarantee levels never count toward compatibility", "A project with nothing else to change stays a no-op"),
+            "the capacity and unit size section", "Guarantee levels never count toward compatibility", "A project with nothing else to change stays a no-op",
+            "The `Example risk tiers (not in force)` section and rule 5's elapsed-time record",
+            "never count toward compatibility either"),
+        "skills/memory-bank-next/references/interactive-controls.md": (
+            "same class of consumer or reader gap found again in a later review round",
+            "projects may override it explicitly", "There is no stock numeric size threshold",
+            "## Optional author self-check", "When the human requests a self-check trial",
+            "consumes no additional review iteration and replaces no required check",
+            "## Session continuity", "queued input when the host exposes it",
+            "every reviewer brief quotes the changed rules",
+            "Unsent or unanswered questions grant no approval"),
         "skills/memory-bank-propose/references/plan-update.md": (
+            "stock integrated-closure, durable-state-exit, repair-sizing and performance-disposition rules",
+            "If no integration milestone is planned",
+            "same class of consumer or reader gap found again in a later review round",
+            "Check inherited environment and configuration precedence",
             "carries no controller, receipt or other-language method forward",
             "for a path the stage cannot reach", "unless acceptance requires them",
             "an agent never assigns one", "including under standing corrective approval",
@@ -3918,6 +4046,7 @@ def test_policy_and_convergent_review_gate():
                             "every stock rule it lacks or that", "status-file preamble gets the matching recording text",
                             "rules 7 and 8 are among them", "`Project specifics` and in `tech-stack.md`"),
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
+                         "Gate records include their elapsed time, a measurement for planning and never an acceptance limit",
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review",
                          "advisory level you approved is also Lower", "the milestone that completes the stage",
@@ -3938,6 +4067,12 @@ def test_policy_and_convergent_review_gate():
     for relative in ("skills/memory-bank-goal/references/model-policy.md",
                      "skills/memory-bank-next/references/model-policy.md"):
         required[relative] = ("iteration scope the governing gate defines", "resolved `TEST_POLICY`")
+    required["skills/memory-bank-init/references/testing-profiles.md"] = (
+        "Risk-scaled verification contract", "Milestone time estimates", "maintenance threshold",
+        "A light profile does not itself approve reduced gates",
+        "Check inherited environment and configuration precedence",
+        "Preserve the existing preflight before every counted protected attempt",
+    )
     for relative, tokens in required.items():
         path = ROOT / relative
         if not path.is_file():
@@ -3945,6 +4080,69 @@ def test_policy_and_convergent_review_gate():
             continue
         for token in missing_contract_tokens(path.read_text(), tokens):
             problems.append(f"{relative}: missing test-policy/review contract {token!r}")
+
+    # Check obligations where executors encounter them, not merely somewhere
+    # in the document: baseline initialization and the ordinary closure path
+    # must both reach integrated review, including on single-agent hosts.
+    scoped = {
+        (milestone, "## Integrated closure review", "## Milestone review procedure"): (
+            "Before the first contributing task", "full HEAD commit",
+            "initial staged and unstaged diff and relevant untracked file contents, with hashes",
+            "Without Git, retain a snapshot", "hashed manifest",
+            "Reuse this baseline across resumes and child dispatch",
+            "including under `COMMIT_POLICY: none`", "recover the original baseline",
+            "disclose the missing baseline and review the full integrated implementation against acceptance",
+            "Require an independent read-only reviewer only when",
+            "Otherwise the executor may perform the review in a separate read-only phase",
+            "Missing explicitly required independence leaves the review pending",
+            "Use the owning milestone's existing severity rules, review counter and limit",
+        ),
+        (milestone, "## Milestone review procedure", "\n## "): (
+            "For the designated integrated-review owner, iteration 1 also performs",
+            "[Integrated closure review](#integrated-closure-review)",
+            "recorded contributing scope and starting/final states",
+            "keep this within the same iteration and limit"),
+        ("GOAL.md", "## Initialization", "## Milestone Loop"): (
+            "resolve its approved owner, contributing milestones and acceptance scope",
+            "Order its closure after every contributor",
+            "Before the first contributing task, capture or recover the integrated-review baseline",
+            "Reuse it on resume and child dispatch", "`COMMIT_POLICY: none`",
+            "full-implementation review fallback"),
+        ("GOAL.md", "#### Bounded Review-Fix Gate", "## Commit And External-Mutation Policy"): (
+            "For the designated integrated-review owner, iteration 1 also covers",
+            "Its own milestone base alone is insufficient",
+            "within this same iteration and limit",
+            "preserve explicitly required reviewer independence"),
+        (TEST_POLICY_FILE, "## Instrumented timing diagnosis", "## Capacity and unit size"): (
+            "A P2 disposition applies to the diagnosed defect, never to the failed gate result",
+            "Every still-required gate must pass before closure",
+            "must explicitly identify replacement evidence and any approved gate or policy change",
+            "retain the original FAIL", "Missing or unproven acceptance remains P1"),
+        (TEST_POLICY_FILE, "7. **Focused checks and required gates.**", "8. **Match the fixture to the variant.**"): (
+            "Unrelated changes need no separate non-trigger note",
+            "This never excuses a required race check",
+            "may tailor routine row checks only within the governing test policy and acceptance",
+            "Removing or replacing a required gate needs explicit human approval of that specific contract change",
+            "including any necessary policy or acceptance amendment",
+            "a Stack entry alone grants no exception"),
+    }
+    for (relative, start, end), tokens in scoped.items():
+        section = (ROOT / relative).read_text().partition(start)[2].partition(end)[0]
+        for token in missing_contract_tokens(section, tokens):
+            problems.append(f"{relative}: {start} lacks scoped obligation {token!r}")
+    for relative in SHARED_PLANNING_BLOCKS["verification-environment-preflight"]:
+        text = (ROOT / relative).read_text()
+        for token in missing_contract_tokens(text, (
+                "`standard` adds no light-profile constraints",
+                "Independently adopted stock test-policy requirements",
+                "apply under every profile")):
+            problems.append(f"{relative}: common preflight lacks {token!r}")
+        # Missing shared boundaries are reported by shared_planning_blocks.
+        end = text.find("<!-- END SHARED verification-environment-preflight -->")
+        light = text.find("## Shared light-profile defaults" if relative.endswith("testing-profiles.md")
+                          else "For a light profile, include these rules")
+        if end >= 0 and light >= 0 and end > light:
+            problems.append(f"{relative}: common preflight is inside light-only guidance")
 
     # Launch references and the protocol example all carry the field.
     for relative in ("GOAL.md", "skills/memory-bank-goal/SKILL.md",
@@ -4006,6 +4204,13 @@ def test_policy_and_convergent_review_gate():
     shared_text = (ROOT / "skills/memory-bank-next/SKILL.md").read_text()
     shared = shared_text.split("<!-- shared-execution-start -->", 1)[-1].split("<!-- shared-execution-end -->", 1)[0]
     for token in missing_contract_tokens(shared, (
+            "Establish the causal path and actual failing branch",
+            "the project's diagnosis guidance in `tabilet/memory-bank/milestone.md`",
+            "before the first contributing task capture or recover its baseline",
+            "full-implementation review fallback, never omitted acceptance review",
+            "For the designated integrated-review owner, its initial iteration includes the five integrated lenses",
+            "list its readers and compatibility requirements",
+            "no per-fix approval or separate readiness-review gate",
             "test policy already resolved for this run", "`AGENTS.md` declares",
             "`tabilet/memory-bank/test-policy.md` when it exists",
             "declared policy file that is missing pauses verification",

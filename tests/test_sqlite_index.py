@@ -902,3 +902,34 @@ class IndexTests(unittest.TestCase):
         retired.write_text(text.replace('**Review.** passed','**Review.** failed'))
         with self.assertRaises(a.AuditError):self.sync()
         self.assertEqual(ix.status(self.c,state['workspace_id'])['generation'],stable)
+
+    def test_four_column_status_table_indexes_label_and_notes_correctly(self):
+        self.source.write_text(
+            '| ID | Task | State | Notes |\n'
+            '|---|---|---|---|\n'
+            '| M01.1 | Implement core feature | `[+]` | Completed on schedule |\n'
+        )
+        self.sync()
+        row = self.c.execute('SELECT explicit_id, label, state, notes FROM index_tasks').fetchone()
+        self.assertEqual(row[0], 'M01.1')
+        self.assertEqual(row[1], 'M01.1')
+        self.assertEqual(row[2], 'completed')
+        self.assertEqual(row[3], 'Completed on schedule')
+        self.assertNotIn('`[+]`', row[3])
+
+        self.source.write_text(
+            '| ID | Task | State | Notes |\n'
+            '|---|---|---|---|\n'
+            '| M01.1 | Implement core feature | `[ ]` | Pending execution |\n'
+        )
+        h.run('git', 'add', '-A', cwd=self.root)
+        h.run('git', 'commit', '-qm', 'update status to pending', cwd=self.root)
+        import tabilet_horizon as horizon
+        proj = horizon._live_projection(h.harness, self.root)
+        self.assertEqual(len(proj['rows']), 1)
+        self.assertEqual(proj['rows'][0]['task_id'], 'M01.1')
+        horizon._mark_in_progress(h.harness, self.root, proj['rows'][0])
+        self.assertIn('| M01.1 | Implement core feature | `[~]` | Pending execution |', self.source.read_text())
+        self.assertTrue(horizon._release_in_progress_marker(h.harness, self.root, proj['rows'][0]))
+        self.assertIn('| M01.1 | Implement core feature | `[ ]` | Pending execution |', self.source.read_text())
+

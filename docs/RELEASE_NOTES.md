@@ -1,3 +1,126 @@
+# memory-bank v2.23.2
+
+Patch release. It adds a timing record to the stock test policy and an inactive
+example of risk-scaled verification tiers. The stock `GOAL.md` protocol is
+unchanged, so its fingerprint is unchanged.
+
+- **Gate timing.** A required gate's record carries its elapsed wall-clock time,
+  and a reused result keeps its original time. The time is a measurement for
+  planning and never an acceptance limit. The status-file preamble says the same.
+  The gate maintenance threshold is unchanged.
+- **Example risk tiers.** `test-policy.md` gains an `Example risk tiers (not in
+  force)` table. It applies only if a project approves a risk-scaled verification
+  contract that adopts it, and classification alone still never reduces a check.
+  Every required gate stays required. Text inside a source file, such as a
+  comment, directive, pragma or string, is classed by what a toolchain does with
+  it, and the second tier keeps the UI check. `tech-stack.md` points to the table.
+- **Upgrade.** `memory-bank-upgrade` treats both additions as optional. They never
+  count toward compatibility and are offered only in a proposal that already has
+  other changes, so a project with nothing else to change stays a no-op.
+
+**Scope.** The stock test policy, the status-file preamble, `tech-stack.md`, the
+upgrade skill and its bundled assets, the goal guides, `AGENTS.md` and the
+repository checks change. The runner, the harness and `GOAL.md` do not.
+
+**Upgrade note.** Installing this plugin alone changes no project file. An
+existing project adopts the timing record and the example tiers through
+`memory-bank-upgrade`, which writes only after you approve the complete proposal.
+
+# memory-bank v2.23.1
+
+Patch release. It fixes regressions that v2.23.0 introduced in how frozen
+retired records and status tables are read, and one reflection crash. The stock
+`GOAL.md` protocol is unchanged, so its fingerprint is unchanged.
+
+- **Frozen records.** A retired record that v2.23.0 accepted is accepted again.
+  A non-task table with a marker in its first column no longer blocks it, and
+  marker legends are recognised by their header rather than one fixed wording.
+  Active status files keep the column-0 check.
+- **Notes columns.** Notes are read by column role, so `ID | Task | Notes | State`
+  keeps an accepted-successor or dependency note placed before State. A task
+  description that names a successor does not close the row. The index projection
+  is `v13`, so the next sync rebuilds cached task notes.
+- **Install guard.** The install snippets in the installation, SQLite and Chinese
+  guides run in a `set -e` block, so a runner symlink that points at another
+  checkout stops the block before other files are copied. `check_toolkit` also
+  refuses a runner whose parser interface differs from the index's.
+- **Reflection.** A REST reply that is not a JSON object is a controlled backend
+  failure, not an attribute error at milestone closure.
+- **Tests.** The history-correction tests build their Git repository only when
+  they need it. Regression tests cover each change above.
+
+**Scope.** The shared runner parser, the index, the reflection helper, the
+toolkit check, the installation guides and the repository tests change. The
+stock test policy, milestone template and `GOAL.md` do not.
+
+**Upgrade note.** Installing this plugin alone changes no project file. Update the
+separately installed runner and `tabilet-audit` together, since the toolkit check
+refuses a mismatch. A project's index rebuilds on its next sync.
+
+# memory-bank v2.23.0
+
+Adds integrated closure and verification rules, and fixes status validation that
+could reject evidence links or silently miss malformed task state. The stock
+`GOAL.md` protocol changes and has a new fingerprint.
+
+- **Status and evidence tables (F).** Ordinary evidence links, badges, nested
+  labels and reference links remain readable. Reserved state tokens stay visible
+  inside links and formatting, and reference definitions cannot hide them.
+  Declared State columns still require exact backticked markers. A split table
+  with state outside the legacy second column stops with a request to repeat the
+  State header instead of silently reporting completion. Shared parser fixtures
+  and runner, retirement and historical-index regressions cover these cases.
+- **Review and diagnosis (A–E).** Tool-limit findings depend on their effect on
+  valid evidence and supported behavior. Test programs stay simple and cover
+  meaningful helper logic. Harmless verification discrepancies retain actual
+  results and prescribed reruns. Instrumented timing diagnosis needs causal
+  evidence and preserves failed results. Diagnose the failing branch before
+  repair, inspect affected readers and consumers, retain unresolved owner
+  questions, and verify agent handoffs within their granted scope.
+- **Integrated closure and repair scope (G–I).** The integration milestone, or
+  the last milestone when none is planned, owns five cross-milestone review
+  lenses: durable-state exits, persistence/crash recovery, earlier-format
+  compatibility, failure isolation and protection of other in-flight work.
+  Capture and retain its starting state before contributing tasks, including
+  uncommitted or unversioned sources. Missing historical baselines require full
+  implementation and acceptance review. Ordinary reviewer arrangements apply
+  unless independence is explicitly required. Repair proposals compare scope,
+  consumers, verification cost and a narrower alternative; a repeated class of
+  reader or consumer gap in a later review triggers reconsideration by default.
+  Projects may override that trigger; there is no numeric repair-size threshold.
+- **Verification contracts and evidence (J–Q).** Classify changes by behavioral
+  risk, including instruction changes. Stack gains an optional risk-scaled
+  verification contract; reducing required gates needs explicit approval of the
+  specific change and replacement coverage. A P2 timing disposition never passes
+  a failed required gate. Keep timing estimates advisory, measure expensive
+  tests, isolate mutable state before parallelism, prove native cache invalidation
+  for external inputs, and assign heavy fixtures to named qualification gates.
+  Environment preflight applies independently of light-profile selection and
+  permits only invocation-local corrections within existing authority. Required
+  performance thresholds still block closure; advisory targets retain their
+  actual measurements. Unrelated changes need no race non-trigger note.
+- **Optional author self-check (R).** A human may request a trial before review.
+  It uses the existing brief, adds no review iteration, and replaces neither
+  independent review nor required checks. Permanent adoption needs a proposal.
+- **Synchronized contracts.** Templates, upgrade assets, execution prompts,
+  planning references and goal bundles agree. Shared-block checks protect the
+  reconsideration and environment-preflight wording from drift.
+
+**Protocol identity.** The previous released fingerprint was `3bab1d4a…`.
+The initial A–E/G–R work changed it through the unreleased `dcf058fb…` build;
+review fixes produce the v2.23.0 fingerprint
+`0967349d8bbff76da80f3f1377e5732e4c4b30b94f432ea968c82774b8d0c4f6`.
+The five registries identify the current protocol and retain earlier tagged
+fingerprints. Intermediate development hashes are not recorded as releases.
+
+**Adoption.** Installing this release does not adopt its project rules or change
+project files. Existing projects adopt them through `memory-bank-upgrade` after
+approval of its complete proposal. A resumed goal whose recorded protocol
+identity differs must obtain approval of the new identity, preserving existing
+grants, denials, review counters and limits. Update separately installed runner
+or audit executables to receive the parser fixes; updating the plugin alone does
+not replace them. The DSH companion parser adaptation is a separate follow-up.
+
 # memory-bank v2.22.2
 
 Adds explicit historical spelling corrections and fixes retirement-index table

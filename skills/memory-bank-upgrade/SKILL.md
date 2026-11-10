@@ -211,7 +211,8 @@ project adopts them, its stricter text stays binding. The proposal:
   specifics`, or declaring its path in `AGENTS.md`.
 - For a project that already has the policy, compares `test-policy.md` with the
   bundled one rule by rule and proposes merging every stock rule that is missing
-  or differs, including rule 3, rule 5, rule 7 on focused checks and required
+  or differs, including rule 3, rule 5 (apart from its elapsed-time record), rule 7 on
+  focused checks and required
   gates, rule 8 on fixture skips, the capacity and unit size section, and the reviewer
   list. Separately compares `milestone.md` with the
   bundled one by content, not step number, for the closure step that reuses
@@ -227,6 +228,38 @@ project adopts them, its stricter text stays binding. The proposal:
   section, its specification line and the `Advisory records` paragraph only in a
   proposal that already has other changes, including first adoption, as their own
   decision. A project with nothing else to change stays a no-op.
+- The `Example risk tiers (not in force)` section and rule 5's elapsed-time record,
+  with the status preamble's matching text, never count toward compatibility
+  either. Offer them only in a proposal that already has other changes, as their
+  own decision; the example tiers apply only if the project approves a risk-scaled
+  verification contract that adopts them.
+- Include the bundled `Tool limits`, `Verification discrepancies`, `Test programs`
+  and `Diagnosis before repair` rules in the explicit adoption comparison, along
+  with instrumented timing diagnosis, the integration race watch list and heavy
+  fixture ownership. Preserve project overrides and stronger gates. Show any
+  acceptance or timing-policy conflict for individual approval; never downgrade
+  old failures, rewrite frozen evidence or infer acceptance from absent race
+  reports. Reviewer briefs quote changed rules with their scope and approval
+  source. No additional ledger or automatic protocol-identity approval is created.
+- Compare integrated lifecycle review, durable-state exits, repair sizing,
+  risk-scaled verification, cache invalidation, environment preflight and timing
+  reporting explicitly. Show changed gates, ownership, performance dispositions
+  and protocol identity in the proposal. Preserve project overrides, active
+  counters and frozen evidence; installation never activates adoption or resumes
+  work. Include the last milestone's integrated-review ownership when no
+  integration milestone is planned, the overridable repeated reader/consumer-gap
+  reconsideration trigger, and the `Risk-scaled verification contract` entry
+  (default `none`), plus optional advisory `Milestone time estimates` and a
+  `Gate maintenance threshold` (default `none`). Add no numeric repair-size
+  threshold or automatic reduced checks. Offer the author self-check only as a
+  human-requested optional trial.
+  Include baseline capture before the first contributing task, resume reuse,
+  the full-implementation fallback for an unrecoverable historical baseline,
+  and the ordinary milestone procedure's integrated-review hook. Preserve
+  explicitly required reviewer independence; do not impose delegation on hosts
+  without such a requirement. A reduced-check contract cannot implicitly remove
+  required gates, and a P2 timing disposition cannot pass a failed required gate.
+  Keep stock test-policy preflight separate from light-profile-only additions.
 - Merges into `milestone.md` the severity table, review procedure, attempt
   gate, `Open review findings` register and execution-path note, and the safe
   capacity refusal paragraph with its `capacity limit` register note. Adds the
