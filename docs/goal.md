@@ -405,7 +405,8 @@ evidence. Direct consumers join when the row changes a public contract, a
 persisted format or behavior they rely on. This check may use the toolchain's
 test cache and says so. Required gates run fresh immediately before the whole
 review, and again only when something a gate reads has changed. A documentation
-change skips the rerun only if no gate reads that document. A capacity fixture
+change skips the rerun only if no gate reads that document. Gate records include
+their elapsed time, a measurement for planning and never an acceptance limit. A capacity fixture
 may skip an instrumented variant only under the policy's rule 8. A project may
 also exclude third-party code from instrumentation under the policy's capacity
 advice, and the milestone that completes the stage then runs those gates without

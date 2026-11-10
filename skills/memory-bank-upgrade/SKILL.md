@@ -211,7 +211,8 @@ project adopts them, its stricter text stays binding. The proposal:
   specifics`, or declaring its path in `AGENTS.md`.
 - For a project that already has the policy, compares `test-policy.md` with the
   bundled one rule by rule and proposes merging every stock rule that is missing
-  or differs, including rule 3, rule 5, rule 7 on focused checks and required
+  or differs, including rule 3, rule 5 (apart from its elapsed-time record), rule 7 on
+  focused checks and required
   gates, rule 8 on fixture skips, the capacity and unit size section, and the reviewer
   list. Separately compares `milestone.md` with the
   bundled one by content, not step number, for the closure step that reuses
@@ -227,6 +228,11 @@ project adopts them, its stricter text stays binding. The proposal:
   section, its specification line and the `Advisory records` paragraph only in a
   proposal that already has other changes, including first adoption, as their own
   decision. A project with nothing else to change stays a no-op.
+- The `Example risk tiers (not in force)` section and rule 5's elapsed-time record,
+  with the status preamble's matching text, never count toward compatibility
+  either. Offer them only in a proposal that already has other changes, as their
+  own decision; the example tiers apply only if the project approves a risk-scaled
+  verification contract that adopts them.
 - Include the bundled `Tool limits`, `Verification discrepancies`, `Test programs`
   and `Diagnosis before repair` rules in the explicit adoption comparison, along
   with instrumented timing diagnosis, the integration race watch list and heavy

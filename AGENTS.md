@@ -630,7 +630,8 @@ spelling so an inbound link survives translation.
   review gate, explicitly through `memory-bank-upgrade`. Its rule 7 separates focused
   checks from required gates: rows build everything and use affected whole units as
   evidence, gates run fresh before the whole review and rerun only when something a
-  gate reads has changed. Rule 8 lets a named capacity fixture skip an instrumented
+  gate reads has changed. Gate records carry elapsed time as a planning measurement, never a limit.
+  Rule 8 lets a named capacity fixture skip an instrumented
   variant only under its stated conditions. Its capacity and unit size section is
   advice, not a gate. The convergent review gate applies tool-limit,
   verification-discrepancy, and test-program rules, causal diagnosis before repair,

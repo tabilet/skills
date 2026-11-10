@@ -57,9 +57,10 @@ test on loopback fixtures with a throwaway profile is class O.
 5. **Light bookkeeping.** This policy adds no attempt counters, failure streaks
    or numeric allowances. For each required gate the status file records the
    command, the source revision or saved diff hash (and artifact identity when
-   one is qualified), PASS or FAIL, and one link to a log kept in ignored
-   scratch; a reused result says its inputs are unchanged. No per-attempt
-   narrative. **Authorization is separate:** when a run needs an explicit
+   one is qualified), PASS or FAIL, the elapsed wall-clock time, and one link to
+   a log kept in ignored scratch; a reused result says its inputs are unchanged
+   and keeps its original time. Elapsed time is a measurement for planning, not
+   an acceptance limit. No per-attempt narrative. **Authorization is separate:** when a run needs an explicit
    grant, that grant's scope, reservations, budget and stop conditions bind as
    the goal protocol states. An exhausted budget pauses the run for human
    direction even though the test is class O.
@@ -151,6 +152,25 @@ test on loopback fixtures with a throwaway profile is class O.
      overhead before skipping.
 
    The gate still runs whole units; only the named fixture is skipped.
+
+## Example risk tiers (not in force)
+
+This table is a starting point for a project's own risk-scaled verification
+contract. Nothing here applies until `tech-stack.md` records an approved contract
+that adopts or edits it; classification alone never reduces a check. Tiers shape
+only the routine row check. Every required gate stays required, and an unchanged
+gate result may be reused as rule 7 allows.
+
+| Change | Row check |
+|---|---|
+| Documentation prose, or status and record bookkeeping, that no toolchain reads | Static checks and the links or references it touches |
+| Local behavior with no changed contract | The whole-project build, static checks, the affected units, and the UI check when it changes UI |
+| A contract, persisted format, concurrency, safety rule or instruction that changes behavior | The full row check with direct consumers and the checks rule 7 adds for it |
+
+Classify by behavioral effect, as rule 7 requires. Text inside a source file, such
+as a comment, directive, pragma or string, is classed by what a toolchain does
+with it, so it is at least the second tier when one reads it. When unsure, use
+the higher tier.
 
 ## Instrumented timing diagnosis
 

@@ -53,7 +53,7 @@
 
 - **Test policy**: every test follows [test-policy.md](test-policy.md); this section holds the commands and limits it refers to.
 - **Testing profile**: `[standard | browserlight | golight | rustlight | tslight | jslight | pythonlight]`.
-- **Risk-scaled verification contract**: [project contract, default none].
+- **Risk-scaled verification contract**: [project contract, default none; the example tiers in test-policy.md are not in force].
 - **Focused tests**: [Command, target and hard limit; light-profile default: 30-second target / 2-minute cap].
 - **Row checks**: [Whole-project build or type-check, static checks and affected whole-unit test commands, or the narrower step a slow build uses].
 - **Full regression**: [Project command and wall-clock limit; light-profile default: 20-minute cap].
