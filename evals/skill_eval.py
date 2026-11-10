@@ -21,6 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
+sys.dont_write_bytecode = True
 import tempfile
 import time
 
@@ -380,49 +381,68 @@ def converse(runner, llm, project: pathlib.Path, system: str, task: dict, budget
     rebased = None
     turns = tokens = 0
     tokens_known = True
-    while True:
+    stage = "provider"
+    try:
         while True:
-            if turns >= min(task["max_turns"], budget):
-                return {"finished": False, "checkpoints": checkpoints, "finals": finals, "turns": turns,
-                        "tokens": tokens, "tokens_known": tokens_known, "note": "turn limit"}
-            if sum(len(m["content"]) for m in messages) > llm.max_history_chars:
-                return {"finished": False, "checkpoints": checkpoints, "finals": finals, "turns": turns,
-                        "tokens": tokens, "tokens_known": tokens_known, "note": "history limit"}
-            turns += 1
-            response = runner.call_llm(llm.provider, llm.api_base, llm.api_key, llm.model, messages,
-                                       llm.temperature, llm.max_tokens, llm.api_timeout, llm.max_retries)
-            usage = runner.normalize_usage(llm.provider, response.get("usage"))
-            if usage.get("input_total") is None or usage.get("output") is None:
-                tokens_known = False
-            tokens += (usage.get("input_total") or 0) + (usage.get("output") or 0)
-            try:
-                command = runner.extract_json(response["content"])
-            except Exception as exc:
-                messages += [{"role": "assistant", "content": response["content"]},
-                             {"role": "user", "content": f"Your response was not valid JSON: {exc}. Return exactly one JSON object."}]
-                continue
-            messages.append({"role": "assistant", "content": json.dumps(command)})
-            if isinstance(command.get("final"), str):
-                break
-            if command.get("tool") != "run_shell" or not isinstance(command.get("cmd"), str):
-                messages.append({"role": "user", "content": 'Invalid command. Use {"tool":"run_shell","cmd":"...","why":"..."} or {"final":"..."}.'})
-                continue
-            if task.get("stub_privileged"):
-                result = privileged_shell(runner, project, command["cmd"], llm)
-            else:
-                result = runner.shell_tool(project, command["cmd"], llm.tool_timeout, llm.max_tool_output, llm.allow_dangerous, llm.tool_env)
-            messages.append({"role": "user", "content": "Tool result:\n```json\n" + json.dumps(result, ensure_ascii=False, indent=2) + "\n```"})
-        checkpoints.append(snapshot(project))
-        finals.append(command["final"])
-        if not replies:
-            return {"finished": True, "checkpoints": checkpoints, "finals": finals, "turns": turns,
-                    "tokens": tokens, "tokens_known": tokens_known, "note": "", "rebased": rebased}
-        outside = (task.get("between") or [None] * len(task["replies"]))[len(task["replies"]) - len(replies)]
-        if outside:
-            subprocess.run(["bash", "-c", outside], cwd=project, capture_output=True, timeout=60)
-            rebased = snapshot(project)
-            rebased["rows"] = read_rows(runner, project, rebased["files"])
-        messages.append({"role": "user", "content": replies.pop(0)})
+            while True:
+                if turns >= min(task["max_turns"], budget):
+                    return {"finished": False, "checkpoints": checkpoints, "finals": finals, "turns": turns,
+                            "tokens": tokens, "tokens_known": tokens_known, "note": "turn limit"}
+                if sum(len(m["content"]) for m in messages) > llm.max_history_chars:
+                    return {"finished": False, "checkpoints": checkpoints, "finals": finals, "turns": turns,
+                            "tokens": tokens, "tokens_known": tokens_known, "note": "history limit"}
+                turns += 1
+                stage = "provider"
+                response = runner.call_llm(llm.provider, llm.api_base, llm.api_key, llm.model, messages,
+                                           llm.temperature, llm.max_tokens, llm.api_timeout, 0)
+                usage = runner.normalize_usage(llm.provider, response.get("usage"))
+                if usage.get("input_total") is None or usage.get("output") is None:
+                    tokens_known = False
+                tokens += (usage.get("input_total") or 0) + (usage.get("output") or 0)
+                stage = "runner"
+                if not tokens_known:
+                    return {"finished": False, "checkpoints": checkpoints, "finals": finals, "turns": turns,
+                            "tokens": tokens, "tokens_known": False, "status": "usage_unknown",
+                            "note": "provider omitted usage", "rebased": rebased}
+                try:
+                    command = runner.extract_json(response["content"])
+                except Exception as exc:
+                    messages += [{"role": "assistant", "content": (response.get("content") or "(empty response)")},
+                                 {"role": "user", "content": f"Your response was not valid JSON: {exc}. Return exactly one JSON object."}]
+                    continue
+                messages.append({"role": "assistant", "content": json.dumps(command)})
+                if not isinstance(command, dict):
+                    messages.append({"role": "user", "content": "Return one JSON object, not an array or scalar."})
+                    continue
+                if isinstance(command.get("final"), str):
+                    break
+                if command.get("tool") != "run_shell" or not isinstance(command.get("cmd"), str):
+                    messages.append({"role": "user", "content": 'Invalid command. Use {"tool":"run_shell","cmd":"...","why":"..."} or {"final":"..."}.'})
+                    continue
+                if task.get("stub_privileged"):
+                    result = privileged_shell(runner, project, command["cmd"], llm)
+                else:
+                    result = runner.shell_tool(project, command["cmd"], llm.tool_timeout, llm.max_tool_output, llm.allow_dangerous, llm.tool_env)
+                messages.append({"role": "user", "content": "Tool result:\n```json\n" + json.dumps(result, ensure_ascii=False, indent=2) + "\n```"})
+            stage = "snapshot"
+            checkpoints.append(snapshot(project))
+            finals.append(command["final"])
+            if not replies:
+                return {"finished": True, "checkpoints": checkpoints, "finals": finals, "turns": turns,
+                        "tokens": tokens, "tokens_known": tokens_known, "note": "", "rebased": rebased}
+            outside = (task.get("between") or [None] * len(task["replies"]))[len(task["replies"]) - len(replies)]
+            if outside:
+                stage = "fixture"
+                subprocess.run(["bash", "-c", outside], cwd=project, capture_output=True, timeout=60, check=True)
+                rebased = snapshot(project)
+                rebased["rows"] = read_rows(runner, project, rebased["files"])
+            messages.append({"role": "user", "content": replies.pop(0)})
+
+    except (Exception, SystemExit, KeyboardInterrupt) as exc:
+        return {"finished": False, "checkpoints": checkpoints, "finals": finals, "turns": turns,
+                "tokens": tokens, "tokens_known": tokens_known if stage != "provider" else False,
+                "status": "infrastructure_error", "note": f"{stage} failure: {type(exc).__name__}",
+                "rebased": rebased}
 
 
 def prepare_project(tree: pathlib.Path, task: dict, dest: pathlib.Path) -> pathlib.Path:
@@ -439,7 +459,8 @@ def prepare_project(tree: pathlib.Path, task: dict, dest: pathlib.Path) -> pathl
     setup = task["dir"] / "setup.py"
     if setup.is_file():
         # A task's setup builds history or leaves a dirty worktree after the first commit; it runs in the project.
-        done = subprocess.run([sys.executable, "-B", str(setup)], cwd=dest, capture_output=True, text=True, timeout=120)
+        done = subprocess.run([sys.executable, "-B", str(setup)], cwd=dest, capture_output=True, text=True, timeout=120,
+                              env=dict(os.environ, TABILET_EVAL_TREE=str(tree.resolve())))
         if done.returncode:
             raise EvalError(f"{task['name']}: setup.py failed: {done.stderr.strip()[-500:]}")
     return dest
@@ -459,30 +480,28 @@ def run_trial(runner, llm, tree: pathlib.Path, task: dict, role: str, repeat: in
     initial_rows = read_rows(runner, project, initial["files"])
     system = PREAMBLE.format(bundle=bundle, skill=skill_file.read_text(encoding="utf-8"))
     started = time.time()
-    error = ""
-    try:
-        outcome = converse(runner, llm, project, system, task, budget)
-    except (SystemExit, OSError) as exc:
-        # A transport error (e.g. a TLS reset the runner does not retry) is an aborted trial, not a crash.
-        error = (f"provider or runner failure (exit {exc.code})" if isinstance(exc, SystemExit)
-                 else f"provider transport failure ({type(exc).__name__})")
-        outcome = {"finished": False, "checkpoints": [], "finals": [], "turns": 0, "tokens": 0, "tokens_known": False, "note": error}
-    final = snapshot(project)
-    rebased = outcome.get("rebased")
-    base_rows = rebased["rows"] if rebased else initial_rows
-    failed, facts = grade(task, runner, project, initial, base_rows, outcome["checkpoints"], final, outcome["finished"], rebased, outcome["finals"])
+    llm.tool_env = dict(llm.tool_env, TABILET_EVAL_TREE=str(tree.resolve()))
+    outcome = converse(runner, llm, project, system, task, budget)
     evidence = {}
-    if failed:
-        # What a failing check looked at, so a failure can be read without re-running the trial.
-        for relatives in (*expect_paths(task),):
-            for path in expand_paths(project, relatives):
-                if path.is_file():
-                    evidence[str(path.relative_to(project))] = read_text(path)[:6000]
+    try:
+        final = snapshot(project)
+        rebased = outcome.get("rebased")
+        base_rows = rebased["rows"] if rebased else initial_rows
+        failed, facts = grade(task, runner, project, initial, base_rows, outcome["checkpoints"], final, outcome["finished"], rebased, outcome["finals"])
+        if failed:
+            # Keep evidence collection inside the accounting-preserving failure boundary.
+            for relatives in expect_paths(task):
+                for path in expand_paths(project, relatives):
+                    if path.is_file():
+                        evidence[str(path.relative_to(project))] = read_text(path)[:6000]
+    except (Exception, SystemExit, KeyboardInterrupt) as exc:
+        outcome.update(status="infrastructure_error", note=f"snapshot/grading failure: {type(exc).__name__}")
+        failed, facts = [], {}
     return {"task": task["name"], "category": task["category"], "role": role, "repeat": repeat, "evidence": evidence,
-            "passed": not failed, "failed_checks": failed, "clean": None, "turns": outcome["turns"],
+            "passed": not failed and outcome.get("status", "ok") == "ok", "failed_checks": failed, "clean": None, "turns": outcome["turns"],
             "tokens": outcome["tokens"], "tokens_known": outcome["tokens_known"],
             "duration_sec": round(time.time() - started, 3), "note": outcome["note"],
-            "facts": facts, "messages": [m[:1500] for m in outcome["finals"]]}
+            "status": outcome.get("status", "ok"), "facts": facts, "messages": [m[:1500] for m in outcome["finals"]]}
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -508,8 +527,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         run_eval.check_report_dir(args.report_dir)
-        if args.repeats < 1:
-            raise EvalError("--repeats must be at least 1")
+        if min(args.repeats, args.max_calls, args.max_tokens) < 1:
+            raise EvalError("repeats and spend ceilings must be positive")
         if os.environ.get("ALLOW_UNSANDBOXED_SHELL") != "1":
             if not args.allow_unsandboxed_shell:
                 raise EvalError("the model runs shell commands; pass --allow-unsandboxed-shell and run this inside a disposable sandbox")
@@ -531,40 +550,30 @@ def main(argv: list[str] | None = None) -> int:
         provider_failure = None
         with tempfile.TemporaryDirectory(prefix="tabilet-skill-eval-") as tmp:
             work = pathlib.Path(tmp)
-            trees = {"baseline": run_eval.materialize_ref(args.baseline, work / "tree-baseline", ("template", "skills")),
-                     "candidate": run_eval.materialize_ref(args.candidate, work / "tree-candidate", ("template", "skills"))}
-            for repeat in range(1, args.repeats + 1):
-                for task in tasks:
-                    for role in ROLES:
-                        if calls >= args.max_calls or tokens >= args.max_tokens:
-                            aborted = f"ceiling reached ({calls} calls, {tokens} tokens)"
-                            break
-                        trial = run_trial(runner, llm, trees[role], task, role, repeat, work, args.max_calls - calls)
-                        calls += trial["turns"]
-                        tokens += trial["tokens"]
-                        if trial["note"].startswith("provider"):
-                            # A failed call says nothing about the text: keep the trial out of the score and stop.
-                            aborted = f"{trial['note']} in {task['name']} ({role}, repeat {repeat})"
-                            provider_failure = trial
-                            break
-                        trials.append(trial)
-                    if aborted:
-                        break
-                if aborted:
-                    break
-        by_role = {role: [t for t in trials if t["role"] == role] for role in ROLES}
+            trees = {"baseline": run_eval.materialize_ref(args.baseline, work / "tree-baseline", ("template", "skills", "GOAL.md")),
+                     "candidate": run_eval.materialize_ref(args.candidate, work / "tree-candidate", ("template", "skills", "GOAL.md"))}
+            refs = {role: run_eval.paired.identity(trees[role], getattr(args, role), ROOT) for role in ROLES}
+            tasks = run_eval.paired.freeze_tasks(tasks, work / "fixtures")
+            fixture_identity = run_eval.paired.manifest(work / "fixtures")
+            trials, calls, tokens, aborted = run_eval.paired.run_campaign(
+                tasks, args.repeats, args.max_calls, args.max_tokens,
+                run_eval.paired.guard_inputs(
+                    lambda task, role, repeat, budget: run_trial(runner, llm, trees[role], task, role, repeat, work, budget),
+                    [*trees.values(), work / "fixtures"]),
+                args.report_dir / "campaign-progress.json")
+        by_role, excluded = run_eval.paired.pair_scored({role: [t for t in trials if t["role"] == role] for role in ROLES})
         decision = run_eval.decide(by_role["baseline"], by_role["candidate"], args, aborted)
         if provider_failure:
             decision = {"decision": "inconclusive", "reasons": [f"stopped early: {aborted}; the scored trials are uneven, rerun"]}
-        changed = run_eval.git("diff", "--name-only", args.baseline, args.candidate, "--", "template", "skills", check=False)
         report = {
-            "schema": "tabilet.skill-eval-report/v1", "baseline": args.baseline, "candidate": args.candidate,
+            "schema": "tabilet.skill-eval-report/v1", "refs": refs, "fixture_identity": fixture_identity,
+            "model": os.environ.get("LLM_MODEL"), "provider": os.environ.get("LLM_PROVIDER", "openai"), "excluded_pairs": excluded, "baseline": args.baseline, "candidate": args.candidate,
             "repeats": args.repeats, "held_out": args.held_out, "tasks": [t["name"] for t in tasks],
             "decision": decision, "summary": {role: run_eval.summarize(by_role[role]) for role in ROLES},
             "flaky": run_eval.flaky_tasks(trials), "trials": trials, "calls_used": calls, "tokens_used": tokens,
             "tokens_unknown": sum(not t["tokens_known"] for t in trials), "aborted": aborted,
             "wall_sec": time.time() - started,
-            "changed_paths": changed.stdout.decode().split() if changed.returncode == 0 else [],
+            "changed_paths": run_eval.paired.changed_paths(refs),
         }
         args.report_dir.mkdir(parents=True, exist_ok=True)
         (args.report_dir / "skill-eval-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

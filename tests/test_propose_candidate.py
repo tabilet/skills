@@ -97,6 +97,10 @@ class ScratchRepoTests(unittest.TestCase):
         subprocess.run(["git", *args], cwd=self.repo, check=True, capture_output=True)
 
     def write_report(self, data):
+        with tempfile.TemporaryDirectory() as directory:
+            tree = prop.run_eval.materialize_ref("WORKTREE", pathlib.Path(directory) / "tree", ("skills",), self.repo)
+            identity = prop.run_eval.paired.identity(tree, "WORKTREE", self.repo)
+        data["refs"] = {"baseline": identity, "candidate": identity}
         self.report.write_text(json.dumps(data))
 
     def run_main(self, *extra, runner=None, gate=0, model="m"):
@@ -150,7 +154,7 @@ class ScratchRepoTests(unittest.TestCase):
         code, _, gate, *_ = self.run_main("--apply")
         self.assertEqual(code, 0)
         gate.assert_called_once()
-        self.assertEqual(self.skill.read_text(), SKILL.replace("Old alpha description.", "New alpha description."))
+        self.assertEqual(self.skill.read_text(), SKILL.replace("Old alpha description.", '"New alpha description."'))
 
     def test_a_dirty_worktree_refuses_apply_before_the_call(self):
         self.skill.write_text(SKILL + "uncommitted\n")
@@ -184,7 +188,7 @@ class ScratchRepoTests(unittest.TestCase):
 
     def test_a_backslash_in_a_description_does_not_crash_the_substitution(self):
         previous, _ = prop.apply_description_updates(self.repo, {"alpha-skill": "Match \\d+ rows"})
-        self.assertIn("description: Match \\d+ rows\n", self.skill.read_text())
+        self.assertEqual(prop.frontmatter.description(self.skill.read_text()), "Match \\d+ rows")
         self.assertEqual(list(previous), ["alpha-skill"])
 
 
@@ -218,7 +222,12 @@ class TextProposalTests(unittest.TestCase):
         for args in (("config", "user.name", "t"), ("config", "user.email", "t@t"), ("add", "-A"), ("commit", "-qm", "base")):
             subprocess.run(["git", *args], cwd=self.repo, check=True, capture_output=True)
         self.report = pathlib.Path(self.tmp.name) / "skill-eval-report.json"
-        self.report.write_text(json.dumps(skill_report([skill_trial(), skill_trial(passed=True, failed=())])))
+        data = skill_report([skill_trial(), skill_trial(passed=True, failed=())])
+        with tempfile.TemporaryDirectory() as directory:
+            tree = prop.run_eval.materialize_ref("WORKTREE", pathlib.Path(directory) / "tree", ("skills",), self.repo)
+            identity = prop.run_eval.paired.identity(tree, "WORKTREE", self.repo)
+        data["refs"] = {"baseline": identity, "candidate": identity}
+        self.report.write_text(json.dumps(data))
         self.check = types.SimpleNamespace(OPTIMIZER_TWINS=((self.target, (self.twin,)),))
 
     def run_main(self, *extra, content=None, gate=0, sync=0, target=None):
@@ -246,6 +255,10 @@ class TextProposalTests(unittest.TestCase):
     def test_a_held_out_task_or_report_never_reaches_the_model(self):
         for data in (skill_report([skill_trial()], held_out=True), skill_report([skill_trial(task="held-task")]),
                      {"schema": "other", "held_out": False, "trials": []}):
+            with tempfile.TemporaryDirectory() as directory:
+                tree = prop.run_eval.materialize_ref("WORKTREE", pathlib.Path(directory) / "tree", ("skills",), self.repo)
+                identity = prop.run_eval.paired.identity(tree, "WORKTREE", self.repo)
+            data["refs"] = {"baseline": identity, "candidate": identity}
             self.report.write_text(json.dumps(data))
             code, runner, *_ = self.run_main()
             self.assertEqual((code, runner.calls), (2, []))

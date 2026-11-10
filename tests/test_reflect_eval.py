@@ -113,6 +113,22 @@ class ReflectEvalTests(unittest.TestCase):
                 reflect_eval.seed_project(reflect_eval.ROOT, task, project)
                 reflect_eval.verify_task_signal(reflect_eval.ROOT, task, project)
 
+    def test_all_fixtures_start_clean_and_good_and_bad_proposals_are_distinguished(self):
+        tasks = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, False) + reflect_eval.load_tasks(reflect_eval.TASKS_DIR, True)
+        for task in tasks:
+            with self.subTest(task=task["name"]), tempfile.TemporaryDirectory() as tmp:
+                project = reflect_eval.prepare_project(task, pathlib.Path(tmp) / "project")
+                reflect_eval.seed_project(ROOT, task, project)
+                self.assertEqual(reflect_eval.git("status", "--porcelain", cwd=project).stdout, "")
+                required = task["expect"].get("proposal", {}).get("must_include", [])
+                text = "\n\n".join(reflect_eval.REQUIRED_SECTIONS) + "\n" + " ".join(required) + "\nRecorded evidence remains scoped. Preserve required verification."
+                target = project / reflect_eval.DEFAULT_PROPOSAL_PATH
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(text)
+                self.assertTrue(reflect_eval.grade_proposal(project, task, {}, 0)[0])
+                target.write_text("No required sections.")
+                self.assertFalse(reflect_eval.grade_proposal(project, task, {}, 0)[0])
+
     def test_actionable_section_extraction(self):
         md = (
             "# Audit Report\n\n"
@@ -252,7 +268,7 @@ class ReflectEvalTests(unittest.TestCase):
         with mock.patch.dict(os.environ, env, clear=True):
             trial = reflect_eval.run_trial(
                 ROOT, reflect_eval.load_tasks(reflect_eval.TASKS_DIR, held_out=False, only=["friction-slow-discovery"])[0],
-                "candidate", 1, self.base / "work", self.eval_args("http://127.0.0.1:9/v1"))
+                "candidate", 1, self.base / "work", self.eval_args(""))
         self.assertEqual(trial["status"], "heuristic")
         self.assertFalse(trial["passed"])
 
@@ -277,6 +293,60 @@ class ReflectEvalTests(unittest.TestCase):
                 reflect_eval.parse_args(["--report-dir", "r", "--max-calls", "1", "--max-tokens", "1"])
             with self.assertRaises(SystemExit):
                 reflect_eval.parse_args(["--backend", "auto", "--report-dir", "r", "--max-calls", "1", "--max-tokens", "1"])
+
+    def test_grading_failure_keeps_paid_response_and_usage(self):
+        task = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, held_out=False, only=["friction-slow-discovery"])[0]
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fake-key"}), fake_rest_provider() as url:
+            with mock.patch.object(reflect_eval, "grade_proposal", side_effect=OSError("cannot read project")):
+                trials, calls, tokens, aborted = reflect_eval.run_eval.paired.run_campaign(
+                    [task], 1, 2, 1000,
+                    lambda task, role, repeat, budget: reflect_eval.run_trial(ROOT, task, role, repeat, self.base / "trials", self.eval_args(url)),
+                    self.base / "progress.json")
+        self.assertEqual((calls, tokens), (1, 120))
+        self.assertEqual(trials[0]["status"], "infrastructure_error")
+        self.assertTrue(trials[0]["tokens_known"])
+        self.assertIsNotNone(aborted)
+        evidence = self.base / "trials/baseline-friction-slow-discovery-r1/reflect.json"
+        self.assertEqual(json.loads(evidence.read_text())["usage"], {"input_total": 80, "output": 40})
+
+    def test_host_zero_budget_skip_never_dispatches_model_phase(self):
+        task = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, False, only=["friction-slow-discovery"])[0]
+        args = self.eval_args("unused", "--budget-percent", "1")
+        with mock.patch.object(reflect_eval.subprocess, "Popen", side_effect=AssertionError("model phase dispatched")):
+            # subprocess.run also uses Popen, so stub the offline fixture/preflight work.
+            with mock.patch.object(reflect_eval, "prepare_project", return_value=self.base), \
+                 mock.patch.object(reflect_eval, "seed_project"), \
+                 mock.patch.object(reflect_eval, "verify_task_signal", return_value={"milestone_wall_sec": 20}):
+                trial = reflect_eval.run_trial(ROOT, task, "baseline", 1, self.base / "work", args)
+        self.assertEqual((trial["status"], trial["calls_used"], trial["tokens"], trial["tokens_known"]), ("skipped", 0, 0, True))
+
+    def test_preflight_engine_failure_is_scored_with_zero_usage(self):
+        task = reflect_eval.load_tasks(reflect_eval.TASKS_DIR, False, only=["friction-slow-discovery"])[0]
+        with mock.patch.object(reflect_eval, "prepare_project", return_value=self.base), \
+             mock.patch.object(reflect_eval, "seed_project"), \
+             mock.patch.object(reflect_eval, "verify_task_signal", side_effect=reflect_eval.CandidatePreflightError("engine crash")):
+            trial = reflect_eval.run_trial(ROOT, task, "candidate", 1, self.base / "work", self.eval_args("unused"))
+        self.assertEqual((trial["status"], trial["passed"], trial["calls_used"], trial["tokens_known"]), ("ok", False, 0, True))
+
+    def test_explicit_resume_retains_artifacts_and_cumulative_spend(self):
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "fake-key"}), fake_rest_provider() as url:
+            args = ["--backend", "openai", "--api-base", url, "--baseline", "WORKTREE", "--candidate", "WORKTREE",
+                    "--only", "friction-slow-discovery", "--repeats", "1", "--max-calls", "4", "--max-tokens", "1000",
+                    "--report-dir", str(self.base / "resume")]
+            with mock.patch.object(reflect_eval, "grade_proposal", side_effect=OSError("temporary grader failure")):
+                self.assertEqual(reflect_eval.main(args), 3)
+            self.assertEqual(reflect_eval.main([*args, "--resume"]), 0)
+            self.assertEqual(FakeReflectionHandler.requests, 3)
+            report = json.loads((self.base / "resume/eval-report.json").read_text())
+            self.assertEqual(report["spend"], {"calls": 3, "tokens": 360})
+            self.assertEqual(report["summary"]["baseline"]["trials"], 1)
+            self.assertTrue(report["trials"]["baseline"][0]["superseded"])
+            self.assertEqual(len(list((self.base / "resume/trials").rglob("reflect.json"))), 3)
+            self.assertEqual(reflect_eval.main([*args, "--resume"]), 0)
+            self.assertEqual(FakeReflectionHandler.requests, 3)
+            with self.assertRaisesRegex(reflect_eval.EvalError, "identity"):
+                reflect_eval.main([*args, "--resume", "--model", "changed-model"])
+            self.assertEqual(FakeReflectionHandler.requests, 3)
 
 
 if __name__ == "__main__":

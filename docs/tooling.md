@@ -101,8 +101,8 @@ put the friction in `M09`), but one proposed edit was vague and it misread the a
 telemetry, so it would not have been accepted. Consequences:
 
 - A model-free proposal now ends with "Why no model analysis: ..." in the file itself.
-- One run spanning two milestones blurs per-milestone timing. Open: split by Git commits, or open a run
-  per milestone.
+- One run spanning two milestones blurred timing in this pilot. The replacement contract
+  records task attempts and scoped verification intervals; Git dates cannot allocate time.
 - Why the in-run model call failed in the Codex tab is still unreproduced.
 
 ### Pilot result: `hcllight`, `M12` (2026-11-04)
@@ -220,11 +220,11 @@ Built, and kept only in the `maintainer-tooling` branch:
   instability guard and held-out tasks.
 - `evals/catalog_probe.py`, which checks that the model still picks the right skill from the
   skill descriptions.
-- `evals/skill_eval.py` with 47 tasks (11 held out) covering `memory-bank-propose`,
+- `evals/skill_eval.py` with 50 tasks (14 held out) covering `memory-bank-propose`,
   `memory-bank-reconcile`, `memory-bank-archive`, `memory-bank-upgrade`, and `memory-bank-next`: a
   scripted human, deterministic graders, outside changes between replies, injected instructions in
   a review, a per-task `setup.py` for history or a dirty worktree, and execution grading for Next
-  (commits, row transitions, a clean worktree and a verify command). The 24 tasks with a `golden/`
+  (commits, row transitions, a clean worktree and a verify command). The tasks with a `golden/`
   directory are validated without a model: a compliant `pass.py` and any `alt-*.py` must grade
   clean, and each `fail-*.py` must fail its named check. A failing trial's report entry keeps the
   files its checks read, and a provider failure aborts the run as inconclusive instead of scoring it.
@@ -376,3 +376,27 @@ proves too weak.
   `harness/`. Paid runs need an explicit confirmation that names the provider, the model and the
   ceilings, and run in a disposable sandbox with the key read from a file. See
   `docs/MODEL_EVAL.md` on the branch for the procedure.
+
+
+## Recording and evaluation acceptance
+
+The maintained design records typed task attempts, verification observations,
+review rounds and terminal reasons. Old recordings remain readable, with missing
+evidence marked unknown. Reflection uses scoped completed intervals and recorded
+commit SHAs; the historical pilot observations above do not establish reliable
+task timing or attribution from Git windows.
+
+Evaluate the payload candidate separately from repository-only evaluator changes.
+The shared paired driver, immutable input identities and trusted gate are
+described in [evaluation integrity](MODEL_EVAL.md#evaluation-integrity-and-trusted-checks).
+New held-out cases cover Archive, Next and an unapproved Archive successor.
+They remain outside proposer input. No generalization claim follows from adding
+fixtures or passing deterministic tests.
+
+Before an opted-in project outcome study, register **review iterations per closed
+milestone** as the single initial metric. Report the number of eligible closures,
+missing or conflicting counters, the workload mix and median iterations before
+and after adoption. Exclude unresolved counters rather than assigning zero.
+This is descriptive evidence, not a causal speedup claim. Production sampling,
+paid evaluation and optimizer expansion require separate approval; this workflow
+does not copy project databases or capture credentials.

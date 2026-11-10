@@ -104,6 +104,10 @@ is only worth anything if additions are argued against something:
   `tests/dsh/`. Nothing in `template/`, `skills/` or `harness/` installs, requires or
   names Harness², WorkBuddy or SWE-bench, and users never run them: they receive
   a reviewed release through `memory-bank-upgrade`.
+  Repository-only evals compare complete pairs from frozen inputs and stop when
+  usage is unknown. The optimizer gate executes frozen-base checks, never
+  candidate checks; launch it from a trusted checkout. The integrity regression
+  suite enforces these boundaries.
 - **No per-feature artifact directories.** No `.skills/`, no scaffold, no
   generated plan folders that accumulate with the project.
 - **No memory bank for this repository itself.** `skills` is the generator that

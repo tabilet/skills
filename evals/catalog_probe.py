@@ -19,10 +19,12 @@ import json
 import pathlib
 import re
 import sys
+sys.dont_write_bytecode = True
 import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import run_eval  # noqa: E402
+import frontmatter
 
 ROOT = run_eval.ROOT
 PROMPTS = ROOT / "evals" / "catalog-prompts.json"
@@ -53,8 +55,11 @@ def build_catalog(tree: pathlib.Path) -> dict[str, str]:
             key, colon, value = line.partition(":")
             if colon and not line.startswith(" "):
                 fields[key.strip()] = value.strip().strip("\"'")
-        if fields.get("name") and fields.get("description"):
-            catalog[fields["name"]] = fields["description"]
+        if fields.get("name"):
+            try:
+                catalog[fields["name"]] = frontmatter.description(path.read_text(encoding="utf-8"))
+            except ValueError as exc:
+                raise run_eval.EvalError(f"{path}: {exc}") from exc
     return catalog
 
 
@@ -78,7 +83,7 @@ def parse_choice(content: str, names: set[str]) -> tuple[str | None, bool]:
             value = json.loads(candidate).get("skill", "<missing>")
         except (ValueError, AttributeError):
             continue
-        if value is None or value in names:
+        if value is None or (isinstance(value, str) and value in names):
             return value, True
     return None, False
 
@@ -87,7 +92,7 @@ def ask(runner, args, catalog: dict[str, str], prompt: str) -> dict:
     listing = "\n".join(f"- {name}: {description}" for name, description in catalog.items())
     messages = [{"role": "system", "content": SYSTEM.format(catalog=listing)}, {"role": "user", "content": prompt}]
     response = runner.call_llm(args.provider, args.api_base, args.api_key, args.model, messages,
-                               args.temperature, 200, args.api_timeout, args.max_retries)
+                               args.temperature, 200, args.api_timeout, 0)
     return response
 
 
@@ -161,8 +166,10 @@ def main(argv: list[str] | None = None) -> int:
             raise run_eval.EvalError("--repeats must be at least 1")
         with tempfile.TemporaryDirectory(prefix="tabilet-probe-") as tmp:
             work = pathlib.Path(tmp)
-            catalogs = {role: build_catalog(run_eval.materialize_ref(ref, work / role, ("skills",), args.repo))
-                        for role, ref in zip(ROLES, (args.baseline, args.candidate))}
+            trees = {role: run_eval.materialize_ref(ref, work / role, ("skills",), args.repo)
+                     for role, ref in zip(ROLES, (args.baseline, args.candidate))}
+            catalogs = {role: build_catalog(trees[role]) for role in ROLES}
+            refs = {role: run_eval.paired.identity(trees[role], getattr(args, role), args.repo) for role in ROLES}
         names = set(catalogs["baseline"]) | set(catalogs["candidate"])
         if not catalogs["baseline"] or not catalogs["candidate"]:
             raise run_eval.EvalError("a ref has no skills with a name and description")
@@ -196,7 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         scores = {role: score([t for t in trials if t["role"] == role]) for role in ROLES}
         decision = decide(scores["baseline"], scores["candidate"], args.allowed_regressions, args.min_gain)
         report = {"schema": "tabilet.catalog-report/v1", "prompts": "held-out" if args.held_out else "dev",
-                  "baseline": args.baseline, "candidate": args.candidate,
+                  "baseline": args.baseline, "candidate": args.candidate, "refs": refs,
+                  "catalogs": catalogs, "prompt_sha256": __import__("hashlib").sha256(args.prompts.read_bytes()).hexdigest(),
                   "repeats": args.repeats, "calls": len(trials), "tokens": tokens, "score": scores,
                   "decision": decision, "changed_descriptions": changed, "trials": trials}
         if args.report_dir:

@@ -3565,6 +3565,12 @@ def optimizer_gate_problems(base: str) -> list[str]:
             if before.returncode or not current.is_file():
                 problems.append(f"{path}: an optimizer may not add or remove skills")
                 continue
+            sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "evals"))
+            from frontmatter import description
+            try:
+                description(current.read_text())
+            except ValueError as exc:
+                problems.append(f"{path}: {exc}")
             old = without_description(before.stdout.decode())
             new = without_description(current.read_text())
             if old is None or new is None or old != new:
@@ -3575,6 +3581,21 @@ def optimizer_gate_problems(base: str) -> list[str]:
         else:
             problems.append(f"{path}: not on the optimizer's editable surface")
     return problems
+
+
+@check("eval integrity uses frozen inputs and trusted checks")
+def eval_integrity_contract():
+    contracts = {
+        "evals/paired.py": ("def run_campaign", "def guard_inputs", "def pair_scored", "unknown consumption"),
+        "evals/run_eval.py": ("paired.run_campaign", "paired.guard_inputs"),
+        "evals/skill_eval.py": ("paired.run_campaign", "TABILET_EVAL_TREE"),
+        "evals/reflect_eval.py": ("paired.run_campaign", "allow_unsandboxed_shell"),
+        "evals/propose_candidate.py": ("verify_report_inputs", "apply_isolated", "trusted_gate.run"),
+        "evals/trusted_gate.py": ("spec.loader.exec_module(checks)", "new files are outside the optimizer surface"),
+        "AGENTS.md": ("compare complete pairs from frozen inputs", "usage is unknown", "never\n  candidate checks"),
+    }
+    return [f"{path}: missing integrity contract {token!r}" for path, tokens in contracts.items()
+            for token in tokens if token not in (ROOT / path).read_text()]
 
 
 @check("optimizer candidates stay behind the frozen surface and trap suite")
@@ -3685,14 +3706,9 @@ def repository_only_tooling():
 
 
 def optimizer_gate(base: str) -> int:
-    problems = optimizer_gate_problems(base)
-    print(f"Optimizer gate against {base}: {'PASS' if not problems else 'FAIL'}")
-    for problem in problems:
-        print(f"          {problem}")
-    if problems:
-        return 1
-    print()
-    return main()
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "evals"))
+    from trusted_gate import run
+    return run(base, ROOT)
 
 
 # --------------------------------------------------------------------------

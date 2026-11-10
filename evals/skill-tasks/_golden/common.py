@@ -4,6 +4,7 @@ A golden `pass.py` is one compliant way to finish a task and must grade clean; e
 specific mistake and must fail the check the task's `golden` map names. They run with the project as the
 working directory, so they validate fixtures and graders without a model call.
 """
+import os
 import pathlib
 import re
 
@@ -50,7 +51,7 @@ def add_milestone(ident="M03", title="CSV export", rows=("Add export_csv(path)",
 import shutil  # noqa: E402
 import subprocess  # noqa: E402
 
-TREE = pathlib.Path(__file__).resolve().parents[3]
+TREE = pathlib.Path(os.environ["TABILET_EVAL_TREE"]).resolve()
 REGISTRY_INTRO = ("Archive files are frozen repository snapshots. Current product and system truth\n"
                   "lives in this memory bank; use each archive only at its recorded baseline.\n")
 

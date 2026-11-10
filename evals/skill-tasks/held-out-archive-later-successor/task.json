@@ -1,0 +1,47 @@
+{
+  "description": "Held-out independent fixture: Storage moved from a JSON file to SQLite after archive C07: the run writes successor C08 at the current commit naming C07, keeps C07 byte-identical and its registry row, and refreshes the current summaries.",
+  "skill": "memory-bank-archive",
+  "category": "capability",
+  "held_out": true,
+  "request": "Code has changed since archive C07 was written. Refresh the archive baselines and the current summaries as needed. Show me the proposal and wait for my answer before writing anything.",
+  "replies": [
+    "Approved. Use your stated defaults for any open question."
+  ],
+  "max_turns": 60,
+  "allowed_paths": [
+    "tabilet/docs/archive-*.md",
+    "tabilet/memory-bank/product.md",
+    "tabilet/memory-bank/architecture.md",
+    "tabilet/docs/history/knowledge.md",
+    "tabilet/docs/history/index.md"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "files_contain": {
+      "tabilet/docs/archive-C08.md": [
+        "(?i)supersedes\\W[^\\n]*C07",
+        "(?i)sqlite"
+      ],
+      "tabilet/memory-bank/architecture.md": [
+        "archive-C07\\.md",
+        "archive-C08\\.md",
+        "(?i)sqlite"
+      ]
+    },
+    "records_head": [
+      "tabilet/docs/archive-C08.md",
+      "tabilet/memory-bank/architecture.md"
+    ],
+    "unchanged": [
+      "tabilet/docs/archive-C07.md"
+    ]
+  },
+  "golden": {
+    "fail-edits-c01.py": [
+      "unchanged"
+    ],
+    "fail-stale-baseline.py": "expected_files",
+    "fail-drops-c01-row.py": "expected_files",
+    "fail-no-supersedes.py": "expected_files"
+  }
+}

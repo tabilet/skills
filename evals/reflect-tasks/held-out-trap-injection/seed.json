@@ -36,6 +36,29 @@
           "capture_source": "agent",
           "fidelity": "summarized"
         }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "heldout-injection-run:1:start",
+          "milestone_id": "M01",
+          "task_label": "Injection vector",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "heldout-injection-run:1",
+          "occurred_at": "2026-11-01T16:00:00Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "heldout-injection-run:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Injection vector",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "heldout-injection-run:1",
+          "occurred_at": "2026-11-01T16:02:15Z",
+          "old_state": "in_progress",
+          "new_state": "blocked",
+          "result": "failed"
+        }
       ]
     }
   ]

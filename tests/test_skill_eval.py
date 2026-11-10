@@ -4,6 +4,7 @@ import http.server
 import importlib.util
 import io
 import json
+import shutil
 import os
 import pathlib
 import re
@@ -166,7 +167,7 @@ class RoleHandler(http.server.BaseHTTPRequestHandler):
         script = write_script(task, behavior)
         if behavior == "writes_early" and script and not any(w in m["content"] for w in ("printf", "python3 -B") for m in messages if m["role"] == "assistant"):
             content = {"tool": "run_shell", "cmd": script}
-        elif task.startswith(("next-", "trap-next-")) and last.startswith("Tool result"):
+        elif task.startswith(("next-", "trap-next-", "held-out-next-")) and last.startswith("Tool result"):
             # An execution skill gets no reply: it does its one row after a first look, then reports.
             ran = any("python3 -B" in m["content"] for m in messages if m["role"] == "assistant")
             content = {"tool": "run_shell", "cmd": script} if script and not ran else {"final": "Done."}
@@ -218,6 +219,8 @@ class SkillEvalTests(unittest.TestCase):
         self.out = pathlib.Path(self.tmp.name) / "out"
 
     def evaluate(self, behavior, *extra, shell_ack=True, tasks=(), max_calls="1000", **env):
+        if self.out.exists():
+            shutil.rmtree(self.out)  # Each test invocation gets a fresh report destination.
         arguments = ["--baseline", "HEAD", "--candidate", "WORKTREE", "--report-dir", str(self.out),
                      "--max-calls", max_calls, "--max-tokens", "1000000", "--repeats", "1"]
         for task in tasks:
@@ -259,9 +262,9 @@ class SkillEvalTests(unittest.TestCase):
     def test_the_held_out_tasks_also_pass_for_a_model_that_follows_the_rules(self):
         code, report, _ = self.evaluate({}, "--held-out")
         self.assertEqual((code, report["decision"]["decision"]), (0, "no_difference"))
-        self.assertEqual(sorted(report["tasks"]), ["held-out-propose-dangerous-plus-sudo", "held-out-propose-out-of-scope-and-deferral",
+        self.assertEqual(sorted(report["tasks"]), ["held-out-archive-later-successor", "held-out-next-cross-lane-order", "held-out-propose-dangerous-plus-sudo", "held-out-propose-out-of-scope-and-deferral",
                                                   "held-out-propose-refresh-keeps-launch-policy", "held-out-reconcile-outside-ownership",
-                                                  "held-out-reconcile-project-severity-override", "propose-already-owned",
+                                                  "held-out-reconcile-project-severity-override", "held-out-trap-archive-unapproved-successor", "propose-already-owned",
                                                   "propose-cross-lane-collision", "propose-taken-id", "reconcile-mixed",
                                                   "reconcile-taken-id", "upgrade-preserves-local-policy"])
         self.assertTrue(all(t["passed"] for t in report["trials"]))
@@ -510,8 +513,9 @@ class SkillEvalTests(unittest.TestCase):
                                status_rows=real.status_rows, status_marker_problems=real.status_marker_problems)):
             code, report, _ = self.evaluate({}, tasks=("propose-new-feature",))
         self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
-        self.assertIn("transport failure (SSLError)", report["aborted"])
-        self.assertEqual(report["trials"], [], "a failed call is never scored")
+        self.assertIn("provider failure: SSLError", report["aborted"])
+        self.assertEqual(report["summary"]["baseline"]["trials"], 0, "a failed call is never scored")
+        self.assertEqual(len(report["trials"]), 1, "the failed call remains evidence")
 
     def test_missing_model_stops_before_any_call(self):
         code, report, requests = self.evaluate({}, LLM_MODEL="")
@@ -531,7 +535,7 @@ class SkillEvalTests(unittest.TestCase):
                     self.assertTrue(rows, task["name"])
                     for name in skill_eval.active_status_files(snap["files"]):
                         self.assertEqual(runner.status_marker_problems((project / name).read_text()), [], name)
-        self.assertEqual(len(names), 47)
+        self.assertEqual(len(names), 50)
         self.assertTrue(any(n.startswith("trap-") for n in names))
 
     def test_stubbed_privileged_shell_allows_the_word_but_never_runs_it(self):

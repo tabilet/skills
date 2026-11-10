@@ -22,6 +22,29 @@
             "fidelity": "summarized"
           }
         }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "hotspot-run-1:1:start",
+          "milestone_id": "M01",
+          "task_label": "Hotspot task attempt 1",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "hotspot-run-1:1",
+          "occurred_at": "2026-11-01T14:00:00Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "hotspot-run-1:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Hotspot task attempt 1",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "hotspot-run-1:1",
+          "occurred_at": "2026-11-01T14:01:00Z",
+          "old_state": "in_progress",
+          "new_state": "blocked",
+          "result": "failed"
+        }
       ]
     },
     {
@@ -45,6 +68,29 @@
             "capture_source": "agent",
             "fidelity": "summarized"
           }
+        }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "hotspot-retry-run:1:start",
+          "milestone_id": "M01",
+          "task_label": "Hotspot task retry",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "hotspot-retry-run:1",
+          "occurred_at": "2026-11-01T14:01:10Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "hotspot-retry-run:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Hotspot task retry",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "hotspot-retry-run:1",
+          "occurred_at": "2026-11-01T14:02:40Z",
+          "old_state": "in_progress",
+          "new_state": "completed",
+          "result": "completed"
         }
       ]
     }

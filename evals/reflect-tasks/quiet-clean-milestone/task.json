@@ -9,7 +9,9 @@
       "downstream_gate": "closed"
     },
     "prompt": {
-      "must_include": ["closed (no significant finding in this milestone)"],
+      "must_include": [
+        "closed (no significant finding in this milestone)"
+      ],
       "must_exclude": []
     },
     "proposal": {

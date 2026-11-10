@@ -10,11 +10,17 @@
       "error_traces_nonempty": true
     },
     "prompt": {
-      "must_include": ["ModuleNotFoundError", "failed-import-run", "M02"],
+      "must_include": [
+        "ModuleNotFoundError",
+        "failed-import-run",
+        "M02"
+      ],
       "must_exclude": []
     },
     "proposal": {
-      "must_include": ["ModuleNotFoundError"],
+      "must_include": [
+        "ModuleNotFoundError"
+      ],
       "must_exclude": []
     }
   }

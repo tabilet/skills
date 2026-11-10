@@ -19,9 +19,13 @@ import shutil
 import signal
 import subprocess
 import sys
+sys.dont_write_bytecode = True
 import tarfile
 import tempfile
 import time
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import paired
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TASKS_DIR = ROOT / "evals" / "tasks"
@@ -49,6 +53,10 @@ def check_report_dir(report_dir: pathlib.Path | None) -> None:
     resolved = pathlib.Path(report_dir).resolve()
     if resolved == ROOT or ROOT in resolved.parents:
         raise EvalError("--report-dir must be outside the checkout")
+    if resolved.exists() and not resolved.is_dir():
+        raise EvalError("--report-dir must be a directory")
+    if resolved.exists() and any(resolved.iterdir()):
+        raise EvalError("--report-dir must be empty")
 
 
 def load_tasks(tasks_dir: pathlib.Path, held_out: bool, only: list[str] | None = None) -> list[dict]:
@@ -89,17 +97,11 @@ def git(*args: str, cwd: pathlib.Path = ROOT, check: bool = True) -> subprocess.
 
 def materialize_ref(ref: str, dest: pathlib.Path, paths: tuple[str, ...] = ("template", "harness"),
                     repo: pathlib.Path = ROOT) -> pathlib.Path:
-    """Return a tree holding the ref's `paths`. WORKTREE uses the repository as is."""
-    if ref == WORKTREE:
-        return repo
-    archive = git("archive", "--format=tar", ref, *paths, cwd=repo).stdout
-    dest.mkdir(parents=True)
-    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-        if hasattr(tarfile, "data_filter"):
-            tar.extractall(dest, filter="data")
-        else:
-            tar.extractall(dest)
-    return dest
+    """Freeze the exact measured inputs, including permitted untracked WORKTREE files."""
+    try:
+        return paired.snapshot_ref(repo, ref, dest, paths)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise EvalError(f"cannot freeze {ref}: {exc}") from exc
 
 
 def prepare_project(tree: pathlib.Path, task: dict, dest: pathlib.Path) -> pathlib.Path:
@@ -127,6 +129,13 @@ def run_group(argv: list[str], cwd: pathlib.Path, env: dict, timeout: float, std
                 pass
             proc.wait()
             return -1, True
+        except BaseException:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            proc.wait()
+            raise
 
 
 def read_report(path: pathlib.Path) -> dict | None:
@@ -142,7 +151,7 @@ def run_trial(tree: pathlib.Path, task: dict, role: str, repeat: int, work: path
     root.mkdir(parents=True)
     project = prepare_project(tree, task, root / "project")
     report_path = root / "report.jsonl"
-    env = dict(os.environ, RUN_REPORT=str(report_path), MAX_RUNS="1", MAX_TURNS=str(task["max_turns"]))
+    env = dict(os.environ, RUN_REPORT=str(report_path), MAX_RUNS="1", MAX_TURNS=str(task["max_turns"]), LLM_MAX_RETRIES="0")
     exit_code, timed_out = run_group(
         [sys.executable, "-B", str(tree / "harness/tackle-memory-bank-api-loop"), str(project)],
         ROOT, env, run_timeout, root / "stderr.txt")
@@ -159,7 +168,8 @@ def run_trial(tree: pathlib.Path, task: dict, role: str, repeat: int, work: path
                                         or (exit_code == 1 and bool(TRANSPORT_RE.search(stderr_text))))
     return {
         "task": task["name"], "category": task["category"], "role": role, "repeat": repeat,
-        "exit_code": exit_code, "timed_out": timed_out, "provider_error": provider_error,
+        "exit_code": exit_code, "timed_out": timed_out, "provider_error": provider_error, "status": "infrastructure_error" if timed_out or provider_error or report is None else "ok",
+        "note": f"provider failure (exit {exit_code})" if provider_error else "runner timed out" if timed_out else "",
         "verify_ok": verify_code == 0,
         "passed": exit_code in task["expect_exit"] and verify_code == 0,
         "clean": (bool(report and report.get("commits") == 1 and report.get("worktree_clean") is True)
@@ -220,6 +230,14 @@ def unstable_tasks(trials: list[dict]) -> set[str]:
 
 
 def decide(base: list[dict], cand: list[dict], args: argparse.Namespace, aborted: str | None) -> dict:
+    raw = {"baseline": base, "candidate": cand}
+    scored, excluded = paired.pair_scored(raw)
+    if aborted or excluded:
+        traps = sorted({t["task"] for t in cand if t["category"] == "trap" and not t["passed"]
+                        and t.get("status", "ok") == "ok" and not t.get("provider_error") and not t.get("superseded")})
+        return {"decision": "inconclusive", "reasons": [aborted or f"{excluded} incomplete or invalid pairs"],
+                "observed_trap_failures": traps}
+    base, cand = scored["baseline"], scored["candidate"]
     reasons: list[str] = []
     b, c = summarize(base), summarize(cand)
     spread = len(unstable_tasks(base))
@@ -327,8 +345,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         check_report_dir(args.report_dir)
-        if args.repeats < 1:
-            raise EvalError("--repeats must be at least 1")
+        if min(args.repeats, args.max_calls, args.max_tokens) < 1:
+            raise EvalError("repeats and spend ceilings must be positive")
         if os.environ.get("ALLOW_UNSANDBOXED_SHELL") != "1":
             if not args.allow_unsandboxed_shell:
                 raise EvalError("the runner executes model-chosen shell commands; pass --allow-unsandboxed-shell "
@@ -346,41 +364,31 @@ def main(argv: list[str] | None = None) -> int:
             work = pathlib.Path(tmp)
             trees = {"baseline": materialize_ref(args.baseline, work / "tree-baseline"),
                      "candidate": materialize_ref(args.candidate, work / "tree-candidate")}
-            for repeat in range(1, args.repeats + 1):
-                for task in tasks:
-                    for role in ROLES:
-                        if calls >= args.max_calls or tokens >= args.max_tokens:
-                            aborted = f"ceiling reached ({calls} calls, {tokens} tokens)"
-                            break
-                        trial = run_trial(trees[role], task, role, repeat, work, args.run_timeout)
-                        calls += trial["turns"] or 0
-                        tokens += trial["tokens"]
-                        if trial["provider_error"]:
-                            # A failed call says nothing about the text: keep the trial out of the score and stop.
-                            aborted = (f"provider failure (exit {trial['exit_code']}) in "
-                                       f"{task['name']} ({role}, repeat {repeat})")
-                            provider_failure = trial
-                            break
-                        trials.append(trial)
-                    if aborted:
-                        break
-                if aborted:
-                    break
-        by_role = {role: [t for t in trials if t["role"] == role] for role in ROLES}
+            refs = {role: paired.identity(trees[role], getattr(args, role), ROOT) for role in ROLES}
+            tasks = paired.freeze_tasks(tasks, work / "fixtures")
+            fixture_identity = paired.manifest(work / "fixtures")
+            trials, calls, tokens, aborted = paired.run_campaign(
+                tasks, args.repeats, args.max_calls, args.max_tokens,
+                paired.guard_inputs(
+                    lambda task, role, repeat, budget: run_trial(trees[role], task, role, repeat, work, args.run_timeout),
+                    [*trees.values(), work / "fixtures"]),
+                args.report_dir / "campaign-progress.json")
+        by_role, excluded = paired.pair_scored({role: [t for t in trials if t["role"] == role] for role in ROLES})
+        provider_failure = next((t for t in trials if t.get("provider_error")), None)
         decision = decide(by_role["baseline"], by_role["candidate"], args, aborted)
         if provider_failure:
             decision = {"decision": "inconclusive",
                         "reasons": [f"stopped early: {aborted}; the scored trials are uneven, rerun"]}
-        changed = git("diff", "--name-only", args.baseline, args.candidate, "--", "template", "harness", "skills", check=False)
         report = {
-            "schema": "tabilet.eval-report/v1", "baseline": args.baseline, "candidate": args.candidate,
+            "schema": "tabilet.eval-report/v1", "refs": refs, "fixture_identity": fixture_identity,
+            "model": os.environ.get("LLM_MODEL"), "provider": os.environ.get("LLM_PROVIDER", "openai"), "excluded_pairs": excluded, "baseline": args.baseline, "candidate": args.candidate,
             "repeats": args.repeats, "held_out": args.held_out, "tasks": [t["name"] for t in tasks],
             "decision": decision, "summary": {role: summarize(by_role[role]) for role in ROLES},
             "flaky": flaky_tasks(trials), "trials": trials, "calls_used": calls, "tokens_used": tokens,
             "tokens_unknown": sum(not t["tokens_known"] for t in trials), "aborted": aborted,
             "provider_failure": provider_failure,
             "wall_sec": time.time() - started,
-            "changed_paths": changed.stdout.decode().split() if changed.returncode == 0 else [],
+            "changed_paths": paired.changed_paths(refs),
         }
         args.report_dir.mkdir(parents=True, exist_ok=True)
         (args.report_dir / "eval-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

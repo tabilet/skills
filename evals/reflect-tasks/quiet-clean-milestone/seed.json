@@ -22,6 +22,29 @@
             "fidelity": "summarized"
           }
         }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "clean-run-1:1:start",
+          "milestone_id": "M01",
+          "task_label": "Fast task 1",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "clean-run-1:1",
+          "occurred_at": "2026-11-01T12:00:00Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "clean-run-1:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Fast task 1",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "clean-run-1:1",
+          "occurred_at": "2026-11-01T12:00:10Z",
+          "old_state": "in_progress",
+          "new_state": "completed",
+          "result": "completed"
+        }
       ]
     },
     {
@@ -45,6 +68,29 @@
             "capture_source": "agent",
             "fidelity": "summarized"
           }
+        }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "clean-run-2:1:start",
+          "milestone_id": "M01",
+          "task_label": "Fast task 2",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "clean-run-2:1",
+          "occurred_at": "2026-11-01T12:00:15Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "clean-run-2:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Fast task 2",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "clean-run-2:1",
+          "occurred_at": "2026-11-01T12:00:25Z",
+          "old_state": "in_progress",
+          "new_state": "completed",
+          "result": "completed"
         }
       ]
     }

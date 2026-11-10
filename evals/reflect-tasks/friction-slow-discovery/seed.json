@@ -33,6 +33,29 @@
           "passed": 1,
           "failed": 0
         }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "fast-run:1:start",
+          "milestone_id": "M01",
+          "task_label": "Fast unit test",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "fast-run:1",
+          "occurred_at": "2026-11-01T10:00:00Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "fast-run:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Fast unit test",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "fast-run:1",
+          "occurred_at": "2026-11-01T10:00:01Z",
+          "old_state": "in_progress",
+          "new_state": "completed",
+          "result": "completed"
+        }
       ]
     },
     {
@@ -67,6 +90,29 @@
           "tests_run": 1,
           "passed": 1,
           "failed": 0
+        }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "slow-run:1:start",
+          "milestone_id": "M01",
+          "task_label": "Slow test suite",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "slow-run:1",
+          "occurred_at": "2026-11-01T10:01:00Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "slow-run:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Slow test suite",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "slow-run:1",
+          "occurred_at": "2026-11-01T10:03:15Z",
+          "old_state": "in_progress",
+          "new_state": "completed",
+          "result": "completed"
         }
       ]
     }

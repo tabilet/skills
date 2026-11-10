@@ -1,5 +1,5 @@
 {
-  "description": "Milestone with one fast baseline and one slow test run (>120s); proposal should recommend the fast test tier.",
+  "description": "Milestone with one fast baseline and one slow test run (>120s); proposal must preserve required coverage while describing observations.",
   "category": "capability",
   "held_out": false,
   "milestone": "M01",
@@ -10,12 +10,26 @@
       "downstream_gate": "open"
     },
     "prompt": {
-      "must_include": ["slow-run", "fast-run"],
+      "must_include": [
+        "slow-run",
+        "fast-run"
+      ],
       "must_exclude": []
     },
     "proposal": {
-      "must_include": ["test_fast.py"],
+      "must_include": [
+        "test_fast.py"
+      ],
       "must_exclude": []
+    }
+  },
+  "input_expectations": {
+    "5": {
+      "telemetry": {
+        "friction_runs_count": 1,
+        "fast_baselines_count": 1,
+        "downstream_gate": "open"
+      }
     }
   }
 }

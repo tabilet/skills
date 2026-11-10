@@ -21,5 +21,24 @@
       "must_include": [],
       "must_exclude": []
     }
+  },
+  "input_expectations": {
+    "5": {
+      "telemetry": {
+        "git_commit_count": 0,
+        "review_iterations": 3,
+        "recording_gap": true,
+        "friction_runs_count": 1
+      },
+      "prompt": {
+        "must_include": [
+          "recording_gap",
+          "review_rounds"
+        ],
+        "must_exclude": [
+          "commits were made during the recorded runs"
+        ]
+      }
+    }
   }
 }

@@ -21,15 +21,20 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import pathlib
 import re
 import subprocess
 import sys
+import tempfile
+sys.dont_write_bytecode = True
 from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import catalog_probe  # noqa: E402
 import run_eval  # noqa: E402
+import frontmatter
+import trusted_gate
 
 ROOT = run_eval.ROOT
 REPORT_SCHEMA = "tabilet.catalog-report/v1"
@@ -191,12 +196,11 @@ def apply_description_updates(tree: pathlib.Path, updates: dict[str, str]) -> tu
         match = re.match(r"^---\n(.*?)\n---\n", text, re.S)
         if not match or not DESCRIPTION_RE.search(match.group(1)):
             continue
-        for value in (new_desc, f'"{new_desc}"'):
-            frontmatter = DESCRIPTION_RE.sub(lambda _: f"description: {value}", match.group(1), count=1)
-            updated = f"---\n{frontmatter}\n---\n{text[match.end():]}"
-            if not lint(updated):
-                break
-        else:
+        try:
+            updated = frontmatter.replace_description(text, new_desc)
+            if lint(updated):
+                raise ValueError("invalid description front matter")
+        except ValueError:
             skipped.append(name)
             continue
         if updated != text:
@@ -295,6 +299,79 @@ def sync_twins(repo: pathlib.Path) -> int:
     return proc.returncode
 
 
+def verify_report_inputs(report, role, repo):
+    """Old or stale reports can be read, but cannot fund a new proposal call."""
+    identity = report.get("refs", {}).get(role)
+    if not isinstance(identity, dict) or not isinstance(identity.get("files"), dict):
+        raise run_eval.EvalError("report lacks exact measured inputs; rerun the dev evaluation")
+    paths = tuple(sorted({name.split("/")[0] for name in identity["files"]}))
+    with tempfile.TemporaryDirectory(prefix="tabilet-evidence-") as directory:
+        tree = run_eval.materialize_ref("WORKTREE", pathlib.Path(directory) / "tree", paths, repo)
+        if run_eval.paired.manifest(tree) != identity["files"]:
+            raise run_eval.EvalError("report evidence is stale for this checkout; rerun the dev evaluation")
+
+
+def immutable_prompt(text):
+    import ast
+    source = (ROOT / "check.py").read_text()
+    fragments = sorted({node.value for node in ast.walk(ast.parse(source))
+                        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                        and len(node.value) >= 8 and node.value in text})
+    blocks = re.findall(r"<!--[^>]*shared[^>]*start[^>]*-->.*?<!--[^>]*shared[^>]*end[^>]*-->", text, re.S)
+    return "\n\nIMMUTABLE CONTRACT FRAGMENTS (preserve these and every shared block):\n" + json.dumps(
+        {"pinned_fragments": fragments, "shared_blocks": blocks}, ensure_ascii=False)
+
+
+def atomic_bytes(path, data):
+    """Prepare complete bytes before replacing a target; failures leave its original intact."""
+    descriptor, name = tempfile.mkstemp(prefix=".tabilet-proposal-", dir=path.parent)
+    temporary = pathlib.Path(name)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+            os.fchmod(stream.fileno(), path.stat().st_mode & 0o777)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def apply_isolated(repo, changes, base_ref, expected_head=None):
+    """Gate an isolated candidate, then publish only unchanged target files."""
+    head = run_eval.git("rev-parse", "HEAD", cwd=repo).stdout.decode().strip()
+    if expected_head is not None and head != expected_head:
+        raise run_eval.EvalError("checkout changed during proposal generation")
+    previous = {relative: (repo / relative).read_bytes() for relative in changes}
+    with tempfile.TemporaryDirectory(prefix="tabilet-proposal-") as directory:
+        stage = pathlib.Path(directory) / "candidate"
+        subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "clone", "--quiet", "--shared", str(repo), str(stage)],
+                       check=True, capture_output=True)
+        subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "checkout", "--quiet", "--detach", head],
+                       cwd=stage, check=True, capture_output=True)
+        for relative, data in changes.items():
+            (stage / relative).write_bytes(data)
+        if run_optimizer_gate(base_ref, repo=stage) != 0:
+            return 1
+        if (run_eval.git("rev-parse", "HEAD", cwd=repo).stdout.decode().strip() != head
+                or not worktree_clean(repo)) or any((repo / relative).read_bytes() != data for relative, data in previous.items()):
+            raise run_eval.EvalError("checkout changed during proposal; isolated candidate was not applied")
+        written, complete = [], False
+        try:
+            for relative, data in changes.items():
+                if (repo / relative).read_bytes() != previous[relative]:
+                    raise run_eval.EvalError("target changed during proposal application")
+                written.append(relative)
+                atomic_bytes(repo / relative, data)
+            complete = True
+        finally:
+            if not complete:
+                for relative in written:
+                    if (repo / relative).read_bytes() == changes[relative]:
+                        atomic_bytes(repo / relative, previous[relative])
+    return 0
+
+
 def main_text(args: argparse.Namespace) -> int:
     report = load_json(args.skill_report)
     tasks_dir = args.repo / "evals" / "skill-tasks"
@@ -315,7 +392,9 @@ def main_text(args: argparse.Namespace) -> int:
         raise run_eval.EvalError("the worktree has changes: commit or stash them so the gate judges only this candidate")
     target = args.repo / args.target
     text = target.read_text(encoding="utf-8")
-    prompt = TEXT_PROMPT.format(target=args.target, text=text, failures=format_failures(failed, report, tasks_dir))
+    verify_report_inputs(report, args.role, args.repo)
+    prompt = TEXT_PROMPT.format(target=args.target, text=text, failures=format_failures(failed, report, tasks_dir)) + immutable_prompt(text)
+    proposal_head = run_eval.git("rev-parse", "HEAD", cwd=args.repo).stdout.decode().strip()
     runner, llm = provider()
     print(f"provider {llm.provider}, model {llm.model}: 1 model call, {len(failed)} failing {args.role} trial(s)", file=sys.stderr)
     if args.dry_run:
@@ -334,16 +413,10 @@ def main_text(args: argparse.Namespace) -> int:
     if not args.apply:
         print("\nPreview only. Re-run with --apply to write the edits, sync the twins and run the gate.")
         return 0
-    previous = {path: (args.repo / path).read_bytes() for path in paths}
-    target.write_text(updated, encoding="utf-8")
-    print(f"\nWrote {args.target}. Syncing twins and running the optimizer gate...")
-    if sync_twins(args.repo) != 0 or run_optimizer_gate(args.base_ref, repo=args.repo) != 0:
-        for path, data in previous.items():
-            (args.repo / path).write_bytes(data)
-        print("Optimizer gate FAILED. Restored the previous files.", file=sys.stderr)
-        return 1
-    print("Optimizer gate PASSED. Measure the candidate with skill_eval.py (dev tasks) next.")
-    return 0
+    changes = {path: updated.encode("utf-8") for path in paths}
+    result = apply_isolated(args.repo, changes, args.base_ref, expected_head=proposal_head)
+    print("Optimizer gate PASSED." if result == 0 else "Optimizer gate FAILED; checkout unchanged.")
+    return result
 
 
 def load_json(path: pathlib.Path) -> Any:
@@ -372,12 +445,7 @@ def worktree_clean(repo: pathlib.Path) -> bool:
 
 
 def run_optimizer_gate(base_ref: str, repo: pathlib.Path = ROOT) -> int:
-    proc = subprocess.run([sys.executable, "-B", str(repo / "check.py"), "--optimizer-gate", base_ref],
-                          cwd=repo, capture_output=True, text=True)
-    if proc.returncode != 0:
-        print(proc.stdout)
-        print(proc.stderr, file=sys.stderr)
-    return proc.returncode
+    return trusted_gate.run(base_ref, repo)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -420,8 +488,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.apply and not args.dry_run and not worktree_clean(args.repo):
             raise run_eval.EvalError("the worktree has changes: commit or stash them so the gate judges only this candidate")
+        verify_report_inputs(report, args.role, args.repo)
         prompt = PROPOSE_PROMPT.format(catalog_text=format_catalog_text(catalog), limit=MAX_DESCRIPTION,
                                        misses_text=format_misses_text(misses, unparsed))
+        proposal_head = run_eval.git("rev-parse", "HEAD", cwd=args.repo).stdout.decode().strip()
         runner = catalog_probe.load_runner()
         try:
             llm = runner.parse_args(["."])
@@ -445,16 +515,13 @@ def main(argv: list[str] | None = None) -> int:
         if not args.apply:
             print("\nPreview only. Re-run with --apply to write the updates and run the gate.")
             return 0
-        previous, skipped = apply_description_updates(args.repo, proposals)
-        for name in skipped:
-            print(f"skipped {name}: the description would not be valid front matter", file=sys.stderr)
-        print(f"\nWrote {len(previous)} file(s). Running optimizer gate...")
-        if run_optimizer_gate(args.base_ref, repo=args.repo) != 0:
-            restore(args.repo, previous)
-            print("Optimizer gate FAILED. Restored the previous files.", file=sys.stderr)
-            return 1
-        print("Optimizer gate PASSED. Probe the candidate with catalog_probe.py (dev split) next.")
-        return 0
+        changes = {}
+        for name, description in proposals.items():
+            relative = f"skills/{name}/SKILL.md"
+            changes[relative] = frontmatter.replace_description((args.repo / relative).read_text(), description).encode()
+        result = apply_isolated(args.repo, changes, args.base_ref, expected_head=proposal_head)
+        print("Optimizer gate PASSED." if result == 0 else "Optimizer gate FAILED; checkout unchanged.")
+        return result
     except run_eval.EvalError as exc:
         print(f"propose: {exc}", file=sys.stderr)
         return 2

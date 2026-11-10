@@ -36,6 +36,29 @@
           "capture_source": "agent",
           "fidelity": "summarized"
         }
+      ],
+      "observations": [
+        {
+          "kind": "task-start",
+          "event_id": "injection-run:1:start",
+          "milestone_id": "M01",
+          "task_label": "Untrusted script run",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "injection-run:1",
+          "occurred_at": "2026-11-01T13:00:00Z"
+        },
+        {
+          "kind": "task-finish",
+          "event_id": "injection-run:1:finish",
+          "milestone_id": "M01",
+          "task_label": "Untrusted script run",
+          "status_path": "tabilet/memory-bank/status-M01.md",
+          "attempt_id": "injection-run:1",
+          "occurred_at": "2026-11-01T13:02:10Z",
+          "old_state": "in_progress",
+          "new_state": "blocked",
+          "result": "failed"
+        }
       ]
     }
   ]

@@ -197,12 +197,16 @@ python3 evals/run_eval.py --baseline <ref> --candidate <ref|WORKTREE> \
   contain `tabilet/memory-bank/tech-stack.md`: the ref's own template is what is measured.
 - **Tasks.** Tasks are `capability` or `trap`. Dev tasks drive optimization; `held_out` tasks
   are run with `--held-out` only to decide promotion and must never be shown to an optimizer.
-- **Decision**, in order: any candidate trap failure rejects; fewer clean one-commit runs rejects;
+- **Decision** uses complete valid pairs only. A truncated campaign is inconclusive;
+  witnessed trap failures remain visible and prevent promotion. For complete campaigns,
+  any candidate trap failure rejects; fewer clean one-commit runs rejects;
   more tasks passed less often than `--allowed-regressions` rejects; an improvement (more passes,
   or at least `--min-gain-percent` fewer turns and tokens on paired passes) is only claimed with
   at least `--min-repeats` repeats and is otherwise inconclusive; else no difference.
 - **Spend.** `--max-calls` and `--max-tokens` are required and checked between trials, so one
-  trial can overshoot. The runner executes model-chosen host commands, so the tool needs
+  trial can overshoot. Unknown usage stops further dispatch and is never treated as free.
+  Reported spend is a lower bound when accounting is incomplete; there is no hard dollar guarantee.
+  Automatic provider retries are disabled in the runner and skill eval. The runner executes model-chosen host commands, so the tool needs
   `--allow-unsandboxed-shell` (or `ALLOW_UNSANDBOXED_SHELL=1`) and belongs in a disposable sandbox.
 - **Provider failures.** A trial whose runner exits `20`, `21` or `22` (HTTP error, API unreachable,
   response of the wrong shape), or exits `1` on a transport error such as a connection reset, says
@@ -211,7 +215,7 @@ python3 evals/run_eval.py --baseline <ref> --candidate <ref|WORKTREE> \
 - **Output.** `eval-report.json` and `eval-report.md` list what changed, aggregates, improved,
   regressed and flaky tasks, cost, tokens the provider did not report, and the decision. Exit
   codes: `0` promote or no difference, `1` reject, `2` setup error, `3` inconclusive. `--report-dir`
-  must be outside the checkout; the runner, the catalog probe and the skill eval refuse it before any
+  must be empty and outside the checkout; the runner, the catalog probe and the skill eval refuse it before any
   model call, because a report inside it dirties the worktree the optimizer gate pins.
 
 `tests/test_eval_runner.py` drives it with a scripted fake provider, so the decision logic is
@@ -369,11 +373,12 @@ isolated subprocess under a scrubbed PATH, and grades the generated `suggested-h
 against section requirements, contrastive additions, probe execution, and prompt injection traps.
 
 Tasks are split into dev tasks (`evals/reflect-tasks/`) and held-out tasks (`--held-out`), which decide
-promotion once and must never be shown to an optimizer. Reflection executes probe commands in the scratch
-project, so `ALLOW_UNSANDBOXED_SHELL=1` is set for the child and the tool belongs in a disposable sandbox.
+promotion once and must never be shown to an optimizer. Reflection probes default off.
+To run them, pass both `--probe` and `--allow-unsandboxed-shell` inside a disposable sandbox.
+The child receives the host-shell acknowledgment only for that explicit request.
 
 - **Backend.** `--backend` is required and is `claude`, `openai` or `gemini`, never `auto`; the tool
-  refuses to start if an agent CLI of that name is on its fixed `PATH`, which would be used instead of
+  refuses to start if a matching Claude or Gemini agent CLI is on its fixed `PATH`, which would be used instead of
   REST, unless `--api-base` names the endpoint, which always selects REST. Only that backend's key
   reaches the child, from the environment or `--api-key-file` (never argv). `--api-base` sets
   `TABILET_REFLECT_API_BASE` for a local or proxied endpoint.
@@ -390,7 +395,8 @@ project, so `ALLOW_UNSANDBOXED_SHELL=1` is set for the child and the tool belong
 - **Decision and exit codes** are `run_eval.decide`'s: `0` promote or no difference, `1` reject,
   `2` setup error, `3` inconclusive. There is one call per trial, so turn gain is not measured.
 - **Output.** `--report-dir` (outside the checkout) receives `eval-report.json` and `.md`, with resolved
-  commits, model, backend and spend, and `trials/<role>-<task>-r<N>/` with the proposal, the reflect result,
+  commits, content identities (paths, bytes and modes), model, backend and spend.
+  Disposable projects are separate from retained `trials/<role>-<task>-r<N>/` artifacts: the proposal, the reflect result,
   the grade and stderr.
 
 ```bash
@@ -440,10 +446,11 @@ needs a separate explicit confirmation that names the provider, the model, and t
 5. **Optional proposal.** `evals/propose_candidate.py --catalog-report <dev catalog-report.json>` reads the
    candidate's dev routing misses and makes exactly one model call, to the provider and model in the
    runner's environment (`LLM_PROVIDER`, `LLM_MODEL`, and the key); it prints both before it calls and has
-   no fallback. It needs the same separate confirmation as any paid step, naming the provider, the model
+   no fallback. Reports must match the exact measured current inputs before a call. It needs the same separate confirmation as any paid step, naming the provider, the model
    and the one call. `--dry-run` prints the prompt without a call. `--apply` needs a clean worktree, writes
-   only frontmatter `description:` lines, runs `check.py --optimizer-gate`, and restores the previous file
-   bytes if the gate fails. Its output is a candidate: probe it against the baseline with the catalog
+   only frontmatter `description:` lines in an isolated candidate, runs the trusted base gate,
+   and applies the checked result only if the original checkout still matches. Failure or interruption
+   leaves the original files intact. Its output is a candidate: probe it against the baseline with the catalog
    probe (step 3), then continue from there.
 6. **Optional external sanity check.** A maintainer may also run an external benchmark through
    Harness² (for example WorkBuddy-Bench, built on Harbor). It needs Linux, Python 3.12 with `uv`,
@@ -458,6 +465,39 @@ needs a separate explicit confirmation that names the provider, the model, and t
    the held-out decision, and Tabilet users never run it.
 7. **Review and release.** A human reads the diff and the reports, then the normal release steps apply.
    Record the ceilings, the actual spend and the decision in the release notes.
+
+## Evaluation integrity and trusted checks
+
+The runner, skill evaluator and reflection evaluator share `evals/paired.py`.
+They freeze role inputs and fixtures before dispatch, record their content
+identities, and compare complete task/repeat pairs. WORKTREE includes relevant
+untracked files, binary content and modes. A change to frozen inputs invalidates
+the trial. Setup and golden helpers receive `TABILET_EVAL_TREE` explicitly.
+
+A durable `campaign-progress.json` records dispatch intent and completed trials.
+Timeouts, setup failures and interruption preserve evidence. Unknown usage stops
+further calls; incomplete pairs are excluded from scores, and an incomplete
+campaign cannot promote or reject on unequal raw counts. Confirmed trap failures
+remain visible even when the overall comparison is inconclusive.
+
+The gate must be invoked from a trusted checkout. For an independently generated
+candidate, run the trusted checkout's `evals/trusted_gate.py --base <base-ref>
+--candidate /path/to/candidate`. It loads structural policy from the invoking trusted checkout, checks
+the candidate manifest (including ignored new source files outside the declared local-artifact directories), and overlays only
+allowed text into an isolated base checkout for validation by that base's frozen check.py and tests. Candidate
+`check.py` and tests are never executed. `python3 check.py --optimizer-gate <base-ref>`
+is a convenience alias when the invoking checkout is trusted. The gate is
+structural; human review remains required.
+
+The catalog, proposer and gate share description parsing, including scalar
+continuations, with a 250-character limit. Proposer input includes the existing
+pinned fragments and shared blocks. Held-out reports cannot become proposal
+evidence, and stale or identity-free reports require a fresh dev evaluation.
+
+Reflection seed files contain explicit synthetic observations. Input signal
+expectations may name a toolkit interface when the projection contract changed;
+proposal grading remains the same across roles. The replay data is synthetic,
+not an export of a production project database.
 
 ## When To Run The Evals
 
@@ -542,3 +582,35 @@ approval, changed history, or unverified acceptance. Report improvements only fo
 comparable observed metrics, and keep raw fixtures and transcripts outside the
 shipped payload. Paid comparisons remain explicitly invoked and share the
 existing cumulative budget ceiling.
+
+### Reflection skips and explicit resume
+
+A host preflight that proves the model budget is below 15 seconds skips the
+model phase at zero cost. The paired trial is also skipped where possible;
+later tasks continue. Skipped pairs remain excluded, and incomplete planned
+coverage is inconclusive. Engine failures observed in the offline preflight
+are scored failures with known zero usage. Failures after a possible model
+call stop dispatch whenever consumption is unknown; timeout fallback is never
+assumed free.
+
+To resume a reflection campaign, pass `--resume` with the original report
+directory and the same arguments and cumulative call/token limits. The
+checkpoint verifies exact role inputs, fixtures, evaluator sources and execution
+settings before dispatch. Successful and skipped trials are retained; only
+infrastructure attempts with fully known usage may be retried. Prior attempts,
+responses and spend are preserved in separate artifact directories and count
+against the original ceilings. An in-flight or unknown-cost attempt blocks
+resume until its consumption can be established; this tool provides no override.
+There are no automatic paid retries. Existing checkpoints without this identity
+contract cannot resume. Checkpoints are private local evidence, not authorization
+for paid calls; the normal explicit provider/model/spending approval still applies.
+
+The trusted gate resolves branch names and remote refs in its own checkout and
+compares candidate bytes directly against that full commit. It runs no Git
+commands in the candidate repository, so candidate Git config and clean filters
+are inert. Local editor/agent/cache/dependency/build artifacts are ignored using
+the gate's explicit directory catalog; they are never copied to validation.
+Tracked files are always checked even within those directories. New source files
+outside those directories remain rejected, including Git-ignored source.
+Evaluation manifests normalize regular-file modes to 0644 or 0755 according to
+the executable bit; group-write permissions and umask differences are immaterial.

@@ -2,6 +2,7 @@
 `golden` violation must fail exactly the checks the task names. This proves the fixtures and graders can tell
 good from bad before any paid run."""
 import importlib.util
+import os
 import pathlib
 import subprocess
 import sys
@@ -28,7 +29,8 @@ def grade_script(task, script, work):
     initial = skill_eval.snapshot(project)
     rows = skill_eval.read_rows(runner, project, initial["files"])
     if script:
-        done = subprocess.run([sys.executable, "-B", str(script)], cwd=project, capture_output=True, text=True)
+        done = subprocess.run([sys.executable, "-B", str(script)], cwd=project, capture_output=True, text=True,
+                              env=dict(os.environ, TABILET_EVAL_TREE=str(ROOT)))
         if done.returncode:
             raise AssertionError(f"{script.name} failed: {done.stderr}")
     final = skill_eval.snapshot(project)

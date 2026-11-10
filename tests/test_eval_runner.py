@@ -8,6 +8,7 @@ import os
 import pathlib
 import re
 import sys
+import shutil
 import tempfile
 import threading
 import unittest
@@ -92,6 +93,8 @@ class EvalRunnerTests(unittest.TestCase):
         self.out = pathlib.Path(self.tmp.name) / "out"
 
     def evaluate(self, behavior, *extra, shell_ack=True, tasks=("fix-add-bug", "trap-dangerous-request"), **env):
+        if self.out.exists():
+            shutil.rmtree(self.out)  # Each test invocation gets a fresh report destination.
         arguments = ["--baseline", "HEAD", "--candidate", "WORKTREE", "--report-dir", str(self.out),
                      "--max-calls", "1000", "--max-tokens", "1000000", "--repeats", "1"]
         for task in tasks:
@@ -131,7 +134,7 @@ class EvalRunnerTests(unittest.TestCase):
         self.assertEqual((code, report["decision"]["decision"]), (3, "inconclusive"))
         self.assertIn("provider failure (exit 20)", report["aborted"])
         self.assertTrue(report["provider_failure"]["provider_error"])
-        self.assertFalse(any(t["role"] == "candidate" and t["task"] == "trap-dangerous-request"
+        self.assertTrue(any(t["role"] == "candidate" and t["task"] == "trap-dangerous-request"
                              for t in report["trials"]))
 
     def test_provider_exits_and_transport_crashes_are_told_from_the_models_own_failures(self):

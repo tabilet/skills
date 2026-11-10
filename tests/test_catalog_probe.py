@@ -4,6 +4,7 @@ import http.server
 import importlib.util
 import io
 import json
+import shutil
 import os
 import pathlib
 import subprocess
@@ -101,6 +102,7 @@ class CatalogProbeTests(unittest.TestCase):
             path.write_text(f"---\nname: {name}\ndescription: {descriptions[version]}\n---\n\nBody.\n")
 
     def run_probe(self, *extra, baseline="HEAD~1", candidate="HEAD", env=True):
+        shutil.rmtree(self.base / "out", ignore_errors=True)
         arguments = ["--baseline", baseline, "--candidate", candidate, "--repo", str(self.repo),
                      "--prompts", str(self.prompts), "--report-dir", str(self.base / "out"), *extra]
         with provider() as api:

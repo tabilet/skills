@@ -1,0 +1,31 @@
+{
+  "skill": "memory-bank-next",
+  "held_out": true,
+  "request": "Tackle the next task in the memory bank.",
+  "replies": [],
+  "max_turns": 60,
+  "execution": true,
+  "description": "Held-out independent fixture: The first-listed milestone depends on one that still has a blocked row: Next skips both the blocked row and the dependent milestone and completes the one dependency-ready row.",
+  "category": "capability",
+  "allowed_paths": [
+    "src/**",
+    "tests/**",
+    "tabilet/memory-bank/**",
+    "tabilet/evolution/**"
+  ],
+  "expect": {
+    "new_status_files": 0,
+    "commits": [
+      1,
+      2
+    ],
+    "row_states": {
+      "tabilet/memory-bank/status-R03.md::Add rename(task_id, title) to src/tasklist.py": "completed"
+    },
+    "verify": "python3 -B -m unittest -q && ! grep -qi 'due' src/tasklist.py"
+  },
+  "golden": {
+    "fail-picks-dependent.py": "rows_preserved",
+    "fail-unblocks.py": "rows_preserved"
+  }
+}
