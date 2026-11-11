@@ -1,3 +1,37 @@
+# memory-bank v2.23.3
+
+Patch release. Interactive Goal/Next runs gain bounded recovery for required
+verification gates, independently of whole-milestone review rounds.
+
+- **Gate retry limits.** `REVIEW_MAX_GATE_ITERATIONS` defaults to 3 per gate/test
+  key. A separate chain limit stops automatic retries after three distinct
+  failing keys at one gate without a clean pass. Started attempts and counters
+  persist across compaction, resumes and repair handoffs. A complete gate pass
+  resets gate counters; review rounds keep their own counter.
+- **Approval-based recovery.** Exhaustion pauses affected verification for a
+  concrete LLM recovery proposal and renewed human approval. The goal remains
+  active, incomplete and resumable, and independent authorized work continues
+  where ordering permits. Approved extensions preserve consumed attempts.
+- **Bounded test waiter increases.** A measured test-side expiry may use a
+  doubling ladder up to three cumulative doublings or 8 times its original
+  value, subject to remaining attempts, an independent read-only assessment and
+  any stricter approved ceiling. Product guards, runner timeouts and production
+  deadlines are excluded. Exact edits appear in status and whole-review briefs.
+- **Budget and retirement safeguards.** Grant budgets and gate counters bind
+  independently. Maintained waiter references in `tech-stack.md` lead to active
+  or retired status evidence, preserving original values and cumulative ceilings
+  across milestones. Retirement verifies the reference before deleting active
+  sources; missing or conflicting evidence pauses further increases.
+
+**Scope.** The goal protocol, skill guidance, launch defaults, templates,
+English and Chinese guides, and repository checks change. Python API
+runner/controller execution limits are unchanged.
+
+**Upgrade note.** Installing the plugin alone changes no project file. Existing
+projects explicitly adopt the recovery rules through an approved upgrade,
+resolving conflicting offline no-counter rules and preserving stricter policies,
+existing usage, waiter ceilings and frozen history.
+
 # memory-bank v2.23.2
 
 Patch release. It adds a timing record to the stock test policy and an inactive
