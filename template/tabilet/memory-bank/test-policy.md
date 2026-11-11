@@ -13,8 +13,8 @@ project-specific choices go under [Project specifics](#project-specifics).
 specification, status row, `tech-stack.md` text, launch input or brief
 prescribes a method it forbids, such as a supervising controller or receipt
 reader around class O tests, an UNKNOWN class O outcome, class O attempt
-counters or a test runner in another language without approval, this policy
-wins on method. The acceptance outcome stays and is shown through self-checking
+counters outside adopted interactive required-gate recovery or a test runner in
+another language without approval, this policy wins on method. The acceptance outcome stays and is shown through self-checking
 tests. It never overrides acceptance requirements, an authorization grant's
 limits or frozen records.
 
@@ -42,7 +42,9 @@ test on loopback fixtures with a throwaway profile is class O.
 2. **PASS or FAIL, never UNKNOWN.** A timeout, signal, crash, leak, setup error
    or runner parse error is a FAIL. Cleanup deletes the run's own temp root and
    labelled resources; remove a leftover only when its label or temp root shows
-   the run owns it, and report anything else. Fix the cause and run again; this policy
+   the run owns it, and report anything else. Fix the cause and run again within
+   applicable limits; adopted interactive
+   required-gate recovery supplies its specific owner stops. Otherwise this policy
    adds no human approval or disposition for that. Approvals that the effective
    authorization requires, such as fresh approval for a protected run whose
    input changed outside an approved envelope, still apply. Never rerun
@@ -55,9 +57,14 @@ test on loopback fixtures with a throwaway profile is class O.
    test code together. No readiness review before a run; no separate review of
    a runner or harness fix.
 5. **Light bookkeeping.** This policy adds no attempt counters, failure streaks
-   or numeric allowances. For each required gate the status file records the
-   command, the source revision or saved diff hash (and artifact identity when
-   one is qualified), PASS or FAIL, the elapsed wall-clock time, and one link to
+   or numeric allowances of its own. Interactive Goal/Next additionally follows
+   adopted [required gate recovery](milestone.md#required-gate-recovery), including
+   offline required gates: per-key failures, the three-key chain stop and bounded
+   test-side waiter increases. Routine focused checks have no such counters;
+   Python API paths keep their existing limits. Existing projects require explicit
+   adoption resolving contrary policy before using this authority. For each
+   required gate the status file records the command, the source revision or
+   saved diff hash (and artifact identity when one is qualified), PASS or FAIL, the elapsed wall-clock time, and one link to
    a log kept in ignored scratch; a reused result says its inputs are unchanged
    and keeps its original time. Elapsed time is a measurement for planning, not
    an acceptance limit. No per-attempt narrative. **Authorization is separate:** when a run needs an explicit
@@ -136,7 +143,7 @@ test on loopback fixtures with a throwaway profile is class O.
    on every other milestone in that stage. Rule 6 governs those artifacts, and
    any class R part keeps its own authority.
    Grants and class R runs are unchanged, and this adds no counters, budgets or
-   approvals.
+   approvals of its own; adopted required-gate recovery remains binding.
 8. **Match the fixture to the variant.** A large capacity or maximum-size
    fixture may skip an instrumented variant (race, sanitizer, coverage) when
    all of these hold:
@@ -289,7 +296,7 @@ that run. Class R runs use the
 
 ## When to stop and ask
 
-Only when:
+In addition to the stops in adopted interactive required-gate recovery, stop when:
 
 - a test would need class R behavior;
 - a run needs authority it lacks, or a change falls outside an approved grant or
@@ -311,8 +318,8 @@ their scope and approval source, alongside the effective policy pointer.
 Reviewers report as findings: an external controller or receipt reader around
 class O tests; an UNKNOWN class O outcome; per-run approvals or readiness
 reviews that this policy does not require and no effective authorization
-requires; class O attempt counters other than grant budgets; a required-gate
-result reused after something the gate reads changed; a required gate served
+requires; class O attempt counters other than grant budgets or adopted
+interactive required-gate recovery; a required-gate result reused after something the gate reads changed; a required gate served
 from a test-result cache; an instrumented-variant skip that breaks a condition of rule 8; test runners or evidence
 generators in another language without approval. Approvals,
 reservations and conditions required by effective authorization are not

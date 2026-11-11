@@ -209,6 +209,7 @@ COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
+REVIEW_MAX_GATE_ITERATIONS: <resolved positive integer; default 3>
 OPTION_POLICY: <resolved confirm or ignore>
 OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
@@ -279,6 +280,15 @@ conflicts under the protocol before dispatch; a launch value alone cannot remove
 a project restriction. Preserve the approved limit and counter on resume,
 launch refresh and child dispatch. Never raise the limit through corrective
 planning or infer a larger allowance from `COMMIT_POLICY: milestone`.
+
+Resolve `REVIEW_MAX_GATE_ITERATIONS` under Required Gate Recovery (positive
+integer, default 3), independently of review rounds. Carry the resolved limit,
+keys, remaining allowances, distinct-key chain and started attempts through
+launch refresh, child dispatch and every resume summary beside review counters.
+Preserve each waiter's original value, cumulative ceiling and exact edits;
+include increases in whole-review briefs. Never reset usage on a handoff or
+raise limits through corrective planning. Surface existing no-counter policy
+conflicts for explicit adoption before applying the new recovery authority.
 
 ## Execute through acceptance
 

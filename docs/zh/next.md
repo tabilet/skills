@@ -104,6 +104,14 @@ Next 先解析项目的测试策略：优先取你请求中显式给出的 `TEST
 
 详见 [goal 指南](goal.md#test-policy-and-real-effect-checks)。
 
+交互式 Next 还独立解析 `REVIEW_MAX_GATE_ITERATIONS`（正整数，默认 3）。两类必需关卡都使用持久化的
+每键失败次数及三个不同失败键的停止规则。派发前保存 started 尝试，恢复时保留并报告状态。
+完整关卡干净通过重置关卡计数，但不重置测试等待的累计上限。次数耗尽时，LLM 准备具体恢复提案并请求人类重新批准。
+目标保持活跃且可恢复，保留已有用量；顺序允许时继续独立且已授权的工作，批准明确的新上限与修复范围后恢复受影响验证。
+同范围修复可在预算内继续；
+立即询问所有者的边界与测试侧翻倍阶梯见[目标指南](goal.md#test-policy-and-real-effect-checks)
+及 Next 随附的交互控制。现有项目显式采用冲突策略的更改；Python API 的限制保持不变。
+
 ## 修复前置条件与批准提醒邮件 {#corrective-prerequisites-and-approval-email}
 
 `CORRECTIVE_PLANNING: confirm` 是默认值。人类批准 `auto` 后，Next 可在所选任务的原交付目标、

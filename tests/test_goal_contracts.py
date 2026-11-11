@@ -18,6 +18,98 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class GoalInstructionContracts(unittest.TestCase):
+    def test_gate_recovery_contract_covers_all_interactive_consumers(self):
+        self.assertEqual([], repository_checks.required_gate_recovery())
+        for relative in repository_checks.SHARED_PLANNING_BLOCKS["required-gate-recovery"]:
+            with self.subTest(relative=relative):
+                self.assertEqual([], repository_checks.gate_recovery_text_problems(
+                    relative, (ROOT / relative).read_text()))
+
+    def test_grant_budget_cannot_override_offline_required_gate_counters(self):
+        text = (ROOT / "GOAL.md").read_text()
+        self.assertEqual([], repository_checks.gate_budget_text_problems(text))
+        stale = "For any other check the approved `budget` is the only count."
+        # Correct guidance elsewhere cannot conceal the contradictory rule.
+        self.assertTrue(repository_checks.gate_budget_text_problems(text + "\n" + stale))
+
+    def test_waiter_recovery_and_retirement_handoff_cannot_be_omitted(self):
+        goal = (ROOT / "GOAL.md").read_text()
+        for safeguard in (
+            "inspect matching active status records\nand retired records through the history index",
+            "never treat the current code value as a\nfresh original",
+            "Missing, conflicting or uncertain prior evidence pauses the increase",
+            "retarget the reference to the frozen record, verify it resolves",
+        ):
+            with self.subTest(safeguard=safeguard):
+                self.assertIn(safeguard, goal)
+                self.assertTrue(repository_checks.gate_recovery_text_problems(
+                    "GOAL.md", goal.replace(safeguard, "omitted")))
+        # Exercise the retirement-specific instruction separately from the
+        # recovery block: keeping the original in history must remain required.
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in repository_checks.SHARED_PLANNING_BLOCKS["required-gate-recovery"]:
+                target = fixture / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / relative).read_bytes())
+            # All other files read by the check retain their real contents.
+            for relative in (
+                "AGENTS.md", "template/tabilet/memory-bank/status-M01.md",
+                "template/tabilet/memory-bank/tech-stack.md", repository_checks.TEST_POLICY_FILE,
+                "skills/memory-bank-goal/SKILL.md", "skills/memory-bank-goal/references/subagents.md",
+                "skills/memory-bank-next/SKILL.md", "harness/tackle-memory-bank-api-loop",
+                *repository_checks.SHARED_PLANNING_BLOCKS["review-limit-planning"],
+                "skills/memory-bank-reconcile/references/write-contract.md",
+            ):
+                target = fixture / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual([], repository_checks.required_gate_recovery())
+                milestone = fixture / "template/tabilet/memory-bank/milestone.md"
+                text = milestone.read_text()
+                milestone.write_text(text.replace(
+                    "retarget its **Test waiter ceiling references**", "omit handoff"))
+                self.assertTrue(repository_checks.required_gate_recovery())
+
+    def test_gate_recovery_guards_reject_lost_budget_and_authority_boundaries(self):
+        text = (ROOT / "GOAL.md").read_text()
+        # These mutations remove distinct safety decisions while retaining the
+        # rest of the positive contract, rather than inventing an executor.
+        cases = (
+            "Before dispatch, persist an attempt ID as `started`",
+            "exhausted key starts without renewed human approval",
+            "keep the goal active,\n  incomplete and resumable",
+            "Prepare a concrete LLM recovery proposal before\n  asking",
+            "After actual human approval of the complete proposal",
+            "keys reach the effective chain ceiling (default three)",
+            "a data race of unknown cause",
+            "For every increase, retain completion evidence from the current failing\noccurrence",
+            "a fourth increase to\n`16T` always stops for the owner",
+            "List every self-approved increase with its exact edit in the status file and\nthe whole-review brief",
+        )
+        for safeguard in cases:
+            with self.subTest(safeguard=safeguard):
+                self.assertIn(safeguard, text)
+                self.assertTrue(repository_checks.gate_recovery_text_problems(
+                    "GOAL.md", text.replace(safeguard, "omitted")))
+
+    def test_gate_recovery_rejects_operative_bypasses_despite_positive_contract(self):
+        text = (ROOT / "GOAL.md").read_text()
+        end = "<!-- END SHARED required-gate-recovery -->"
+        for directive in (
+            "Compaction resets gate counters.",
+            "A gate pass resets the waiter ceiling.",
+            "Start a fourth attempt at an exhausted key.",
+            "Exhaustion terminates the goal.",
+            "Class O required gates are exempt.",
+            "Product guards may use the ladder.",
+            "Review rounds charge the gate counter.",
+        ):
+            with self.subTest(directive=directive):
+                self.assertTrue(repository_checks.gate_recovery_text_problems(
+                    "GOAL.md", text.replace(end, directive + "\n" + end)))
+
     def test_contradictory_rules_fail_even_with_correct_guidance_retained(self):
         cases = (
             ("AGENTS.md",

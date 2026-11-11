@@ -71,6 +71,12 @@ defaults:
   preserves request identity for duplicate suppression.
 - The resolved `REVIEW_MAX_ITERATIONS`, effective milestone cap, approval source
   and persisted review counter. Children cannot raise the cap or reset the counter.
+- The resolved `REVIEW_MAX_GATE_ITERATIONS`, gate identities and keys, charged
+  and started attempts, remaining allowances and distinct-key chain state.
+  Children preserve these counters and return them with each checkpoint/resume
+  summary. Whole-review briefs include every self-approved waiter increase,
+  exact edits, original values, cumulative ceilings, measurements and independent
+  read-only assessments. The owner alone consolidates shared status state.
 - The current verified launch hash and resolved request, with the original human
   approval source and any authorized refresh provenance. Children cannot refresh
   launch input or infer authority from hashes alone.

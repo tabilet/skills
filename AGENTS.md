@@ -601,6 +601,16 @@ spelling so an inbound link survives translation.
   consecutive failed attempts (or a human-approved milestone or goal limit) by
   marking `[!]`. Grant budgets bind independently of test class, and a grant never
   turns a class O run into one needing the gate.
+- Interactive Goal/Next `REVIEW_MAX_GATE_ITERATIONS` defaults to 3, independently
+  of review rounds. Required gates use persistent per-key failures and a separate
+  three-distinct-key chain stop; clean passes reset gate counters, never waiter
+  ceilings. Exhaustion pauses affected verification for a concrete LLM recovery
+  proposal and renewed human approval, preserving the active resumable goal.
+  Persist started attempts before dispatch and report state beside
+  review counters on every resume. The shared required-gate recovery contract
+  owns permitted fixes, immediate owner stops and the test-side doubling ladder.
+  Existing projects explicitly adopt conflicts with class O no-counter rules;
+  Python API paths retain their limits and gain no interactive recovery authority.
 - Document the goal loop by referencing `GOAL.md`, never by restating its
   phases. `GOAL.md` owns multi-milestone sequencing; `milestone.md` owns the
   single-milestone review; `status-<LANE><NN>.md` owns row and commit rules.

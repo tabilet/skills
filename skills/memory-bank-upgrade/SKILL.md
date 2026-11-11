@@ -200,6 +200,15 @@ conflicts with an older fixed cap instead of silently rewriting restrictions.
 Use the resolved value in every launch template, never a literal default over an
 explicit value. Apply the minimum of declared project/milestone caps; legacy fixed
 prose remains binding until explicit human adoption resolves the conflict.
+
+Preserve explicit `REVIEW_MAX_GATE_ITERATIONS`; emit `3` only for a new launch
+when absent. This positive integer is independent of the review-round limit.
+Preserve gate keys, charged/started attempts, chain state and each waiter's
+original value and cumulative ceiling through launch refresh, resume and repairs.
+Never infer fresh allowances or recovery authority from a preset. Offer the
+required-gate recovery contract and its test-side doubling ladder as explicit
+adoption for existing projects; show conflicts with existing class O no-counter
+rules or stricter stops for human resolution. Preserve Python API limits.
 <!-- END SHARED review-limit-planning -->
 
 Offer the stock test policy and convergent review gate as **explicit
@@ -241,6 +250,13 @@ project adopts them, its stricter text stays binding. The proposal:
   old failures, rewrite frozen evidence or infer acceptance from absent race
   reports. Reviewer briefs quote changed rules with their scope and approval
   source. No additional ledger or automatic protocol-identity approval is created.
+- Compare required-gate recovery and its offline-counter exception, immediate
+  owner stops, diagnostic rungs, test-side doubling safeguards and status
+  checkpoint format explicitly. Preserve effective limits, started/charged
+  attempts, chain history, waiter originals and cumulative ceilings. Never
+  activate these changes merely by refreshing launch input. Include the
+  `tech-stack.md` Test waiter ceiling references entry and the lookup and
+  retirement handoff rules; preserve existing waiter evidence and aliases.
 - Compare integrated lifecycle review, durable-state exits, repair sizing,
   risk-scaled verification, cache invalidation, environment preflight and timing
   reporting explicitly. Show changed gates, ownership, performance dispositions

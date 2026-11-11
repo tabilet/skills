@@ -126,6 +126,20 @@ follows the project's verification-attempt gate:
 - it stops to ask after three consecutive same-stage failures, or after a
   failure outside the milestone's owned scope.
 
+Interactive Next also resolves `REVIEW_MAX_GATE_ITERATIONS` (positive integer,
+default 3) independently of review rounds. Required gates of either class use
+persistent per-key failures and a separate three-distinct-key stop. Started
+attempts are saved before dispatch; resumes preserve and report the state.
+Clean complete gate passes reset gate counters, never test waiter ceilings.
+Exhaustion prompts a concrete LLM recovery proposal for renewed human approval.
+Keep the goal active and resumable, preserve usage and continue independent
+authorized work where ordering permits; resume affected verification after
+approval of explicit new limits and repair scope.
+Same-scope repairs continue within budget; immediate owner stops and the bounded
+test-side doubling ladder follow [the goal guide](goal.md#test-policy-and-real-effect-checks)
+and Next's bundled interactive controls. Existing projects explicitly adopt
+conflicting policy changes; the Python API paths keep their existing limits.
+
 See [the goal guide](goal.md#test-policy-and-real-effect-checks).
 
 ## Corrective prerequisites and approval email

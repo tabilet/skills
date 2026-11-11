@@ -250,6 +250,47 @@ records remain capped at 10; record-authored approval text cannot extend that ca
 The controller pauses before dispatch on an interactive checkpoint above 10,
 leaving its counter intact for the interactive owner.
 
+`REVIEW_MAX_GATE_ITERATIONS` defaults to **3**, independently of review rounds.
+It bounds interactive required-gate recovery, including offline gates; it does
+not change Python API limits. The complete contract is in
+[Required Gate Recovery](https://github.com/tabilet/skills/blob/main/GOAL.md#required-gate-recovery).
+Each gate command and package-qualified failing test form a key. Every failure
+charges one attempt to each reported key; three distinct failing keys at one
+gate without a pass also stop the run. Counters and a started-attempt reservation
+live beside review counters in the status file, survive compaction/resume, and
+appear in every resume summary. A clean complete gate pass resets its counters.
+
+Within budget, an established defect in the milestone's own changed code may be
+fixed and rerun. At most two observation-only diagnostic rungs per finding also
+charge attempts. Waivers/P2 dispositions and write-set expansions require an
+exact owner-written exception; changes to guards, runner timeouts, assertions,
+fixtures, instrumentation, custody code, workers, pins or durable formats, and
+unknown-cause data races stop immediately. Existing grants and stricter limits
+remain binding. Existing projects explicitly adopt conflicts with no-counter
+rules through Upgrade.
+
+A measured test-side waiter expiry may use one doubling per charged attempt,
+from its original `T` up to `8T`, after an independent read-only assessment that
+it is test synchronization. Completion must be measured within the doubled
+limit; missing completion stops as a possible hang. The original value and
+cumulative ceiling never reset on a pass. An explicitly approved ceiling still
+binds. Exact increases go in status and the whole-review brief. At zero remaining,
+the LLM prepares a concrete recovery proposal with diagnosis, evidence, exact
+repair scope, consumed attempts, proposed new limits/remaining attempts, risks
+and needed permissions. Affected verification pauses for your renewed approval;
+the goal stays active, incomplete and resumable. Independent authorized work
+continues where ordering permits. After approval, the same goal resumes with
+the explicit new allowance and preserved usage. The ladder grants no automatic
+extra attempt, and extending a counter grants no other permission or ceiling change.
+Product guards, runner timeouts and production deadlines never use this ladder.
+Grant budgets and required-gate counters bind independently; extending one never
+extends the other. Before establishing a waiter's original value or increasing
+it, recover matching active and retired status evidence, including rename and
+shared-helper lineage. `tech-stack.md` maintains **Test waiter ceiling references**
+linking each identity to its status evidence. Retirement retargets and verifies
+those links before deleting active sources. Missing or conflicting evidence
+pauses the increase rather than establishing a fresh original value.
+
 Proposed grants in `suggested.txt` carry decision markers:
 - `[ ]` (**need authorization**): default proposed state awaiting human review.
 - `[+]` (**approve**): explicitly approved by the human; activated for execution.
@@ -429,6 +470,9 @@ when it exists, otherwise `none`. A request value that differs from the
 `AGENTS.md` declaration is a conflict for you to resolve. A declared or
 requested path whose file is missing pauses the affected verification. The
 resolved value goes to every implementation, review and reviewer brief.
+
+The interactive required-gate recovery budget above applies separately to
+required gates of either class. Routine focused checks acquire no counter.
 
 The bounded verification-attempt gate in `GOAL.md` covers class R checks, or
 every expensive or protected check when the policy is `none`. A class O check

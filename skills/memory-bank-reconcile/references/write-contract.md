@@ -215,6 +215,7 @@ COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
+REVIEW_MAX_GATE_ITERATIONS: <resolved positive integer; default 3>
 OPTIMIZE_POLICY: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}

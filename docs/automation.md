@@ -159,6 +159,13 @@ protocol enforces non-bypassable safety circuits that will pause execution:
   deployments with external consequences, or legal terms agreement.
 
 ### 2. Bounded Milestone Review Gate (Default 10-Iteration Limit)
+
+`REVIEW_MAX_GATE_ITERATIONS` defaults to 3 for interactive required-gate recovery,
+independently of review rounds. Persist failures by gate/test key, stop at three
+distinct keys without a pass, and retain started attempts across resumes. See
+[the goal guide](goal.md#test-policy-and-real-effect-checks) for the recovery
+boundaries and test-side doubling ladder. Python API limits stay unchanged.
+
 `REVIEW_MAX_ITERATIONS` defaults to 10 independently of commit policy. A higher positive integer requires explicit human approval; resumes and repairs preserve the consumed count.
 
 - When a milestone completes implementation, it must pass a rigorous

@@ -199,6 +199,13 @@ Each rewrite is method-only, limited to pending rows and specifications, and
 written only after your individual approval; frozen records stay literal. An in-flight gate keeps its counter and narrows its
 next iteration only when the prior reviewed state is recorded.
 
+Upgrade also proposes explicit adoption of interactive required-gate recovery:
+`REVIEW_MAX_GATE_ITERATIONS` (default 3), persisted gate/key/chain and started
+attempt state, resume reporting and the test-side doubling ladder. It identifies
+conflicting offline no-counter rules and stricter owner stops individually.
+Existing usage, waiter original values and cumulative ceilings survive; approval
+never starts execution or changes Python API limits.
+
 A project that already has the policy is offered every stock rule it lacks or that
 differs, in the same approved proposal. In `test-policy.md`, rules 7 and 8 are
 among them, with rules 3 and 5 and the reviewer list: narrow checks while

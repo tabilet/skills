@@ -196,6 +196,7 @@ COMMIT_POLICY: task
 SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 REVIEW_MAX_ITERATIONS: 10
+REVIEW_MAX_GATE_ITERATIONS: 3
 OPTION_POLICY: confirm
 OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
@@ -312,6 +313,9 @@ Input rules:
   This interactive policy does not change the Python API runner/controller's
   execution limits. Retired-record metadata preserves a larger approved limit
   as historical evidence only and never authorizes execution.
+- `REVIEW_MAX_GATE_ITERATIONS` is optional, default `3`. Resolve and persist it
+  under Required Gate Recovery below, independently of review rounds. Include it
+  in resolved launches and child assignments; preserve existing usage on resume.
 - `TEST_POLICY` is optional: a project path to a test policy file, or `none`.
   Resolve it as stated in Test Policy Resolution under Verify And Deep-Review.
   A project declaring its test policy in `AGENTS.md` normally omits this field.
@@ -597,8 +601,11 @@ and a resume reads the persisted value and never resets it. The bounded
 verification-attempt gate stays in force for a check that uses it: a budget
 replaces its default three consecutive failures only when the human approved
 the number, whether through an explicit `[+]` grant or the checksum-approved
-launch input. For any other check the approved `budget` is the only count. A
-preset never writes a budget above the gate's default.
+launch input. Required Gate Recovery independently applies to every required
+gate, including offline gates: grant budgets and required-gate counters both
+bind, and an extension of one never extends the other. For checks outside both
+gates, only the applicable grant budget is counted. A preset never writes a
+budget above the verification-attempt gate's default.
 
 Presets decide only which explicit grants planning skills write into launch
 input. The executor reads the resolved grants and markers and never infers a
@@ -1266,11 +1273,168 @@ their scope and approval source alongside the effective policy pointer. A brief
 never grants an unapproved exception or waives required acceptance evidence.
 <!-- END SHARED test-policy-resolution -->
 
+#### Required Gate Recovery
+
+<!-- BEGIN SHARED required-gate-recovery -->
+For interactive Goal/Next execution, `REVIEW_MAX_GATE_ITERATIONS` is an optional
+positive integer, default `3`, independent of `REVIEW_MAX_ITERATIONS`. Reject
+zero, negative, fractional, boolean or unbounded values before execution.
+Resolve the minimum of the approved request and any project/milestone caps;
+preserve stricter stop rules. On resume preserve the effective limits and their
+approval sources; omission never resets an existing allowance. Only explicit
+human approval can raise a limit.
+A gate failure never charges the review counter; a review round never charges
+the gate counter. Python API runner/controller limits are unchanged: they do
+not consume this field or acquire this interactive recovery authority.
+Grant budgets and required-gate counters bind independently, including for
+offline required gates; an extension of one never extends the other.
+
+A **gate** is one required verification command for a task or milestone,
+including an offline required gate. Its stable identity includes its owning
+milestone, command, working directory, selected variant and required scope.
+A **key** is that gate plus the package-qualified failing test. When no test is
+named, use a stable failure identity, such as build/setup plus the failing unit.
+Changing flags, splitting commands, renaming tests, moving a repair to another
+milestone or starting another session never creates a fresh allowance for the
+same unresolved failure. Routine focused checks acquire no gate counter.
+
+Persist gate state beside the review counters in the owning status file:
+
+- Record the effective limit and human approval source, gate identity, each
+  key's charged attempts and remaining allowance, and the distinct failing keys
+  since the last clean pass. Each key starts with the effective limit.
+- Before dispatch, persist an attempt ID as `started`, its input revision or
+  saved diff/hash, command and any known key. This reserves the attempt; after
+  failure charge one to every reported failing key, once per attempt ID. Record
+  the result and evidence link. A diagnostic rung charges its finding's key
+  even if the diagnostic command succeeds; it cannot reset the gate.
+- Recover an interrupted `started` attempt before another dispatch. Reconcile
+  its result once from retained evidence; if the result cannot be recovered,
+  charge its known key conservatively. If its key or dispatch is uncertain,
+  pause for the owner rather than discard the reservation or guess a pass.
+- Stop for the owner when a key has zero remaining, or when distinct failing
+  keys reach the effective chain ceiling (default three) at the same gate
+  command without a clean pass. A run reporting three keys at once reaches
+  the default chain limit immediately.
+  Mark affected work `[!]` with diagnosis and options. No further attempt at an
+  exhausted key starts without renewed human approval; approval to continue
+  states a new explicit limit and retains usage. A higher per-key limit does
+  not raise the chain ceiling.
+  Continuing after a chain stop requires explicit owner approval of the named
+  recovery and a new bounded chain ceiling, retaining all previously seen keys;
+  persist that effective ceiling and its approval source beside the keys.
+  Approval to fix a test alone does not reset the chain or permit another run.
+  Exhaustion is an approval pause for the affected gate; keep the goal active,
+  incomplete and resumable. Prepare a concrete LLM recovery proposal before
+  asking: diagnosis and evidence, exact repair scope and edits, current usage,
+  proposed new limits and remaining attempts, risks and any needed permissions.
+  Persist the proposal and pending question in existing status notes. Continue
+  independent authorized work where ordering and ownership permit. If none can
+  proceed, wait for the owner's answer while retaining the goal and checkpoint.
+  After actual human approval of the complete proposal, record the approval
+  source and old/new limits, then resume the same goal and gate under existing
+  launch-refresh rules. Preserve consumed attempts, chain history, waiter
+  ceilings and all other grants and restrictions. A counter extension alone
+  never approves a waiter-ceiling or permission change. No answer grants no
+  approval; a denial leaves affected work blocked for a revised proposal.
+- A clean pass of the complete required gate resets all its key and chain
+  counters. Focused passes, cached results, diagnostics and waived/filtered
+  failures cannot reset them. Retain failed evidence and waiter ceilings.
+  Resume, compaction, new sessions, reviewers and repair handoffs never reset
+  counters. Every resume summary reports gate limits, keys, remaining attempts,
+  chain state and any started attempt beside the review counters.
+
+Within the remaining budget and existing authority, continue without asking
+for a same-scope fix of a defect established in the milestone's own changed
+code. Observation-only diagnostics allow at most two rungs per finding, each
+charging one attempt and changing no behavior, assertion, guard, deadline,
+fixture or instrumentation. A rerun after a diagnosed runner-setting error
+retains the original FAIL and follows the existing verification-discrepancy
+rule; it still consumes applicable counters and grant budgets. Never repeat an
+unchanged failed attempt hoping for a pass. The acceptance-readiness preflight
+and every existing authorization reservation remain required where applicable.
+
+Regardless of remaining budget, stop for the owner at the first occurrence of:
+
+- a waiver or non-blocking P2 classification, unless the owner already wrote
+  down an exact applicable pattern with its evidence and stop conditions;
+- a write-set expansion, unless an owner-written standing rule covers it;
+- a change to any product guard, runner timeout, production-code deadline,
+  assertion, fixture or instrumentation; only the test-side ladder below is an
+  exception for a test waiter or test budget;
+- a change to credential or ledger custody code, workers, pins or durable formats;
+- a data race of unknown cause, either exhausted counter, missing authority or
+  an exhausted independent grant budget.
+
+These are gate-failure recovery rules; the ordinary review severity policy
+still governs review findings. Corrective planning, a preset, a grant or a
+remaining counter never waives these stops, required coverage or acceptance.
+
+**Test-side deadline doubling ladder.** Only a waiter or test budget in test
+files qualifies. Before its first doubling, obtain an independent read-only
+assessment establishing test synchronization rather than a product latency
+contract. Record that assessment and measured completion after the expired
+limit; no measured completion means a possible hang and an immediate owner
+stop. The measured operation must complete within the proposed doubled limit.
+For every increase, retain completion evidence from the current failing
+occurrence after its current deadline and within the proposed doubled limit;
+old measurements never justify a later doubling. No product guard, runner
+timeout or production-code deadline qualifies.
+
+Before establishing `T` or increasing a waiter, consult `tech-stack.md`'s
+**Test waiter ceiling references** and inspect matching active status records
+and retired records through the history index. Match stable file/symbol
+identity and rename/shared-helper lineage across milestones. Recover the
+original value, cumulative doublings, latest ceiling, approvals and exact edits
+into the current status checkpoint; never treat the current code value as a
+fresh original just because the prior milestone retired. For a genuinely new
+waiter, establish its first `T` only after checking for earlier ladder records.
+Missing, conflicting or uncertain prior evidence pauses the increase for human
+direction rather than resetting the ceiling.
+
+When first recording or updating a waiter, maintain its stable identity and
+aliases with links to the owning status evidence under **Test waiter ceiling
+references** in `tech-stack.md`. Keep detailed edits and counters in status;
+the maintained reference only makes that evidence discoverable. Before retiring
+the owner, retarget the reference to the frozen record, verify it resolves and
+retains the original value and cumulative ceiling, then remove the active
+status file. Frozen records remain unchanged. These references survive passes,
+milestone closure and later goal runs.
+
+Track each waiter's original value `T`, current value, cumulative doublings,
+measurement, assessment, exact edits and any explicit owner-approved ceiling
+in the status file. Allow at most one doubling per charged gate attempt:
+`T` to `2T`, `2T` to `4T`, `4T` to `8T`. Never exceed three cumulative doublings
+or `8T`, even when the configured gate budget is larger; a fourth increase to
+`16T` always stops for the owner. Never exceed an explicitly approved value
+without fresh approval. Rerun the required gate after each permitted increase,
+within its remaining budget. At zero remaining, prepare the recovery proposal
+and request renewed human approval as above before another run, including after
+a third failure. The ladder grants no automatic extra attempt; resume after
+approval with the explicitly extended allowance and preserved usage. A gate
+pass resets gate counters but never the waiter's original value or cumulative
+ceiling; renamed or shared waiters retain their identity across gates and
+sessions. An operation that does not complete within the doubled limit stops
+as a possible hang. Do not split a shared budget or alter its fixture under
+this exception.
+
+List every self-approved increase with its exact edit in the status file and
+the whole-review brief; the independent whole review checks each increase.
+The initial failed gate attempt charges `3` to `2`: a measured `2.08s`
+completion of a `2s` test waiter can justify `2s` to `4s` and one rerun without
+an owner stop. If that rerun passes, gate counters reset while the waiter keeps
+its recorded original `2s` value and first doubling. At default limits, three
+failures of one key, or three distinct failing keys at one gate, pause affected
+verification for a recovery proposal and renewed human approval before dispatch.
+<!-- END SHARED required-gate-recovery -->
+
 #### Bounded Verification-Attempt Gate
 
 The gate applies to a class R check under the resolved test policy or, when
 that policy is `none`, to any expensive or protected check. A class O check
-never uses this gate. When it needs an explicit grant, the grant's reservations,
+never uses this gate. Required Gate Recovery above separately bounds failed
+required gates, including offline gates; both limits bind when applicable.
+When it needs an explicit grant, the grant's reservations,
 budget and stop conditions bind (Standing revision envelope); exhausting them
 pauses for human direction.
 

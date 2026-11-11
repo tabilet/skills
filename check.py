@@ -1192,6 +1192,12 @@ def continuous_launch_contract():
 
 
 SHARED_PLANNING_BLOCKS = {
+    "required-gate-recovery": (
+        "GOAL.md",
+        "template/tabilet/memory-bank/milestone.md",
+        "skills/memory-bank-upgrade/assets/template/tabilet/memory-bank/milestone.md",
+        "skills/memory-bank-next/references/interactive-controls.md",
+    ),
     "review-limit-planning": (
         "skills/memory-bank-init/references/write-contract.md",
         "skills/memory-bank-propose/references/plan-update.md",
@@ -1286,6 +1292,153 @@ def configurable_review_limit():
     return [f"{relative}: missing review-limit contract {token!r}"
             for relative, tokens in requirements.items()
             for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+
+
+GATE_RECOVERY_CONTRACT = (
+    "positive integer, default `3`, independent of `REVIEW_MAX_ITERATIONS`",
+    "Reject zero, negative, fractional, boolean or unbounded values",
+    "Only explicit human approval can raise a limit",
+    "A gate failure never charges the review counter; a review round never charges the gate counter",
+    "Python API runner/controller limits are unchanged",
+    "including an offline required gate", "package-qualified failing test",
+    "Grant budgets and required-gate counters bind independently",
+    "an extension of one never extends the other",
+    "Before establishing `T` or increasing a waiter",
+    "inspect matching active status records and retired records through the history index",
+    "rename/shared-helper lineage across milestones",
+    "never treat the current code value as a fresh original",
+    "Missing, conflicting or uncertain prior evidence pauses the increase",
+    "retarget the reference to the frozen record, verify it resolves",
+    "then remove the active status file",
+    "Routine focused checks acquire no gate counter",
+    "Before dispatch, persist an attempt ID as `started`",
+    "after failure charge one to every reported failing key, once per attempt ID",
+    "Recover an interrupted `started` attempt before another dispatch",
+    "If its key or dispatch is uncertain, pause for the owner",
+    "Stop for the owner when a key has zero remaining",
+    "distinct failing keys reach the effective chain ceiling (default three)",
+    "A run reporting three keys at once reaches the default chain limit immediately",
+    "No further attempt at an exhausted key starts without renewed human approval",
+    "keep the goal active, incomplete and resumable",
+    "Prepare a concrete LLM recovery proposal before asking",
+    "diagnosis and evidence, exact repair scope and edits, current usage",
+    "proposed new limits and remaining attempts, risks and any needed permissions",
+    "Continue independent authorized work where ordering and ownership permit",
+    "After actual human approval of the complete proposal",
+    "record the approval source and old/new limits, then resume the same goal and gate",
+    "Preserve consumed attempts, chain history, waiter ceilings and all other grants and restrictions",
+    "new bounded chain ceiling, retaining all previously seen keys",
+    "persist that effective ceiling and its approval source beside the keys",
+    "A clean pass of the complete required gate resets all its key and chain counters",
+    "cached results, diagnostics and waived/filtered failures cannot reset them",
+    "Every resume summary reports gate limits, keys, remaining attempts",
+    "at most two rungs per finding, each charging one attempt",
+    "changing no behavior, assertion, guard, deadline, fixture or instrumentation",
+    "a same-scope fix of a defect established in the milestone's own changed code",
+    "stop for the owner at the first occurrence",
+    "a waiver or non-blocking P2 classification",
+    "a write-set expansion", "product guard, runner timeout, production-code deadline",
+    "credential or ledger custody code, workers, pins or durable formats",
+    "a data race of unknown cause", "an exhausted independent grant budget",
+    "independent read-only assessment", "no measured completion means a possible hang",
+    "For every increase, retain completion evidence from the current failing occurrence",
+    "old measurements never justify a later doubling",
+    "Allow at most one doubling per charged gate attempt",
+    "Never exceed three cumulative doublings or `8T`",
+    "a fourth increase to `16T` always stops for the owner",
+    "Never exceed an explicitly approved value without fresh approval",
+    "At zero remaining, prepare the recovery proposal and request renewed human approval",
+    "The ladder grants no automatic extra attempt",
+    "pass resets gate counters but never the waiter's original value or cumulative ceiling",
+    "List every self-approved increase with its exact edit in the status file and the whole-review brief",
+)
+
+
+def gate_recovery_text_problems(relative, text):
+    """Lint the operative shared recovery contract, not an executor implementation."""
+    start = "<!-- BEGIN SHARED required-gate-recovery -->"
+    end = "<!-- END SHARED required-gate-recovery -->"
+    if text.count(start) != 1 or text.count(end) != 1:
+        return [f"{relative}: missing or duplicate required-gate-recovery boundaries"]
+    block = text.split(start, 1)[1].split(end, 1)[0]
+    problems = [f"{relative}: missing gate-recovery obligation {token!r}"
+                for token in missing_contract_tokens(block, GATE_RECOVERY_CONTRACT)]
+    flat = " ".join(block.split())
+    for pattern in (
+        r"(?:resume|compaction|a new session) resets? (?:the )?gate counters",
+        r"a (?:clean )?gate pass resets? (?:the )?waiter (?:ceiling|original|doubling)",
+        r"(?:allow|start) a fourth attempt at (?:an )?exhausted key",
+        r"exhaustion (?:terminates|completes|cancels|ends) (?:the )?goal",
+        r"class O required gates (?:are exempt|never use)",
+        r"(?:product guards|runner timeouts) (?:may|can) (?:also )?(?:double|use the ladder)",
+        r"(?:gate failures charge the review counter|review rounds charge the gate counter)",
+    ):
+        if re.search(pattern, flat, re.I):
+            problems.append(f"{relative}: contradictory gate-recovery directive {pattern!r}")
+    return problems
+
+
+def gate_budget_text_problems(text):
+    """Reject the old budget-only rule even when new guidance is also present."""
+    flat = " ".join(text.split())
+    problems = []
+    if re.search(r"for any other check the approved `budget` is the only count", flat, re.I):
+        problems.append("GOAL.md: stale grant-budget-only rule bypasses required-gate counters")
+    for token in missing_contract_tokens(flat, (
+            "grant budgets and required-gate counters both bind",
+            "For checks outside both gates, only the applicable grant budget is counted")):
+        problems.append(f"GOAL.md: missing independent budget rule {token!r}")
+    return problems
+
+
+@check("interactive required-gate retries preserve budgets, authority and waiter ceilings")
+def required_gate_recovery():
+    problems = []
+    for relative in SHARED_PLANNING_BLOCKS["required-gate-recovery"]:
+        problems.extend(gate_recovery_text_problems(relative, (ROOT / relative).read_text()))
+    requirements = {
+        "AGENTS.md": ("`REVIEW_MAX_GATE_ITERATIONS` defaults to 3",
+                      "Persist started attempts before dispatch", "Python API paths retain their limits",
+                      "Exhaustion pauses affected verification for a concrete LLM recovery proposal and renewed human approval"),
+        "template/tabilet/memory-bank/status-M01.md": (
+            "Review iterations:", "REVIEW_MAX_GATE_ITERATIONS:", "Gate keys:",
+            "Gate chain:", "Gate chain approval:", "Gate recovery proposal:", "Gate recovery approval:", "Gate attempt:", "Waiter doublings:", "Waiter exact edits:",
+            "Every resume summary shows this state beside review counters",
+            "Waiter prior evidence:", "Waiter maintained reference:"),
+        "template/tabilet/memory-bank/tech-stack.md": ("**Test waiter ceiling references**:",),
+        "template/tabilet/memory-bank/milestone.md": (
+            "retarget its **Test waiter ceiling references** entry",
+            "Verify the link and preserved original value, cumulative doublings and ceiling"),
+        TEST_POLICY_FILE: ("adopted [required gate recovery]", "including offline required gates",
+            "Routine focused checks have no such counters", "Python API paths keep their existing limits",
+            "class O attempt counters other than grant budgets or adopted interactive required-gate recovery"),
+        "skills/memory-bank-goal/SKILL.md": ("Resolve `REVIEW_MAX_GATE_ITERATIONS`",
+            "every resume summary beside review counters", "include increases in whole-review briefs"),
+        "skills/memory-bank-goal/references/subagents.md": ("resolved `REVIEW_MAX_GATE_ITERATIONS`",
+            "charged and started attempts", "original values, cumulative ceilings"),
+    }
+    for relative in SHARED_PLANNING_BLOCKS["review-limit-planning"]:
+        requirements[relative] = requirements.get(relative, ()) + (
+            "Preserve explicit `REVIEW_MAX_GATE_ITERATIONS`; emit `3` only for a new launch",
+            "explicit adoption for existing projects", "Preserve gate keys, charged/started attempts")
+    for relative in ("GOAL.md", "skills/memory-bank-goal/SKILL.md",
+                     "skills/memory-bank-init/references/write-contract.md",
+                     "skills/memory-bank-reconcile/references/write-contract.md"):
+        if not re.search(r"(?m)^REVIEW_MAX_GATE_ITERATIONS: (?:3|<resolved positive integer; default 3>)$",
+                         (ROOT / relative).read_text()):
+            problems.append(f"{relative}: launch template lacks the resolved gate limit")
+    for relative, tokens in requirements.items():
+        for token in missing_contract_tokens((ROOT / relative).read_text(), tokens):
+            problems.append(f"{relative}: missing gate-recovery contract {token!r}")
+    problems.extend(gate_budget_text_problems((ROOT / "GOAL.md").read_text()))
+    # This field belongs outside Next's API-identical execution block.
+    next_text = (ROOT / "skills/memory-bank-next/SKILL.md").read_text()
+    shared = next_text.split("<!-- shared-execution-start -->", 1)[1].split("<!-- shared-execution-end -->", 1)[0]
+    for relative, text in (("Next shared execution", shared),
+                           ("API runner", (ROOT / "harness/tackle-memory-bank-api-loop").read_text())):
+        if "REVIEW_MAX_GATE_ITERATIONS" in text:
+            problems.append(f"{relative}: interactive gate-limit field leaked into API execution")
+    return problems
 
 
 @check("status roots support at least two digits and preserve child/archive limits")
@@ -3650,8 +3803,10 @@ def test_policy_and_convergent_review_gate():
             "every reviewer brief quotes the changed rules",
             "never grants an unapproved exception or waives required acceptance evidence",
             "review findings carried, fixed or deferred, by ID",
-            "stays in force for a check that uses it", "the approved `budget` is the only count",
-            "A preset never writes a budget above the gate's default",
+            "stays in force for a check that uses it",
+            "grant budgets and required-gate counters both bind",
+            "For checks outside both gates, only the applicable grant budget is counted",
+            "A preset never writes a budget above the verification-attempt gate's default",
             "Findings blocking under the originating gate's criteria remain attached",
             "TEST_POLICY: tabilet/memory-bank/test-policy.md"),
         milestone: gate_tokens + (

@@ -61,6 +61,7 @@
 - **Stage qualification**: [End-to-end qualification command with real pinned artifacts and its owning milestone, or "none"].
 - **Timing and repetition**: [Separate one-time compilation from uncached test execution; run full regression once per unchanged closure candidate, repeating only for changes, failures or unresolved coverage].
 - **Milestone time estimates**: [Optional advisory estimates, their measurement basis and timing scope; default none. These do not alter execution limits or acceptance].
+- **Test waiter ceiling references**: [Stable waiter identities and rename/shared-helper aliases, linked to active or retired status evidence; none until the first ladder record. Keep links current through retirement; details stay in status].
 - **Gate maintenance threshold**: [Project-specific timing threshold and measurement conditions, or none].
 - **Budget precedence**: [Explicit project limits and smaller tool/authorization caps win; standard adds no extra constraints].
 - **Harness boundaries**: [e.g., Use in-memory/loopback mocks; no external supervisor daemons or multi-GB disk snapshots; defer physical/browser e2e to final release smoke tests].

@@ -63,6 +63,39 @@ focused verification is recorded the same way, and says so when its result came
 from the toolchain's cache. A row that fixes a carried review finding says "fixes FND-nn" in its
 notes (see [Open review findings](milestone.md#open-review-findings)).
 
+For interactive Goal/Next, persist [required gate recovery](milestone.md#required-gate-recovery)
+state beside review counters, before dispatch, using this checkpoint shape
+(replace placeholders; keep one entry per gate/key/waiter, not a dated log):
+
+```text
+Review iterations: <consumed>/<effective limit>; approval: <source>
+REVIEW_MAX_GATE_ITERATIONS: <effective positive integer; default 3>; approval: <source>
+Gate: <milestone + command + cwd + variant + required scope>
+Gate keys: <package-qualified test or stable failure ID>: charged <n>, remaining <n>
+Gate chain: <distinct failing keys since last clean pass>; ceiling: <effective limit; default 3>
+Gate chain approval: <source for any explicit extension; preserve seen keys>
+Gate recovery proposal: <diagnosis/evidence, exact edits, usage, proposed limits/remaining attempts, risks/permissions>
+Gate recovery approval: <pending question or actual human approval source and old/new limits>
+Gate attempt: <ID>; state: <started|PASS|FAIL|interrupted>; known key: <key or unknown>
+Gate inputs/evidence: <full HEAD + saved diff/hash, result log, elapsed time>
+Diagnostic rungs: <finding/key>: <0..2>; charged attempt IDs: <IDs>
+Waiter: <stable file/symbol identity>; original T: <value>; current: <value>
+Waiter doublings: <0..3>; ceiling: <8T or stricter approved value>
+Waiter prior evidence: <recovered active/retired status links and stable identity/aliases>
+Waiter maintained reference: <entry in tech-stack.md Test waiter ceiling references>
+Waiter evidence: <measured completion, independent assessment, approval source>
+Waiter exact edits: <old -> new per charged attempt; whole-review brief link>
+```
+
+A clean complete gate pass resets gate keys and chain state, never waiter
+ceilings or original values. Preserve evidence and interrupted reservations;
+compaction, resume and repairs never reset counters. Every resume summary shows
+this state beside review counters. Exhaustion leaves affected work `[!]` pending
+a concrete recovery proposal and renewed human approval; retain the active,
+incomplete goal and resume its checkpoint after approval, preserving usage.
+Routine focused checks and Python API paths
+do not acquire these interactive counters.
+
 After the milestone's review, consolidation, and downstream reconciliation
 pass, follow [the retirement procedure](milestone.md#long-term-memory-and-retirement).
 Preserve this complete document and the full milestone specification in its
