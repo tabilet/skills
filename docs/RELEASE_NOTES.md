@@ -1,3 +1,30 @@
+# memory-bank v2.23.4
+
+Patch release. It clarifies which test work needs owner approval during gate
+recovery and fixes a Windows audit-index metadata comparison failure.
+
+- **Required new tests and fixtures.** Tests and fixtures required by the
+  approved plan, inside the milestone's write set, receive ordinary task review.
+  This includes additions to existing files that leave existing tests and
+  fixtures unchanged. Listed changes to existing tests or product code, any
+  weakening of a test, and all other owner stops retain their approval gates.
+  The bounded test-side waiter ladder remains the documented exception.
+- **Windows source reads.** The audit index compares creation time when matching
+  path and descriptor metadata on Windows, where CPython can report different
+  `ctime` meanings through `stat` and `fstat`. Identity, size and modification
+  checks remain enforced, along with the existing same-API mutation checks and
+  POSIX ctime checks. Regression tests cover the Windows mismatch, actual source
+  changes and retention of the previous index generation on failure.
+- **Verification.** The native audit CLI suite passed on Windows, macOS and
+  Linux, including a new raw-metadata probe. The implementation commit also
+  passed repository, DSH, Docker and browser CI, and documentation deployment.
+
+**Upgrade note.** Installing the plugin alone changes no project workflow files.
+Use an approved `memory-bank-upgrade` to adopt the stop-list clarification in
+existing project rules; preserve stricter policies. The audit-index fix ships
+with the optional audit toolkit. The bundled protocol registry preserves the
+released v2.23.3 fingerprint alongside the updated protocol fingerprint.
+
 # memory-bank v2.23.3
 
 Patch release. Interactive Goal/Next runs gain bounded recovery for required
