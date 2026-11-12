@@ -28,13 +28,16 @@ class GoalInstructionContracts(unittest.TestCase):
     def test_required_new_tests_exception_preserves_stop_conditions(self):
         text = (ROOT / "GOAL.md").read_text()
         for clause in (
-            "instrumentation in existing tests or product code",
-            "any change that weakens a test",
-            "New tests and fixtures required by the\n  approved plan, inside the milestone's write set",
-            "updating existing test\n  assertions or fixtures to align with approved in-scope behavioral changes",
-            "are ordinary work checked by the\n  task review",
-            "all other owner\n  stops remain binding",
-            "A new test may be added to an existing file, and existing\n  test assertions or fixtures may be aligned with approved in-scope behavioral\n  changes, when the edits remain within the approved write set and do not\n  weaken tests",
+            "an edit outside the milestone's declared write set",
+            "any change that weakens a test: removing or",
+            "relaxing a matcher, shrinking a fixture",
+            "only when the milestone specification\n  or an approved repair row names the behavior change",
+            "cite that line in the status checkpoint",
+            "List\n  each updated expectation in status and in the whole-review brief",
+            "An update made after the whole review has passed",
+            "Required new tests and fixtures\n  need no stop",
+            "remaining counter never waives these stops",
+            "A runner timeout may be corrected once per gate without an owner stop",
         ):
             with self.subTest(clause=clause):
                 self.assertIn(clause, text)
@@ -98,7 +101,10 @@ class GoalInstructionContracts(unittest.TestCase):
             "keep the goal active,\n  incomplete and resumable",
             "Prepare a concrete LLM recovery proposal before\n  asking",
             "After actual human approval of the complete proposal",
-            "keys reach the effective chain ceiling (default three)",
+            "One gate run is one attempt",
+            "checked only when a rerun produces a signature not seen in earlier runs",
+            "After any gate stop the run may start an independent read-only assessment",
+            "diagnostic is not an\n  attempt: it charges nothing",
             "a data race of unknown cause",
             "For every increase, retain completion evidence from the current failing\noccurrence",
             "a fourth increase to\n`16T` always stops for the owner",
@@ -121,6 +127,11 @@ class GoalInstructionContracts(unittest.TestCase):
             "Class O required gates are exempt.",
             "Product guards may use the ladder.",
             "Review rounds charge the gate counter.",
+            "A run reporting three keys at once reaches the chain ceiling.",
+            "A diagnostic charges an attempt.",
+            "The assessment may run a test.",
+            "The chain is checked inside the run.",
+            "Corrective planning may waive these stops.",
         ):
             with self.subTest(directive=directive):
                 self.assertTrue(repository_checks.gate_recovery_text_problems(

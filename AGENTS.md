@@ -603,7 +603,7 @@ spelling so an inbound link survives translation.
   turns a class O run into one needing the gate.
 - Interactive Goal/Next `REVIEW_MAX_GATE_ITERATIONS` defaults to 3, independently
   of review rounds. Required gates use persistent per-key failures and a separate
-  three-distinct-key chain stop; clean passes reset gate counters, never waiter
+  three-signature chain stop (one run is one attempt); clean passes reset gate counters, never waiter
   ceilings. Exhaustion pauses affected verification for a concrete LLM recovery
   proposal and renewed human approval, preserving the active resumable goal.
   Persist started attempts before dispatch and report state beside

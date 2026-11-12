@@ -589,25 +589,32 @@ named, use a stable failure identity, such as build/setup plus the failing unit.
 Changing flags, splitting commands, renaming tests, moving a repair to another
 milestone or starting another session never creates a fresh allowance for the
 same unresolved failure. Routine focused checks acquire no gate counter.
+A **signature** is the failing assertion or refusal, its source location and its
+error text or response body, with test names, timings and volatile values such
+as IDs, ports and timestamps removed. A failure that cannot be matched to one
+(runner crash, no output) is its own signature and is never merged.
 
 Persist gate state beside the review counters in the owning status file:
 
 - Record the effective limit and human approval source, gate identity, each
-  key's charged attempts and remaining allowance, and the distinct failing keys
-  since the last clean pass. Each key starts with the effective limit.
+  key's charged attempts and remaining allowance, for each
+  run its failing keys and their signatures, and the distinct signatures since
+  the last clean pass. Each key starts with the effective limit.
 - Before dispatch, persist an attempt ID as `started`, its input revision or
   saved diff/hash, command and any known key. This reserves the attempt; after
   failure charge one to every reported failing key, once per attempt ID. Record
-  the result and evidence link. A diagnostic rung charges its finding's key
-  even if the diagnostic command succeeds; it cannot reset the gate.
+  the result and evidence link. An observation-only diagnostic is not an
+  attempt: it charges nothing and cannot reset the gate.
 - Recover an interrupted `started` attempt before another dispatch. Reconcile
   its result once from retained evidence; if the result cannot be recovered,
   charge its known key conservatively. If its key or dispatch is uncertain,
   pause for the owner rather than discard the reservation or guess a pass.
-- Stop for the owner when a key has zero remaining, or when distinct failing
-  keys reach the effective chain ceiling (default three) at the same gate
-  command without a clean pass. A run reporting three keys at once reaches
-  the default chain limit immediately.
+- Stop for the owner when a key has zero remaining, or when the gate's distinct
+  signatures reach the effective chain ceiling (default three) across
+  consecutive runs without a clean pass. One gate run is one attempt: the chain
+  is checked only when a rerun produces a signature not seen in earlier runs,
+  never inside the run that produced several. Cases in one run that share a
+  signature count once.
   Mark affected work `[!]` with diagnosis and options. No further attempt at an
   exhausted key starts without renewed human approval; approval to continue
   states a new explicit limit and retains usage. A higher per-key limit does
@@ -638,11 +645,12 @@ Persist gate state beside the review counters in the owning status file:
 
 Within the remaining budget and existing authority, continue without asking
 for a same-scope fix of a defect established in the milestone's own changed
-code. Observation-only diagnostics allow at most two rungs per finding, each
-charging one attempt and changing no behavior, assertion, guard, deadline,
-fixture or instrumentation. A rerun after a diagnosed runner-setting error
-retains the original FAIL and follows the existing verification-discrepancy
-rule; it still consumes applicable counters and grant budgets. Never repeat an
+code. An observation-only diagnostic edits no file and changes no behavior,
+assertion, guard, deadline, fixture or instrumentation; allow at most two per
+finding between charged gate attempts. A row's own tests may be updated at row
+time for behavior that row changes; that is not recovery. A rerun after a
+diagnosed runner-setting error retains the original FAIL and follows the existing
+verification-discrepancy rule; it still consumes applicable counters and grant budgets. Never repeat an
 unchanged failed attempt hoping for a pass. The acceptance-readiness preflight
 and every existing authorization reservation remain required where applicable.
 
@@ -650,19 +658,23 @@ Regardless of remaining budget, stop for the owner at the first occurrence of:
 
 - a waiver or non-blocking P2 classification, unless the owner already wrote
   down an exact applicable pattern with its evidence and stop conditions;
-- a write-set expansion, unless an owner-written standing rule covers it;
-- a change to any product guard, runner timeout, production-code deadline,
-  assertion, fixture or instrumentation in existing tests or product code, or
-  any change that weakens a test; only the test-side ladder below is an exception
-  for a test waiter or test budget. New tests and fixtures required by the
-  approved plan, inside the milestone's write set, and updating existing test
-  assertions or fixtures to align with approved in-scope behavioral changes (or
-  under approved task or corrective scope), are ordinary work checked by the
-  task review. This clarification applies only to this item; all other owner
-  stops remain binding. A new test may be added to an existing file, and existing
-  test assertions or fixtures may be aligned with approved in-scope behavioral
-  changes, when the edits remain within the approved write set and do not
-  weaken tests;
+- an edit outside the milestone's declared write set, unless an owner-written
+  standing rule covers it. A file in an already-listed package or module
+  directory that changes no public contract and overlaps no other active
+  milestone's or running lease's write set is in scope: record it in status and
+  the whole-review brief. A milestone that declares no write set is bounded by
+  its specification's scope;
+- a change to a product guard or production-code deadline, the deletion or
+  skipping of an existing test, or any change that weakens a test: removing or
+  loosening an assertion, relaxing a matcher, shrinking a fixture, or replacing
+  a failing test with a new one. During recovery, an existing assertion or
+  fixture may be updated without a stop only when the milestone specification
+  or an approved repair row names the behavior change and the edit preserves
+  coverage of retained behavior; cite that line in the status checkpoint. List
+  each updated expectation in status and in the whole-review brief, where the
+  whole review checks it. An update made after the whole review has passed is a
+  review change and needs a later iteration. Required new tests and fixtures
+  need no stop. Test waiters and budgets follow the ladder below;
 - a change to credential or ledger custody code, workers, pins or durable formats;
 - a data race of unknown cause, either exhausted counter, missing authority or
   an exhausted independent grant budget.
@@ -670,6 +682,24 @@ Regardless of remaining budget, stop for the owner at the first occurrence of:
 These are gate-failure recovery rules; the ordinary review severity policy
 still governs review findings. Corrective planning, a preset, a grant or a
 remaining counter never waives these stops, required coverage or acceptance.
+
+After any gate stop the run may start an independent read-only assessment
+without asking. A fresh read-only reviewer, not the author of the failing
+change, may read source, tests, logs and recorded outcomes; it runs no test or
+other command, edits no file, adds no instrumentation and changes no counter,
+guard, deadline or fixture. Record its findings in the status file and the
+outcome record. It ends with a proposed correction (test-side, product-side or
+neither), its write set and its rerun needs, each a separate owner decision, so
+the stop remains. It charges no gate attempt or review round and renews no
+capacity. An assessment that would need a run, an edit or instrumentation stops
+for the owner.
+
+A runner timeout may be corrected once per gate without an owner stop when
+evidence shows the run was progressing rather than hung: tests still completing
+at the kill, or a recorded elapsed time for the same gate and variant. Set it to
+at most twice that expected runtime and within the `tech-stack.md` hard limits,
+retain the original FAIL, and charge the rerun. A second raise, a value beyond
+the hard limits, or a rerun that does not complete stops for the owner.
 
 **Test-side deadline doubling ladder.** Only a waiter or test budget in test
 files qualifies. Before its first doubling, obtain an independent read-only
@@ -679,8 +709,8 @@ limit; no measured completion means a possible hang and an immediate owner
 stop. The measured operation must complete within the proposed doubled limit.
 For every increase, retain completion evidence from the current failing
 occurrence after its current deadline and within the proposed doubled limit;
-old measurements never justify a later doubling. No product guard, runner
-timeout or production-code deadline qualifies.
+old measurements never justify a later doubling. No product guard or production-code
+deadline qualifies; a runner timeout follows its own rule above.
 
 Before establishing `T` or increasing a waiter, consult `tech-stack.md`'s
 **Test waiter ceiling references** and inspect matching active status records
@@ -725,7 +755,7 @@ The initial failed gate attempt charges `3` to `2`: a measured `2.08s`
 completion of a `2s` test waiter can justify `2s` to `4s` and one rerun without
 an owner stop. If that rerun passes, gate counters reset while the waiter keeps
 its recorded original `2s` value and first doubling. At default limits, three
-failures of one key, or three distinct failing keys at one gate, pause affected
+failures of one key, or three distinct signatures across consecutive runs, pause affected
 verification for a recovery proposal and renewed human approval before dispatch.
 <!-- END SHARED required-gate-recovery -->
 

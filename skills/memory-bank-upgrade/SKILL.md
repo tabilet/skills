@@ -257,11 +257,15 @@ project adopts them, its stricter text stays binding. The proposal:
   activate these changes merely by refreshing launch input. Include the
   `tech-stack.md` Test waiter ceiling references entry and the lookup and
   retirement handoff rules; preserve existing waiter evidence and aliases.
-  Include the stop-list clarification: required new tests and fixtures within
-  the approved write set, and updates to existing test assertions or fixtures
-  to align with approved in-scope behavioral changes (or under approved task/corrective
-  scope), receive task review when they do not weaken tests. Preserve stops for
-  listed changes to existing tests/product code, test weakening and other items.
+  Include the stop-list changes: one gate run is one attempt and the chain ceiling
+  counts distinct failure signatures across runs; a fresh read-only assessment
+  may start after any gate stop without asking; observation-only diagnostics
+  charge nothing; one runner-timeout correction per gate within the project's
+  hard limits; same-package files outside a declared write set that change no
+  public contract are in scope; and an existing assertion or fixture may be
+  updated during recovery only with a cited specification or repair line, listed
+  in status and the whole-review brief. Preserve stops for deleting, skipping or
+  weakening tests, guards, deadlines and other items.
 - Compare integrated lifecycle review, durable-state exits, repair sizing,
   risk-scaled verification, cache invalidation, environment preflight and timing
   reporting explicitly. Show changed gates, ownership, performance dispositions

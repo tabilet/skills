@@ -1,3 +1,38 @@
+# memory-bank v2.23.6
+
+Patch release. It finishes the gate-recovery stop cleanup begun in v2.23.5 and
+corrects that release's wording.
+
+- **Chain ceiling.** One gate run is one attempt. Cases that share a failure
+  signature count once, and the chain counts distinct signatures across
+  consecutive runs, checked only when a rerun produces an unseen one. A failure
+  with no matching signature is its own. Per-key allowances are unchanged.
+- **Read-only assessment.** After any gate stop a fresh read-only reviewer may
+  assess the failure without asking. It runs no command, edits nothing, charges
+  no attempt or review round, and ends with a proposal that still needs the
+  owner's decision.
+- **Diagnostics.** Observation-only diagnostics charge no attempt and never
+  reset a gate; at most two per finding between charged attempts.
+- **Runner timeout.** One correction per gate, to at most twice the expected
+  runtime within the `tech-stack.md` hard limits, with progress evidence and the
+  original FAIL retained. A second raise or a larger value stops.
+- **Write set.** Same-package files that change no public contract and overlap
+  no other work are in scope; cross-package or overlapping edits still stop.
+- **Test alignment (correction to v2.23.5).** The v2.23.5 text let corrective
+  scope justify editing existing assertions, contradicting the rule that
+  corrective planning never waives these stops, and named a task review that
+  does not exist at recovery time. Updating an existing assertion or fixture
+  during recovery now needs a cited specification or approved repair line, is
+  listed in status and the whole-review brief, and is checked by the whole
+  review. Deleting, skipping or weakening a test is defined and still stops.
+  The "test tampering" wording in the v2.23.5 notes referred to this stop.
+- **Enforcement.** `check.py` now lints the strict side of the stop list and
+  rejects the retired rules.
+
+**Upgrade note.** Installing the plugin changes no project workflow files. Projects
+that adopted earlier gate-recovery text keep its stricter rules until an approved
+`memory-bank-upgrade`; the v2.23.5 and v2.23.6 relaxations are inert there.
+
 # memory-bank v2.23.5
 
 Patch release. It clarifies gate-recovery stop rules to allow updating existing

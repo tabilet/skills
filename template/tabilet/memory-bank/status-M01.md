@@ -72,19 +72,23 @@ Review iterations: <consumed>/<effective limit>; approval: <source>
 REVIEW_MAX_GATE_ITERATIONS: <effective positive integer; default 3>; approval: <source>
 Gate: <milestone + command + cwd + variant + required scope>
 Gate keys: <package-qualified test or stable failure ID>: charged <n>, remaining <n>
-Gate chain: <distinct failing keys since last clean pass>; ceiling: <effective limit; default 3>
+Gate runs: <per run: failing keys and their signatures>
+Gate chain: <distinct signatures since last clean pass>; ceiling: <effective limit; default 3>
 Gate chain approval: <source for any explicit extension; preserve seen keys>
+Gate assessment: <read-only reviewer findings and proposed correction; none charged>
 Gate recovery proposal: <diagnosis/evidence, exact edits, usage, proposed limits/remaining attempts, risks/permissions>
 Gate recovery approval: <pending question or actual human approval source and old/new limits>
 Gate attempt: <ID>; state: <started|PASS|FAIL|interrupted>; known key: <key or unknown>
 Gate inputs/evidence: <full HEAD + saved diff/hash, result log, elapsed time>
-Diagnostic rungs: <finding/key>: <0..2>; charged attempt IDs: <IDs>
+Diagnostics: <finding/key>: <0..2 since the last charged attempt>; none charge an attempt
 Waiter: <stable file/symbol identity>; original T: <value>; current: <value>
 Waiter doublings: <0..3>; ceiling: <8T or stricter approved value>
 Waiter prior evidence: <recovered active/retired status links and stable identity/aliases>
 Waiter maintained reference: <entry in tech-stack.md Test waiter ceiling references>
 Waiter evidence: <measured completion, independent assessment, approval source>
 Waiter exact edits: <old -> new per charged attempt; whole-review brief link>
+Updated expectations: <test/fixture; cited spec or repair line; whole-review brief link>
+Runner timeout: <old -> new, once per gate; progress evidence; hard limit>
 ```
 
 A clean complete gate pass resets gate keys and chain state, never waiter

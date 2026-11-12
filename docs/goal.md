@@ -255,26 +255,30 @@ It bounds interactive required-gate recovery, including offline gates; it does
 not change Python API limits. The complete contract is in
 [Required Gate Recovery](https://github.com/tabilet/skills/blob/main/GOAL.md#required-gate-recovery).
 Each gate command and package-qualified failing test form a key. Every failure
-charges one attempt to each reported key; three distinct failing keys at one
-gate without a pass also stop the run. Counters and a started-attempt reservation
+charges one attempt to each reported key. One gate run is one attempt: cases
+in a run that share a failure signature count once, and three distinct
+signatures across consecutive runs stop the run. After any stop a fresh
+read-only reviewer may assess the failure without asking; it runs nothing, charges
+nothing, and ends with a proposal that still needs your decision. Counters and a started-attempt reservation
 live beside review counters in the status file, survive compaction/resume, and
 appear in every resume summary. A clean complete gate pass resets its counters.
 
 Within budget, an established defect in the milestone's own changed code may be
-fixed and rerun. At most two observation-only diagnostic rungs per finding also
-charge attempts. Waivers/P2 dispositions and write-set expansions require an
-exact owner-written exception. Listed guard, timeout, assertion, fixture and
-instrumentation changes in existing tests or product code, and any change that
-weakens a test, require an owner pause, subject to the test-side ladder below.
-New tests and fixtures required by the approved plan within the milestone's
-write set, and updating existing test assertions or fixtures to align with
-approved in-scope behavioral changes (or under approved task or corrective
-scope), receive ordinary task review when they do not weaken tests. This
-includes additions to existing files and aligning existing test assertions or
-fixtures within the approved write set. Other stops still apply, including
-custody code, workers, pins, durable formats and unknown-cause races. Existing grants and stricter limits
-remain binding. Existing projects explicitly adopt conflicts with no-counter
-rules through Upgrade.
+fixed and rerun. Up to two observation-only diagnostics per finding between
+charged attempts cost nothing and never reset a gate. Waivers/P2 dispositions
+and edits outside the declared write set need an exact owner-written exception;
+a same-package file with no public-contract change and no overlap with other
+work is in scope and is recorded. Changes to product guards or production
+deadlines, and deleting, skipping or weakening an existing test, require an
+owner pause. During recovery an existing assertion or fixture may be updated
+only when the milestone specification or an approved repair row names the
+behavior change; cite that line, list each update in status and the whole-review
+brief, and the whole review checks it. A runner timeout may be corrected once
+per gate, to at most twice the expected runtime within the `tech-stack.md` hard
+limits, with the original FAIL retained. Other stops still apply, including
+custody code, workers, pins, durable formats and unknown-cause races. Existing
+grants and stricter limits remain binding. Existing projects explicitly adopt
+conflicts with no-counter rules through Upgrade.
 
 A measured test-side waiter expiry may use one doubling per charged attempt,
 from its original `T` up to `8T`, after an independent read-only assessment that
@@ -289,7 +293,7 @@ the goal stays active, incomplete and resumable. Independent authorized work
 continues where ordering permits. After approval, the same goal resumes with
 the explicit new allowance and preserved usage. The ladder grants no automatic
 extra attempt, and extending a counter grants no other permission or ceiling change.
-Product guards, runner timeouts and production deadlines never use this ladder.
+Product guards and production deadlines never use this ladder; a runner timeout follows its own once-per-gate rule.
 Grant budgets and required-gate counters bind independently; extending one never
 extends the other. Before establishing a waiter's original value or increasing
 it, recover matching active and retired status evidence, including rename and
