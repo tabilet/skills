@@ -127,10 +127,14 @@ Regardless of remaining budget, stop for the owner at the first occurrence of:
   assertion, fixture or instrumentation in existing tests or product code, or
   any change that weakens a test; only the test-side ladder below is an exception
   for a test waiter or test budget. New tests and fixtures required by the
-  approved plan, inside the milestone's write set, are ordinary work checked by
-  the task review. This clarification applies only to this item; all other owner
-  stops remain binding. A new test may be added to an existing file when existing
-  tests and fixtures remain unchanged;
+  approved plan, inside the milestone's write set, and updating existing test
+  assertions or fixtures to align with approved in-scope behavioral changes (or
+  under approved task or corrective scope), are ordinary work checked by the
+  task review. This clarification applies only to this item; all other owner
+  stops remain binding. A new test may be added to an existing file, and existing
+  test assertions or fixtures may be aligned with approved in-scope behavioral
+  changes, when the edits remain within the approved write set and do not
+  weaken tests;
 - a change to credential or ledger custody code, workers, pins or durable formats;
 - a data race of unknown cause, either exhausted counter, missing authority or
   an exhausted independent grant budget.

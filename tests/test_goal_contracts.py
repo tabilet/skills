@@ -31,9 +31,10 @@ class GoalInstructionContracts(unittest.TestCase):
             "instrumentation in existing tests or product code",
             "any change that weakens a test",
             "New tests and fixtures required by the\n  approved plan, inside the milestone's write set",
-            "are ordinary work checked by\n  the task review",
+            "updating existing test\n  assertions or fixtures to align with approved in-scope behavioral changes",
+            "are ordinary work checked by the\n  task review",
             "all other owner\n  stops remain binding",
-            "A new test may be added to an existing file when existing\n  tests and fixtures remain unchanged",
+            "A new test may be added to an existing file, and existing\n  test assertions or fixtures may be aligned with approved in-scope behavioral\n  changes, when the edits remain within the approved write set and do not\n  weaken tests",
         ):
             with self.subTest(clause=clause):
                 self.assertIn(clause, text)

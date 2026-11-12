@@ -258,8 +258,9 @@ project adopts them, its stricter text stays binding. The proposal:
   `tech-stack.md` Test waiter ceiling references entry and the lookup and
   retirement handoff rules; preserve existing waiter evidence and aliases.
   Include the stop-list clarification: required new tests and fixtures within
-  the approved write set receive task review, including additions to existing
-  files that leave existing tests and fixtures unchanged. Preserve stops for
+  the approved write set, and updates to existing test assertions or fixtures
+  to align with approved in-scope behavioral changes (or under approved task/corrective
+  scope), receive task review when they do not weaken tests. Preserve stops for
   listed changes to existing tests/product code, test weakening and other items.
 - Compare integrated lifecycle review, durable-state exits, repair sizing,
   risk-scaled verification, cache invalidation, environment preflight and timing

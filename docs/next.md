@@ -137,10 +137,12 @@ authorized work where ordering permits; resume affected verification after
 approval of explicit new limits and repair scope.
 Same-scope repairs continue within budget; immediate owner stops and the bounded
 test-side doubling ladder follow [the goal guide](goal.md#test-policy-and-real-effect-checks)
-and Next's bundled interactive controls. Required new tests and fixtures within
-the approved write set receive ordinary task review, including additions to
-existing files that leave existing tests and fixtures unchanged; listed changes
-to existing tests/product code, test weakening and other owner stops still apply.
+and Next's bundled interactive controls. Required new tests and fixtures within the approved write set, and updates to
+existing test assertions or fixtures to align with approved in-scope behavioral
+changes (or under approved task or corrective scope), receive ordinary task
+review when they do not weaken tests; this includes additions to existing files
+and aligned existing tests. Listed changes to existing tests/product code,
+test weakening and other owner stops still apply.
 Existing projects explicitly adopt
 conflicting policy changes; the Python API paths keep their existing limits.
 

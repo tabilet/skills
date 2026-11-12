@@ -267,9 +267,12 @@ exact owner-written exception. Listed guard, timeout, assertion, fixture and
 instrumentation changes in existing tests or product code, and any change that
 weakens a test, require an owner pause, subject to the test-side ladder below.
 New tests and fixtures required by the approved plan within the milestone's
-write set receive ordinary task review, including additions to existing files
-that leave existing tests and fixtures unchanged. Other stops still apply,
-including custody code, workers, pins, durable formats and unknown-cause races. Existing grants and stricter limits
+write set, and updating existing test assertions or fixtures to align with
+approved in-scope behavioral changes (or under approved task or corrective
+scope), receive ordinary task review when they do not weaken tests. This
+includes additions to existing files and aligning existing test assertions or
+fixtures within the approved write set. Other stops still apply, including
+custody code, workers, pins, durable formats and unknown-cause races. Existing grants and stricter limits
 remain binding. Existing projects explicitly adopt conflicts with no-counter
 rules through Upgrade.
 

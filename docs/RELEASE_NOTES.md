@@ -1,3 +1,27 @@
+# memory-bank v2.23.5
+
+Patch release. It clarifies gate-recovery stop rules to allow updating existing
+test assertions or fixtures to align with approved in-scope behavioral changes
+without triggering an autonomous execution stop.
+
+- **In-scope test alignment.** Updating existing test assertions or fixtures to
+  align with approved in-scope behavioral changes (or under approved task or
+  corrective planning scope) within the milestone's write set is treated as
+  ordinary work checked by task review, alongside required new tests and
+  fixtures. Strict owner stops against test tampering or any edit that weakens a
+  test remain enforced, as do stops for changes to product guards, runner
+  timeouts, production deadlines, credential/ledger custody code, workers,
+  pins, durable formats and unknown-cause data races.
+- **Protocol compatibility.** The bundled protocol registry bumps to v2.23.5
+  and preserves the released v2.23.4 protocol fingerprint in `released`.
+- **Verification.** Repository checks, contract lints, and behavioral test suites
+  pass. Documentation across all languages reflects the clarified test
+  alignment rule.
+
+**Upgrade note.** Installing the plugin alone changes no project workflow files.
+Use an approved `memory-bank-upgrade` to adopt the clarified gate-recovery stop
+rules in existing project rules; preserve stricter policies.
+
 # memory-bank v2.23.4
 
 Patch release. It clarifies which test work needs owner approval during gate
