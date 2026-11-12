@@ -652,8 +652,13 @@ Regardless of remaining budget, stop for the owner at the first occurrence of:
   down an exact applicable pattern with its evidence and stop conditions;
 - a write-set expansion, unless an owner-written standing rule covers it;
 - a change to any product guard, runner timeout, production-code deadline,
-  assertion, fixture or instrumentation; only the test-side ladder below is an
-  exception for a test waiter or test budget;
+  assertion, fixture or instrumentation in existing tests or product code, or
+  any change that weakens a test; only the test-side ladder below is an exception
+  for a test waiter or test budget. New tests and fixtures required by the
+  approved plan, inside the milestone's write set, are ordinary work checked by
+  the task review. This clarification applies only to this item; all other owner
+  stops remain binding. A new test may be added to an existing file when existing
+  tests and fixtures remain unchanged;
 - a change to credential or ledger custody code, workers, pins or durable formats;
 - a data race of unknown cause, either exhausted counter, missing authority or
   an exhausted independent grant budget.

@@ -263,9 +263,13 @@ appear in every resume summary. A clean complete gate pass resets its counters.
 Within budget, an established defect in the milestone's own changed code may be
 fixed and rerun. At most two observation-only diagnostic rungs per finding also
 charge attempts. Waivers/P2 dispositions and write-set expansions require an
-exact owner-written exception; changes to guards, runner timeouts, assertions,
-fixtures, instrumentation, custody code, workers, pins or durable formats, and
-unknown-cause data races stop immediately. Existing grants and stricter limits
+exact owner-written exception. Listed guard, timeout, assertion, fixture and
+instrumentation changes in existing tests or product code, and any change that
+weakens a test, require an owner pause, subject to the test-side ladder below.
+New tests and fixtures required by the approved plan within the milestone's
+write set receive ordinary task review, including additions to existing files
+that leave existing tests and fixtures unchanged. Other stops still apply,
+including custody code, workers, pins, durable formats and unknown-cause races. Existing grants and stricter limits
 remain binding. Existing projects explicitly adopt conflicts with no-counter
 rules through Upgrade.
 

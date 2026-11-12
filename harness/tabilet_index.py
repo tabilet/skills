@@ -101,8 +101,14 @@ def inventory(root):
     return dict(sorted(found.items()))
 
 
-def signature(info):
-    return info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns,info.st_ctime_ns
+def signature(info, *, cross_api=False):
+    # Windows CPython 3.12+ stat(path) exposes creation time as ctime, while
+    # fstat(fd) can expose change time. Compare birthtime across APIs, retaining
+    # ctime for same-API mutation checks and on POSIX. Older Windows Python
+    # lacks birthtime_ns and uses creation time as ctime in both APIs.
+    timestamp = (getattr(info, 'st_birthtime_ns', info.st_ctime_ns)
+                 if cross_api and os.name == 'nt' else info.st_ctime_ns)
+    return info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns,timestamp
 
 
 def read_document(root, relative):
@@ -114,7 +120,7 @@ def read_document(root, relative):
     descriptor=os.open(path,os.O_RDONLY | getattr(os,'O_NOFOLLOW',0) | getattr(os,'O_NONBLOCK',0))
     with os.fdopen(descriptor,'rb') as source:
         opened=os.fstat(source.fileno())
-        if not stat.S_ISREG(opened.st_mode) or signature(opened)!=signature(before):
+        if not stat.S_ISREG(opened.st_mode) or signature(opened,cross_api=True)!=signature(before,cross_api=True):
             raise AuditError(f'source changed before read: {relative}')
         data=source.read(MAX_BYTES+1)
     after=path.stat()

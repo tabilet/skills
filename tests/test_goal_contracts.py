@@ -25,6 +25,21 @@ class GoalInstructionContracts(unittest.TestCase):
                 self.assertEqual([], repository_checks.gate_recovery_text_problems(
                     relative, (ROOT / relative).read_text()))
 
+    def test_required_new_tests_exception_preserves_stop_conditions(self):
+        text = (ROOT / "GOAL.md").read_text()
+        for clause in (
+            "instrumentation in existing tests or product code",
+            "any change that weakens a test",
+            "New tests and fixtures required by the\n  approved plan, inside the milestone's write set",
+            "are ordinary work checked by\n  the task review",
+            "all other owner\n  stops remain binding",
+            "A new test may be added to an existing file when existing\n  tests and fixtures remain unchanged",
+        ):
+            with self.subTest(clause=clause):
+                self.assertIn(clause, text)
+                self.assertTrue(repository_checks.gate_recovery_text_problems(
+                    "GOAL.md", text.replace(clause, "omitted")))
+
     def test_grant_budget_cannot_override_offline_required_gate_counters(self):
         text = (ROOT / "GOAL.md").read_text()
         self.assertEqual([], repository_checks.gate_budget_text_problems(text))

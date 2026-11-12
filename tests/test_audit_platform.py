@@ -50,6 +50,32 @@ class AuditPlatformTests(unittest.TestCase):
             self.assertEqual((first/'tabilet/.gitignore').read_text(), '/memory-bank/suggested-harness-update.md\n/audit.sqlite3*\n')
             self.assertFalse((root/'obsolete.sqlite3').exists())
 
+    def test_unchanged_file_path_and_descriptor_metadata_are_comparable(self):
+        script = (
+            "import json, os, pathlib, sys, tempfile\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "import tabilet_index as ix\n"
+            "with tempfile.TemporaryDirectory() as directory:\n"
+            "    path = pathlib.Path(directory) / 'sample.md'\n"
+            "    path.write_text('unchanged', encoding='utf-8')\n"
+            "    os.utime(path, ns=(1000000000, 1000000000))\n"
+            "    by_path = path.stat()\n"
+            "    with path.open('rb') as source:\n"
+            "        by_fd = os.fstat(source.fileno())\n"
+            "    fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_birthtime_ns')\n"
+            "    evidence = {kind: {field: getattr(info, field, None) for field in fields}\n"
+            "                for kind, info in (('stat', by_path), ('fstat', by_fd))}\n"
+            "    print(json.dumps(evidence))\n"
+            "    assert ix.signature(by_path, cross_api=True) == ix.signature(by_fd, cross_api=True), evidence\n"
+            "    text, _, _ = ix.read_document(path.parent, path.name)\n"
+            "    assert text == 'unchanged'\n"
+        )
+        process = subprocess.run([sys.executable, '-B', '-c', script, str(CLI.parent)],
+                                 capture_output=True, encoding='utf-8')
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        # Retain raw fields in CI output to confirm the native Windows behavior.
+        print(process.stdout.strip())
+
     def test_runner_parsers_import_without_posix_file_locking(self):
         """The audit CLI loads the runner for its parsers, including on Windows."""
         script = (

@@ -5,6 +5,7 @@ import sqlite3
 import sys
 import tempfile
 import threading
+import types
 import unittest
 from unittest import mock
 
@@ -25,6 +26,53 @@ class IndexTests(unittest.TestCase):
 
     def sync(self,**kwargs):return ix.sync(self.c,self.root,**kwargs)
     def hashes(self):return {str(p.relative_to(self.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (self.root/'tabilet').rglob('*.md')}
+
+    def metadata_api(self, platform, **changed):
+        original = ix.os.fstat
+        def fstat(fd):
+            info = original(fd)
+            fields = {name: getattr(info, name) for name in (
+                'st_mode', 'st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns')}
+            if platform == 'nt':
+                birthtime = getattr(info, 'st_birthtime_ns', info.st_ctime_ns)
+                fields.update(st_birthtime_ns=birthtime, st_ctime_ns=birthtime + 1000000000)
+            fields.update({key: fields[key] + delta for key, delta in changed.items()})
+            return types.SimpleNamespace(**fields)
+        # Replace only this module's view of os; pathlib and other modules keep
+        # using the host platform while we simulate Windows descriptor metadata.
+        return types.SimpleNamespace(**dict(vars(ix.os), name=platform, fstat=fstat))
+
+    def test_unchanged_windows_file_with_distinct_stat_and_fstat_ctime_is_read(self):
+        relative = str(self.source.relative_to(self.root))
+        with mock.patch.object(ix, 'os', self.metadata_api('nt')):
+            text, digest, _ = ix.read_document(self.root, relative)
+        self.assertEqual(text, self.source.read_bytes().decode('utf-8'))
+        self.assertEqual(digest, hashlib.sha256(self.source.read_bytes()).hexdigest())
+
+    def test_windows_identity_size_and_mtime_mismatches_preserve_generation(self):
+        baseline = self.sync()
+        for field in ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_birthtime_ns'):
+            with self.subTest(field=field):
+                with mock.patch.object(ix, 'os', self.metadata_api('nt', **{field: 1})):
+                    with self.assertRaisesRegex(a.AuditError, 'source changed before read'):
+                        self.sync()
+                self.assertEqual(ix.status(self.c, baseline['workspace_id'])['generation'],
+                                 baseline['generation'])
+
+    def test_posix_ctime_difference_still_rejects_read(self):
+        with mock.patch.object(ix, 'os', self.metadata_api('posix', st_ctime_ns=1)):
+            with self.assertRaisesRegex(a.AuditError, 'source changed before read'):
+                ix.read_document(self.root, str(self.source.relative_to(self.root)))
+
+    def test_content_mutation_after_open_is_still_rejected(self):
+        original = ix.os.fstat
+        def mutate(fd):
+            info = original(fd)
+            self.source.write_bytes(self.source.read_bytes() + b'changed')
+            return info
+        with mock.patch.object(ix.os, 'fstat', side_effect=mutate):
+            with self.assertRaisesRegex(a.AuditError, 'source changed during read'):
+                ix.read_document(self.root, str(self.source.relative_to(self.root)))
 
     def test_extended_ids_are_reindexed_and_keep_full_dependency_targets(self):
         bank = self.root / 'tabilet/memory-bank'
