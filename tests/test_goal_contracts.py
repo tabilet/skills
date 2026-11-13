@@ -185,6 +185,10 @@ class GoalInstructionContracts(unittest.TestCase):
             "A factor step grants an extra attempt.",
             "After a factor step the waiter may double again.",
             "Completion must fall within the proposed doubled limit.",
+            "An added precondition wait needs no assessment.",
+            "An added wait may use a longer bound.",
+            "An added wait may change the assertion.",
+            "An added precondition wait grants an extra attempt.",
         ):
             with self.subTest(directive=directive):
                 self.assertTrue(repository_checks.gate_recovery_text_problems(

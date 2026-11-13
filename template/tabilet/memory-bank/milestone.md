@@ -674,7 +674,8 @@ Regardless of remaining budget, stop for the owner at the first occurrence of:
   each updated expectation in status and in the whole-review brief, where the
   whole review checks it. An update made after the whole review has passed is a
   review change and needs a later iteration. Required new tests and fixtures
-  need no stop. Test waiters and budgets follow the ladder below;
+  need no stop. Test waiters, budgets and added precondition waits follow the
+  paragraphs below;
 - a change to credential or ledger custody code, workers, pins or durable formats;
 - a data race of unknown cause, either exhausted counter, missing authority or
   an exhausted independent grant budget.
@@ -690,7 +691,7 @@ other command, edits no file, adds no instrumentation and changes no counter,
 guard, deadline or fixture. Record its findings in the status file and the
 outcome record. It ends with a proposed correction (test-side, product-side or
 neither), its write set and its rerun needs, each a separate owner decision, so
-the stop remains. It charges no gate attempt or review round and renews no
+the stop remains, except the added precondition wait below. It charges no gate attempt or review round and renews no
 capacity. An assessment that would need a run, an edit or instrumentation stops
 for the owner.
 
@@ -700,6 +701,17 @@ at the kill, or a recorded elapsed time for the same gate and variant. Set it to
 at most twice that expected runtime and within the `tech-stack.md` hard limits,
 retain the original FAIL, and charge the rerun. A second raise, a value beyond
 the hard limits, or a rerun that does not complete stops for the owner.
+
+**Added precondition wait.** An edit that only adds a wait for an observable
+precondition before a test's action (a control enabled, an element present),
+within the project's existing default wait bound, is not a weakening and needs no
+owner stop when the independent read-only assessment records the readiness gap
+and that no product requirement promises the precondition immediately. It
+changes no expected value, matcher, assertion, fixture or deadline, adds no wait
+to an assertion itself and edits no production code. Charge the rerun, retain
+the original FAIL, and list the edit in status and the whole-review brief. It
+grants no attempt and is no ladder rung. Without that assessment, with a longer
+bound, or for any other change, the stops above and the ladder apply.
 
 **Test-side deadline doubling ladder.** Only a waiter or test budget in test
 files qualifies. Before its first doubling, obtain an independent read-only

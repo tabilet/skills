@@ -300,6 +300,12 @@ continues where ordering permits. After approval, the same goal resumes with
 the explicit new allowance and preserved usage. The ladder grants no automatic
 extra attempt, and extending a counter grants no other permission or ceiling change.
 Product guards and production deadlines never use this ladder; a runner timeout follows its own once-per-gate rule.
+An edit that only adds a wait for an observable precondition before a test's action,
+within the existing default wait bound, needs no owner stop when the same read-only
+assessment records the readiness gap and that no product requirement promises the
+precondition immediately; it changes no expected value, matcher, assertion or fixture, is
+listed in status and the whole-review brief, charges the rerun and grants no attempt. Turning
+an assertion into an eventual one, product-code edits and longer bounds still stop.
 Grant budgets and required-gate counters bind independently; extending one never
 extends the other. Before establishing a waiter's original value or increasing
 it, recover matching active and retired status evidence, including rename and
