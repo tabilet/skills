@@ -1374,6 +1374,21 @@ GATE_RECOVERY_CONTRACT = (
     "The ladder grants no automatic extra attempt",
     "pass resets gate counters but never the waiter's original value or cumulative ceiling",
     "List every self-approved increase with its exact edit in the status file and the whole-review brief",
+    "**Measured instrumented factor.**",
+    "reflection and corrective planning never record or raise it",
+    "at most `F` times its original value `T`",
+    "used only in instrumented builds while the plain value stays unchanged",
+    "it is that waiter's last self-approved increase",
+    "The factor never applies to a runner timeout, a product guard or a production deadline",
+)
+
+# One sentence, defined in the planning contracts and mirrored by the template.
+HEAVY_CADENCE_RULE = (
+    "When the approved risk-scaled verification contract records an instrumented check as heavy, "
+    "with its command and measured cost, a row that would add that check keeps the plain row check "
+    "and notes `instrumented check deferred to <gate>`. The named required gate then runs it once "
+    "before the whole review on a state that contains every such row. Until that gate passes, row "
+    "and milestone notes say `instrumented gate pending` and claim no instrumented verification"
 )
 
 
@@ -1401,6 +1416,9 @@ def gate_recovery_text_problems(relative, text):
         r"(?:assertions?|fixtures?)[^.]{0,40} may be (?:relaxed|loosened|removed) to pass",
         r"corrective planning[^.]{0,40} (?:may|can) waive these stops",
         r"(?:gate failures charge the review counter|review rounds charge the gate counter)",
+        r"factor (?:may|can) (?:also )?(?:raise|scale|extend|apply to) (?:a |the )?(?:runner timeout|product guard|production deadline)",
+        r"factor step (?:grants|adds|allows) an? (?:extra|additional|further) attempt",
+        r"after a factor step[^.]{0,40} (?:may|can) (?:double|increase) again",
     ):
         if re.search(pattern, flat, re.I):
             problems.append(f"{relative}: contradictory gate-recovery directive {pattern!r}")
@@ -1428,13 +1446,16 @@ def required_gate_recovery():
     requirements = {
         "AGENTS.md": ("`REVIEW_MAX_GATE_ITERATIONS` defaults to 3",
                       "Persist started attempts before dispatch", "Python API paths retain their limits",
+                      "optional measured instrumented factor",
+                      "no gate-renewal or budget-scale launch field",
                       "Exhaustion pauses affected verification for a concrete LLM recovery proposal and renewed human approval"),
         "template/tabilet/memory-bank/status-M01.md": (
             "Review iterations:", "REVIEW_MAX_GATE_ITERATIONS:", "Gate keys:",
             "Gate runs:", "Gate chain:", "Gate chain approval:", "Gate assessment:", "Gate recovery proposal:", "Gate recovery approval:", "Gate attempt:", "Waiter doublings:", "Waiter exact edits:",
             "Every resume summary shows this state beside review counters",
             "Waiter prior evidence:", "Waiter maintained reference:"),
-        "template/tabilet/memory-bank/tech-stack.md": ("**Test waiter ceiling references**:",),
+        "template/tabilet/memory-bank/tech-stack.md": ("**Test waiter ceiling references**:",
+                                                       "**Instrumented budget factor**:", HEAVY_CADENCE_RULE),
         "template/tabilet/memory-bank/milestone.md": (
             "retarget its **Test waiter ceiling references** entry",
             "Verify the link and preserved original value, cumulative doublings and ceiling"),
@@ -1446,6 +1467,10 @@ def required_gate_recovery():
         "skills/memory-bank-goal/references/subagents.md": ("resolved `REVIEW_MAX_GATE_ITERATIONS`",
             "charged and started attempts", "original values, cumulative ceilings"),
     }
+    for relative in ("skills/memory-bank-init/references/write-contract.md",
+                     "skills/memory-bank-propose/references/plan-update.md",
+                     "skills/memory-bank-reconcile/references/plan-update.md"):
+        requirements[relative] = (HEAVY_CADENCE_RULE,)
     for relative in SHARED_PLANNING_BLOCKS["review-limit-planning"]:
         requirements[relative] = requirements.get(relative, ()) + (
             "Preserve explicit `REVIEW_MAX_GATE_ITERATIONS`; emit `3` only for a new launch",
@@ -1467,6 +1492,12 @@ def required_gate_recovery():
                            ("API runner", (ROOT / "harness/tackle-memory-bank-api-loop").read_text())):
         if "REVIEW_MAX_GATE_ITERATIONS" in text:
             problems.append(f"{relative}: interactive gate-limit field leaked into API execution")
+    # Drafted after v2.23.6 and withdrawn before any release; spelled only here.
+    for path in markdown_files():
+        text = path.read_text()
+        for withdrawn in ("REVIEW_MAX_GATE_" + "RENEWALS", "INSTRUMENTED_BUDGET_" + "SCALE"):
+            if withdrawn in text:
+                problems.append(f"{path.relative_to(ROOT)}: withdrawn launch field {withdrawn}")
     return problems
 
 
@@ -3501,6 +3532,7 @@ V213_CONTRACTS = {
         "enable the goal protocol's standing revision envelope",
         "schema in `GOAL.md`", "grant without a `standing` block"),
     "skills/memory-bank-init/references/testing-profiles.md": (
+        "`Instrumented budget factor`",
         "keep implementation and focused verification together",
         "consolidate related work and reuse still-valid verification",
         "Preserve mandatory reviews, acceptance coverage, grant budgets and class R attempt records",

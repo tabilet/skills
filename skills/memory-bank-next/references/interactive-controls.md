@@ -221,6 +221,22 @@ sessions. An operation that does not complete within the doubled limit stops
 as a possible hang. Do not split a shared budget or alter its fixture under
 this exception.
 
+**Measured instrumented factor.** `tech-stack.md` may record a human-approved
+**Instrumented budget factor** `F`, at most `8`, for a named instrumented
+command, with the plain and instrumented durations and the revision it was
+measured at. An agent may propose it; reflection and corrective planning never
+record or raise it. Where it is recorded, a qualifying waiter or test budget
+that passes plain and expired under that command may take its increase for the
+charged attempt as one factor step instead of a doubling: a value that covers
+the measured completion and is at most `F` times its original value `T`, used
+only in instrumented builds while the plain value stays unchanged. Every other
+ladder rule applies to the step, including the assessment, the measured
+completion, the possible-hang stop and the `8T` ceiling. Record it in the
+waiter's exact edits as a factor step; it is that waiter's last self-approved
+increase. The factor never applies to a runner timeout, a product guard or a
+production deadline. With no recorded factor, or one that is unmeasured or
+above `8`, only doublings apply.
+
 List every self-approved increase with its exact edit in the status file and
 the whole-review brief; the independent whole review checks each increase.
 The initial failed gate attempt charges `3` to `2`: a measured `2.08s`

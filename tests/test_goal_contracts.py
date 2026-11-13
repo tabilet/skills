@@ -91,6 +91,55 @@ class GoalInstructionContracts(unittest.TestCase):
                     "retarget its **Test waiter ceiling references**", "omit handoff"))
                 self.assertTrue(repository_checks.required_gate_recovery())
 
+    def test_heavy_cadence_factor_line_and_withdrawn_fields_are_enforced(self):
+        files = (
+            "AGENTS.md", "template/tabilet/memory-bank/status-M01.md",
+            "template/tabilet/memory-bank/tech-stack.md", repository_checks.TEST_POLICY_FILE,
+            "skills/memory-bank-goal/SKILL.md", "skills/memory-bank-goal/references/subagents.md",
+            "skills/memory-bank-next/SKILL.md", "harness/tackle-memory-bank-api-loop",
+            "skills/memory-bank-init/references/write-contract.md",
+            "skills/memory-bank-reconcile/references/write-contract.md",
+            *repository_checks.SHARED_PLANNING_BLOCKS["required-gate-recovery"],
+            *repository_checks.SHARED_PLANNING_BLOCKS["review-limit-planning"],
+        )
+        withdrawn = "REVIEW_MAX_GATE_" + "RENEWALS"
+        mutations = (
+            ("template/tabilet/memory-bank/tech-stack.md",
+             "- **Instrumented budget factor**:", "- **Factor**:"),
+            ("skills/memory-bank-init/references/write-contract.md",
+             "keeps the plain row check", "skips the row check"),
+        )
+        for relative, old, new in mutations:
+            with self.subTest(relative=relative, old=old):
+                with tempfile.TemporaryDirectory() as tmp:
+                    fixture = pathlib.Path(tmp)
+                    for name in files:
+                        target = fixture / name
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_bytes((ROOT / name).read_bytes())
+                    with mock.patch.object(repository_checks, "ROOT", fixture), \
+                            mock.patch.object(repository_checks, "markdown_files", lambda: []):
+                        self.assertEqual([], repository_checks.required_gate_recovery())
+                        target = fixture / relative
+                        text = target.read_text()
+                        self.assertIn(old, text)
+                        target.write_text(text.replace(old, new))
+                        self.assertTrue(repository_checks.required_gate_recovery())
+        with self.subTest(withdrawn=withdrawn):
+            with tempfile.TemporaryDirectory() as tmp:
+                fixture = pathlib.Path(tmp)
+                for name in files:
+                    target = fixture / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes((ROOT / name).read_bytes())
+                doc = fixture / "docs" / "note.md"
+                doc.parent.mkdir()
+                doc.write_text("Set " + withdrawn + ": 1\n")
+                with mock.patch.object(repository_checks, "ROOT", fixture), \
+                        mock.patch.object(repository_checks, "markdown_files", lambda: [doc]):
+                    self.assertTrue(any(withdrawn in problem
+                                        for problem in repository_checks.required_gate_recovery()))
+
     def test_gate_recovery_guards_reject_lost_budget_and_authority_boundaries(self):
         text = (ROOT / "GOAL.md").read_text()
         # These mutations remove distinct safety decisions while retaining the
@@ -132,6 +181,9 @@ class GoalInstructionContracts(unittest.TestCase):
             "The assessment may run a test.",
             "The chain is checked inside the run.",
             "Corrective planning may waive these stops.",
+            "The factor may raise a runner timeout.",
+            "A factor step grants an extra attempt.",
+            "After a factor step the waiter may double again.",
         ):
             with self.subTest(directive=directive):
                 self.assertTrue(repository_checks.gate_recovery_text_problems(

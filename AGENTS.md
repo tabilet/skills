@@ -608,7 +608,11 @@ spelling so an inbound link survives translation.
   proposal and renewed human approval, preserving the active resumable goal.
   Persist started attempts before dispatch and report state beside
   review counters on every resume. The shared required-gate recovery contract
-  owns permitted fixes, immediate owner stops and the test-side doubling ladder.
+  owns permitted fixes, immediate owner stops and the test-side doubling ladder,
+  including its optional measured instrumented factor (a human-approved
+  `tech-stack.md` value of at most 8). There is no gate-renewal or budget-scale
+  launch field; more attempts come only from a human-approved higher
+  `REVIEW_MAX_GATE_ITERATIONS`.
   Existing projects explicitly adopt conflicts with class O no-counter rules;
   Python API paths retain their limits and gain no interactive recovery authority.
 - Document the goal loop by referencing `GOAL.md`, never by restating its

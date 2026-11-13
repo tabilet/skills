@@ -285,7 +285,13 @@ from its original `T` up to `8T`, after an independent read-only assessment that
 it is test synchronization. Completion must be measured within the doubled
 limit; missing completion stops as a possible hang. The original value and
 cumulative ceiling never reset on a pass. An explicitly approved ceiling still
-binds. Exact increases go in status and the whole-review brief. At zero remaining,
+binds. Exact increases go in status and the whole-review brief. Where
+`tech-stack.md` records a human-approved **Instrumented budget factor** `F` of
+at most 8, a waiter that passes plain and expires only under the named
+instrumented command may take one factor step instead of a doubling: a value
+that covers the measured completion, at most `F` times `T`, in instrumented
+builds only. It is that waiter's last self-approved increase and adds no
+attempt. At zero remaining,
 the LLM prepares a concrete recovery proposal with diagnosis, evidence, exact
 repair scope, consumed attempts, proposed new limits/remaining attempts, risks
 and needed permissions. Affected verification pauses for your renewed approval;
@@ -456,7 +462,11 @@ static checks and the affected whole units, and that result is the row's
 evidence. Direct consumers join when the row changes a public contract, a
 persisted format or behavior they rely on. This check may use the toolchain's
 test cache and says so. Required gates run fresh immediately before the whole
-review, and again only when something a gate reads has changed. A documentation
+review, and again only when something a gate reads has changed. Where the
+approved risk-scaled verification contract in `tech-stack.md` records an
+instrumented check as heavy, a row keeps its plain row check and the named
+required gate runs the instrumented check once before the whole review; until
+it passes, records say `instrumented gate pending`. A documentation
 change skips the rerun only if no gate reads that document. Gate records include
 their elapsed time, a measurement for planning and never an acceptance limit. A capacity fixture
 may skip an instrumented variant only under the policy's rule 8. A project may

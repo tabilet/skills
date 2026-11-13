@@ -52,10 +52,11 @@ brackets: use the project's real commands and limits, and keep the stock
 plain, unbracketed text. A bracketed line left in a generated section is an
 unfilled placeholder.
 
-Keep `Risk-scaled verification contract`, `Milestone time estimates` and `Gate
-maintenance threshold` in the generated standards, using approved project values
-or `none`. A light profile does not itself approve reduced gates or set a
-milestone time estimate.
+Keep `Risk-scaled verification contract`, `Milestone time estimates`, `Gate
+maintenance threshold` and `Instrumented budget factor` in the generated
+standards, using approved project values or `none`. A light profile does not
+itself approve reduced gates, set a milestone time estimate or record an
+instrumented budget factor.
 
 Include this execution guidance in the generated section: keep implementation
 and focused verification together for each coherent behavior change. When

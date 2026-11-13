@@ -246,7 +246,13 @@ standards and assign the required evidence to the relevant milestone owners.
 - **Execution cadence.** Run the row check before a row is done or a task review;
   run the full suite fresh once per unchanged closure candidate and race/UI checks
   when the change touches concurrency or UI and at required closure; rerun the
-  affected checks after every review fix.
+  affected checks after every review fix. When the approved risk-scaled
+  verification contract records an instrumented check as heavy, with its command
+  and measured cost, a row that would add that check keeps the plain row check
+  and notes `instrumented check deferred to <gate>`. The named required gate then
+  runs it once before the whole review on a state that contains every such row.
+  Until that gate passes, row and milestone notes say `instrumented gate pending`
+  and claim no instrumented verification.
 - **Replacement coverage.** When retiring an implementation, preserve meaningful
   success and failure coverage for retained behavior through its successor.
   Distinguish executed behavior, mocks, compile-only checks and deferred
