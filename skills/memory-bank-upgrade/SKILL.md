@@ -257,9 +257,10 @@ project adopts them, its stricter text stays binding. The proposal:
   activate these changes merely by refreshing launch input. Include the
   `tech-stack.md` Test waiter ceiling references entry and the lookup and
   retirement handoff rules; preserve existing waiter evidence and aliases.
-  Offer the heavy-check cadence sentence and the `Instrumented budget factor`
-  line as their own decisions; the factor stays `none` unless the human supplies
-  a measured value.
+  Offer the heavy-check cadence sentence, rule 7's matching heavy-check deferral
+  sentence in `test-policy.md` and the `Instrumented budget factor` line as their
+  own decisions, and never adopt the cadence without the rule 7 sentence; the
+  factor stays `none` unless the human supplies a measured value.
   Include the stop-list changes: one gate run is one attempt and the chain ceiling
   counts distinct failure signatures across runs; a fresh read-only assessment
   may start after any gate stop without asking; observation-only diagnostics

@@ -1,7 +1,7 @@
 {
   "schema": "tabilet.goal-protocol/v1",
   "version": "2.23.6",
-  "sha256": "e7d0b7c43254d02b2f365dcea6162f56e3f2da67c8d205c6b95f33a8d441909c",
+  "sha256": "ed3d49f0280a5add8d2f28cc64242c66caaceee8eba85956ee0f257d151f1139",
   "released": [
     {
       "sha256": "b1ff0a748420bed7473b8109e0381ba42b188a8aa67575a9f4ee8c8768f37439",

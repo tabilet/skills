@@ -282,16 +282,16 @@ conflicts with no-counter rules through Upgrade.
 
 A measured test-side waiter expiry may use one doubling per charged attempt,
 from its original `T` up to `8T`, after an independent read-only assessment that
-it is test synchronization. Completion must be measured within the doubled
-limit; missing completion stops as a possible hang. The original value and
+it is test synchronization. Completion must be measured within the selected
+step's proposed limit; missing completion stops as a possible hang. The original value and
 cumulative ceiling never reset on a pass. An explicitly approved ceiling still
 binds. Exact increases go in status and the whole-review brief. Where
 `tech-stack.md` records a human-approved **Instrumented budget factor** `F` of
 at most 8, a waiter that passes plain and expires only under the named
 instrumented command may take one factor step instead of a doubling: a value
 that covers the measured completion, at most `F` times `T`, in instrumented
-builds only. It is that waiter's last self-approved increase and adds no
-attempt. At zero remaining,
+builds only, even above `2T`, with the completion measured against that value.
+It is that waiter's last self-approved increase and adds no attempt. At zero remaining,
 the LLM prepares a concrete recovery proposal with diagnosis, evidence, exact
 repair scope, consumed attempts, proposed new limits/remaining attempts, risks
 and needed permissions. Affected verification pauses for your renewed approval;

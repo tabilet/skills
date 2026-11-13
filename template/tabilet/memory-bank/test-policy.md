@@ -108,6 +108,11 @@ test on loopback fixtures with a throwaway profile is class O.
    checks the classification against the full diff. Reduced checks require an
    approved risk-scaled verification contract in `tech-stack.md`; it may tailor
    routine row checks only within the governing test policy and acceptance.
+   That contract may record an instrumented check, including the race check, as
+   heavy with its command and measured cost. The row then keeps the plain row
+   check and notes the deferral, and the check runs once as a named required gate
+   before the whole review. Until that gate passes the milestone claims no
+   instrumented verification, and the deferral never excuses the required gate.
    Removing or replacing a required gate needs explicit human approval of that
    specific contract change and its replacement coverage, including any necessary
    policy or acceptance amendment. Classification alone never removes a required

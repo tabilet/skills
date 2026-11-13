@@ -184,6 +184,7 @@ class GoalInstructionContracts(unittest.TestCase):
             "The factor may raise a runner timeout.",
             "A factor step grants an extra attempt.",
             "After a factor step the waiter may double again.",
+            "Completion must fall within the proposed doubled limit.",
         ):
             with self.subTest(directive=directive):
                 self.assertTrue(repository_checks.gate_recovery_text_problems(

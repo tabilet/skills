@@ -1375,6 +1375,7 @@ GATE_RECOVERY_CONTRACT = (
     "pass resets gate counters but never the waiter's original value or cumulative ceiling",
     "List every self-approved increase with its exact edit in the status file and the whole-review brief",
     "**Measured instrumented factor.**",
+    "within the proposed limit of the selected step, a doubling or a recorded factor step",
     "reflection and corrective planning never record or raise it",
     "at most `F` times its original value `T`",
     "used only in instrumented builds while the plain value stays unchanged",
@@ -1417,6 +1418,7 @@ def gate_recovery_text_problems(relative, text):
         r"corrective planning[^.]{0,40} (?:may|can) waive these stops",
         r"(?:gate failures charge the review counter|review rounds charge the gate counter)",
         r"factor (?:may|can) (?:also )?(?:raise|scale|extend|apply to) (?:a |the )?(?:runner timeout|product guard|production deadline)",
+        r"within the (?:proposed )?doubled limit",
         r"factor step (?:grants|adds|allows) an? (?:extra|additional|further) attempt",
         r"after a factor step[^.]{0,40} (?:may|can) (?:double|increase) again",
     ):
@@ -4149,7 +4151,9 @@ def test_policy_and_convergent_review_gate():
             "may tailor routine row checks only within the governing test policy and acceptance",
             "Removing or replacing a required gate needs explicit human approval of that specific contract change",
             "including any necessary policy or acceptance amendment",
-            "a Stack entry alone grants no exception"),
+            "a Stack entry alone grants no exception",
+            "may record an instrumented check, including the race check, as heavy",
+            "the deferral never excuses the required gate"),
     }
     for (relative, start, end), tokens in scoped.items():
         section = (ROOT / relative).read_text().partition(start)[2].partition(end)[0]

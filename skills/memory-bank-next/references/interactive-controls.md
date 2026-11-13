@@ -178,9 +178,10 @@ files qualifies. Before its first doubling, obtain an independent read-only
 assessment establishing test synchronization rather than a product latency
 contract. Record that assessment and measured completion after the expired
 limit; no measured completion means a possible hang and an immediate owner
-stop. The measured operation must complete within the proposed doubled limit.
+stop. The measured operation must complete within the proposed limit of the
+selected step, a doubling or a recorded factor step.
 For every increase, retain completion evidence from the current failing
-occurrence after its current deadline and within the proposed doubled limit;
+occurrence after its current deadline and within that proposed limit;
 old measurements never justify a later doubling. No product guard or production-code
 deadline qualifies; a runner timeout follows its own rule above.
 
@@ -217,7 +218,7 @@ a third failure. The ladder grants no automatic extra attempt; resume after
 approval with the explicitly extended allowance and preserved usage. A gate
 pass resets gate counters but never the waiter's original value or cumulative
 ceiling; renamed or shared waiters retain their identity across gates and
-sessions. An operation that does not complete within the doubled limit stops
+sessions. An operation that does not complete within its proposed limit stops
 as a possible hang. Do not split a shared budget or alter its fixture under
 this exception.
 
@@ -228,8 +229,9 @@ measured at. An agent may propose it; reflection and corrective planning never
 record or raise it. Where it is recorded, a qualifying waiter or test budget
 that passes plain and expired under that command may take its increase for the
 charged attempt as one factor step instead of a doubling: a value that covers
-the measured completion and is at most `F` times its original value `T`, used
-only in instrumented builds while the plain value stays unchanged. Every other
+the measured completion and is at most `F` times its original value `T`, even
+when that exceeds `2T`, with the completion prerequisite applied to that
+value, used only in instrumented builds while the plain value stays unchanged. Every other
 ladder rule applies to the step, including the assessment, the measured
 completion, the possible-hang stop and the `8T` ceiling. Record it in the
 waiter's exact edits as a factor step; it is that waiter's last self-approved
