@@ -210,8 +210,6 @@ SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
 REVIEW_MAX_GATE_ITERATIONS: <resolved positive integer; default 3>
-REVIEW_MAX_GATE_RENEWALS: <resolved non-negative integer; default 0>
-INSTRUMENTED_BUDGET_SCALE: <none | measured S, cap M <= 8>
 OPTION_POLICY: <resolved confirm or ignore>
 OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
@@ -284,16 +282,12 @@ launch refresh and child dispatch. Never raise the limit through corrective
 planning or infer a larger allowance from `COMMIT_POLICY: milestone`.
 
 Resolve `REVIEW_MAX_GATE_ITERATIONS` under Required Gate Recovery (positive
-integer, default 3), independently of review rounds, plus optional
-`REVIEW_MAX_GATE_RENEWALS` (non-negative integer, default `0`) and
-`INSTRUMENTED_BUDGET_SCALE` (default `none`; measured slowdown `S` and cap
-`M <= 8`). Carry the resolved limits, keys, remaining allowances, renewal
-counts, scaled instrumented budgets and measurements, distinct-key chain and
-started attempts through launch refresh, child dispatch and every resume summary
-beside review counters. Preserve each waiter's original value, cumulative
-ceiling and exact edits; include increases and scaled instrumented values in
-whole-review briefs. Never reset usage or `M` caps on a handoff, or raise
-limits through corrective planning. Surface existing no-counter policy
+integer, default 3), independently of review rounds. Carry the resolved limit,
+keys, remaining allowances, distinct-key chain and started attempts through
+launch refresh, child dispatch and every resume summary beside review counters.
+Preserve each waiter's original value, cumulative ceiling and exact edits;
+include increases in whole-review briefs. Never reset usage on a handoff or
+raise limits through corrective planning. Surface existing no-counter policy
 conflicts for explicit adoption before applying the new recovery authority.
 
 ## Execute through acceptance

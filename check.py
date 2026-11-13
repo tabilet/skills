@@ -1374,14 +1374,6 @@ GATE_RECOVERY_CONTRACT = (
     "The ladder grants no automatic extra attempt",
     "pass resets gate counters but never the waiter's original value or cumulative ceiling",
     "List every self-approved increase with its exact edit in the status file and the whole-review brief",
-    "REVIEW_MAX_GATE_RENEWALS",
-    "Four cases that share one signature consume one renewal, not four",
-    "renewal never raises or bypasses the gate's chain ceiling",
-    "INSTRUMENTED_BUDGET_SCALE",
-    "cap multiplier `M` of at most `8`",
-    "Plain commands and plain budgets stay byte-identical before and after",
-    "Never scale a product guard, production deadline, credential or token lifetime",
-    "track the cap per budget and never reset it on a gate pass",
 )
 
 
@@ -1409,9 +1401,6 @@ def gate_recovery_text_problems(relative, text):
         r"(?:assertions?|fixtures?)[^.]{0,40} may be (?:relaxed|loosened|removed) to pass",
         r"corrective planning[^.]{0,40} (?:may|can) waive these stops",
         r"(?:gate failures charge the review counter|review rounds charge the gate counter)",
-        r"a renewal (?:may|can) (?:raise|bypass) (?:the )?(?:gate's )?chain ceiling",
-        r"(?:plain builds|product guards|production deadlines?) (?:may|can) (?:be )?scal(?:e|ed) under INSTRUMENTED_BUDGET_SCALE",
-        r"a (?:clean )?gate pass resets? (?:the )?(?:instrumented )?(?:budget )?cap",
     ):
         if re.search(pattern, flat, re.I):
             problems.append(f"{relative}: contradictory gate-recovery directive {pattern!r}")
@@ -1438,52 +1427,35 @@ def required_gate_recovery():
         problems.extend(gate_recovery_text_problems(relative, (ROOT / relative).read_text()))
     requirements = {
         "AGENTS.md": ("`REVIEW_MAX_GATE_ITERATIONS` defaults to 3",
-                      "`REVIEW_MAX_GATE_RENEWALS`, default `0`",
-                      "`INSTRUMENTED_BUDGET_SCALE`, default unset",
                       "Persist started attempts before dispatch", "Python API paths retain their limits",
                       "Exhaustion pauses affected verification for a concrete LLM recovery proposal and renewed human approval"),
         "template/tabilet/memory-bank/status-M01.md": (
-            "Review iterations:", "REVIEW_MAX_GATE_ITERATIONS:", "REVIEW_MAX_GATE_RENEWALS:", "INSTRUMENTED_BUDGET_SCALE:",
-            "Gate keys:", "Gate renewals:", "Scaled instrumented budgets:",
+            "Review iterations:", "REVIEW_MAX_GATE_ITERATIONS:", "Gate keys:",
             "Gate runs:", "Gate chain:", "Gate chain approval:", "Gate assessment:", "Gate recovery proposal:", "Gate recovery approval:", "Gate attempt:", "Waiter doublings:", "Waiter exact edits:",
             "Every resume summary shows this state beside review counters",
             "Waiter prior evidence:", "Waiter maintained reference:"),
-        "template/tabilet/memory-bank/tech-stack.md": (
-            "**Test waiter ceiling references**:",
-            "integration milestone's watch list for shared surfaces",
-            'records "instrumented gate pending", never "verified"',
-        ),
+        "template/tabilet/memory-bank/tech-stack.md": ("**Test waiter ceiling references**:",),
         "template/tabilet/memory-bank/milestone.md": (
             "retarget its **Test waiter ceiling references** entry",
             "Verify the link and preserved original value, cumulative doublings and ceiling"),
         TEST_POLICY_FILE: ("adopted [required gate recovery]", "including offline required gates",
             "Routine focused checks have no such counters", "Python API paths keep their existing limits",
             "class O attempt counters other than grant budgets or adopted interactive required-gate recovery"),
-        "skills/memory-bank-goal/SKILL.md": (
-            "Resolve `REVIEW_MAX_GATE_ITERATIONS`",
-            "`REVIEW_MAX_GATE_RENEWALS`", "`INSTRUMENTED_BUDGET_SCALE`",
-            "every resume summary beside review counters", "include increases and scaled instrumented values in whole-review briefs"),
-        "skills/memory-bank-goal/references/subagents.md": (
-            "resolved `REVIEW_MAX_GATE_ITERATIONS`",
-            "`REVIEW_MAX_GATE_RENEWALS`", "`INSTRUMENTED_BUDGET_SCALE`",
+        "skills/memory-bank-goal/SKILL.md": ("Resolve `REVIEW_MAX_GATE_ITERATIONS`",
+            "every resume summary beside review counters", "include increases in whole-review briefs"),
+        "skills/memory-bank-goal/references/subagents.md": ("resolved `REVIEW_MAX_GATE_ITERATIONS`",
             "charged and started attempts", "original values, cumulative ceilings"),
     }
     for relative in SHARED_PLANNING_BLOCKS["review-limit-planning"]:
         requirements[relative] = requirements.get(relative, ()) + (
             "Preserve explicit `REVIEW_MAX_GATE_ITERATIONS`; emit `3` only for a new launch",
-            "Preserve explicit `REVIEW_MAX_GATE_RENEWALS`",
-            "`INSTRUMENTED_BUDGET_SCALE`",
             "explicit adoption for existing projects", "Preserve gate keys, charged/started attempts")
     for relative in ("GOAL.md", "skills/memory-bank-goal/SKILL.md",
                      "skills/memory-bank-init/references/write-contract.md",
                      "skills/memory-bank-reconcile/references/write-contract.md"):
-        text_rel = (ROOT / relative).read_text()
-        if not re.search(r"(?m)^REVIEW_MAX_GATE_ITERATIONS: (?:3|<resolved positive integer; default 3>)$", text_rel):
+        if not re.search(r"(?m)^REVIEW_MAX_GATE_ITERATIONS: (?:3|<resolved positive integer; default 3>)$",
+                         (ROOT / relative).read_text()):
             problems.append(f"{relative}: launch template lacks the resolved gate limit")
-        if not re.search(r"(?m)^REVIEW_MAX_GATE_RENEWALS: (?:0|<resolved non-negative integer; default 0>)$", text_rel):
-            problems.append(f"{relative}: launch template lacks REVIEW_MAX_GATE_RENEWALS")
-        if not re.search(r"(?m)^INSTRUMENTED_BUDGET_SCALE: (?:none|<none \| measured S, cap M <= 8>)$", text_rel):
-            problems.append(f"{relative}: launch template lacks INSTRUMENTED_BUDGET_SCALE")
     for relative, tokens in requirements.items():
         for token in missing_contract_tokens((ROOT / relative).read_text(), tokens):
             problems.append(f"{relative}: missing gate-recovery contract {token!r}")
@@ -1493,9 +1465,8 @@ def required_gate_recovery():
     shared = next_text.split("<!-- shared-execution-start -->", 1)[1].split("<!-- shared-execution-end -->", 1)[0]
     for relative, text in (("Next shared execution", shared),
                            ("API runner", (ROOT / "harness/tackle-memory-bank-api-loop").read_text())):
-        for forbidden in ("REVIEW_MAX_GATE_ITERATIONS", "REVIEW_MAX_GATE_RENEWALS", "INSTRUMENTED_BUDGET_SCALE"):
-            if forbidden in text:
-                problems.append(f"{relative}: interactive gate-limit field {forbidden} leaked into API execution")
+        if "REVIEW_MAX_GATE_ITERATIONS" in text:
+            problems.append(f"{relative}: interactive gate-limit field leaked into API execution")
     return problems
 
 

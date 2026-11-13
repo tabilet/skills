@@ -104,7 +104,7 @@ Next 先解析项目的测试策略：优先取你请求中显式给出的 `TEST
 
 详见 [goal 指南](goal.md#test-policy-and-real-effect-checks)。
 
-交互式 Next 还独立解析 `REVIEW_MAX_GATE_ITERATIONS`（正整数，默认 3），以及可选的 `REVIEW_MAX_GATE_RENEWALS`（默认 `0`）和 `INSTRUMENTED_BUDGET_SCALE`（默认 `none`，已测 `S` 与上限 `M <= 8`）。两类必需关卡都使用持久化的
+交互式 Next 还独立解析 `REVIEW_MAX_GATE_ITERATIONS`（正整数，默认 3）。两类必需关卡都使用持久化的
 每键失败次数及连续运行中三个不同失败特征的停止规则；任何停止后可无需询问进行只读评估。派发前保存 started 尝试，恢复时保留并报告状态。
 完整关卡干净通过重置关卡计数，但不重置测试等待的累计上限。次数耗尽时，LLM 准备具体恢复提案并请求人类重新批准。
 目标保持活跃且可恢复，保留已有用量；顺序允许时继续独立且已授权的工作，批准明确的新上限与修复范围后恢复受影响验证。

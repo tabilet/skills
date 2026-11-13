@@ -216,8 +216,6 @@ SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
 REVIEW_MAX_GATE_ITERATIONS: <resolved positive integer; default 3>
-REVIEW_MAX_GATE_RENEWALS: <resolved non-negative integer; default 0>
-INSTRUMENTED_BUDGET_SCALE: <none | measured S, cap M <= 8>
 OPTIMIZE_POLICY: none
 EXTERNAL_MUTATIONS: none
 AUTHORIZATION_GRANTS: {}

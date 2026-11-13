@@ -276,15 +276,8 @@ behavior change; cite that line, list each update in status and the whole-review
 brief, and the whole review checks it. A runner timeout may be corrected once
 per gate, to at most twice the expected runtime within the `tech-stack.md` hard
 limits, with the original FAIL retained. Other stops still apply, including
-custody code, workers, pins, durable formats and unknown-cause races. Two
-optional launch fields (both off by default) further bound heavy instrumented
-gates: `REVIEW_MAX_GATE_RENEWALS` (default `0`) permits up to that many
-same-signature, named-cause, in-scope renewals per gate without bypassing the
-chain ceiling; `INSTRUMENTED_BUDGET_SCALE` (default `none`) permits one-step
-scaling of instrumented test-case budgets and runner backstops up to `M <= 8`
-times plain based on a recorded slowdown measurement `S`, keeping plain
-commands and budgets byte-identical and never scaling product guards or
-deadlines. Existing grants and stricter limits remain binding. Existing projects explicitly adopt
+custody code, workers, pins, durable formats and unknown-cause races. Existing
+grants and stricter limits remain binding. Existing projects explicitly adopt
 conflicts with no-counter rules through Upgrade.
 
 A measured test-side waiter expiry may use one doubling per charged attempt,
