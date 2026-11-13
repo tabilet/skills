@@ -1,3 +1,48 @@
+# memory-bank v2.23.7
+
+Patch release. It adds three optional, narrow refinements to gate recovery and
+verification cadence, all drawn from long Kinet runs. None adds a launch field or
+a status checkpoint line, and none changes a project until an approved
+`memory-bank-upgrade` adopts it.
+
+- **Heavy instrumented cadence.** Where the approved risk-scaled verification
+  contract in `tech-stack.md` records an instrumented check as heavy, with its
+  command and measured cost, a row keeps the plain row check and notes the
+  deferral. The named required gate runs the instrumented check once before the
+  whole review, and records say `instrumented gate pending` until it passes.
+  Rule 7 of the stock test policy gains the matching sentence, so the deferral
+  is allowed by policy rather than only by the planning contracts. Upgrade
+  offers the two together and never the cadence alone.
+- **Measured instrumented factor.** `tech-stack.md` may record a human-approved
+  **Instrumented budget factor** `F` of at most 8 for a named instrumented
+  command. A test waiter that passes plain and expires under that command may
+  take one factor step instead of a doubling, at most `F` times its original
+  value, in instrumented builds only. It is that waiter's last self-approved
+  increase, keeps every ladder rule including the assessment and the `8T`
+  ceiling, grants no attempt, and never applies to a runner timeout, product
+  guard or production deadline. The ladder's completion prerequisite now refers
+  to the proposed limit of the selected step, so a step above `2T` is measured
+  against its own value.
+- **Added precondition wait.** An edit that only adds a wait for an observable
+  precondition (a control enabled, an element present) before a test's action,
+  within the existing default wait bound, needs no owner stop when the
+  independent read-only assessment records the readiness gap and that no product
+  requirement promises the precondition immediately. It changes no expected
+  value, matcher, assertion, fixture or deadline, charges the rerun and is
+  listed in status and the whole-review brief. Turning an assertion into an
+  eventual one, product-code edits and longer bounds still stop.
+- **Withdrawn drafts.** Commit `9dd5eeb` on `main`, never tagged or released,
+  drafted two launch fields, one for gate renewals and one for instrumented
+  budget scaling. They were reverted before this release; `check.py` rejects
+  both field names.
+- **Protocol registry.** The bundled registry moves to v2.23.7 and keeps the
+  released v2.23.5 and v2.23.6 fingerprints. The v2.23.5 tag was missing and is
+  now created.
+
+**Upgrade note.** Installing the plugin changes no project workflow files. Projects
+that adopted earlier gate-recovery text keep it until an approved
+`memory-bank-upgrade`; nothing here is inferred or adopted automatically.
+
 # memory-bank v2.23.6
 
 Patch release. It finishes the gate-recovery stop cleanup begun in v2.23.5 and
