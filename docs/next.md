@@ -127,7 +127,9 @@ follows the project's verification-attempt gate:
   failure outside the milestone's owned scope.
 
 Interactive Next also resolves `REVIEW_MAX_GATE_ITERATIONS` (positive integer,
-default 3) independently of review rounds. Required gates of either class use
+default 3) independently of review rounds, plus optional `REVIEW_MAX_GATE_RENEWALS`
+(default `0`) and `INSTRUMENTED_BUDGET_SCALE` (default `none`, measured `S` and
+cap `M <= 8`). Required gates of either class use
 persistent per-key failures and a separate three-distinct-key stop. Started
 attempts are saved before dispatch; resumes preserve and report the state.
 Clean complete gate passes reset gate counters, never test waiter ceilings.

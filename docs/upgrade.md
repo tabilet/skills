@@ -200,7 +200,8 @@ written only after your individual approval; frozen records stay literal. An in-
 next iteration only when the prior reviewed state is recorded.
 
 Upgrade also proposes explicit adoption of interactive required-gate recovery:
-`REVIEW_MAX_GATE_ITERATIONS` (default 3), persisted gate/key/chain and started
+`REVIEW_MAX_GATE_ITERATIONS` (default 3), optional `REVIEW_MAX_GATE_RENEWALS`
+(default `0`) and `INSTRUMENTED_BUDGET_SCALE` (default `none`), persisted gate/key/chain and started
 attempt state, resume reporting and the test-side doubling ladder. It identifies
 conflicting offline no-counter rules and stricter owner stops individually.
 Existing usage, waiter original values and cumulative ceilings survive; approval

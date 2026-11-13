@@ -260,7 +260,11 @@ prose remains binding until explicit human adoption resolves the conflict.
 
 Preserve explicit `REVIEW_MAX_GATE_ITERATIONS`; emit `3` only for a new launch
 when absent. This positive integer is independent of the review-round limit.
-Preserve gate keys, charged/started attempts, chain state and each waiter's
+Preserve explicit `REVIEW_MAX_GATE_RENEWALS` (non-negative integer, default `0`)
+and `INSTRUMENTED_BUDGET_SCALE` (default `none`; measured slowdown `S` and cap
+`M <= 8`); pre-fill `0` and `none` in new launch proposals.
+Preserve gate keys, charged/started attempts, renewal counts, scaled
+instrumented budgets, chain state and each waiter's
 original value and cumulative ceiling through launch refresh, resume and repairs.
 Never infer fresh allowances or recovery authority from a preset. Offer the
 required-gate recovery contract and its test-side doubling ladder as explicit
@@ -455,6 +459,8 @@ SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>
 REVIEW_MAX_GATE_ITERATIONS: <resolved positive integer; default 3>
+REVIEW_MAX_GATE_RENEWALS: <resolved non-negative integer; default 0>
+INSTRUMENTED_BUDGET_SCALE: <none | measured S, cap M <= 8>
 OPTION_POLICY: confirm
 OPTIMIZE_POLICY: none
 EXTERNAL_MUTATIONS: none

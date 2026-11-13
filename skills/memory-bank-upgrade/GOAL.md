@@ -197,6 +197,8 @@ SUGGESTED_UPDATE: confirm
 CORRECTIVE_PLANNING: confirm
 REVIEW_MAX_ITERATIONS: 10
 REVIEW_MAX_GATE_ITERATIONS: 3
+REVIEW_MAX_GATE_RENEWALS: 0
+INSTRUMENTED_BUDGET_SCALE: none
 OPTION_POLICY: confirm
 OPTIMIZE_POLICY: none
 NOTIFY_EMAIL: none
@@ -316,6 +318,17 @@ Input rules:
 - `REVIEW_MAX_GATE_ITERATIONS` is optional, default `3`. Resolve and persist it
   under Required Gate Recovery below, independently of review rounds. Include it
   in resolved launches and child assignments; preserve existing usage on resume.
+- `REVIEW_MAX_GATE_RENEWALS` is optional, non-negative integer, default `0` (off),
+  independent of `REVIEW_MAX_ITERATIONS` and `REVIEW_MAX_GATE_ITERATIONS`.
+  Resolve and persist it under Required Gate Recovery below. Only explicit
+  human approval can set or raise it; omission means `0` and never resets an
+  existing allowance on resume. Include it in resolved launches, child
+  assignments and every resume summary beside the gate counters.
+- `INSTRUMENTED_BUDGET_SCALE` is optional, default `none` (unset/off). When
+  enabled by explicit human approval and a recorded project measurement, it
+  carries a measured slowdown factor `S` and a cap multiplier `M` of at most `8`.
+  Resolve and persist it under Required Gate Recovery below; preserve it on
+  resume and report it in every resume summary beside the gate counters.
 - `TEST_POLICY` is optional: a project path to a test policy file, or `none`.
   Resolve it as stated in Test Policy Resolution under Verify And Deep-Review.
   A project declaring its test policy in `AGENTS.md` normally omits this field.
@@ -1465,6 +1478,49 @@ an owner stop. If that rerun passes, gate counters reset while the waiter keeps
 its recorded original `2s` value and first doubling. At default limits, three
 failures of one key, or three distinct signatures across consecutive runs, pause affected
 verification for a recovery proposal and renewed human approval before dispatch.
+
+**Bounded gate renewal (`REVIEW_MAX_GATE_RENEWALS`).** Optional non-negative
+integer, default `0` (off), independent of `REVIEW_MAX_ITERATIONS` and
+`REVIEW_MAX_GATE_ITERATIONS`. Reject negative, fractional, boolean or unbounded
+values before execution. Only explicit human approval can set or raise it;
+omission means `0` and never resets an existing allowance on resume. When a key
+has zero remaining, a renewal adds one attempt to that key (or to each exhausted
+key sharing the same signature and named cause in that run) and permits one
+further run of the gate, only when all hold: the failure has a named cause
+shown by measured evidence, the fix lies inside the milestone's existing write
+set, and the failing cases share one signature with the named cause. Four cases
+that share one signature consume one renewal, not four. Record the renewal in
+the status file before the run with the named cause and the exact edit list.
+Allow at most `REVIEW_MAX_GATE_RENEWALS` renewals per gate; a renewal never
+raises or bypasses the gate's chain ceiling. A clean pass of the complete
+required gate resets the renewal count with the gate counters. After the last
+renewal, or on any failure with an unmatched or unmeasured cause or on anything
+in the always-stops list (product guard or deadline changes, waivers, custody,
+workers, pins, durable formats, a data race of unknown cause, write-set
+expansion), stop for the owner.
+
+**Scaled budgets for instrumented builds (`INSTRUMENTED_BUDGET_SCALE`).**
+Optional, default `none` (unset/off). When set by explicit human approval, it
+records two values written by the project: a measured slowdown factor `S` and a
+cap multiplier `M` of at most `8`. Reject non-positive, `M > 8`, boolean or
+unbounded values before execution. `S` must be measured and recorded with the
+command, plain and instrumented durations, and source revision before first use,
+and is never guessed; without a recorded measurement, scaling is disabled. In
+instrumented builds only, a test-case budget or runner backstop that expires
+under measured evidence may be raised in one step per charged attempt up to `M`
+times its plain value without a separate approval, provided the measured expiry
+shows the operation completing later than the limit. An operation that never
+completes within the scaled limit (up to `M` times plain) is a possible hang and
+stops for the owner. Plain commands and plain budgets stay byte-identical before
+and after, and plain builds never change. Never scale a product guard,
+production deadline, credential or token lifetime, or a test expecting a
+deliberate expiry. List every scaled value with its exact edit in the status
+file and in the whole-review brief; track the cap per budget and never reset it
+on a gate pass.
+
+Persist `REVIEW_MAX_GATE_RENEWALS`, `Gate renewals`, `INSTRUMENTED_BUDGET_SCALE`
+(including its recorded measurement), and `Scaled instrumented budgets` beside
+the gate counters in the status file and include them in every resume summary.
 <!-- END SHARED required-gate-recovery -->
 
 #### Bounded Verification-Attempt Gate

@@ -70,8 +70,11 @@ state beside review counters, before dispatch, using this checkpoint shape
 ```text
 Review iterations: <consumed>/<effective limit>; approval: <source>
 REVIEW_MAX_GATE_ITERATIONS: <effective positive integer; default 3>; approval: <source>
+REVIEW_MAX_GATE_RENEWALS: <effective non-negative integer; default 0>; approval: <source>
+INSTRUMENTED_BUDGET_SCALE: <none | S=<measured>, M=<cap <= 8>; cmd, plain/inst durations, rev>; approval: <source>
 Gate: <milestone + command + cwd + variant + required scope>
 Gate keys: <package-qualified test or stable failure ID>: charged <n>, remaining <n>
+Gate renewals: <consumed>/<effective limit>; <per renewal: named cause, shared signature, exact edits>
 Gate runs: <per run: failing keys and their signatures>
 Gate chain: <distinct signatures since last clean pass>; ceiling: <effective limit; default 3>
 Gate chain approval: <source for any explicit extension; preserve seen keys>
@@ -89,6 +92,7 @@ Waiter evidence: <measured completion, independent assessment, approval source>
 Waiter exact edits: <old -> new per charged attempt; whole-review brief link>
 Updated expectations: <test/fixture; cited spec or repair line; whole-review brief link>
 Runner timeout: <old -> new, once per gate; progress evidence; hard limit>
+Scaled instrumented budgets: <budget ID: plain -> scaled (<= M*plain), measured completion, exact edit; whole-review brief link>
 ```
 
 A clean complete gate pass resets gate keys and chain state, never waiter

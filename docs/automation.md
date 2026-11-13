@@ -161,7 +161,8 @@ protocol enforces non-bypassable safety circuits that will pause execution:
 ### 2. Bounded Milestone Review Gate (Default 10-Iteration Limit)
 
 `REVIEW_MAX_GATE_ITERATIONS` defaults to 3 for interactive required-gate recovery,
-independently of review rounds. Persist failures by gate/test key, stop at three
+independently of review rounds (with optional `REVIEW_MAX_GATE_RENEWALS`, default
+`0`, and `INSTRUMENTED_BUDGET_SCALE`, default `none`). Persist failures by gate/test key, stop at three
 distinct keys without a pass, and retain started attempts across resumes. See
 [the goal guide](goal.md#test-policy-and-real-effect-checks) for the recovery
 boundaries and test-side doubling ladder. Python API limits stay unchanged.
