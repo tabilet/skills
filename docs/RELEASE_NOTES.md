@@ -10,7 +10,7 @@ makes the audit index say so when one is missing. No index semantics change.
 - **Clearer error.** An active status with no indexed specification now reports
   `active status missing specification: <ID>: expected a '## <ID> …' heading in
   milestone.md`. When the file holds a deeper heading for that ID, such as
-  `### M76 - …`, the message names that line and says only level-2 headings are
+  `### M01 - …`, the message names that line and says only level-2 headings are
   indexed. Previously the message gave no hint, and the `###` section was skipped
   silently. Accepting deeper headings was considered and deliberately not done.
 - **Tests.** Two cases cover a `###` specification (error text, then recovery with
