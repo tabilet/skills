@@ -633,6 +633,29 @@ class IndexTests(unittest.TestCase):
         results = ix.search(self.c, workspace, 'Feature works', milestone_id='M01')['results']
         self.assertTrue(any(row['kind'] == 'section' and row['milestone_id'] == 'M01' for row in results))
 
+    def test_deeper_specification_heading_is_not_indexed_and_error_names_it(self):
+        milestone = self.root / 'tabilet/memory-bank/milestone.md'
+        milestone.write_text('# Milestone\n\n### M01 - Delivery\n\n**Acceptance.** Feature works.\n')
+        with self.assertRaises(a.AuditError) as caught:
+            self.sync()
+        message = str(caught.exception)
+        self.assertIn('active status missing specification: M01', message)
+        self.assertIn("expected a '## M01", message)
+        self.assertIn("found '### M01 - Delivery' at tabilet/memory-bank/milestone.md:3", message)
+        self.assertIn('only level-2 headings are indexed', message)
+        # A level-2 heading restores the index; no semantics changed.
+        milestone.write_text('# Milestone\n\n## M01 - Delivery\n\n**Acceptance.** Feature works.\n')
+        self.assertTrue(self.sync()['complete'])
+
+    def test_missing_specification_error_without_any_heading_names_expected_level(self):
+        milestone = self.root / 'tabilet/memory-bank/milestone.md'
+        milestone.write_text('# Milestone\n\nNo specifications here.\n')
+        with self.assertRaises(a.AuditError) as caught:
+            self.sync()
+        message = str(caught.exception)
+        self.assertIn("expected a '## M01", message)
+        self.assertNotIn('found', message)
+
     def test_mixed_layout_refresh_marks_previous_generation_incomplete(self):
         state = self.sync(); workspace = state['workspace_id']
         (self.root / 'memory-bank').mkdir()

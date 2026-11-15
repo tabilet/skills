@@ -448,6 +448,21 @@ def task_dependencies(notes):
     return unique
 
 
+def missing_specification_message(identity, documents, parsed):
+    """Explain a missing root specification in terms of the required heading level."""
+    message=f"active status missing specification: {identity}: expected a '## {identity} …' heading in milestone.md"
+    p=parser()
+    for path,doc in documents.items():
+        if doc['kind']!='milestone':continue
+        lines=doc['text'].splitlines()
+        for section in parsed[path]['index_sections']:
+            line=lines[section['line']-1]
+            match=re.match(r'('+p.MILESTONE_ID+r')(?:\s|$)',section['heading'])
+            if match and match[1]==identity and not line.startswith('## '):
+                return message+f"; found '{line.strip()}' at {path}:{section['line']}, but only level-2 headings are indexed"
+    return message
+
+
 def validate_projection(documents, parsed, corrections=None):
     if set(corrections or {}) - set(documents):
         raise AuditError('history correction refers to a missing record')
@@ -485,7 +500,7 @@ def validate_projection(documents, parsed, corrections=None):
         history_rows[identity]=p.historical_index_cells(row['cells'])
     for identity,milestone in milestones.items():
         if milestone['lifecycle']=='active':
-            if identity not in specs:raise AuditError(f'active status missing specification: {identity}')
+            if identity not in specs:raise AuditError(missing_specification_message(identity,documents,parsed))
             milestone['specification']=specs[identity]
         else:
             if identity in specs:raise AuditError(f'retired specification remains active: {identity}')

@@ -1,3 +1,27 @@
+# memory-bank v2.23.8
+
+Patch release. It makes a root milestone specification heading level explicit and
+makes the audit index say so when one is missing. No index semantics change.
+
+- **Heading level documented.** The stock `milestone.md` now states that a root
+  milestone specification is a level-2 heading, `## <ID> - [Milestone name]`, and
+  that the audit index reads no other level as a specification. The Upgrade
+  bundle's template copy carries the same sentence.
+- **Clearer error.** An active status with no indexed specification now reports
+  `active status missing specification: <ID>: expected a '## <ID> …' heading in
+  milestone.md`. When the file holds a deeper heading for that ID, such as
+  `### M76 - …`, the message names that line and says only level-2 headings are
+  indexed. Previously the message gave no hint, and the `###` section was skipped
+  silently. Accepting deeper headings was considered and deliberately not done.
+- **Tests.** Two cases cover a `###` specification (error text, then recovery with
+  `##`) and a milestone file with no heading for the ID.
+- **Protocol registry.** The bundled registry moves to v2.23.8 and records the
+  released v2.23.7 fingerprint; `GOAL.md` itself is unchanged.
+
+**Upgrade note.** Installing the plugin changes no project workflow files. A
+project whose specifications use `###` keeps working only after changing those
+headings to `##`; nothing is rewritten automatically.
+
 # memory-bank v2.23.7
 
 Patch release. It adds three optional, narrow refinements to gate recovery and

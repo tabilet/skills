@@ -23,6 +23,11 @@ stage, and provisional later ideas. Give each active milestone specification
 its stage ID. An absent stages file means one implicit stage. Stage labels do
 not determine task readiness or prove milestone acceptance.
 
+Write each root milestone specification in this file as a level-2 heading,
+`## <ID> - [Milestone name]`. The audit index reads no other heading level as a
+specification, so a `###` section is not found. Child specifications are
+separate files and follow their own rule below.
+
 Each active milestone specification defines scope, acceptance criteria, and
 optional boundaries and parallel safety: `Depends on`, `Downstream impacts`,
 `Write set`, `Contracts read`, and `Parallel-safe` (defaulting to `no`). A
