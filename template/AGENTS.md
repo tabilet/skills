@@ -8,7 +8,9 @@ approval before its file actions; execution is a separate request.
 ## Purpose
 
 Bootstrap guide for agents working on `[project-name]`. Keep this file short and
-use the memory bank as the active project source of truth.
+use the memory bank as the active project source of truth. Some agent hosts load
+only the first 32 KiB of project instructions (Codex `project_doc_max_bytes`,
+default 32,768), so keep it under 28 KiB with these sections first.
 
 ## Start Here
 
@@ -126,6 +128,9 @@ Tool versions, installation notes, CI, and runtime assumptions are maintained in
   context-archive run. Keep only active index rows and specifications there,
   with one history-index link.
   Retired records are frozen; IDs remain reserved across both locations.
+  Closure never appends to this file. Change it only when a command, boundary,
+  or rule changes, replacing the affected text; dated detail stays in status,
+  history, and Git.
 - Keep later candidate directions unnumbered and outside the milestone index.
   Promote one only after fresh reconciliation and approval; then assign the
   next unused permanent ID and create its status file.

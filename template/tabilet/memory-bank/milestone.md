@@ -1044,6 +1044,13 @@ milestones too. Create this journal only when needed, link it from the history
 index, and append corrections rather than rewriting old entries. Routine edits
 need no journal entry; Git, when present, holds intermediate revisions.
 
+`AGENTS.md` is not a progress log. Closure and retirement never append accepted,
+retired, or dated paragraphs to it. Change it only when a command, boundary, or
+rule changes, replacing the affected text. Keep it under 28 KiB with its
+bootstrap sections, hard rules, and work cadence first: some agent hosts load
+only the first 32 KiB of project instructions and silently drop the rest.
+Move superseded text out through the knowledge journal above.
+
 Consolidation is ordinary project maintenance. A separate context snapshot is
 optional and never a prerequisite for retirement; the archive skill's clean
 baseline rule must not force commits or interrupt a no-commit goal.

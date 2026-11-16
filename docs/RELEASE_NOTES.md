@@ -1,3 +1,44 @@
+# memory-bank v2.23.9
+
+Patch release. It keeps `AGENTS.md` inside the instruction budget some agent
+hosts impose, and stops milestone closure from growing it. Codex loads only the
+first `project_doc_max_bytes` of project instructions, 32,768 bytes by default,
+and runs on without the rest. A long Kinet goal run lost its hard rules that way
+after closures had added dated paragraphs above them.
+
+- **Closure replaces, never appends.** The stock `milestone.md` consolidation
+  rules, the template `AGENTS.md` work cadence, and the Next and Goal skills now
+  say that closure and retirement never append accepted, retired, or dated
+  paragraphs to `AGENTS.md`. It changes only when a command, boundary, or rule
+  changes, and the affected text is replaced. Previously the rule appeared only
+  in the amendment and option guidance.
+- **API runner prompt.** The API runner's prompt file and its `EMBEDDED_TASK`
+  copy gained the same "never append progress to `AGENTS.md`" sentence as Next.
+- **Size guidance.** The template `AGENTS.md`, the Init write contract, and the
+  README say to keep `AGENTS.md` under 28 KiB with its bootstrap sections and
+  hard rules first. Init and Upgrade place merged rules in their matching
+  sections, never below accumulated history.
+- **Upgrade restructure offer.** When a project's `AGENTS.md` exceeds 28 KiB or
+  holds dated acceptance, retirement, or release paragraphs, Upgrade offers a
+  one-time restructure as a separate, individually approvable item. It moves the
+  superseded text into the knowledge journal with its old wording and keeps
+  linked headings. It never runs automatically and never touches frozen records.
+- **This repository's own `AGENTS.md`.** It was 55,913 bytes, and the 32 KiB cut
+  fell inside its Hard Rules. The architecture notes, the documentation-language
+  policy, and 29 payload contract rules moved verbatim to the new, unpublished
+  `docs/MAINTAINING.md`. `AGENTS.md` (about 19 KB) links that file and requires
+  reading it before any change other than `README.md`.
+- **Checks.** A new check fails when `AGENTS.md` or `template/AGENTS.md` exceeds
+  28 KiB, or when the closure, size, or restructure wording goes missing.
+  Contract checks that look for a rule in "`AGENTS.md`" now read `AGENTS.md`
+  together with `docs/MAINTAINING.md`, so moved rules stay checked.
+- **Protocol registry.** The bundled registry moves to v2.23.9 and records the
+  released v2.23.8 fingerprint; `GOAL.md` itself is unchanged.
+
+**Upgrade note.** Installing the plugin changes no project workflow files. An
+oversized project `AGENTS.md` is restructured only through an approved
+`memory-bank-upgrade` proposal.
+
 # memory-bank v2.23.8
 
 Patch release. It makes a root milestone specification heading level explicit and

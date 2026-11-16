@@ -2,7 +2,7 @@
 """
 Verify this repository's own invariants.
 
-Every rule in AGENTS.md that a human would otherwise have to remember and
+Every rule in AGENTS.md and docs/MAINTAINING.md that a human would otherwise have to remember and
 re-derive by hand is checked here instead. Run it before claiming a change is
 done, and in CI:
 
@@ -235,6 +235,24 @@ def prose(text: str) -> str:
     Those are not document structure and must not be read as headings or links.
     """
     return re.sub(r"^```.*?^```", "", text, flags=re.S | re.M)
+
+
+# The repository's rules span AGENTS.md and the maintainer file it links, which
+# holds what does not fit in AGENTS.md's size budget. Contract checks keyed on
+# "AGENTS.md" read both, so moving a rule between them keeps it checked.
+REPO_RULES = ("AGENTS.md", "docs/MAINTAINING.md")
+AGENTS_MAX_BYTES = 28 * 1024
+
+
+def repo_rules_text() -> str:
+    return "\n".join((ROOT / relative).read_text() for relative in REPO_RULES
+                     if (ROOT / relative).is_file())
+
+
+def contract_text(relative: str) -> str:
+    if relative == "AGENTS.md":
+        return repo_rules_text()
+    return (ROOT / relative).read_text()
 
 
 def normalized_contract_text(text: str) -> str:
@@ -564,7 +582,7 @@ def protocol_identity_contract():
     }
     return [f"{relative}: missing identity/compatibility contract {token!r}"
             for relative, tokens in requirements.items()
-            for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+            for token in missing_contract_tokens(contract_text(relative), tokens)]
 
 
 AUTHORIZATION_DOC_CONTRACTS = {
@@ -818,7 +836,7 @@ def goal_authorization_contract():
         if not path.is_file():
             problems.append(f"{relative}: missing authorization contract document")
             continue
-        text = path.read_text()
+        text = contract_text(relative)
         flat = " ".join(text.split())
         for token in tokens:
             if token not in flat:
@@ -901,7 +919,7 @@ def goal_continuity_contract():
     }
     problems = [f"{relative}: missing continuity boundary {token!r}"
                 for relative, tokens in requirements.items()
-                for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+                for token in missing_contract_tokens(contract_text(relative), tokens)]
     paths = [ROOT / "GOAL.md", ROOT / "skills/memory-bank-goal/SKILL.md", ROOT / "README.md"]
     paths.extend(path for path in (ROOT / "docs").rglob("*.md") if path.name != "RELEASE_NOTES.md")
     for path in paths:
@@ -1046,7 +1064,7 @@ def corrective_email_contract():
         if not path.is_file():
             problems.append(f"{relative}: missing corrective/email contract")
             continue
-        for token in missing_contract_tokens(path.read_text(), tokens):
+        for token in missing_contract_tokens(contract_text(relative), tokens):
             problems.append(f"{relative}: missing corrective/email guidance {token!r}")
     for relative in ("scripts/email_notify.py", "references/email-notifications.md"):
         copies = [ROOT / "skills" / ("memory-bank-" + skill) / relative for skill in ("goal", "next")]
@@ -1063,7 +1081,7 @@ def corrective_email_contract():
     for relative in ("skills/memory-bank-init/references/write-contract.md",
                      "skills/memory-bank-reconcile/references/write-contract.md",
                      "skills/memory-bank-goal/SKILL.md"):
-        text = (ROOT / relative).read_text()
+        text = contract_text(relative)
         blocks = [block for block in fenced_blocks(text)
                   if "Using the memory-bank goal protocol" in block and "Completion condition:" in block]
         if not blocks or any("CORRECTIVE_PLANNING: confirm" not in block for block in blocks):
@@ -1121,7 +1139,7 @@ def parallel_goal_contract():
     }
     problems = []
     for relative, tokens in requirements.items():
-        text = (ROOT / relative).read_text()
+        text = contract_text(relative)
         flat = " ".join(text.split())
         for token in tokens:
             if token not in flat:
@@ -1184,9 +1202,9 @@ def continuous_launch_contract():
             "Preserve an explicit `confirm` or strict `STATUS_ORDER`")
     problems = [f"{relative}: missing continuous-launch boundary {token!r}"
                 for relative, tokens in requirements.items()
-                for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+                for token in missing_contract_tokens(contract_text(relative), tokens)]
     for relative in ("docs/authorizations.md", "docs/automation.md"):
-        for block in fenced_blocks((ROOT / relative).read_text()):
+        for block in fenced_blocks(contract_text(relative)):
             problems.extend(push_example_problems(relative, block))
     return problems
 
@@ -1291,7 +1309,7 @@ def configurable_review_limit():
             "REVIEW_MAX_ITERATIONS: <resolved positive integer; default 10>",)
     return [f"{relative}: missing review-limit contract {token!r}"
             for relative, tokens in requirements.items()
-            for token in missing_contract_tokens((ROOT / relative).read_text(), tokens)]
+            for token in missing_contract_tokens(contract_text(relative), tokens)]
 
 
 GATE_RECOVERY_CONTRACT = (
@@ -1454,7 +1472,7 @@ def gate_budget_text_problems(text):
 def required_gate_recovery():
     problems = []
     for relative in SHARED_PLANNING_BLOCKS["required-gate-recovery"]:
-        problems.extend(gate_recovery_text_problems(relative, (ROOT / relative).read_text()))
+        problems.extend(gate_recovery_text_problems(relative, contract_text(relative)))
     requirements = {
         "AGENTS.md": ("`REVIEW_MAX_GATE_ITERATIONS` defaults to 3",
                       "Persist started attempts before dispatch", "Python API paths retain their limits",
@@ -1491,10 +1509,10 @@ def required_gate_recovery():
                      "skills/memory-bank-init/references/write-contract.md",
                      "skills/memory-bank-reconcile/references/write-contract.md"):
         if not re.search(r"(?m)^REVIEW_MAX_GATE_ITERATIONS: (?:3|<resolved positive integer; default 3>)$",
-                         (ROOT / relative).read_text()):
+                         contract_text(relative)):
             problems.append(f"{relative}: launch template lacks the resolved gate limit")
     for relative, tokens in requirements.items():
-        for token in missing_contract_tokens((ROOT / relative).read_text(), tokens):
+        for token in missing_contract_tokens(contract_text(relative), tokens):
             problems.append(f"{relative}: missing gate-recovery contract {token!r}")
     problems.extend(gate_budget_text_problems((ROOT / "GOAL.md").read_text()))
     # This field belongs outside Next's API-identical execution block.
@@ -1543,7 +1561,7 @@ def review_fix_gate():
     goal_skill = " ".join(
         (SKILLS_DIR / "memory-bank-goal" / "SKILL.md").read_text().split()
     )
-    agents = " ".join((ROOT / "AGENTS.md").read_text().split())
+    agents = " ".join(repo_rules_text().split())
     problems = []
 
     for token in (
@@ -1716,7 +1734,7 @@ def skills_manifest():
     import json
 
     problems = []
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     if not SKILLS_DIR.exists():
         return ["skills/ is missing"]
     on_disk = sorted(p.name for p in SKILLS_DIR.iterdir() if p.is_dir())
@@ -1918,7 +1936,7 @@ def adaptive_init_contract():
     skill = INIT_SKILL.read_text()
     write_contract = INIT_WRITE_CONTRACT.read_text()
     milestone = (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text()
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     write_contract_words = " ".join(write_contract.split())
     agents_words = " ".join(agents.split())
     problems = []
@@ -2017,7 +2035,7 @@ def archive_contract():
 
     skill = ARCHIVE_SKILL.read_text()
     contract = ARCHIVE_WRITE_CONTRACT.read_text()
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     template_agents = (ROOT / "template" / "AGENTS.md").read_text()
     architecture = (ROOT / "template" / "tabilet" / "memory-bank" / "architecture.md").read_text()
     problems = []
@@ -2114,7 +2132,7 @@ def reconcile_contract():
     contract = RECONCILE_WRITE_CONTRACT.read_text()
     skill_words = " ".join(skill.split())
     contract_words = " ".join(contract.split())
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     template_agents = (ROOT / "template" / "AGENTS.md").read_text()
     milestone = (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text()
     init_contract = INIT_WRITE_CONTRACT.read_text()
@@ -2222,7 +2240,7 @@ def domain_model_contract():
     milestone = (ROOT / "template" / "tabilet" / "memory-bank" / "milestone.md").read_text()
     skill = INIT_SKILL.read_text()
     write_contract = INIT_WRITE_CONTRACT.read_text()
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     skill_words = " ".join(skill.split())
     milestone_words = " ".join(milestone.split())
     problems = []
@@ -2353,7 +2371,7 @@ def sqlite_bundle_contract():
     for reference in references:
         if "references/optional-audit.md" not in (reference.parent.parent / "SKILL.md").read_text():
             problems.append(f"{reference}: missing skill route")
-    root_rules = ' '.join((ROOT / 'AGENTS.md').read_text().split())
+    root_rules = ' '.join(repo_rules_text().split())
     for token in ('one database per project at `tabilet/audit.sqlite3`', 'registered linked worktrees',
                   'manual `tabilet-audit audit enable`', '`/audit.sqlite3*`'):
         if token not in root_rules:
@@ -2541,7 +2559,7 @@ def site_contract():
     if len(feature) != 1 or "[Propose](propose.md)" not in feature[0]:
         problems.append("docs/index.md must route requested features to Propose")
 
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     readme = (ROOT / "README.md").read_text()
     workflow = (ROOT / ".github/workflows/deploy-docs.yml").read_text()
     for token in ("mkdocs.yml", "docs/requirements.txt", ".github/workflows/deploy-docs.yml", "mkdocs build --strict"):
@@ -2740,7 +2758,7 @@ def api_receipt_schema_problems(specification: str) -> list[str]:
 
 @check("optional controller boundary, receipt, and exit contracts stay aligned")
 def api_controller_contract():
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     execution = (ROOT / "docs" / "EXECUTION.md").read_text()
     memory_bank_exists = (ROOT / "tabilet" / "memory-bank").exists()
     runner_codes = harness_exit_codes()
@@ -2792,7 +2810,7 @@ def api_controller_contract():
 def status_markers():
     mod = load_harness()
     template = (ROOT / "template" / "tabilet" / "memory-bank" / "status-M01.md").read_text()
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     problems = []
     expected = {
         "`[ ]`": "pending",
@@ -3071,7 +3089,7 @@ def public_interfaces():
 @check("Medium publishing assets have article owners")
 def medium_publishing_assets():
     problems = []
-    agents = (ROOT / "AGENTS.md").read_text()
+    agents = repo_rules_text()
     if "`docs/medium*-infographic.png`" not in agents:
         problems.append("AGENTS.md: missing the Medium publishing-asset ownership rule")
 
@@ -3197,7 +3215,7 @@ def long_term_memory():
         ("GOAL.md", ("history index", "cancelled or superseded outcome", "retirement procedure", "commit policy", "git rev-parse --verify HEAD", "before deleting active sources")),
         ("skills/memory-bank-next/SKILL.md", ("A later documentation row does not defer", "Updating only the status is insufficient")),
     ):
-        text = " ".join((ROOT / relative).read_text().split())
+        text = " ".join(contract_text(relative).split())
         for token in tokens:
             if token not in text:
                 problems.append(f"{relative}: missing history contract {token!r}")
@@ -3228,7 +3246,7 @@ def upgrade_contract():
                   "preserve the protocol file pending an approved solution"):
         if token not in text:
             problems.append(f"upgrade is missing its preservation contract: {token}")
-    if "memory-bank-upgrade" not in (ROOT / "AGENTS.md").read_text():
+    if "memory-bank-upgrade" not in repo_rules_text():
         problems.append("AGENTS.md must record the shared upgrade contract")
     return problems
 
@@ -3255,7 +3273,7 @@ def capability_contract():
         if token not in subagents_ref:
             problems.append(f"memory-bank-goal subagents.md: missing Tier 1 contract {token!r}")
 
-    root_agents = " ".join((ROOT / "AGENTS.md").read_text().split())
+    root_agents = " ".join(repo_rules_text().split())
     for token in ("Tier 1 safe parallel ownership", "../<repo>.goal/", "git merge --ff-only"):
         if token not in root_agents:
             problems.append(f"AGENTS.md: missing Tier 1 rule {token!r}")
@@ -3299,7 +3317,7 @@ def propose_contract():
     milestone = (ROOT / "template/tabilet/memory-bank/milestone.md").read_text()
     if "## Requested changes after initialization" not in milestone:
         problems.append("template milestone lacks requested-change procedure")
-    if "memory-bank-propose" not in (ROOT / "AGENTS.md").read_text():
+    if "memory-bank-propose" not in repo_rules_text():
         problems.append("AGENTS.md lacks Propose boundary")
     plan_update = (SKILLS_DIR / "memory-bank-propose/references/plan-update.md").read_text()
     for token in ("never prune downstream impacts to force parallel safety", "parallel-safe defaults to no"):
@@ -3340,7 +3358,7 @@ def stage_contract():
     index = (ROOT / "harness/tabilet_index.py").read_text()
     if "'tabilet/stages.md':'stages'" not in index or "if kind == 'stages':" not in index:
         problems.append("SQLite source inventory must index stages without execution edges")
-    if "tabilet/stages.md" not in (ROOT / "AGENTS.md").read_text():
+    if "tabilet/stages.md" not in repo_rules_text():
         problems.append("repository policy lacks the optional stage rule")
     return problems
 
@@ -3470,6 +3488,47 @@ V212_CONTRACTS = {
 TEMPLATE_AGENTS_MAX_LINES = 215
 
 
+AGENTS_SIZE_CONTRACTS = {
+    "AGENTS.md": ("[docs/MAINTAINING.md](docs/MAINTAINING.md)",
+                  "Read that file in full before changing anything other than `README.md`.",
+                  "Keep this file and `template/AGENTS.md` each under 28 KiB",
+                  "Never append dated progress or release paragraphs here"),
+    "docs/MAINTAINING.md": ("[AGENTS.md](../AGENTS.md)", "## Architecture",
+                            "## Documentation Language", "## Payload Contract Rules"),
+    "template/AGENTS.md": ("`project_doc_max_bytes`", "keep it under 28 KiB with these sections first",
+                           "Closure never appends to this file"),
+    "template/tabilet/memory-bank/milestone.md": (
+        "`AGENTS.md` is not a progress log", "replacing the affected text"),
+    "skills/memory-bank-next/SKILL.md": ("Never append progress to `AGENTS.md`",),
+    "skills/memory-bank-goal/SKILL.md": ("Closure never appends progress paragraphs to `AGENTS.md`",),
+    "skills/memory-bank-init/references/write-contract.md": (
+        "Keep it under 28 KiB with those sections first", "never below accumulated history"),
+    "skills/memory-bank-upgrade/SKILL.md": (
+        "offer a one-time restructure", "individually approvable",
+        "Never restructure automatically", "never move text out of frozen records"),
+    "README.md": ("`project_doc_max_bytes`",),
+}
+
+
+@check("AGENTS.md files fit host instruction budgets and closure never appends to them")
+def agents_size_contract():
+    """Some hosts load only the first 32 KiB of project instructions."""
+    problems = []
+    for relative in ("AGENTS.md", "template/AGENTS.md"):
+        path = ROOT / relative
+        if path.is_file() and (size := len(path.read_bytes())) > AGENTS_MAX_BYTES:
+            problems.append(f"{relative}: {size} bytes exceeds {AGENTS_MAX_BYTES}; "
+                            "move detail to docs/MAINTAINING.md or history")
+    for relative, tokens in AGENTS_SIZE_CONTRACTS.items():
+        path = ROOT / relative
+        if not path.is_file():
+            problems.append(f"missing {relative}")
+            continue
+        for token in missing_contract_tokens(path.read_text(), tokens):
+            problems.append(f"{relative}: missing AGENTS.md size or closure rule {token!r}")
+    return problems
+
+
 @check("v2.12 rules keep one authoritative home and a small template AGENTS.md")
 def v212_contract():
     problems = []
@@ -3478,7 +3537,7 @@ def v212_contract():
         if not path.is_file():
             problems.append(f"{relative}: missing v2.12 contract file")
             continue
-        text = path.read_text()
+        text = contract_text(relative)
         for token in missing_contract_tokens(text, tokens):
             problems.append(f"{relative}: missing v2.12 contract {token!r}")
     agents = (ROOT / "template" / "AGENTS.md").read_text()
@@ -3686,7 +3745,7 @@ def v213_contract():
         if not path.is_file():
             problems.append(f"missing {relative}")
         else:
-            problems.extend(v213_text_problems(relative, path.read_text()))
+            problems.extend(v213_text_problems(relative, contract_text(relative)))
     # Inspect the embedded instruction, not Python strings/comments unrelated
     # to task execution. Parity alone cannot reject a contradiction in both copies.
     tree = ast.parse((ROOT / "harness/tackle-memory-bank-api-loop").read_text())
@@ -3725,7 +3784,7 @@ def v213_contract():
             if 'test -f "$MEMORY_BANK_CHECKOUT/skills/$bundle/references/model-policy.md"' not in block:
                 problems.append("docs/DSH.md: install/update preflight omits model-policy.md")
     for relative in ("harness/prompts/tackle-next-memory-bank-todo.md", "harness/tackle-memory-bank-api-loop"):
-        if "MODEL_POLICY" in (ROOT / relative).read_text():
+        if "MODEL_POLICY" in contract_text(relative):
             problems.append(f"{relative}: interactive model policy leaked into Python API payload")
     return problems
 
@@ -3840,7 +3899,7 @@ def test_policy_and_convergent_review_gate():
     problems = list(review_prose_selftest_problems())
 
     def flat(relative: str) -> str:
-        return " ".join((ROOT / relative).read_text().split())
+        return " ".join(contract_text(relative).split())
 
     milestone = "template/tabilet/memory-bank/milestone.md"
     gate_tokens = (
@@ -4115,7 +4174,7 @@ def test_policy_and_convergent_review_gate():
         if not path.is_file():
             problems.append(f"missing {relative}")
             continue
-        for token in missing_contract_tokens(path.read_text(), tokens):
+        for token in missing_contract_tokens(contract_text(relative), tokens):
             problems.append(f"{relative}: missing test-policy/review contract {token!r}")
 
     # Check obligations where executors encounter them, not merely somewhere
@@ -4166,11 +4225,11 @@ def test_policy_and_convergent_review_gate():
             "the deferral never excuses the required gate"),
     }
     for (relative, start, end), tokens in scoped.items():
-        section = (ROOT / relative).read_text().partition(start)[2].partition(end)[0]
+        section = contract_text(relative).partition(start)[2].partition(end)[0]
         for token in missing_contract_tokens(section, tokens):
             problems.append(f"{relative}: {start} lacks scoped obligation {token!r}")
     for relative in SHARED_PLANNING_BLOCKS["verification-environment-preflight"]:
-        text = (ROOT / relative).read_text()
+        text = contract_text(relative)
         for token in missing_contract_tokens(text, (
                 "`standard` adds no light-profile constraints",
                 "Independently adopted stock test-policy requirements",
@@ -4187,17 +4246,17 @@ def test_policy_and_convergent_review_gate():
     for relative in ("GOAL.md", "skills/memory-bank-goal/SKILL.md",
                      "skills/memory-bank-init/references/write-contract.md",
                      "skills/memory-bank-reconcile/references/write-contract.md"):
-        if not re.search(r"(?m)^TEST_POLICY: \S", (ROOT / relative).read_text()):
+        if not re.search(r"(?m)^TEST_POLICY: \S", contract_text(relative)):
             problems.append(f"{relative}: launch template lacks a TEST_POLICY line")
-        if not re.search(r"(?m)^INSTRUMENTATION_SCOPE: \S", (ROOT / relative).read_text()):
+        if not re.search(r"(?m)^INSTRUMENTATION_SCOPE: \S", contract_text(relative)):
             problems.append(f"{relative}: launch template lacks an INSTRUMENTATION_SCOPE line")
     for relative in ("skills/memory-bank-propose/references/plan-update.md",
                      "skills/memory-bank-reconcile/references/plan-update.md"):
-        if "Preserve an explicit `TEST_POLICY`" not in (ROOT / relative).read_text():
+        if "Preserve an explicit `TEST_POLICY`" not in contract_text(relative):
             problems.append(f"{relative}: launch refresh does not preserve TEST_POLICY")
-        if "preserve its resolved value, including an implicit `none`" not in (ROOT / relative).read_text():
+        if "preserve its resolved value, including an implicit `none`" not in contract_text(relative):
             problems.append(f"{relative}: launch refresh does not preserve INSTRUMENTATION_SCOPE")
-        if "including an unapproved draft" not in (ROOT / relative).read_text():
+        if "including an unapproved draft" not in contract_text(relative):
             problems.append(f"{relative}: launch refresh does not preserve unapproved drafts")
     for token in missing_contract_tokens((ROOT / "GOAL.md").read_text(), (
             "`INSTRUMENTATION_SCOPE` is optional: `none` (default when omitted)", "Planning pre-fills",
@@ -4216,7 +4275,7 @@ def test_policy_and_convergent_review_gate():
     controls = "skills/memory-bank-next/references/interactive-controls.md"
     block_re = re.compile(r"<!-- BEGIN SHARED test-policy-resolution -->(.*?)<!-- END SHARED test-policy-resolution -->", re.S)
     for relative in ("GOAL.md", controls):
-        match = block_re.search((ROOT / relative).read_text())
+        match = block_re.search(contract_text(relative))
         if not match:
             problems.append(f"{relative}: missing the test-policy-resolution shared block")
             continue
@@ -4263,7 +4322,7 @@ def test_policy_and_convergent_review_gate():
 
     # Severity table: parsed, not word-searched.
     for relative in (milestone, "skills/memory-bank-upgrade/assets/template/tabilet/memory-bank/milestone.md"):
-        problems.extend(severity_table_problems(relative, (ROOT / relative).read_text()))
+        problems.extend(severity_table_problems(relative, contract_text(relative)))
 
     # Stale full-sweep prose anywhere in payload or docs, outside the exempt paragraphs.
     for path in markdown_files():
@@ -4351,7 +4410,7 @@ def readme_contract_problems() -> list[str]:
 
 @check("README-only verification retains focused coverage and full-suite boundaries")
 def readme_verification_contract():
-    instructions = (ROOT / "AGENTS.md").read_text()
+    instructions = repo_rules_text()
     return [f"AGENTS.md: missing README verification rule {token!r}" for token in (
         "python3 check.py --readme",
         "limited to the root `README.md`",

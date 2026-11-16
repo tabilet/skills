@@ -23,7 +23,7 @@ class GoalInstructionContracts(unittest.TestCase):
         for relative in repository_checks.SHARED_PLANNING_BLOCKS["required-gate-recovery"]:
             with self.subTest(relative=relative):
                 self.assertEqual([], repository_checks.gate_recovery_text_problems(
-                    relative, (ROOT / relative).read_text()))
+                    relative, repository_checks.contract_text(relative)))
 
     def test_required_new_tests_exception_preserves_stop_conditions(self):
         text = (ROOT / "GOAL.md").read_text()
@@ -73,7 +73,7 @@ class GoalInstructionContracts(unittest.TestCase):
                 target.write_bytes((ROOT / relative).read_bytes())
             # All other files read by the check retain their real contents.
             for relative in (
-                "AGENTS.md", "template/tabilet/memory-bank/status-M01.md",
+                "AGENTS.md", "docs/MAINTAINING.md", "template/tabilet/memory-bank/status-M01.md",
                 "template/tabilet/memory-bank/tech-stack.md", repository_checks.TEST_POLICY_FILE,
                 "skills/memory-bank-goal/SKILL.md", "skills/memory-bank-goal/references/subagents.md",
                 "skills/memory-bank-next/SKILL.md", "harness/tackle-memory-bank-api-loop",
@@ -93,7 +93,7 @@ class GoalInstructionContracts(unittest.TestCase):
 
     def test_heavy_cadence_factor_line_and_withdrawn_fields_are_enforced(self):
         files = (
-            "AGENTS.md", "template/tabilet/memory-bank/status-M01.md",
+            "AGENTS.md", "docs/MAINTAINING.md", "template/tabilet/memory-bank/status-M01.md",
             "template/tabilet/memory-bank/tech-stack.md", repository_checks.TEST_POLICY_FILE,
             "skills/memory-bank-goal/SKILL.md", "skills/memory-bank-goal/references/subagents.md",
             "skills/memory-bank-next/SKILL.md", "harness/tackle-memory-bank-api-loop",
@@ -133,7 +133,7 @@ class GoalInstructionContracts(unittest.TestCase):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes((ROOT / name).read_bytes())
                 doc = fixture / "docs" / "note.md"
-                doc.parent.mkdir()
+                doc.parent.mkdir(exist_ok=True)
                 doc.write_text("Set " + withdrawn + ": 1\n")
                 with mock.patch.object(repository_checks, "ROOT", fixture), \
                         mock.patch.object(repository_checks, "markdown_files", lambda: [doc]):
@@ -233,7 +233,7 @@ class GoalInstructionContracts(unittest.TestCase):
         )
         for relative, contradiction, diagnostic in cases:
             with self.subTest(relative=relative, diagnostic=diagnostic):
-                text = (ROOT / relative).read_text()
+                text = repository_checks.contract_text(relative)
                 self.assertEqual([], repository_checks.v213_text_problems(relative, text))
                 problems = repository_checks.v213_text_problems(relative, text + "\n" + contradiction)
                 self.assertTrue(any(diagnostic in p for p in problems), problems)
@@ -257,7 +257,7 @@ class GoalInstructionContracts(unittest.TestCase):
     def test_model_policy_bundles_preserve_complete_pairs_and_negative_boundaries(self):
         paths = set(repository_checks.V213_GUARD_SOURCES) | {
             "skills/memory-bank-goal/references/model-policy.md",
-            "skills/memory-bank-next/references/model-policy.md", "docs/DSH.md",
+            "skills/memory-bank-next/references/model-policy.md", "docs/DSH.md", "docs/MAINTAINING.md",
             "harness/prompts/tackle-next-memory-bank-todo.md", "harness/tackle-memory-bank-api-loop",
         }
         with tempfile.TemporaryDirectory() as tmp:
@@ -338,7 +338,7 @@ class GoalInstructionContracts(unittest.TestCase):
 
     def test_registered_guard_checks_every_entrypoint_and_embedded_instruction(self):
         paths = set(repository_checks.V213_GUARD_SOURCES) | {
-            "docs/DSH.md", "skills/memory-bank-goal/references/model-policy.md",
+            "docs/DSH.md", "docs/MAINTAINING.md", "skills/memory-bank-goal/references/model-policy.md",
             "skills/memory-bank-next/references/model-policy.md",
             "harness/tackle-memory-bank-api-loop",
         }
@@ -367,7 +367,7 @@ class GoalInstructionContracts(unittest.TestCase):
                                     for p in repository_checks.v213_contract()))
 
     def test_legacy_and_identity_contracts_fail_when_approval_or_hash_rules_are_lost(self):
-        paths = ("AGENTS.md", "GOAL.md", "README.md", "docs/DSH.md",
+        paths = ("AGENTS.md", "docs/MAINTAINING.md", "GOAL.md", "README.md", "docs/DSH.md",
                  "skills/memory-bank-goal/SKILL.md",
                  "skills/memory-bank-goal/references/subagents.md",
                  "skills/memory-bank-next/references/interactive-controls.md")
@@ -396,7 +396,7 @@ class GoalInstructionContracts(unittest.TestCase):
                     path.write_text(original)
 
     def test_addendum_mention_does_not_substitute_for_protocol_review_delegation(self):
-        paths = ("AGENTS.md", "GOAL.md", "template/tabilet/memory-bank/milestone.md",
+        paths = ("AGENTS.md", "docs/MAINTAINING.md", "GOAL.md", "template/tabilet/memory-bank/milestone.md",
                  "skills/memory-bank-goal/SKILL.md")
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)
@@ -427,7 +427,7 @@ class GoalInstructionContracts(unittest.TestCase):
             ("harness/prompts/tackle-next-memory-bank-todo.md", "Distinguish executed\n  behavior, mocks, compile-only checks and deferred integration proof"),
         ):
             with self.subTest(relative=relative, token=token):
-                text = (ROOT / relative).read_text()
+                text = repository_checks.contract_text(relative)
                 self.assertEqual([], repository_checks.v213_text_problems(relative, text))
                 self.assertTrue(repository_checks.v213_text_problems(relative, text.replace(token, "omitted")))
 
@@ -445,7 +445,7 @@ class GoalInstructionContracts(unittest.TestCase):
              "goal protocol's standing revision envelope covers it"),
         ):
             with self.subTest(relative=relative, token=token):
-                text = (ROOT / relative).read_text()
+                text = repository_checks.contract_text(relative)
                 self.assertEqual([], repository_checks.v213_text_problems(relative, text))
                 self.assertTrue(repository_checks.v213_text_problems(relative, text.replace(token, "omitted")))
 

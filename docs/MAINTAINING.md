@@ -1,0 +1,547 @@
+# Maintaining skills
+
+Rules for changing this repository that do not fit in the 28 KiB budget of
+[AGENTS.md](../AGENTS.md). `AGENTS.md` links this file and requires reading it
+in full before any change other than `README.md`. Everything here binds exactly
+as the Hard Rules there do; precedence, the `GOAL.md` commit exception, and the
+verification commands are stated in `AGENTS.md`. This page is not part of the
+published website.
+
+## Architecture
+
+Four document layers, each with a distinct lifetime. Keeping them separate is
+the whole point of the design:
+
+| Layer | Role |
+|---|---|
+| `AGENTS.md` | Short bootstrap pointer; read first by agents. Names commands, boundaries, hard rules. |
+| `tabilet/stages.md` and `tabilet/memory-bank/` | Optional stage direction, then active truth: product, architecture, stack, the stock `test-policy.md`, curated `lessons.md`, active milestone specifications and status files. |
+| `tabilet/evolution/` | Versioned direction snapshots (`prompt-vN.md` / `result-vN.md`). New version only on a real direction, boundary, milestone, or contract change. |
+| `docs/` | Long-form reference, optional frozen context baselines, and on-demand retired milestone/knowledge history. `README.md` stays short and user-facing. |
+
+### Archive ID lanes
+
+Archive files are optional facts-only snapshots for large existing packages,
+named `tabilet/docs/archive-<LANE><NN>.md`. Their one-letter lanes classify stable
+product-domain or ownership contexts and are independent from status lanes.
+Within an archive lane, the two-digit number is snapshot chronology. Verified
+archives are frozen at their recorded full Git commit; a material high-level
+change gets the next unused successor ID rather than rewriting history.
+
+`tabilet/memory-bank/architecture.md` owns the archive lane registry and archive index.
+`tabilet/memory-bank/product.md` and `tabilet/memory-bank/architecture.md` remain current after
+an archive freezes. Archive IDs never appear in milestone indexes, status files,
+or goal orders, and the API harness ignores them because it discovers only root status files and amendment/option child files.
+
+### Status ID lanes
+
+Status files are `tabilet/memory-bank/status-<LANE><NN>.md`: one uppercase letter
+classifying the domain, then a positive number with at least two digits. `A01`/`A02` for
+accounting, `S01` for shopping, `M` as the default lane for anything that
+doesn't classify. After `M99` continue with `M100`; extra leading zeros are invalid.
+Child suffixes and archive IDs retain their separate two-digit limits. IDs are never reused or renamed once their
+file exists, and there is no aggregate `status.md`. The pattern, the lane
+meanings, and the index table live in `template/tabilet/memory-bank/milestone.md`.
+
+Required amendments use `amend-M01-01.md`; deferred options use
+`option-M01-02.md`. They share a permanent two-digit child sequence, declare
+`Parent: M01`, and own their full specifications. Root IDs are unchanged.
+External testing-tool repair is optional unless explicitly promoted by the
+owner. `OPTION_POLICY: confirm` asks once after parent closure; `ignore` leaves
+options deferred throughout the goal. Preserve original acceptance and review
+counters. Child parser, horizon and retirement tests enforce these boundaries.
+
+This shape is load-bearing for the harness, not just convention: lane files are
+found by glob and rows are parsed out of markdown tables. Real deployments run
+~120 lane files across ~17 lanes.
+
+### Long-term memory
+
+`lessons.md` holds curated applicable learning with evidence, alongside current
+product, architecture, and stack facts. Superseded knowledge is preserved in
+the append-only `tabilet/docs/history/knowledge.md` journal. After review, consolidation,
+and downstream reconciliation, the closing workflow retires a milestone's full
+specification and status into `tabilet/docs/history/status-<LANE><NN>.md`. The history
+index owns retired IDs; active `milestone.md` retains only active specifications
+and index rows, with one history-index link. Retired records are frozen, IDs
+remain reserved across both locations, and history is consulted on demand.
+
+Retirement is a storage lifecycle, not a seventh marker or a context archive.
+The record envelope preserves original documents as literal fenced Markdown;
+the parser reads task rows only from its Status record section. Legacy projects
+adopt this explicitly. Context snapshots remain optional and separate.
+
+The shared historical reader and optional project correction manifest are
+described in [historical record compatibility](history-corrections.md).
+Corrections preserve literal sources, remain separate from execution approval,
+and do not relax the strict contract for newly retired records.
+
+### The agent loop (`harness/tackle-memory-bank-api-loop`)
+
+Python 3, standard library only (`urllib`, no `requests`/SDKs) — deliberate, per
+the repo's "prefer native core libraries" rule. Structure:
+
+- Two providers behind one interface: `call_openai` (`/v1/chat/completions`,
+  also OpenRouter / vLLM / LM Studio / Ollama) and `call_anthropic`
+  (`/v1/messages`). Selected by `LLM_PROVIDER`.
+- **No provider tool-calling.** The model is driven by a plain JSON command
+  protocol — `{"tool":"run_shell","cmd":...,"why":...}` or `{"final":...}` —
+  so the same loop runs unchanged on either provider. `extract_json` tolerates
+  fenced/prose-wrapped replies.
+- The task instruction is embedded in the script (`EMBEDDED_TASK`); the
+  `harness/prompts/` file is a human-readable duplicate, not a runtime input.
+  **Edit both when the instruction changes.**
+- Lane discovery: `status_files()` validates root and child filenames; `lane_summary()` counts
+  actionable, in-progress, blocked, and closed-historical rows per file, and
+  `lane_table()` renders that into the prompt. Python owns the deterministic
+  gate; the *choice* of row belongs to the model, guided by `milestone.md`
+  priority. Lane file bodies are never inlined into the prompt — only the counts
+  and the location of a sole in-progress row — which is what keeps a 120-lane
+  project's prompt bounded.
+- Guardrails, each with a dedicated exit code: only blocked rows left (3), dirty
+  worktree before a run (4), uncommitted changes after (5), no new commit (6),
+  `MAX_RUNS` reached (7), invalid row transition (8), history rewrite (9),
+  missing `AGENTS.md` (10), invalid/missing status or history (11), and missing host-shell
+  acknowledgment (14). More than one in-progress row stops before the network
+  call (15). A blocked row warns but does not halt while other lanes still have
+  work. `DANGEROUS_RE` blocks a short list including `git reset
+  --hard`, `git clean -fd`, `sudo`, and fork bombs unless
+  `ALLOW_DANGEROUS_COMMANDS=1`. It is a bypassable guardrail, not a sandbox; an
+  actionable run requires `ALLOW_UNSANDBOXED_SHELL=1`, and should run inside a
+  disposable sandbox. The full table is in
+  [docs/EXECUTION.md](EXECUTION.md#exit-codes).
+- Row parsing: `status_rows()` reads state markers from Markdown tables outside
+  fenced blocks, including indented rows and escaped pipes. Changing the state
+  column or marker vocabulary in the templates breaks the harness.
+- Retirement validation resolves original row identities across active/history
+  locations, preserves earlier rows and frozen records, and rejects incomplete
+  relocation. A valid all-retired project exits 0 without an API call; missing
+  or invalid status/history state exits 11. History never contributes actionable
+  row counts. The API runner still requires Git.
+
+Status markers: `[ ]` pending, `[+]` completed, `[~]` in progress, `[!]`
+blocked, `[X]` cancelled, and `[-]` closed historical evidence. A `[-]` row is
+a consumed failed attempt or superseded row retained for audit; it is never
+retried and does not block its accepted successor. One status row = one commit;
+one milestone = one review unit.
+
+## Documentation Language
+
+Repository documentation is English-only, with one deliberate exception: the
+published website ships in English and Simplified Chinese. The translated
+guides live in `docs/zh/`, one file per published English guide, and
+`mkdocs-static-i18n` (pinned in `docs/requirements.txt`) publishes both locales
+from a single `nav`: the plugin resolves each English guide and each nav label
+to its `docs/zh/` counterpart, so a Chinese page links to Chinese pages and the
+header switcher lands on the equivalent page rather than the home page. That is
+why `mkdocs.yml` carries no `extra.alternate` and no second nav — both belong to
+the plugin, and a hand-written copy shadows or duplicates it.
+
+Every `nav` label needs a `nav_translations` entry. A missing one leaves the
+Chinese pages showing an English tab, so `check.py` fails the build on it. The
+plugin's upstream is frozen, so its version pin is deliberate: it is what works
+with the pinned MkDocs and Material, and it should not be bumped casually.
+
+`check.py` also holds the two page sets in one-for-one parity, so a translation
+cannot drift behind the guide it mirrors or accumulate an orphan. Everywhere
+else — `README.md`, `docs/EXECUTION.md`, `docs/MODEL_EVAL.md`, and any other
+file in `docs/` — a language-suffixed copy of a canonical file stays rejected.
+
+A translated heading needs an explicit `{#ascii-id}` whenever a guide
+deep-links to it. The MkDocs `toc` extension strips non-ASCII characters when it
+generates a heading id, so a Chinese heading otherwise gets an id like `_1` that
+no fragment can predict or reach. Translated guides therefore link only to
+anchors they declared explicitly, `check.py` rejects a translated `#fragment`
+that resolves only through a non-ASCII slug, and the id keeps its English
+spelling so an inbound link survives translation.
+
+## Payload Contract Rules
+
+- `CORRECTIVE_PLANNING` defaults to `confirm`. Human-approved `auto` lets the
+  Goal/Next owner prepare and check complete necessary repair actions, amend
+  pending work or create repair milestones, and refresh launch input/hashes
+  within the original delivery outcome, existing grants and limits. Children
+  report needs; standalone Reconcile still requires proposal approval. Preserve
+  history and counters; missing permissions, new features, exhausted limits or
+  unknown checksum drift pause affected work. Init/Propose dangerous presets
+  propose `auto`; sandbox/least propose `confirm`, with explicit human policy
+  taking precedence. The Python API paths consume neither corrective planning
+  nor email options.
+  Nested Reconcile must verify the invoking human approval source and complete
+  request, covered actions, grants and limits before using standing approval.
+  Missing provenance retains the ordinary approval gate. Never weaken acceptance
+  or cancel unmet obligations. Repair milestones preserve the originating
+  milestone's review gate and counter, including its approved review-limit stop.
+  Suspend `[~]` as `[!]` with prerequisite IDs and resumption conditions before
+  another row starts; resume `[~]` only after prerequisite acceptance and all
+  blockers clear. Preserve partial work; pause if changes cannot be separated.
+- `OPTIMIZE_POLICY` defaults to `none`. When set to `confirm` or `auto`, the Goal
+  owner runs offline milestone reflection via `tabilet-audit reflect` upon
+  milestone closure. At launch, the skill checks that project auditing is enabled
+  (`tabilet-audit audit status`, never mere file existence) and that
+  `tabilet-audit reflect --check` passes; otherwise it emits start and end
+  warnings and gracefully bypasses reflection without failing. Reflection only
+  drafts proposals. `confirm` pauses for approval of the complete proposal; `auto`
+  applies only additive, evidence-linked edits to `tech-stack.md` and `lessons.md`
+  and never touches authorization, review or verification limits. Milestone graph
+  changes (amending, repair milestones, cancelling pending rows `[X]`) are
+  corrective planning and need human-approved `CORRECTIVE_PLANNING: auto`; under
+  `confirm` they are proposed and pause. The reflect command reads the checkout it
+  is run in, writes its proposal only inside the project at a Git-ignored path, runs agent CLI
+  backends from a temporary directory, runs model-proposed probe commands only with `--probe`
+  and `ALLOW_UNSANDBOXED_SHELL=1` (no shell, test runners only), and
+  writes captured transcripts only to an explicit path outside the project or
+  Git-ignored. A backend failure writes nothing; a model-free report proposes no edits.
+  Reflection feeds later milestones to the model only after a significant finding
+  (a multi-run task, or a failed, blocked or over-two-minute run), only the downstream
+  milestones listed in `suggested.txt` that are still open in their live status files,
+  and within 10% of the milestone's recorded wall time; other planning triggers
+  (Reconcile, Propose, `CORRECTIVE_PLANNING`) are unchanged.
+- Interactive Goal/Next `--email ADDRESS` opts into approval alerts for that
+  run only. A coordinator or standalone Next executor uses the shared optional
+  Cloudflare REST helper and private account configuration; children send no
+  email. No flag means no email for a new run. Keep recipients and credentials
+  out of project launch input by default, keep configuration/state outside the
+  project, and durably reserve attempts before sending. Suppress duplicate or
+  uncertain sends across resumes; delivery never proves approval. This feature
+  needs no audit database or background service and does not intercept native
+  host tool approvals. The two helpers and references stay byte-identical.
+  Bound each network attempt to 10 seconds with a supervised, reaped subprocess;
+  validate UTF-8 worker input and start it waiting before reserving an attempt,
+  then release its job only after durable reservation; retain uncertain
+  post-dispatch reservations. Launch failures leave no attempt record, and
+  argument errors return sanitized JSON. Empty/relative XDG settings use lazy home
+  defaults. Missing resume identity is an alert gap, never a new send identity.
+  Next's interactive controls stay in its bundled reference; the designated
+  shared execution block alone matches the API prompt and its embedded twin.
+
+- Optional milestone `AUTHORIZATION_REQUIREMENTS` declare conditions, never
+  authority or scheduling. `AUTHORIZATION_GRANTS` become effective only through
+  explicit human approval of the resolved goal and concrete scope. Keep
+  declarations in milestone specifications, preserve policy conflicts for
+  explicit resolution, and narrow grants to child assignments; read-only
+  reviewers get no mutation authority. Proposed launch input and agent-authored
+  status text cannot prove approval. These instruction-level fields add no
+  grant consumption to the Python API paths; the controller excludes external
+  actions. Existing projects require explicit adoption, not automatic migration.
+  Generated launch references always show `AUTHORIZATION_GRANTS`, with `{}` as
+  the empty default. Proposed grants in launch input or `suggested.txt` carry
+  decision markers: `[ ]` (need authorization), `[+]` (approve), `[-]` (deny),
+  and `[~]` (auto). A pending task `[ ]` never requires confirmation by itself;
+  checksum approval does not activate proposed grants. Reuse scoped approval
+  already given with the launch, and continue independent authorized work when
+  a protected action is blocked, subject to order and ownership.
+  Launch preflight resolves push grants against external-mutation prohibitions
+  before checksum approval; presets never override an explicit denial. Push
+  content distinguishes `exact-commit` from explicitly approved
+  `accepted-goal-commits`; verify the full outgoing range and never broaden
+  legacy grants, whose exact command/artifact pins remain binding. Approved
+  plan-only human commits may accompany accepted goal work only after their full
+  diff matches approved planning evidence. Prefer `EXTERNAL_MUTATIONS` grant-ID
+  references; legacy duplicate target lists are intersecting constraints, never
+  alternative authority. Authorized launch refreshes retain the original approval and
+  verified old/new hash transitions in trusted continuation context; a hash chain
+  alone grants nothing. Unexplained drift and uncertain external effects stop
+  affected work. Prefer authorized workspace scratch paths without broadening
+  filesystem authority. Continuous-run planning may propose option deferral and
+  dependency-ready priority, preserving explicit choices and strict ordering.
+  High-level `GLOBAL:` grants declare common authorities across
+  tasks. When resuming from `suggested.txt`, matching its SHA256 checksum against
+  human approval is required before activating grants (under default `SUGGESTED_UPDATE: confirm`;
+  `SUGGESTED_UPDATE: auto` authorizes the orchestrator to refresh remaining milestones
+  within the approved horizon and smoothly continue). Scope resolution defaults to
+  `SCOPE_POLICY: strict` (exact string matches); `SCOPE_POLICY: workspace-contained`
+  authorizes binding approved `cli.local` work to sibling repositories within the
+  approved workspace root and organization. Push targets always stay exact;
+  workspace containment grants no additional push destinations. The standing revision envelope
+  for unprivileged workspace-local verification retries (with its optional `standing` block)
+  is defined only in `GOAL.md`; it never covers `sudo`, `ssh`, live browser, or push grants,
+  treats `/tmp` as outside the workspace unless listed, and has its budget reserved and
+  persisted by the goal owner. Milestone specifications in `milestone.md` may attach local policies and requirement overrides
+  that narrow or override global launch defaults.
+  Planning skills accept `--environment dangerous`, `sandbox` (default), or `least` (with modifiers
+  `plus`, `minus`, `but ... in milestone ...`) to synthesize launch parameters and milestone policies
+  declaratively from day one. A preset only decides which explicit grants planning writes into
+  launch input; the executor reads the resolved grants and markers, never the preset.
+  Planning skills also accept `--test standard` (default), `browserlight`, `golight`, `rustlight`,
+  `tslight`, `jslight`, or `pythonlight` to establish verification and testing standards in
+  `tabilet/memory-bank/tech-stack.md` from day one. Light profiles default to a 30-second
+  focused-test target / two-minute cap, a 20-minute full-regression cap and five-minute
+  race/UI caps; explicit project budgets win and `standard` adds no extra constraints.
+  Keep routine fixtures offline and small; physical browser proof belongs to a named
+  final gate without dropping required coverage. A light profile's verification standards also
+  carry `Execution cadence`, `Replacement coverage`, and `Acceptance readiness` rules, defined
+  once in the planning contracts and mirrored by the template; `standard` adds none.
+  Upgrade proposes updates to existing goal protocols and launch references while preserving custom
+  restrictions and explicit policies; approval of the complete proposal gates
+  these writes and never starts execution.
+
+- SQLite is optional project-local audit plus rebuildable Markdown lookup. Project
+  Markdown remains authoritative; index refresh never rewrites it or durable
+  audit records. New snapshot capture is deferred; existing evidence is preserved.
+  Use one database per project at `tabilet/audit.sqlite3`; registered linked
+  worktrees share the primary checkout's file and saved opt-in. Each project
+  requires manual `tabilet-audit audit enable`; the default stays off and index
+  creation never enables recording. Database path options and environment overrides
+  are removed. Setup preserves `tabilet/.gitignore` and appends `/memory-bank/suggested-harness-update.md` and `/audit.sqlite3*`;
+  commit the ignore file, never the database or its sidecars. Deleting storage
+  returns the project to disabled. Controller commands mount existing audit files
+  read-only alongside read-only `.git`. The seven optional audit references stay
+  byte-identical, and disabled auditing preserves the single-file runner install.
+  CLI packaging, project preference, and source-lifecycle tests enforce this.
+
+- The optional account-level `tabilet` controller is a separate combined path:
+  one visible proposal and `confirm` may authorize its exact planning diff and
+  bounded local execution horizon. This does not change the direct
+  `memory-bank-propose` or `memory-bank-reconcile` skills: they still write only
+  after their complete proposal is approved and then hand off without
+  implementing, committing, or launching execution. Controller authority comes
+  only from its own proposal, receipt, and limits; reading a skill bundle never
+  grants execution authority.
+- The controller receipt is private state outside the project; Markdown remains
+  task truth. Use the `tabilet.api.receipt/v1` schema. Create `approved`
+  durably before applying the planning diff, then update it atomically for
+  operation intent, usage reservations, and verified checkpoints. Its states
+  are `approved`, `running`, `paused`, `needs_review`, and `completed`;
+  `needs_review` cannot replay automatically, and `completed` follows verified
+  closure without an `awaiting_acceptance` state or final accept/reject command.
+  The suggested caps are 5 rows, 100 provider attempts, 40 turns per row, 15
+  commits, and 2 hours; they may be raised only in a newly confirmed proposal
+  or by `tabilet extend-limit`, which needs a separate exact `confirm` of one
+  strictly higher value at a clean, receipt-proved paused checkpoint and is
+  recorded in the receipt's `limit_extensions`. They promise no dollar ceiling. Docker limits are 4 CPUs, 8 GiB, 512 processes,
+  and 300 seconds per command. External actions are excluded from the general
+  confirmation.
+- Controller exit codes are 16–19 and 24–25. Code 19 is the shared Tabilet
+  launcher lock collision. Codes 24 and 25 mean failed pre-commit validation and
+  dirty or uncertain recovery, respectively; they do not reuse the runner's
+  provider-failure codes 20 or 21. The standalone runner retains its existing
+  post-commit gate meanings and precedence.
+
+- Tier 1 safe parallel ownership is an opt-in execution protocol under `GOAL.md`
+  and project instructions: concurrent leases execute in external worktrees outside
+  the project root (`../<repo>.goal/<ID>`), integrate strictly via rebase and
+  fast-forward (`git merge --ff-only`), and require `COMMIT_POLICY: task` or `milestone`
+  with `INTEGRATION: local-rebase-ff`. The orchestrator remains the sole execution
+  owner of the captured integration branch and shared memory files
+  (`architecture.md`, `product.md`, `tech-stack.md`, `lessons.md`).
+- v2 project-owned files live under `tabilet/`; only `AGENTS.md` stays at the
+  project root. Installing v2 never migrates v1.5.0 projects. The Upgrade
+  bundle's migration CLI previews by default, requires a committed clean Git
+  baseline for `--apply`, validates any `--resume` journal, and leaves its diff
+  uncommitted. Skills and the API runner stop on legacy or mixed layouts before
+  writes or model calls. Frozen records keep their bytes and old source-path
+  metadata remains valid historical provenance.
+- A project's `tabilet/GOAL.md` is an addendum, never a replacement protocol. The
+  stock protocol and the addendum are combined at run time only: no merged
+  protocol is written into a project, the addendum may add and narrow but never
+  weaken a gate, and only `GOAL_PROTOCOL: <path>` selects an alternative full
+  protocol. A byte-identical stock copy is ignored and reported removable; a
+  modified full copy stops the run until reduced. Goal state and launch input
+  record a `GOAL_IDENTITY` block (protocol hash and every participating package's
+  addendum hash, `ignored-stock`, or `none`) that is rechecked at every resume and
+  child dispatch. Protocol/addendum fingerprints normalize CRLF to LF only;
+  version labels are diagnostic metadata, never identity keys. Tagged hashes
+  remain recognizable during same-version development. Legacy fresh launches
+  missing identity show the resolved request and obtain missing identity approval
+  without silently rewriting approved launch input or changing grants and limits.
+- A leftover lease worktree is removed only after recorded successful closure,
+  with matching ownership, no active writer, a merged branch, and a clean
+  worktree. Both normal and resume cleanup inspect ignored artifacts and retain
+  required qualification, cited and recovery evidence in an approved durable
+  location, verifying hashes and references before freezing retirement records.
+  Never rewrite frozen citations for cleanup; anything uncertain is preserved
+  and reported.
+- Launch refresh preserves explicit `GOAL_PROTOCOL` and its actual path/hash;
+  stock metadata applies only to stock selection. Approved goal use and an
+  available compatible governing protocol permit launch generation without a
+  package-local protocol file. Changed or uncertain legacy resume identity needs
+  approval, preserving grants, denials, counters, attempts and limits.
+- `MODEL_POLICY` is opt-in; omission preserves host model settings. Users choose
+  the role models from any provider supported by the host; no provider or model
+  is required. Effort is optional and host-specific; omission records
+  `host-default` without requiring an effort control. The resolved request may select `DEFAULT` for ordinary work and `WHOLE_MILESTONE_REVIEW`
+  for fresh read-only reviewers at every bounded review iteration. The owner
+  consolidates results and fixes under `DEFAULT`, preserving the review counter.
+  Unavailable or unverifiable host settings pause affected work; never silently
+  fall back or claim an in-place model/effort change. Goal/Next carry identical
+  `references/model-policy.md`; planning preserves explicit policy and adds it
+  only when requested. The Python API paths do not consume model policy.
+- `GOAL.md` and the template milestone review use the same bounded review-fix
+  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1).
+  The initial deep-review pass is iteration 1 and covers the full milestone
+  diff; later iterations review only the prior blocking findings, the change
+  since the recorded reviewed state and its direct consumers, and each records
+  its reviewed state (the full `HEAD` commit ID, plus a saved diff and hash for
+  uncommitted work; if that cannot be reconstructed, review the full diff). P2
+  and Lower never block on their own: fix now when cheap or built upon, or carry
+  in the active `milestone.md` Open review findings register (`FND-` IDs); only
+  Lower may be declined with a rationale. Every review fix is itself verified and
+  reviewed by a later iteration; recording findings, dispositions, counters,
+  reviewed state and register rows is not a review change. On the final allowed
+  iteration make no further review change and carry non-blocking findings. A
+  carried P2 still unfixed when its fix owner or a later iteration examines it
+  becomes blocking. A clean pass is required within the approved review limit
+  (default 10), and the counter does not reset across sessions or reviewers. When
+  the project's own severity definitions make P2 blocking, or it has no register,
+  that stricter gate applies (P2 blocks and every iteration reviews the whole
+  milestone) until explicit adoption. The optional `tabilet` controller keeps its
+  own deterministic gate: it runs its own full review, any P0/P1/P2 it reports
+  blocks retirement, and it does not read the register. `REVIEW_MAX_ITERATIONS` is a positive integer, default
+  10, independent of commit policy; only explicit human approval can raise it.
+  Preserve stricter project caps, counters and limits through resumes and repairs.
+  Project/milestone caps use `REVIEW_MAX_ITERATIONS` in verification standards or
+  owning milestone specs; the minimum applicable cap governs. Legacy fixed-cap
+  prose remains binding until explicit adoption, never inferred from its origin.
+  Python API execution retains its existing limits; optional retired `Review limit`
+  and `Review limit approval` fields preserve historical evidence only. Newly
+  created API retirement records cannot exceed 10 or self-authorize a higher
+  ceiling. The controller pauses on larger interactive checkpoints before dispatch,
+  preserving their counters. Shared planning policy blocks are byte-identical
+  across their consumers and checked using their BEGIN/END SHARED markers.
+  Persist the iteration count in the active status or
+  equivalent goal state. `milestone.md` owns the review-severity context and
+  project override rules; P1/P2 are not product-domain concepts. Safe capacity
+  refusals are Lower there, which is why `GOAL.md` and the controller need no
+  exception, and a
+  `capacity limit` row ends through human deferral or a planned fix. Optional
+  project guarantee levels work the same way: a finding confined to a record at a
+  human-approved advisory level is Lower unless it is a privacy, credential or
+  authority failure, breaks a size bound, makes a supported flow fail or leaves
+  acceptance unmet; an agent never assigns a level, defining levels needs its own
+  human-approved proposal, and `Project levels: none` is the stock state. Only a
+  class R (real-effect) check, or every expensive or protected check when no test
+  policy applies, uses a bounded verification-attempt gate per stage: persist
+  attempt counts in status notes, never repeat an unchanged failed attempt, run the
+  acceptance-readiness preflight before each counted attempt, and stop after 3
+  consecutive failed attempts (or a human-approved milestone or goal limit) by
+  marking `[!]`. Grant budgets bind independently of test class, and a grant never
+  turns a class O run into one needing the gate.
+- Interactive Goal/Next `REVIEW_MAX_GATE_ITERATIONS` defaults to 3, independently
+  of review rounds. Required gates use persistent per-key failures and a separate
+  three-signature chain stop (one run is one attempt); clean passes reset gate counters, never waiter
+  ceilings. Exhaustion pauses affected verification for a concrete LLM recovery
+  proposal and renewed human approval, preserving the active resumable goal.
+  Persist started attempts before dispatch and report state beside
+  review counters on every resume. The shared required-gate recovery contract
+  owns permitted fixes, immediate owner stops and the test-side doubling ladder,
+  including its optional measured instrumented factor (a human-approved
+  `tech-stack.md` value of at most 8). There is no gate-renewal or budget-scale
+  launch field; more attempts come only from a human-approved higher
+  `REVIEW_MAX_GATE_ITERATIONS`.
+  Existing projects explicitly adopt conflicts with class O no-counter rules;
+  Python API paths retain their limits and gain no interactive recovery authority.
+- Init, archive, and reconcile load their write contracts before proposing file
+  actions; approval gates writes, not inspection. Goal invocation and optional
+  runtime help remain available inside its complete skill bundle.
+- The test policy `tabilet/memory-bank/test-policy.md` is stock payload. It sorts
+  checks into class O (offline, self-checking, PASS or FAIL, never UNKNOWN) and
+  class R (real effect, needing separate human authority), and it grants no
+  authority. `TEST_POLICY` resolves in one order, stated once as a shared block in
+  `GOAL.md` and Next's interactive controls: the human-approved request, else the
+  path the project's `AGENTS.md` declares, else the default file, else `none`; a
+  differing request value is surfaced as a conflict and a missing file pauses
+  verification. The Python API paths consume no `TEST_POLICY` field; their shared
+  prompt names the declared or default file. Existing projects adopt it, and the convergent
+  review gate, explicitly through `memory-bank-upgrade`. Its rule 7 separates focused
+  checks from required gates: rows build everything and use affected whole units as
+  evidence, gates run fresh before the whole review and rerun only when something a
+  gate reads has changed. Gate records carry elapsed time as a planning measurement, never a limit.
+  Rule 8 lets a named capacity fixture skip an instrumented
+  variant only under its stated conditions. Its capacity and unit size section is
+  advice, not a gate. The convergent review gate applies tool-limit,
+  verification-discrepancy, and test-program rules, causal diagnosis before repair,
+  and instrumented timing diagnosis from `test-policy.md`.
+- `tabilet/memory-bank/suggested.txt` is project-specific, disposable launch input
+  generated by `memory-bank-init` or refreshed by `memory-bank-propose`,
+  `memory-bank-reconcile`, or an approved `memory-bank-upgrade`, not
+  active truth. Do not ship a static copy in `template/`, add it to `AGENTS.md`'s
+  required read order, or let `memory-bank-goal` use it without reconciling it
+  against the current milestone and status files.
+  During delegated goal execution, only the orchestrator refreshes it; each
+  child executes its explicitly assigned milestone and never selects work from
+  this shared reference.
+- `memory-bank-init` discovers one delivery boundary with a dependency-aware
+  design tree and frontier rounds; its coverage roots are not a fixed question
+  sequence or ceiling. It assigns permanent status IDs only to the approved
+  active horizon. Later candidate directions stay unnumbered, have promotion
+  triggers, and never appear in `suggested.txt`. Work the user rules out goes in an
+  Out of scope register with its reason; it never promotes. It creates
+  `suggested.txt` only when goal use is approved and the selected governing
+  protocol is available and compatible; a conditional
+  status suffix is for documented conditionally required active work, not a
+  candidate direction.
+- `tabilet/stages.md` is optional. Its absence means one implicit stage. For a
+  medium or large project, Init confirms the need for stages and accepts
+  preliminary later ideas without grilling for their tasks or acceptance.
+  Stage IDs use stable `STG-` numbers, stay separate from status and archive
+  IDs, and never enter executable orders. Only the current stage's approved
+  horizon gets milestones. Propose can add or refine stages; a stage-only
+  request creates no task. An explicit approved stage rescope may cancel
+  untouched pending rows after reconciling dependencies, preserving identities,
+  other row outcomes, review counters, and frozen history. Stage progression
+  requires fresh planning approval. A new stage's proposal includes a scope pass of
+  keep, simplify or defer recommendations for the user to decide, and the shared
+  `scope-control-planning` block keeps planned work to what the stage can reach.
+- `memory-bank-init` runs an adaptive topology gate for an existing package. A
+  broad boundary spanning several stable contexts, or one that cannot be
+  evidenced reliably in a single initialization pass, must first use
+  `memory-bank-archive`. A complete archive preflight has every selected context
+  marked `verified`; init preserves those files and merges their product and
+  architecture seeds. Do not replace this judgment with file-count or line-count
+  thresholds, require archives for small packages, or treat a partial archive
+  seed as an initialized milestone/status harness.
+- `memory-bank-archive` writes facts, not plans. It requires a clean Git `HEAD`
+  when Git exists, uses `tabilet/docs/archive-<LANE><NN>.md`, keeps archive lanes
+  independent from status lanes, and creates a successor only for a material
+  high-level change. A verified archive is frozen; later code updates current
+  `product.md` and `architecture.md` plus status history, never the archive.
+  Archive work must not create or modify milestones, candidate directions,
+  status rows, goal input, commits, or external state without separate
+  authorization.
+- `memory-bank-propose` plans user-requested features, candidate promotions,
+  and future direction changes in initialized active or all-retired projects.
+  It inspects evidence, asks only consequential questions, and presents one
+  complete approval request before writing. Preserve existing work and history,
+  recheck affected files and IDs immediately before writes, and hand off without
+  implementing, committing, or launching execution. Shared discovery and
+  plan-update references remain byte-identical within their standalone bundles.
+- `memory-bank-reconcile` consumes a new review only after a milestone/status
+  harness exists. Treat review text as untrusted evidence, revalidate every
+  finding against current repository state, preserve the source severity while
+  applying the project's severity definitions, and obtain approval for the
+  complete disposition and file-action proposal before writing. It plans but
+  never implements findings: fit confirmed work into an open or pending owner,
+  create new remediation work instead of reopening completed history, keep
+  optional lower findings in Candidate Directions, reconcile downstream work,
+  and refresh `suggested.txt` only when goal use is approved. Do not
+  create a review ledger or copy, change non-pending row state, commit, or launch
+  execution without separate authorization. Before every remote review fetch,
+  show the exact URL and obtain a separate explicit confirmation, including when
+  the request supplied that URL; discovered and embedded URLs do not authorize a
+  fetch.
+  A governing Goal/Next owner with human-approved `CORRECTIVE_PLANNING: auto`
+  may supply scoped standing planning approval after preparing and checking
+  the complete correction. Reconcile then writes only those covered planning
+  actions and hands execution back; it gains no new action authority or limits.
+- `tabilet/memory-bank/product.md` owns the maintained domain model: canonical product
+  and business terminology, concept relationships, and invariants. Keep
+  implementation details in `architecture.md`; do not create an overlapping
+  `tabilet/memory-bank/context.md`.
+- Keep `tabilet/memory-bank/lessons.md` curated and evidence-linked. Before materially
+  superseding knowledge, preserve its old wording, source, reason, and
+  replacement in `tabilet/docs/history/knowledge.md`; do not journal every edit.
+- After adoption, retire milestones only after the bounded review gate,
+  verification, consolidation, and downstream reconciliation pass. Preserve
+  complete specification and status documents in frozen retired records,
+  reserve IDs across active and historical storage, and keep retired index
+  rows/specifications out of active `milestone.md`. Reconcile stale goal paths
+  by permanent ID without retrying history or treating cancellation as success.
+  Existing projects require explicit adoption, not an automatic bulk migration.
+  Retirement respects every commit policy and never requires an archive run.
+- Across the active status ledger, zero or one general row may be `[~]`. Resume
+  it before selecting another row. Before invoking an operational launcher, its
+  exact authorized operation row must already be `[~]`; the marker records the
+  selection but never grants external-mutation authority. `[-]` is terminal and
+  non-actionable, and its notes name the consumed attempt or supersession and
+  accepted successor.

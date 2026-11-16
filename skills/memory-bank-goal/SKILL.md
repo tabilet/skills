@@ -33,6 +33,8 @@ resolution, preserving grants, denials, counters, attempts and limits.
 That protocol owns sequencing, verification, review, reconciliation, closure,
 and commit policy. This skill resolves the launch
 request; it does not define a second execution loop.
+Closure never appends progress paragraphs to `AGENTS.md`; the project's
+`milestone.md` retirement procedure says what changes there.
 When `tabilet/stages.md` exists, consult it before deriving an order from the
 active milestone index. Stage IDs never enter `STATUS_ORDER` or `STATUS_PRIORITY`, and provisional
 future stages do not add status files. Preserve the protocol's dependency gate.

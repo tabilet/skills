@@ -111,6 +111,19 @@ markers, and persisted review evidence remain unchanged, except an individually
 approved method-only rewrite of a pending row or pending specification under the
 test-policy adoption below. Allocate no status ID.
 
+Place each merged rule in its matching `AGENTS.md` section, never below
+accumulated history, and append no dated notes. Measure the target `AGENTS.md`.
+Some agent hosts load only the first 32 KiB of project instructions (Codex
+`project_doc_max_bytes`, default 32,768), and the template keeps the file under
+28 KiB. When it is larger, or holds dated acceptance, retirement, or release
+paragraphs, offer a one-time restructure as a separate, individually approvable
+item: keep its bootstrap sections, hard rules, and work cadence first; move
+superseded or dated text into `tabilet/docs/history/knowledge.md` under the
+knowledge-journal rules, preserving its old wording in fenced blocks with a link
+to the replacement; and keep every heading that maintained links target, or
+repair those links in the same proposal. Never restructure automatically, and
+never move text out of frozen records.
+
 Adapt optional runner, goal, and evolution instructions to the project's explicit
 exclusions. Do not import commands, reporting obligations, or implied requirements
 for unused systems. A descriptive or conditional mention alone is not a missing

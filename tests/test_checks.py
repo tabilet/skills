@@ -45,14 +45,40 @@ class CheckHelperTests(unittest.TestCase):
         self.assertTrue(repository_checks.pending_grant_phrase_problems("guide", phrase))
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)
-            for relative in ("AGENTS.md", "GOAL.md", "skills/memory-bank-goal/SKILL.md"):
+            for relative in ("AGENTS.md", "docs/MAINTAINING.md", "GOAL.md", "skills/memory-bank-goal/SKILL.md"):
                 path = fixture / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes((ROOT / relative).read_bytes())
-            (fixture / "docs").mkdir()
+            (fixture / "docs").mkdir(exist_ok=True)
             (fixture / "docs/guide.md").write_text(phrase)
             with mock.patch.object(repository_checks, "ROOT", fixture):
                 self.assertTrue(any("docs/guide.md" in p for p in repository_checks.goal_continuity_contract()))
+
+    def test_agents_size_contract_rejects_oversize_and_appended_closure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = pathlib.Path(tmp)
+            for relative in repository_checks.AGENTS_SIZE_CONTRACTS:
+                path = fixture / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((ROOT / relative).read_bytes())
+            with mock.patch.object(repository_checks, "ROOT", fixture):
+                self.assertEqual([], repository_checks.agents_size_contract())
+                for relative in ("AGENTS.md", "template/AGENTS.md"):
+                    path = fixture / relative
+                    original = path.read_bytes()
+                    with self.subTest(oversize=relative):
+                        path.write_bytes(original + b"x" * repository_checks.AGENTS_MAX_BYTES)
+                        self.assertTrue(any(relative in p and "exceeds" in p
+                                            for p in repository_checks.agents_size_contract()))
+                    path.write_bytes(original)
+                path = fixture / "template/tabilet/memory-bank/milestone.md"
+                original = path.read_text()
+                path.write_text(original.replace("`AGENTS.md` is not a progress log",
+                                                 "Append an accepted paragraph to `AGENTS.md`"))
+                self.assertTrue(any("not a progress log" in p
+                                    for p in repository_checks.agents_size_contract()))
+                path.write_text(original)
+                self.assertEqual([], repository_checks.agents_size_contract())
 
     def test_push_examples_require_explicit_policy_and_no_wildcards(self):
         grant = "AUTHORIZATION_GRANTS:\n  GLOBAL:\n    - [+] grant_id: push-one\n      action: git.push\n"
@@ -96,6 +122,8 @@ class CheckHelperTests(unittest.TestCase):
             shutil.copytree(ROOT / "template", fixture / "template")
             shutil.copytree(ROOT / "template", bundle / "assets/template")
             (fixture / "AGENTS.md").write_text((ROOT / "AGENTS.md").read_text())
+            (fixture / "docs").mkdir()
+            (fixture / "docs/MAINTAINING.md").write_text((ROOT / "docs/MAINTAINING.md").read_text())
             original = (ROOT / "skills/memory-bank-upgrade/SKILL.md").read_text()
             path = bundle / "SKILL.md"
             path.write_text(original)
@@ -119,6 +147,7 @@ class CheckHelperTests(unittest.TestCase):
     def test_corrective_and_email_contracts_reject_scope_and_approval_regressions(self) -> None:
         # Contract guards cannot prove runtime semantic scope or human approval.
         paths = set(repository_checks.CORRECTIVE_EMAIL_CONTRACTS) | {
+            "docs/MAINTAINING.md",
             "skills/memory-bank-next/scripts/email_notify.py",
             "skills/memory-bank-goal/scripts/email_notify.py",
             "skills/memory-bank-next/references/email-notifications.md",
@@ -261,7 +290,7 @@ class CheckHelperTests(unittest.TestCase):
         # These fixtures test documentation guards, not an authorization engine.
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)
-            for relative in repository_checks.AUTHORIZATION_DOC_CONTRACTS:
+            for relative in (*repository_checks.AUTHORIZATION_DOC_CONTRACTS, "docs/MAINTAINING.md"):
                 path = fixture / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes((ROOT / relative).read_bytes())
@@ -407,7 +436,7 @@ class CheckHelperTests(unittest.TestCase):
     def test_authoring_schema_copies_reject_drift(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)
-            for relative in repository_checks.AUTHORIZATION_DOC_CONTRACTS:
+            for relative in (*repository_checks.AUTHORIZATION_DOC_CONTRACTS, "docs/MAINTAINING.md"):
                 path = fixture / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes((ROOT / relative).read_bytes())
@@ -432,7 +461,7 @@ class CheckHelperTests(unittest.TestCase):
             "skills/memory-bank-goal/SKILL.md",
         ):
             with self.subTest(reference=relative):
-                text = (ROOT / relative).read_text()
+                text = repository_checks.contract_text(relative)
                 self.assertEqual(repository_checks.grant_launch_example_problems(text), [])
                 for replacement in ("", "AUTHORIZATION_GRANTS: none", "AUTHORIZATION_GRANTS: default"):
                     broken = text.replace("EXTERNAL_MUTATIONS: none\nAUTHORIZATION_GRANTS: {}",
@@ -444,7 +473,7 @@ class CheckHelperTests(unittest.TestCase):
         relative = "skills/memory-bank-upgrade/SKILL.md"
         with tempfile.TemporaryDirectory() as tmp:
             fixture = pathlib.Path(tmp)
-            for source in repository_checks.AUTHORIZATION_DOC_CONTRACTS:
+            for source in (*repository_checks.AUTHORIZATION_DOC_CONTRACTS, "docs/MAINTAINING.md"):
                 target = fixture / source
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((ROOT / source).read_bytes())
@@ -513,7 +542,7 @@ class CheckHelperTests(unittest.TestCase):
 
     def test_parallel_goal_contract_rejects_review_regressions(self) -> None:
         paths = (
-            "GOAL.md", "AGENTS.md", "template/AGENTS.md",
+            "GOAL.md", "AGENTS.md", "docs/MAINTAINING.md", "template/AGENTS.md",
             "skills/memory-bank-goal/SKILL.md",
             "skills/memory-bank-goal/references/subagents.md",
             "docs/subagents.md", "docs/zh/subagents.md",

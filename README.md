@@ -484,6 +484,13 @@ that will drift:
 On Windows, symlinks need Administrator or Developer Mode, so prefer the import
 form there.
 
+Some agents load only the start of a large `AGENTS.md`. Codex stops at
+`project_doc_max_bytes`, 32,768 bytes by default, and runs on without the rest.
+The template keeps the file under 28 KiB with its bootstrap sections and hard
+rules first, and milestone closure replaces text there rather than appending to
+it. `memory-bank-upgrade` offers an approved restructure for a file that has
+outgrown that.
+
 <a id="413-with-help-of-an-ai-agent"></a>
 #### 3.1.3 With Help Of An AI Agent
 

@@ -163,7 +163,9 @@ means no commits, and its milestone policy includes fixes in milestone closure.
 When the project has adopted retirement, follow that same milestone procedure:
 consolidate facts and lessons, preserve superseded knowledge, finish downstream
 reconciliation, and retain the full status and specification in history before
-removing their active entries. Preserve earlier rows and notes. Include
+removing their active entries. Never append progress to `AGENTS.md`; change
+it only when a command, boundary, or rule changes, replacing the affected text.
+Preserve earlier rows and notes. Include
 retirement in the final task or substantive closure commit. Do not batch-retire
 unrelated old milestones during this one-row run. Installing a newer skill alone
 does not authorize migrating an existing project's history.

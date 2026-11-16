@@ -81,7 +81,11 @@ have a promotion trigger.
 
 Keep `AGENTS.md` short: what to read and in what order, essential commands,
 boundaries, hard rules, and work cadence. Point at the memory bank rather than
-restating it.
+restating it. Keep it under 28 KiB with those sections first, because some agent
+hosts load only the first 32 KiB of project instructions (Codex
+`project_doc_max_bytes`, default 32,768). When merging into an existing
+`AGENTS.md`, place each rule in its matching section, never below accumulated
+history, and never append dated notes.
 
 When verified archives exist, keep their registry in `architecture.md` and add
 the archive lifecycle rule to `AGENTS.md`: archives are frozen evidence at their
