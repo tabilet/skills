@@ -368,7 +368,11 @@ spelling so an inbound link survives translation.
   `references/model-policy.md`; planning preserves explicit policy and adds it
   only when requested. The Python API paths do not consume model policy.
 - `GOAL.md` and the template milestone review use the same bounded review-fix
-  gate. Only P1 and higher block (an unmet or unproven acceptance line is P1).
+  gate. The template clarifies that the execution owner decides the disposition
+  in the finding's iteration and includes additional verification and re-review
+  in the cost of a fix. Carry that clarification into the next deliberate stock
+  protocol revision. The separate reason to fix a defect that later work builds
+  on still applies. Only P1 and higher block (an unmet or unproven acceptance line is P1).
   The initial deep-review pass is iteration 1 and covers the full milestone
   diff; later iterations review only the prior blocking findings, the change
   since the recorded reviewed state and its direct consumers, and each records
@@ -447,6 +451,11 @@ spelling so an inbound link survives translation.
   checks from required gates: rows build everything and use affected whole units as
   evidence, gates run fresh before the whole review and rerun only when something a
   gate reads has changed. Gate records carry elapsed time as a planning measurement, never a limit.
+  Class O dispatch uses the project's named test entry points directly. A
+  helper may copy the native invocation's reported status and elapsed time
+  after exit. Concurrent callers alone trigger no row race when concurrency
+  behavior and its consumer contracts are unchanged. Broader project triggers
+  still apply, and deferring a measured check requires an approved contract.
   Rule 8 lets a named capacity fixture skip an instrumented
   variant only under its stated conditions. Its capacity and unit size section is
   advice, not a gate. The convergent review gate applies tool-limit,

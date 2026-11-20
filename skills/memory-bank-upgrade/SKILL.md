@@ -250,6 +250,18 @@ project adopts them, its stricter text stays binding. The proposal:
   section, its specification line and the `Advisory records` paragraph only in a
   proposal that already has other changes, including first adoption, as their own
   decision. A project with nothing else to change stays a no-op.
+- The optional repeated-invariant trigger and early representative consumer
+  check do not count toward compatibility. Preserve the project's chosen
+  trigger and verification plan. Offer either practice when relevant in an
+  otherwise needed proposal, or when requested. For an approved trigger
+  extension, record `Repair reconsideration trigger: acceptance invariant`
+  under `Diagnosis before repair` in the project's `milestone.md`, or retain
+  its approved equivalent. For an approved early check, name the consumer in
+  the owning task's verification plan.
+- Compare the project's rules for direct class O dispatch and recording native
+  results, concurrent callers, measured-cost deferral and the verification and
+  re-review cost of a fix. Propose changes for missing behavior and recognize
+  equivalent local rules.
 - The `Example risk tiers (not in force)` section and rule 5's elapsed-time record,
   with the status preamble's matching text, never count toward compatibility
   either. Offer them only in a proposal that already has other changes, as their

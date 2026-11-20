@@ -37,8 +37,10 @@ test on loopback fixtures with a throwaway profile is class O.
    overrun. The runner's exit status is the result. The runner timeout is a
    tight backstop, about twice the expected runtime and within the hard limits
    in `tech-stack.md`; never raise it to hide a slow or hung test. Do not wrap
-   tests in external supervising controllers, receipt readers or proof chains;
-   the project's existing test entry points are the runners.
+   tests in external supervising controllers, receipt readers or proof chains.
+   The project's existing test entry points, named in `tech-stack.md` or under
+   `Project specifics`, are the runners. Invoke them directly on every
+   dispatch, including resumed runs and authorized retries.
 2. **PASS or FAIL, never UNKNOWN.** A timeout, signal, crash, leak, setup error
    or runner parse error is a FAIL. Cleanup deletes the run's own temp root and
    labelled resources; remove a leftover only when its label or temp root shows
@@ -95,9 +97,12 @@ test on loopback fixtures with a throwaway profile is class O.
    concurrency contract. This limits the row check, never a required gate; a
    consumer broken in some other way surfaces at the required gates.
    Concurrency triggers include threads, tasks, channels, locks, atomics, shared
-   mutable state and job/cancellation lifecycles. Explain a race-check exclusion
-   against the diff when concurrency-related changes or an applicable project
-   trigger make that scope decision relevant. Unrelated changes need no separate
+   mutable state and job/cancellation lifecycles. When a change alters none of
+   these and no concurrency contract its consumers rely on, a concurrent caller
+   alone does not trigger a row race. A broader project trigger still applies.
+   Explain a race-check exclusion against the diff when concurrency-related
+   changes or an applicable project trigger make that scope decision relevant.
+   Unrelated changes need no separate
    non-trigger note. This never excuses a required race check. Sanitizers and
    other instrumented variants follow their own defect classes and project
    triggers; concurrency is not their universal trigger. Preserve required
@@ -113,6 +118,7 @@ test on loopback fixtures with a throwaway profile is class O.
    check and notes the deferral, and the check runs once as a named required gate
    before the whole review. Until that gate passes the milestone claims no
    instrumented verification, and the deferral never excuses the required gate.
+   Measured cost alone cannot authorize deferral.
    Removing or replacing a required gate needs explicit human approval of that
    specific contract change and its replacement coverage, including any necessary
    policy or acceptance amendment. Classification alone never removes a required
@@ -286,6 +292,11 @@ or produces test evidence uses that same toolchain.
 - Uncommitted one-off helpers in any language may inspect results, such as
   counting log lines or hashing a file for a status record. They never decide
   PASS or FAIL, never wrap or supervise a run, and never stand in for a test.
+  After a class O command exits, a helper may copy the exit status and elapsed
+  time reported directly by the shell or execution host for that invocation
+  into the status record.
+  The native command's output and exit status remain the evidence. For class R,
+  record the outcome under the run's named authority and the class R rules below.
 - This is toolchain discipline, independent of class; it applies to O and R.
   Using the project's language does not make a supervising controller
   acceptable: the controller ban in class O rule 1 applies in every language.

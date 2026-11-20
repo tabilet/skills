@@ -222,6 +222,18 @@ or `Stage qualification` line is offered without changing the others, in
 guarantee levels and advisory records rule is a separate decision, offered only
 alongside other changes, and declining it changes nothing.
 
+A project can keep its current repair trigger and verification plan. Extending
+the trigger to a repeated violation of an acceptance invariant and exercising a
+representative consumer early are optional choices. Omitting either is compatible.
+If you choose the trigger, record `Repair reconsideration trigger: acceptance invariant`
+under `Diagnosis before repair` in the project's `milestone.md`. If you choose
+the early check, name the consumer in the owning task's verification plan.
+
+Upgrade compares direct class O dispatch and recording of native results,
+when concurrent callers trigger a row race, approval to defer a measured check,
+and the verification and re-review cost of fixing a finding. It proposes changes
+where behavior differs and recognizes equivalent local rules.
+
 Version 2.23.0 adds the five cross-milestone review lenses (durable-state legal exits, crash windows, earlier reader formats, failure isolation, and in-flight task protection), the tool-limit, verification-discrepancy, and test-program rules to the convergent review gate, diagnosis guidance before repair, and instrumented timing diagnosis to `test-policy.md`. It also clarifies concurrency triggers and introduces the risk-scaled verification contract. These additions are offered to existing projects in the same complete upgrade proposal, preserving project-specific rules, approved overrides, and frozen history.
 
 ## If DSH reports compatibility warnings

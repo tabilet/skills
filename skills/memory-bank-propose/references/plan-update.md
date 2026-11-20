@@ -275,6 +275,32 @@ trigger of the same class of consumer or reader gap found again in a later
 review round, unless the project explicitly overrides it; add no numeric size
 threshold.
 
+<!-- BEGIN SHARED optional-invariant-trigger -->
+When the project owner approves this option, record
+`Repair reconsideration trigger: acceptance invariant` on its own line under
+`Diagnosis before repair` in the project's `milestone.md`. If the line is
+absent, use the existing trigger, including any explicit project override.
+
+With this option, prepare a revised repair proposal when a later review round
+finds another violation of the same acceptance invariant. Compare the instance
+repair with a design that enforces the invariant by construction. Retain the
+original regression evidence and derive bounded cases from the invariant,
+including supported inputs that lack a precondition earlier cases assumed.
+Ask the next reviewer to look for remaining violations within the ordinary
+review scope.
+<!-- END SHARED optional-invariant-trigger -->
+
+<!-- BEGIN SHARED early-consumer-check -->
+When a planned change affects shared behavior that expensive downstream checks
+exercise, a late defect could invalidate their results. The plan may name a
+representative consumer to exercise early in the owning task's ordinary
+verification and review. Reuse existing coverage where possible. Use the
+consumer's normal supported configuration and approved fixtures, and record
+material differences. Keep the check within the owning task's authority,
+including any required real-effect approval. Required downstream gates keep
+their scope and timing.
+<!-- END SHARED early-consumer-check -->
+
 Record the integrated-review owner, contributor IDs and acceptance scope in the
 owner's specification. Plan baseline capture by the execution owner before the
 first contributing task, including uncommitted or unversioned starting state;

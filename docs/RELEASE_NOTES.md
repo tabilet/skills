@@ -1,3 +1,30 @@
+# memory-bank v2.23.10
+
+## Clarify verification cadence and repair planning
+
+Projects can opt into two planning practices. When a later review finds another
+violation of the same acceptance invariant, the project can require a revised
+repair proposal with cases derived from that invariant. When a shared change
+could invalidate expensive downstream checks, the plan can exercise a
+representative consumer early in the owning task. Upgrade preserves existing
+triggers and verification plans unless the owner selects a change.
+
+- **Verification cadence.** A concurrent caller alone does not trigger a row
+  race when the change leaves concurrency behavior and its consumer contracts
+  intact. Broader project triggers still apply. Deferring an instrumented
+  check requires an approved contract, its measured cost and a named gate.
+- **Offline test results.** Run the project's named test entry point directly,
+  including on resume and authorized retries. After exit, a helper may copy
+  the native invocation's reported status and elapsed time into the record.
+- **Review and recovery.** The execution owner includes additional verification
+  and re-review when deciding whether a fix is cheap. The Goal guide explains
+  how to reuse evidence for a matching failure while retaining its failed
+  result, recovery limits and owner stops.
+
+The stock `GOAL.md` fingerprint is identical to v2.23.9. The five bundled
+registries record the new package version. Existing projects can review the
+changes through `memory-bank-upgrade`.
+
 # memory-bank v2.23.9
 
 Patch release. It keeps `AGENTS.md` inside the instruction budget some agent

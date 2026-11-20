@@ -1209,6 +1209,16 @@ def continuous_launch_contract():
     return problems
 
 
+SCOPE_PLANNING_REFERENCES = (
+    "skills/memory-bank-init/references/write-contract.md",
+    "skills/memory-bank-propose/references/plan-update.md",
+    "skills/memory-bank-reconcile/references/plan-update.md",
+)
+MILESTONE_PLANNING_FILES = (
+    "template/tabilet/memory-bank/milestone.md",
+    *SCOPE_PLANNING_REFERENCES,
+)
+
 SHARED_PLANNING_BLOCKS = {
     "required-gate-recovery": (
         "GOAL.md",
@@ -1227,11 +1237,9 @@ SHARED_PLANNING_BLOCKS = {
         "skills/memory-bank-propose/references/plan-update.md",
         "skills/memory-bank-reconcile/references/plan-update.md",
     ),
-    "scope-control-planning": (
-        "skills/memory-bank-init/references/write-contract.md",
-        "skills/memory-bank-propose/references/plan-update.md",
-        "skills/memory-bank-reconcile/references/plan-update.md",
-    ),
+    "scope-control-planning": SCOPE_PLANNING_REFERENCES,
+    "optional-invariant-trigger": MILESTONE_PLANNING_FILES,
+    "early-consumer-check": MILESTONE_PLANNING_FILES,
     "test-policy-resolution": (
         "GOAL.md",
         "skills/memory-bank-next/references/interactive-controls.md",
@@ -1364,6 +1372,7 @@ GATE_RECOVERY_CONTRACT = (
     "allow at most two per finding between charged gate attempts",
     "A row's own tests may be updated at row time for behavior that row changes",
     "a same-scope fix of a defect established in the milestone's own changed code",
+    "Never repeat an unchanged failed attempt hoping for a pass",
     "stop for the owner at the first occurrence",
     "a waiver or non-blocking P2 classification",
     "an edit outside the milestone's declared write set",
@@ -3902,6 +3911,9 @@ def test_policy_and_convergent_review_gate():
         return " ".join(contract_text(relative).split())
 
     milestone = "template/tabilet/memory-bank/milestone.md"
+    trigger_selection = "Repair reconsideration trigger: acceptance invariant"
+    if trigger_selection in (line.strip() for line in contract_text(milestone).splitlines()):
+        problems.append(f"{milestone}: the template selects the optional trigger by default")
     gate_tokens = (
         "Iteration 2 and later", "Do not sweep the whole milestone again",
         "Record each iteration's reviewed state", "the full `HEAD` commit ID",
@@ -3915,6 +3927,7 @@ def test_policy_and_convergent_review_gate():
         "Any change made in response to a review, blocking or not",
         "Recording findings, dispositions, review counters, reviewed state, register rows and owner notes is not a review change",
         "A class O check never uses this gate", "reservations, budget and stop conditions bind",
+        "local, cheap and in scope, or when later work builds on the defect",
         "fix now", "carry", "decline", "test-policy compliance",
         "For a one-task milestone", "required gates have passed",
         "all independence, model and reviewed-state requirements are met",
@@ -4099,6 +4112,8 @@ def test_policy_and_convergent_review_gate():
             "(P1, P2, Lower)", "review changes remain unreviewed", "register updates"),
         "skills/memory-bank-upgrade/SKILL.md": (
             "Show changed gates, ownership, performance dispositions and protocol identity",
+            "optional repeated-invariant trigger and early representative consumer check do not count toward compatibility",
+            trigger_selection, "or retain its approved equivalent",
             "installation never activates adoption or resumes work",
             "overridable repeated reader/consumer-gap reconsideration trigger",
             "`Risk-scaled verification contract`", "`Milestone time estimates`", "`Gate maintenance threshold`",
@@ -4139,9 +4154,12 @@ def test_policy_and_convergent_review_gate():
         "skills/memory-bank-reconcile/references/plan-update.md": (
             "carries no controller, receipt or other-language method forward",),
         "docs/upgrade.md": ("prescribes a method the policy forbids", "In `milestone.md`, the closure step",
+                            trigger_selection, "where behavior differs and recognizes equivalent local rules",
                             "every stock rule it lacks or that", "status-file preamble gets the matching recording text",
                             "rules 7 and 8 are among them", "`Project specifics` and in `tech-stack.md`"),
         "docs/goal.md": ("{#test-policy-and-real-effect-checks}", "### Review convergence",
+                         "the failing key and signature match and there is no other failure signal",
+                         "Keep this attempt's FAIL", "A match grants no retry or waiver",
                          "Gate records include their elapsed time, a measurement for planning and never an acceptance limit",
                          "Narrowing an acceptance line that promises such a size",
                          "Required gates run fresh immediately before the whole review",
@@ -4154,6 +4172,7 @@ def test_policy_and_convergent_review_gate():
                             "将第三方代码排除在插桩之外", "`INSTRUMENTATION_SCOPE`", "包括尚未批准的草稿"),
         "docs/zh/propose.md": ("范围审视", "agent 绝不自行指定"),
         "docs/zh/upgrade.md": ("`test-policy.md` 中的第 7、8 条就在其中", "`Stage qualification`",
+                               trigger_selection, "等效的本地规则可以保留",
                                "只随其他改动一起提出", "`Project specifics` 或 `tech-stack.md` 缺少"),
         "README.md": ("(toolchain, row checks, required gates, stage qualification, class R checks",),
         "docs/tabilet-controller.md": (
@@ -4181,6 +4200,25 @@ def test_policy_and_convergent_review_gate():
     # in the document: baseline initialization and the ordinary closure path
     # must both reach integrated review, including on single-agent hosts.
     scoped = {
+        ("skills/memory-bank-init/references/write-contract.md",
+         "<!-- BEGIN SHARED scope-control-planning -->", "<!-- END SHARED scope-control-planning -->"): (
+            "<!-- BEGIN SHARED optional-invariant-trigger -->", "<!-- BEGIN SHARED early-consumer-check -->"),
+        (milestone, "## Requested changes after initialization", "## Open review findings"): (
+            "When a planned change affects shared behavior", "The plan may name a representative consumer",
+            "ordinary verification and review",
+            "Reuse existing coverage", "normal supported configuration and approved fixtures",
+            "record material differences", "within the owning task's authority, including any required real-effect approval",
+            "Required downstream gates keep their scope and timing"),
+        (milestone, "## Diagnosis before repair", "## New review intake"): (
+            "When the project owner approves this option",
+            f"`{trigger_selection}` on its own line under `Diagnosis before repair`",
+            "If the line is absent, use the existing trigger, including any explicit project override",
+            "when a later review round finds another violation of the same acceptance invariant",
+            "enforces the invariant by construction",
+            "derive bounded cases from the invariant", "lack a precondition earlier cases assumed",
+            "remaining violations within the ordinary review scope"),
+        (milestone, "## Open review findings", "## Candidate Directions"): (
+            "the first later active task that touches the code, or `unassigned`",),
         (milestone, "## Integrated closure review", "## Milestone review procedure"): (
             "Before the first contributing task", "full HEAD commit",
             "initial staged and unstaged diff and relevant untracked file contents, with hashes",
@@ -4194,6 +4232,9 @@ def test_policy_and_convergent_review_gate():
             "Use the owning milestone's existing severity rules, review counter and limit",
         ),
         (milestone, "## Milestone review procedure", "\n## "): (
+            "The execution owner chooses the disposition in the iteration that found it",
+            "count the additional verification and re-review", "or when later work builds on the defect",
+            "its fix owner's review, or a later iteration, examines it becomes blocking",
             "For the designated integrated-review owner, iteration 1 also performs",
             "[Integrated closure review](#integrated-closure-review)",
             "recorded contributing scope and starting/final states",
@@ -4215,6 +4256,11 @@ def test_policy_and_convergent_review_gate():
             "must explicitly identify replacement evidence and any approved gate or policy change",
             "retain the original FAIL", "Missing or unproven acceptance remains P1"),
         (TEST_POLICY_FILE, "7. **Focused checks and required gates.**", "8. **Match the fixture to the variant.**"): (
+            "no concurrency contract its consumers rely on", "a concurrent caller alone does not trigger a row race",
+            "A broader project trigger still applies",
+            "Measured cost alone cannot authorize deferral", "with its command and measured cost",
+            "as a named required gate before the whole review",
+            "If it is unclear what a gate reads, rerun it",
             "Unrelated changes need no separate non-trigger note",
             "This never excuses a required race check",
             "may tailor routine row checks only within the governing test policy and acceptance",
@@ -4223,6 +4269,19 @@ def test_policy_and_convergent_review_gate():
             "a Stack entry alone grants no exception",
             "may record an instrumented check, including the race check, as heavy",
             "the deferral never excuses the required gate"),
+        (TEST_POLICY_FILE, "## Class O rules", "3. **Run whole units.**"): (
+            "The runner's exit status is the result", "existing test entry points, named in `tech-stack.md`",
+            "are the runners. Invoke them directly on every dispatch", "resumed runs and authorized retries",
+            "Never rerun unchanged code hoping for a pass"),
+        (TEST_POLICY_FILE, "4. **Review code, not test runs.**", "5. **Light bookkeeping.**"): (
+            "No readiness review before a run", "no separate review of a runner or harness fix"),
+        (TEST_POLICY_FILE, "## Use the project's own toolchain", "## Class R runs"): (
+            "Another language in those roles needs explicit human approval",
+            "They never decide PASS or FAIL, never wrap or supervise a run",
+            "After a class O command exits, a helper may copy the exit status and elapsed time",
+            "reported directly by the shell or execution host for that invocation",
+            "native command's output and exit status remain the evidence",
+            "For class R, record the outcome under the run's named authority"),
     }
     for (relative, start, end), tokens in scoped.items():
         section = contract_text(relative).partition(start)[2].partition(end)[0]

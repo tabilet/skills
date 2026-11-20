@@ -298,6 +298,17 @@ only what the repository establishes as fact. Planning does not implement or
 accept the requested behavior. Use `memory-bank-propose` where installed, or
 follow this procedure directly with another agent.
 
+<!-- BEGIN SHARED early-consumer-check -->
+When a planned change affects shared behavior that expensive downstream checks
+exercise, a late defect could invalidate their results. The plan may name a
+representative consumer to exercise early in the owning task's ordinary
+verification and review. Reuse existing coverage where possible. Use the
+consumer's normal supported configuration and approved fixtures, and record
+material differences. Keep the check within the owning task's authority,
+including any required real-effect approval. Required downstream gates keep
+their scope and timing.
+<!-- END SHARED early-consumer-check -->
+
 **Real-effect checks.** Some acceptance depends on a class R check that has a
 real external effect or is protected; see the
 [test policy](test-policy.md) and the
@@ -529,6 +540,21 @@ class of consumer or reader gap found again in a later review round; projects
 may override that trigger explicitly. There is no stock numeric size threshold.
 Apply the revised proposal under the effective corrective-planning authority,
 preserving acceptance, history, review counters and limits.
+
+<!-- BEGIN SHARED optional-invariant-trigger -->
+When the project owner approves this option, record
+`Repair reconsideration trigger: acceptance invariant` on its own line under
+`Diagnosis before repair` in the project's `milestone.md`. If the line is
+absent, use the existing trigger, including any explicit project override.
+
+With this option, prepare a revised repair proposal when a later review round
+finds another violation of the same acceptance invariant. Compare the instance
+repair with a design that enforces the invariant by construction. Retain the
+original regression evidence and derive bounded cases from the invariant,
+including supported inputs that lack a precondition earlier cases assumed.
+Ask the next reviewer to look for remaining violations within the ordinary
+review scope.
+<!-- END SHARED optional-invariant-trigger -->
 
 ## New review intake
 
@@ -940,6 +966,9 @@ notes identify the consumed attempt or supersession and its accepted successor:
      a schema, ledger or wire format, a public API, or tests encoding the
      behavior); to carry it in [Open review findings](#open-review-findings); or,
      for Lower only, to decline with a one-line rationale.
+     The execution owner chooses the disposition in the iteration that found it.
+     When judging whether a fix is cheap, count the additional verification and
+     re-review it would require.
    - Any change made in response to a review, blocking or not, is verified and
      reviewed by a later iteration before closure. Recording findings,
      dispositions, review counters, reviewed state, register rows and owner

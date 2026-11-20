@@ -263,6 +263,12 @@ nothing, and ends with a proposal that still needs your decision. Counters and a
 live beside review counters in the status file, survive compaction/resume, and
 appear in every resume summary. A clean complete gate pass resets its counters.
 
+For example, if a parser assertion fails again, link the new evidence to its
+existing finding when the failing key and signature match and there is no
+other failure signal. Reuse the earlier diagnosis only as far as the new
+evidence supports it. Keep this attempt's FAIL and apply the usual charges
+and owner stops. A match grants no retry or waiver.
+
 Within budget, an established defect in the milestone's own changed code may be
 fixed and rerun. Up to two observation-only diagnostics per finding between
 charged attempts cost nothing and never reset a gate. Waivers/P2 dispositions
